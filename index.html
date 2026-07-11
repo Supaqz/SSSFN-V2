@@ -2118,15 +2118,29 @@ function switchScannerMode(mode) {
 }
 // 3. ฟังก์ชันประมวลผลการสแกน (หัวใจสำคัญ)
 function executeScanLogic(rawCode, title) {
+    // 1. แปลงรหัสบาร์โค้ดไทย
     const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
     let fixedCode = '';
     for(let c of rawCode) { fixedCode += mapTH[c] || c; }
     rawCode = fixedCode.trim();
 
-    let mode = document.querySelector('input[name="scan-mode-hw"]')?.checked ? 'in' : 'in'; // ปรับตามโหมดที่คุณต้องการ
-    let stu = students.find(s => s.id === formatIdSearch(rawCode) || s.id.replace(/-/g,'') === rawCode.replace(/-/g, '')); 
-    if(!stu) { Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawCode, showConfirmButton:false, timer:1500}); playBeep('error'); return; }
+    // 🌟 ดึงเลขเฉพาะตัวเลขออกมา (ลบขีดกลางออกให้หมดก่อนเช็ค)
+    let rawDigitsOnly = rawCode.replace(/\D/g, ''); 
 
+    // 🌟 ค้นหานักศึกษาแบบยืดหยุ่น:
+    // ไม่ว่าฐานข้อมูลจะมีขีดหรือไม่มีขีด มันจะเทียบจาก "ตัวเลข" อย่างเดียวครับ
+    let stu = students.find(s => {
+        let dbDigitsOnly = String(s.id).replace(/\D/g, '');
+        return dbDigitsOnly === rawDigitsOnly;
+    });
+
+    // เพิ่มตัวแจ้งเตือนถ้าสแกนติดแต่หาชื่อไม่เจอ (เอาไว้ Debug)
+    if(!stu) { 
+        console.log("Scanner Read:", rawCode);
+        console.log("Digits extracted:", rawDigitsOnly);
+        Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawCode, text: 'ลองเช็คฐานข้อมูลว่ารหัสตรงไหม', showConfirmButton:true}); 
+        playBeep('error'); return; 
+    }
     let act = appSettings.activities.find(a => a.title === title); 
     let logIndex = activityLogs.findIndex(l => l.studentId === stu.id && l.activityTitle === title);
     
