@@ -2128,19 +2128,21 @@ function executeScanLogic(rawCode, title) {
     let rawDigitsOnly = rawCode.replace(/\D/g, ''); 
 
     // 🌟 ค้นหานักศึกษาแบบยืดหยุ่น:
-    // ไม่ว่าฐานข้อมูลจะมีขีดหรือไม่มีขีด มันจะเทียบจาก "ตัวเลข" อย่างเดียวครับ
-    let stu = students.find(s => {
-        let dbDigitsOnly = String(s.id).replace(/\D/g, '');
-        return dbDigitsOnly === rawDigitsOnly;
-    });
+    // 🌟 โค้ดนี้ใช้เทียบแค่ "ตัวเลข" เท่านั้น ขีดกลางจะไม่มีผลอีกต่อไป
+let stu = students.find(s => {
+    // ลบตัวอักษรที่ไม่ใช่ตัวเลขออกให้หมดทั้งฝั่งสแกน (rawCode) และฝั่งฐานข้อมูล (s.id)
+    let scannedDigits = rawCode.replace(/\D/g, ''); 
+    let dbDigits = String(s.id).replace(/\D/g, '');
+    
+    return dbDigits === scannedDigits;
+});
 
-    // เพิ่มตัวแจ้งเตือนถ้าสแกนติดแต่หาชื่อไม่เจอ (เอาไว้ Debug)
-    if(!stu) { 
-        console.log("Scanner Read:", rawCode);
-        console.log("Digits extracted:", rawDigitsOnly);
-        Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawCode, text: 'ลองเช็คฐานข้อมูลว่ารหัสตรงไหม', showConfirmButton:true}); 
-        playBeep('error'); return; 
-    }
+// ตรวจสอบผลการหา
+if(!stu) { 
+    Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawCode, showConfirmButton:false, timer:1500}); 
+    playBeep('error'); 
+    return; 
+}
     let act = appSettings.activities.find(a => a.title === title); 
     let logIndex = activityLogs.findIndex(l => l.studentId === stu.id && l.activityTitle === title);
     
