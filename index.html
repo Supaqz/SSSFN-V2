@@ -2055,14 +2055,101 @@ window.addEditRoundRow = function() {
         function approveActivity(title) { Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { if (r.isConfirmed) { let act = appSettings.activities.find(a => a.title === title); if (act) { act.status = 'อนุมัติแล้ว'; act.isOpen = true; txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('อนุมัติสำเร็จ', '', 'success'); } } }); }
 
         function openHardwareScanner(title) {
-            let act = appSettings.activities.find(a => a.title === title);
-            if (!act || act.isOpen === false) return Swal.fire('ปิดรับแล้ว', 'กิจกรรมนี้ถูกปิดการลงทะเบียนแล้ว', 'warning');
-            let modalHtml = `<style>@keyframes popIn{0%{transform:scale(0.9);opacity:0;}100%{transform:scale(1);opacity:1;}} .animate-pop{animation: popIn 0.2s ease-out;}</style><div id="hw-scan-modal" class="fixed inset-0 bg-slate-900 z-[9999] flex flex-col animate-pop"><div class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-md"><div><h2 class="font-bold text-lg text-emerald-400"><i class="fas fa-barcode"></i> โหมดสแกนบาร์โค้ด</h2><p class="text-xs text-slate-300">กิจกรรม: ${title}</p></div><button onclick="closeHardwareScanner()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-lg font-bold shadow transition"><i class="fas fa-times mr-1"></i> ปิดหน้าต่าง</button></div><div class="flex-1 p-4 md:p-8 flex flex-col md:flex-row gap-6 overflow-hidden"><div class="flex-1 bg-white rounded-2xl p-6 shadow-xl flex flex-col justify-center items-center text-center border-4 border-dashed border-slate-200"><div class="flex justify-center gap-4 mb-6"><label class="cursor-pointer"><input type="radio" name="scan-mode-hw" value="in" class="peer hidden" checked onchange="document.getElementById('hw-input-focus').focus()"><div class="px-4 py-3 md:px-6 md:py-4 rounded-xl border-2 border-slate-200 text-slate-400 font-bold peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 transition shadow-sm"><i class="fas fa-sign-in-alt text-xl md:text-2xl block mb-1"></i> สแกนเข้างาน</div></label><label class="cursor-pointer"><input type="radio" name="scan-mode-hw" value="out" class="peer hidden" onchange="document.getElementById('hw-input-focus').focus()"><div class="px-4 py-3 md:px-6 md:py-4 rounded-xl border-2 border-slate-200 text-slate-400 font-bold peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-700 transition shadow-sm"><i class="fas fa-sign-out-alt text-xl md:text-2xl block mb-1"></i> สแกนกลับบ้าน</div></label></div><p class="text-sm text-slate-500 mb-4">คลิกเลือกโหมดที่ต้องการ แล้วยิงบาร์โค้ดลงในช่องด้านล่าง</p><input type="text" id="hw-input-focus" class="w-full max-w-md p-4 text-center text-3xl font-mono font-bold border-2 border-slate-300 rounded-xl shadow-inner focus:outline-none focus:ring-4 focus:ring-blue-100 bg-slate-50 text-slate-800" placeholder="คลิกที่นี่..." autocomplete="off" onkeypress="processHardwareScan(event, '${title}')"></div><div class="w-full md:w-96 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden border border-slate-200"><div class="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800"><i class="fas fa-history text-indigo-500"></i> สแกนล่าสุด</h3><span id="hw-scan-count" class="bg-slate-200 text-slate-600 text-[10px] px-2 py-1 rounded-full font-bold"></span></div><div class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-100" id="hw-recent-scans"></div></div></div></div>`;
-            let div = document.createElement('div'); div.id = 'hw-modal-container'; div.innerHTML = modalHtml; document.body.appendChild(div);
-            refreshRecentScans(title); setTimeout(() => { let inputEl = document.getElementById('hw-input-focus'); if(inputEl) inputEl.focus(); }, 300); document.addEventListener('click', keepInputFocused);
-        }
+    let act = appSettings.activities.find(a => a.title === title);
+    if (!act || act.isOpen === false) return Swal.fire('ปิดรับแล้ว', 'กิจกรรมนี้ถูกปิดการลงทะเบียนแล้ว', 'warning');
+    
+    let modalHtml = `
+    <div id="hw-scan-modal" class="fixed inset-0 bg-slate-900 z-[9999] flex flex-col">
+        <div class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-md">
+            <h2 class="font-bold text-lg"><i class="fas fa-barcode"></i> สแกน: ${title}</h2>
+            <button onclick="closeHardwareScanner()" class="bg-rose-600 px-4 py-2 rounded-lg font-bold">ปิด</button>
+        </div>
+        
+        <div class="p-4 flex gap-4 justify-center bg-white border-b">
+            <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 p-4 border-2 rounded-xl text-center transition bg-blue-50 border-blue-500">
+                <i class="fas fa-keyboard text-2xl text-blue-500 mb-2"></i><p class="font-bold text-sm">ทอค / สแกน</p>
+            </button>
+            <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 p-4 border-2 rounded-xl text-center hover:bg-slate-50 transition border-slate-200">
+                <i class="fas fa-camera text-2xl text-emerald-500 mb-2"></i><p class="font-bold text-sm">ใช้กล้อง</p>
+            </button>
+        </div>
 
-        function closeHardwareScanner() { document.removeEventListener('click', keepInputFocused); let container = document.getElementById('hw-modal-container'); if(container) container.remove(); if(currentDetailActivityTitle) openActivityDashboard(currentDetailActivityTitle); else renderActivities(); }
+        <div class="flex-1 p-4 overflow-hidden relative">
+            <div id="manual-section" class="h-full flex flex-col items-center justify-center">
+                <input type="text" id="hw-input-focus" class="w-full max-w-md p-6 text-center text-2xl font-bold border-4 rounded-xl" placeholder="คลิกที่นี่แล้วสแกน..." onkeypress="if(event.key==='Enter') processHardwareScan(event, '${title}')">
+            </div>
+            <div id="camera-section" class="hidden h-full">
+                <div id="hw-reader" class="w-full h-full rounded-2xl overflow-hidden bg-black"></div>
+            </div>
+        </div>
+    </div>`;
+    
+    let div = document.createElement('div'); div.id = 'hw-modal-container'; div.innerHTML = modalHtml; document.body.appendChild(div);
+    document.getElementById('hw-input-focus').focus();
+}
+
+function switchScannerMode(mode) {
+    // 1. จัดการ UI ปุ่ม
+    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('bg-blue-50', 'border-blue-500'));
+    document.getElementById('btn-' + mode).classList.add('bg-blue-50', 'border-blue-500');
+
+    // 2. จัดการหน้าจอ
+    document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
+    document.getElementById('camera-section').classList.toggle('hidden', mode !== 'camera');
+    
+    // 3. จัดการกล้อง
+    if (mode === 'manual') {
+        if(window.hwScanner) window.hwScanner.stop().catch(e => console.log(e));
+        document.getElementById('hw-input-focus').focus();
+    } else {
+        if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
+        window.hwScanner.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: {width: 250, height: 250} },
+            (decodedText) => {
+                window.hwScanner.pause();
+                // ส่งค่าที่สแกนได้ไปฟังก์ชันเดิม
+                processHardwareScan({ key: 'Enter', target: { value: decodedText } }, currentDetailActivityTitle);
+                // รอ 2 วินาทีแล้วเปิดสแกนต่อ
+                setTimeout(() => { if(window.hwScanner) window.hwScanner.resume(); }, 2000);
+            }
+        ).catch(err => Swal.fire('Error', 'เปิดกล้องไม่ได้: ' + err, 'error'));
+    }
+}
+// 3. ฟังก์ชันประมวลผลการสแกน (หัวใจสำคัญ)
+function executeScanLogic(rawCode, title) {
+    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
+    let fixedCode = '';
+    for(let c of rawCode) { fixedCode += mapTH[c] || c; }
+    rawCode = fixedCode.trim();
+
+    let mode = document.querySelector('input[name="scan-mode-hw"]')?.checked ? 'in' : 'in'; // ปรับตามโหมดที่คุณต้องการ
+    let stu = students.find(s => s.id === formatIdSearch(rawCode) || s.id.replace(/-/g,'') === rawCode.replace(/-/g, '')); 
+    if(!stu) { Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawCode, showConfirmButton:false, timer:1500}); playBeep('error'); return; }
+
+    let act = appSettings.activities.find(a => a.title === title); 
+    let logIndex = activityLogs.findIndex(l => l.studentId === stu.id && l.activityTitle === title);
+    
+    if (logIndex !== -1) {
+        let pLog = activityLogs[logIndex];
+        if (pLog.timeIn !== 'จองสิทธิ์ล่วงหน้า' && pLog.timeIn !== null) {
+            Swal.fire({toast:true, position:'top', icon:'warning', title:'สแกนซ้ำ! ' + stu.name, showConfirmButton:false, timer:2000}); playBeep('error'); return;
+        }
+        pLog.timeIn = getNow();
+        txHistory.unshift({ date: getNow(), name: 'ยืนยันเข้างาน (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
+    } else {
+        activityLogs.unshift({ studentId: stu.id, activityTitle: title, timeIn: getNow(), timeOut: null }); 
+        txHistory.unshift({ date: getNow(), name: 'สแกนเข้า (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
+    }
+    finishScanProcess(stu.name, title);
+}
+function closeHardwareScanner() { 
+    if (window.hwScanner) window.hwScanner.stop().catch(e => console.log(e));
+    window.hwScanner = null;
+    let container = document.getElementById('hw-modal-container'); 
+    if(container) container.remove(); 
+    if(currentDetailActivityTitle) openActivityDashboard(currentDetailActivityTitle); else renderActivities(); 
+}
         function keepInputFocused(e) { let inputEl = document.getElementById('hw-input-focus'); if(inputEl && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) inputEl.focus(); }
 
         function processHardwareScan(e, title) {
