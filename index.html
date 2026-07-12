@@ -2054,14 +2054,13 @@ window.addEditRoundRow = function() {
         function deleteActivity(title) { Swal.fire({ title: 'ลบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then((r) => { if (r.isConfirmed) { appSettings.activities = appSettings.activities.filter(a => a.title !== title); txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบกิจกรรมออกจากระบบแล้ว', 'success'); } }); }
         function approveActivity(title) { Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { if (r.isConfirmed) { let act = appSettings.activities.find(a => a.title === title); if (act) { act.status = 'อนุมัติแล้ว'; act.isOpen = true; txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('อนุมัติสำเร็จ', '', 'success'); } } }); }
 // =========================================================================
-// 🌟 โหมดสแกนแบบ Responsive ยืดหยุ่นตามอุปกรณ์ + ฟังก์ชันครบถ้วนตามรูปต้นฉบับ
+// 🌟 โหมดสแกนอัจฉริยะ (การ์ด Popup + Auto Confirm + ขยายจอกล้อง)
 // =========================================================================
 
 function openHardwareScanner(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act || act.isOpen === false) return Swal.fire('ปิดรับแล้ว', 'กิจกรรมนี้ถูกปิดการลงทะเบียนแล้ว', 'warning');
 
-    // โหลดตัวเลือก "รอบลงทะเบียน" ของกิจกรรม
     let roundsHtml = '';
     if(act.rounds && act.rounds.length > 0) {
         act.rounds.forEach(r => { roundsHtml += `<option value="${r.name}">${r.name}</option>`; });
@@ -2076,7 +2075,7 @@ function openHardwareScanner(title) {
                 <h2 class="font-bold text-lg md:text-xl text-emerald-400 flex items-center gap-2 truncate"><i class="fas fa-barcode"></i> บันทึกการเข้าร่วมกิจกรรม</h2>
                 <p class="text-slate-400 text-xs md:text-sm truncate mt-0.5">กิจกรรม: ${title}</p>
             </div>
-            <button onclick="closeHardwareScanner()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 text-sm shadow-md shrink-0"><i class="fas fa-times"></i> ปิดหน้าต่าง</button>
+            <button onclick="closeHardwareScanner()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 text-sm shadow-md shrink-0"><i class="fas fa-times"></i> ปิด</button>
         </div>
 
         <div class="flex-1 p-3 md:p-6 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 md:gap-6 max-w-[1600px] w-full mx-auto">
@@ -2119,10 +2118,10 @@ function openHardwareScanner(title) {
                     <h4 class="text-sm font-bold text-slate-900 mb-2">นำเข้าข้อมูลนักศึกษา</h4>
                     <div class="flex gap-2 p-1.5 bg-slate-100 rounded-xl max-w-md">
                         <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-keyboard text-blue-500"></i> กรอก / สแกน <span class="text-[10px] text-slate-400 font-normal hidden sm:inline">Barcode reader</span>
+                            <i class="fas fa-keyboard text-blue-500"></i> กรอก / สแกน
                         </button>
                         <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-camera text-emerald-500"></i> กล้อง <span class="text-[10px] text-slate-400 font-normal hidden sm:inline">QR / Barcode</span>
+                            <i class="fas fa-camera text-emerald-500"></i> กล้อง
                         </button>
                     </div>
                 </div>
@@ -2142,13 +2141,13 @@ function openHardwareScanner(title) {
                     </label>
                 </div>
 
-                <div class="flex-1 flex flex-col items-center justify-center min-h-[220px] relative bg-slate-50 rounded-2xl p-4 border-2 border-dashed border-slate-200">
+                <div class="flex-1 flex flex-col items-center justify-center min-h-[300px] md:min-h-[400px] relative bg-slate-50 rounded-2xl p-4 border-2 border-dashed border-slate-200">
                     <div id="manual-section" class="w-full text-center space-y-3">
-                        <input type="text" id="hw-input-focus" class="w-full max-w-md mx-auto p-4 text-center text-xl md:text-2xl font-bold border-2 border-slate-300 bg-white rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all placeholder:text-slate-300 shadow-sm tracking-widest" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่">
+                        <input type="text" id="hw-input-focus" class="w-full max-w-md mx-auto p-4 text-center text-xl md:text-2xl font-bold border-2 border-slate-300 bg-white rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all placeholder:text-slate-300 shadow-sm tracking-widest" placeholder="กรอกรหัส หรือ สแกนที่นี่" onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${title}'); this.value=''; }">
                         <p class="text-[11px] text-slate-400 font-medium">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
                     </div>
-                    <div id="camera-section" class="hidden absolute inset-0 w-full h-full bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-300">
-                        <div id="hw-reader" class="w-full h-full"></div>
+                    <div id="camera-section" class="hidden absolute inset-0 w-full h-full bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-300 flex items-center justify-center">
+                        <div id="hw-reader" class="w-full h-full object-cover"></div>
                     </div>
                 </div>
             </div>
@@ -2158,42 +2157,30 @@ function openHardwareScanner(title) {
                     <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2"><i class="fas fa-history text-indigo-400"></i> สแกนล่าสุด</h3>
                     <span id="hw-scan-count" class="bg-slate-800 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-mono border border-slate-700">0 คน</span>
                 </div>
-                <div id="hw-recent-scans" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar bg-[#111622] relative">
-                    </div>
+                <div id="hw-recent-scans" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar bg-[#111622] relative"></div>
             </div>
-
         </div>
     </div>`;
 
     let div = document.createElement('div'); div.id = 'hw-modal-container'; div.innerHTML = modalHtml; document.body.appendChild(div);
     
-    // ตั้งระบบโฟกัสและดักจำลองคีย์บอร์ด
     let inputFocus = document.getElementById('hw-input-focus');
-    if(inputFocus) {
-        inputFocus.focus();
-        inputFocus.addEventListener('keypress', function(e) {
-            if(e.key === 'Enter') {
-                executeScanLogic(this.value, title);
-                this.value = '';
-            }
-        });
-    }
+    if(inputFocus) inputFocus.focus();
     
     document.addEventListener('click', keepInputFocused);
     refreshRecentScans(title);
 }
 
-// 2. ฟังก์ชันควบคุมโมดูลกล้องและการสลับแถบ UI
 function switchScannerMode(mode) {
     let btnManual = document.getElementById('btn-manual');
     let btnCamera = document.getElementById('btn-camera');
 
     if (mode === 'manual') {
-        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition";
-        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition";
+        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
+        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
     } else {
-        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition";
-        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition";
+        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
+        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
     }
 
     document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
@@ -2207,104 +2194,161 @@ function switchScannerMode(mode) {
         document.removeEventListener('click', keepInputFocused);
         if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
         
+        // 🌟 แก้ไข: เพิ่ม aspectRatio: 1.333 เพื่อบังคับให้กล้องมือถือ/ไอแพดกางออกเต็มจอ ไม่แบน
         window.hwScanner.start(
             { facingMode: "environment" }, 
-            { fps: 15, qrbox: function(width, height) { let size = Math.min(width, height) * 0.65; return {width: size, height: size}; } },
+            { fps: 15, qrbox: {width: 250, height: 250}, aspectRatio: 1.333334 },
             (decodedText) => {
                 window.hwScanner.pause();
                 executeScanLogic(decodedText, currentDetailActivityTitle);
-                
-                // อ่านค่าวินาทีจังหวะ Auto-Confirm จากสวิตช์ฟรอนต์เอนด์
-                let secInput = document.getElementById('hw-confirm-seconds');
-                let isAuto = document.getElementById('hw-auto-confirm')?.checked;
-                let delayTime = (isAuto && secInput) ? (parseInt(secInput.value) * 1000) : 2000;
-                
-                setTimeout(() => { if(window.hwScanner) window.hwScanner.resume(); }, delayTime);
+                // ระบบเปิดกล้องใหม่จะถูกจัดการในหน้าต่าง Popup Confirm แล้ว (ไม่ต้องใส่ setTimeout ตรงนี้)
             }
         ).catch(err => Swal.fire('ไม่สามารถเปิดกล้องได้', 'โปรดตรวจสอบการอนุญาตสิทธิ์กล้องบนเบราว์เซอร์ของคุณ', 'error'));
     }
 }
 
+// 🌟 ระบบประมวลผลอัจฉริยะ (เช็ค Setting และสร้าง Popup Card)
 function executeScanLogic(rawCode, title) {
     try {
         if(!rawCode || !rawCode.trim()) return;
         
-        // 1. แปลงรหัสบาร์โค้ดไทย
         const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
         let fixedCode = '';
         for(let c of rawCode) { fixedCode += mapTH[c] || c; }
         rawCode = fixedCode.trim();
 
-        // 2. ดึงค่าโหมด (เข้า/ออก) อย่างปลอดภัย
-        let modeEl = document.querySelector('input[name="scan-mode-hw"]:checked');
-        let mode = modeEl ? modeEl.value : 'in';
-        let activeRound = document.getElementById('hw-active-round') ? document.getElementById('hw-active-round').value : '';
-
-        // 3. ถอดขีดคั่นออกทั้งหมด คัดเอาเฉพาะตัวเลขล้วนเพื่อความแม่นยำ
         let scannedDigits = rawCode.replace(/\D/g, ''); 
         let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits);
 
         if(!stu) {
-            Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัสประจำตัว: ' + rawCode, showConfirmButton:false, timer:2000}); 
+            Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawCode, showConfirmButton:false, timer:2000}); 
             playBeep('error'); 
+            if(window.hwScanner) setTimeout(() => { window.hwScanner.resume(); }, 2000);
             return; 
         }
 
-        let act = appSettings.activities.find(a => a.title === title); 
-        let logIndex = activityLogs.findIndex(l => l.studentId === stu.id && l.activityTitle === title);
+        // ดึงการตั้งค่าจากหน้าจอ
+        let modeEl = document.querySelector('input[name="scan-mode-hw"]:checked');
+        let mode = modeEl ? modeEl.value : 'in';
+        let activeRound = document.getElementById('hw-active-round') ? document.getElementById('hw-active-round').value : '';
         
-        // 4. เริ่มบันทึกข้อมูลและตรวจสอบเงื่อนไข
-        if (mode === 'in') {
-            if (logIndex !== -1) {
-                let pLog = activityLogs[logIndex];
-                
-                // เคยสแกนเข้างานไปแล้ว
-                if (pLog.timeIn !== 'จองสิทธิ์ล่วงหน้า' && pLog.timeIn !== null) {
-                    Swal.fire({toast:true, position:'top', icon:'warning', title:'สแกนเข้า ซ้ำ! ' + stu.name, showConfirmButton:false, timer:2000}); playBeep('error'); 
-                    return;
-                }
-                // เช็คว่ามาผิดรอบหรือไม่
-                if (activeRound && pLog.roundName !== activeRound) {
-                    Swal.fire({icon: 'error', title: 'ผิดรอบ!', text: `น้อง ${stu.name} จองรอบ "${pLog.roundName || 'ไม่ระบุ'}" ไว้ครับ`, showConfirmButton: false, timer: 3000}); 
-                    playBeep('error'); 
-                    return;
-                }
-                
-                pLog.timeIn = getNow();
-                txHistory.unshift({ date: getNow(), name: 'ยืนยันเข้างาน (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
-                finishScanProcess(stu.name, title, 'เข้า');
+        let showInfo = document.getElementById('hw-show-info')?.checked;
+        let showAvatar = document.getElementById('hw-show-avatar')?.checked;
+        let autoConfirm = document.getElementById('hw-auto-confirm')?.checked;
+        let confirmSecs = parseInt(document.getElementById('hw-confirm-seconds')?.value) || 5;
 
-            } else {
-                // แอบมาหน้างานโดยไม่จองคิว
-                if (act.rounds && act.rounds.length > 0) {
-                    Swal.fire({icon: 'error', title: 'ไม่ได้จองสิทธิ์!', text: `น้อง ${stu.name} ยังไม่ได้ลงทะเบียนล่วงหน้าครับ`, showConfirmButton: false, timer: 3000}); 
-                    playBeep('error');
-                    return;
-                } else {
-                    let currentCount = activityLogs.filter(l => l.activityTitle === title).length;
-                    if (act.maxParticipants > 0 && currentCount >= act.maxParticipants) { 
-                        Swal.fire({icon: 'error', title: 'คิวเต็มแล้ว!', text: `จำกัดที่ ${act.maxParticipants} คน`, showConfirmButton: false, timer: 2500}); playBeep('error'); return; 
+        // ฟังก์ชันยืนยันการบันทึกลงระบบ
+        const finalizeSave = () => {
+            let act = appSettings.activities.find(a => a.title === title); 
+            let logIndex = activityLogs.findIndex(l => l.studentId === stu.id && l.activityTitle === title);
+            
+            if (mode === 'in') {
+                if (logIndex !== -1) {
+                    let pLog = activityLogs[logIndex];
+                    if (pLog.timeIn !== 'จองสิทธิ์ล่วงหน้า' && pLog.timeIn !== null) {
+                        Swal.fire({toast:true, position:'top', icon:'warning', title:'สแกนเข้า ซ้ำ! ' + stu.name, showConfirmButton:false, timer:2000}); playBeep('error'); 
+                        if(window.hwScanner) window.hwScanner.resume(); return;
                     }
-                    activityLogs.unshift({ studentId: stu.id, activityTitle: title, timeIn: getNow(), timeOut: null }); 
-                    txHistory.unshift({ date: getNow(), name: 'สแกนเข้า (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
+                    if (activeRound && pLog.roundName !== activeRound) {
+                        Swal.fire({icon: 'error', title: 'ผิดรอบ!', text: `น้อง ${stu.name} จองรอบ "${pLog.roundName || 'ไม่ระบุ'}" ไว้ครับ`, showConfirmButton: false, timer: 3000}); playBeep('error'); 
+                        if(window.hwScanner) setTimeout(() => { window.hwScanner.resume(); }, 3000); return;
+                    }
+                    pLog.timeIn = getNow();
+                    txHistory.unshift({ date: getNow(), name: 'ยืนยันเข้างาน (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
                     finishScanProcess(stu.name, title, 'เข้า');
+                } else {
+                    if (act.rounds && act.rounds.length > 0) {
+                        Swal.fire({icon: 'error', title: 'ไม่ได้จองสิทธิ์!', text: `น้อง ${stu.name} ยังไม่ได้ลงทะเบียนล่วงหน้าครับ`, showConfirmButton: false, timer: 3000}); playBeep('error');
+                        if(window.hwScanner) setTimeout(() => { window.hwScanner.resume(); }, 3000); return;
+                    } else {
+                        let currentCount = activityLogs.filter(l => l.activityTitle === title).length;
+                        if (act.maxParticipants > 0 && currentCount >= act.maxParticipants) { 
+                            Swal.fire({icon: 'error', title: 'คิวเต็มแล้ว!', text: `จำกัดที่ ${act.maxParticipants} คน`, showConfirmButton: false, timer: 2500}); playBeep('error'); 
+                            if(window.hwScanner) setTimeout(() => { window.hwScanner.resume(); }, 2500); return; 
+                        }
+                        activityLogs.unshift({ studentId: stu.id, activityTitle: title, timeIn: getNow(), timeOut: null }); 
+                        txHistory.unshift({ date: getNow(), name: 'สแกนเข้า (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
+                        finishScanProcess(stu.name, title, 'เข้า');
+                    }
+                }
+            } else if (mode === 'out') {
+                if (logIndex === -1 || activityLogs[logIndex].timeIn === 'จองสิทธิ์ล่วงหน้า') { 
+                    Swal.fire({icon: 'error', title: 'ยังไม่ได้สแกนเข้า!', text: stu.name + ' ต้องสแกนเข้าก่อนครับ', showConfirmButton: false, timer: 2500}); playBeep('error'); 
+                    if(window.hwScanner) setTimeout(() => { window.hwScanner.resume(); }, 2500);
+                } else if (activityLogs[logIndex].timeOut) { 
+                    Swal.fire({toast:true, position:'top', icon:'warning', title:'สแกนออก ซ้ำ! ' + stu.name, showConfirmButton:false, timer:2000}); playBeep('error'); 
+                    if(window.hwScanner) window.hwScanner.resume();
+                } else { 
+                    activityLogs[logIndex].timeOut = getNow(); 
+                    txHistory.unshift({ date: getNow(), name: 'สแกนออก (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername }); 
+                    finishScanProcess(stu.name, title, 'ออก'); 
                 }
             }
-        } else if (mode === 'out') {
-            if (logIndex === -1 || activityLogs[logIndex].timeIn === 'จองสิทธิ์ล่วงหน้า') { 
-                Swal.fire({icon: 'error', title: 'ยังไม่ได้สแกนเข้า!', text: stu.name + ' ต้องสแกนเข้าก่อนครับ', showConfirmButton: false, timer: 2500}); playBeep('error'); 
-            } else if (activityLogs[logIndex].timeOut) { 
-                Swal.fire({toast:true, position:'top', icon:'warning', title:'สแกนออก ซ้ำ! ' + stu.name, showConfirmButton:false, timer:2000}); playBeep('error'); 
-            } else { 
-                activityLogs[logIndex].timeOut = getNow(); 
-                txHistory.unshift({ date: getNow(), name: 'สแกนออก (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername }); 
-                finishScanProcess(stu.name, title, 'ออก'); 
+            if(window.hwScanner) window.hwScanner.resume();
+        };
+
+        // 🌟 สร้าง Card ตามตัวเลือกการแสดงผล
+        if (showInfo || showAvatar) {
+            let avatarHtml = '';
+            if (showAvatar) {
+                // ดึง 2 ตัวอักษรแรกของชื่อมาสร้างเป็นรูปโปรไฟล์จำลอง (เนื่องจากระบบไม่มีระบบอัปโหลดรูปเด็กจริง)
+                let initial = stu.name.replace(/(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.)/g, '').trim().substring(0, 2).toUpperCase();
+                avatarHtml = `<div class="w-24 h-24 mx-auto bg-[#1e293b] text-white rounded-full flex items-center justify-center text-4xl font-bold mb-5 shadow-lg border-4 border-slate-100">${initial}</div>`;
             }
+
+            let infoHtml = '';
+            if (showInfo) {
+                infoHtml = `
+                    <h3 class="text-2xl font-bold text-slate-800 mb-1">${stu.name}</h3>
+                    <p class="text-slate-500 text-sm font-mono mb-4 tracking-wider">${stu.id}</p>
+                    <span class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-bold">ห้อง ${stu.room}</span>
+                `;
+            }
+
+            let modeText = mode === 'in' ? '<span class="text-emerald-500"><i class="fas fa-sign-in-alt"></i> ยืนยันการเข้างาน</span>' : '<span class="text-rose-500"><i class="fas fa-sign-out-alt"></i> ยืนยันสแกนกลับบ้าน</span>';
+
+            let swalConfig = {
+                html: `
+                    <div class="text-center p-2 font-sans mt-2">
+                        ${avatarHtml}
+                        ${infoHtml}
+                        <div class="mt-6 pt-5 border-t border-slate-100 font-bold text-lg">
+                            ${modeText}
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                cancelButtonText: 'ยกเลิก (ไม่บันทึก)',
+                confirmButtonColor: '#059669',
+                cancelButtonColor: '#94a3b8',
+                customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: 'rounded-xl px-6 py-3 font-bold' }
+            };
+
+            // 🌟 ตั้งค่า Auto-Confirm (นับเวลาถอยหลัง)
+            if (autoConfirm) {
+                swalConfig.timer = confirmSecs * 1000;
+                swalConfig.timerProgressBar = true;
+            }
+
+            Swal.fire(swalConfig).then((result) => {
+                // บันทึกถ้ายืนยันด้วยมือ หรือ หมดเวลา Auto-Confirm
+                if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+                    finalizeSave();
+                } else {
+                    Swal.fire({toast:true, position:'top', icon:'info', title:'ยกเลิกการสแกนแล้ว', showConfirmButton:false, timer:1500});
+                    if(window.hwScanner) window.hwScanner.resume();
+                }
+            });
+        } else {
+            // ถ้าติ๊ก "ปิด" การแสดงผลทั้ง 2 อัน (โหมดสแกนรัวๆ แบบเงียบๆ)
+            finalizeSave();
         }
 
     } catch (error) {
         console.error("Scan Logic Crash:", error);
         Swal.fire('ข้อผิดพลาดระบบ', 'ระบบประมวลผลติดขัด: ' + error.message, 'error');
+        if(window.hwScanner) window.hwScanner.resume();
     }
 }
 
