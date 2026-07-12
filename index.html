@@ -116,7 +116,6 @@
                     <button onclick="pushToGS()" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> <span class="hidden md:inline">บันทึกลง Sheet</span></button>
                 </div>
                 <button id="btn-login" onclick="promptLogin()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow transition"><i class="fas fa-user-shield"></i> </button>
-                <button id="btn-logout" onclick="handleUniversalLogout()" class="hidden bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm hover:bg-rose-100 transition"><i class="fas fa-sign-out-alt"></i> </button>
             </div>
         </header>
 
@@ -387,7 +386,6 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwPRQBSm7uKaB5L3qJpI3SUD6lihzkLs9lMjmNE-K9K33Xf21X9YparAZubuF6y_AAu/exec";
-        const PROMPTPAY_NUMBER = '0612132851'; // 👈 เบอร์พร้อมเพย์รับเงินของห้อง
         // 🌟 ฟังก์ชันตัวช่วยส่งข้อมูลไป Google Sheets (ย้ายมา GitHub ต้องใช้ตัวนี้)
 async function callBackend(payload) {
     try {
