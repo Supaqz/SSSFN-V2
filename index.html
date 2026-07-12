@@ -34,6 +34,9 @@
         table td, table th { word-break: break-word; white-space: normal; vertical-align: middle; }
         @keyframes slotSpin { 0% { transform: translateY(-20px); opacity: 0; } 50% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(20px); opacity: 0; } }
         .animate-slot { animation: slotSpin 0.15s infinite linear; }
+        @media (min-width: 768px) { 
+            .desktop-sidebar-closed { margin-left: -16rem !important; } 
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800">
@@ -46,7 +49,7 @@
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
     
   <!-- 🌟 แถบเมนูซ้ายมือ (Sidebar) ระบบ SSSFN -->
-    <aside id="sidebar" class="w-64 bg-[#fcfcfc] border-r border-slate-200 flex flex-col z-50 fixed md:static inset-y-0 left-0 sidebar-closed transition-transform duration-300 shadow-xl md:shadow-none">
+    <aside id="sidebar" class="w-64 shrink-0 bg-[#fcfcfc] border-r border-slate-200 flex flex-col z-50 fixed md:relative inset-y-0 left-0 sidebar-closed transition-all duration-300 shadow-xl md:shadow-none">
         <!-- โลโก้ด้านบน -->
         <div class="h-20 flex items-center px-6 border-b border-transparent mt-2">
             <div class="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center text-white mr-3 shadow-md shrink-0">
@@ -101,13 +104,19 @@
 
     <main class="flex-1 flex flex-col h-screen overflow-hidden pt-16 md:pt-0">
         <header class="bg-white border-b border-emerald-100 px-4 md:px-8 py-3 z-10 flex justify-between items-center shadow-sm">
-            <h2 id="header-title" class="text-xl font-bold text-emerald-900">หน้าหลัก</h2>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="hidden md:block text-slate-400 hover:text-emerald-600 text-xl transition" title="เปิด/ปิดเมนู"><i class="fas fa-bars"></i></button>
+                <h2 id="header-title" class="text-xl font-bold text-emerald-900">หน้าหลัก</h2>
+            </div>
+            
             <div class="flex items-center gap-2">
                 <button onclick="pullFromGS()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center gap-2"><i class="fas fa-sync-alt"></i> <span class="hidden md:inline">ดึงข้อมูล</span></button>
                 <div id="system-actions" class="hidden flex gap-2">
                     <button onclick="pushToGS()" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> <span class="hidden md:inline">บันทึกลง Sheet</span></button>
                 </div>
                 <button id="btn-login" onclick="promptLogin()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow transition"><i class="fas fa-user-shield"></i> </button>
+                <button id="btn-logout" onclick="handleUniversalLogout()" class="hidden bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm hover:bg-rose-100 transition"><i class="fas fa-sign-out-alt"></i> </button>
             </div>
         </header>
 
@@ -857,7 +866,20 @@ function copyToClipboard(text) {
     applyRoleUI(); 
     silentPullFromGS(); 
 });
-        function toggleSidebar() { let sidebar = document.getElementById('sidebar'); if(sidebar) sidebar.classList.toggle('sidebar-closed'); let overlay = document.getElementById('sidebar-overlay'); if(overlay) overlay.classList.toggle('hidden'); }
+        // 🌟 ฟังก์ชันเปิด-ปิดแถบเมนูด้านซ้าย (รองรับทั้งมือถือและคอมพิวเตอร์)
+window.toggleSidebar = function() { 
+    let sidebar = document.getElementById('sidebar'); 
+    let overlay = document.getElementById('sidebar-overlay'); 
+    
+    if (window.innerWidth < 768) {
+        // สำหรับมือถือ (แสดง Overlay แผ่นสีดำทับหน้าจอ)
+        if(sidebar) sidebar.classList.toggle('sidebar-closed'); 
+        if(overlay) overlay.classList.toggle('hidden');
+    } else {
+        // สำหรับคอมพิวเตอร์/ไอแพด (หดเมนูไปด้านซ้ายขยายพื้นที่จอหลัก)
+        if(sidebar) sidebar.classList.toggle('desktop-sidebar-closed');
+    }
+}
 function switchPage(pageId) {
     currentView = pageId;
     
@@ -2318,27 +2340,6 @@ function switchScannerMode(mode) {
     }
 }
 
-// 🌟 ระบบประมวลผลอัจฉริยะ (เช็ค Setting และสร้าง Popup Card)
-function executeScanLogic(rawCode, title) {
-    if(!rawCode || !rawCode.trim()) return;
-    
-    // แปลงรหัสและหาข้อมูลนักศึกษา
-    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
-    let fixedCode = '';
-    for(let c of rawCode) { fixedCode += mapTH[c] || c; }
-    rawCode = fixedCode.trim();
-    let scannedDigits = rawCode.replace(/\D/g, ''); 
-    let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits);
-
-    if(!stu) {
-        Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบข้อมูล: ' + rawCode, showConfirmButton:false, timer:1500});
-        playBeep('error');
-        return;
-    }
-
-    // 🌟 ส่วนใหม่: สร้างการ์ดแสดงผลในหน้าสแกน (ไม่ใช้ Swal Popup)
-    showStudentPreviewCard(stu, title);
-}
 // 🌟 4. ฟังก์ชันแสดงการ์ดนักศึกษาแบบ Popup (Swal) ล็อกหน้าจอ
 window.showStudentPreviewCard = function(stu, title) {
     let showInfo = document.getElementById('hw-show-info')?.checked;
@@ -2406,21 +2407,106 @@ window.showStudentPreviewCard = function(stu, title) {
         }
     });
 }
+// 🌟 1. ระบบประมวลผลอัจฉริยะ (แก้ไขให้บังคับต้องมีชื่อในระบบเท่านั้น)
+window.executeScanLogic = function(rawCode, title) {
+    if(!rawCode || !rawCode.trim()) return;
+    
+    // แปลงรหัสกรณีเผลอพิมพ์ภาษาไทย [cite: 559, 560]
+    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
+    let fixedCode = '';
+    for(let c of rawCode) { fixedCode += mapTH[c] || c; } // [cite: 560]
+    rawCode = fixedCode.trim();
+    let scannedDigits = rawCode.replace(/\D/g, ''); // [cite: 561]
 
-// 🌟 ฟังก์ชันบันทึกข้อมูล (เรียกใช้หลังจากกดยืนยัน)
-function confirmScan(stuId, title) {
-    let card = document.getElementById('student-preview-card');
-    if(card) card.remove();
-    
-    // โลจิกเดิมในการบันทึกเข้า Google Sheets (ดึงมาจาก logic เดิมของคุณ)
-    let stu = students.find(s => s.id === stuId);
-    let mode = document.querySelector('input[name="scan-mode-hw"]:checked').value;
-    
-    // ... [ใส่โค้ดบันทึก activityLogs / txHistory ที่คุณมีอยู่เดิมได้เลย] ...
-    
-    finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก');
+    // ค้นหานักศึกษาในระบบ [cite: 562]
+    let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits); // [cite: 562]
+
+    // 🌟 บังคับเงื่อนไข: ถ้าไม่มีชื่อในระบบ จะแจ้งเตือนข้อผิดพลาดและหยุดการทำงานทันที (ไม่บันทึกข้อมูล)
+    if(!stu) {
+        Swal.fire({
+            toast: true, 
+            position: 'top', 
+            icon: 'error', 
+            title: '❌ ไม่พบข้อมูลนักศึกษา: ' + rawCode, 
+            showConfirmButton: false, 
+            timer: 2000
+        }); // [cite: 562]
+        if(typeof playBeep === 'function') playBeep('error'); // [cite: 563]
+        
+        // คืน Focus กลับมาที่ช่องกรอกข้อมูลเพื่อให้สแกนคนถัดไปได้ทันที
+        setTimeout(() => {
+            let inputF = document.getElementById('hw-input-focus');
+            if(inputF) inputF.focus();
+            if (window.hwScanner) window.hwScanner.resume();
+        }, 100);
+        return;
+    }
+
+    // ถ้ามีรายชื่อถูกต้อง ให้แสดงการ์ด Popup เพื่อยืนยันข้อมูลตามปกติ [cite: 563, 564]
+    showStudentPreviewCard(stu, title);
 }
 
+// 🌟 2. ฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ (บันทึกเฉพาะคนที่มีชื่อในระบบแน่นอน)
+window.confirmScan = function(stuId, title) {
+    // ปิดการ์ด Popup ทิ้งไป [cite: 576]
+    let card = document.getElementById('student-preview-card');
+    if(card) card.remove(); // [cite: 576]
+
+    let stu = students.find(s => s.id === stuId); // [cite: 577]
+    if (!stu) return; // ดักเผื่อกรณีหลุด
+    
+    // ดึงสถานะ สแกนเข้า/ออก และ ชื่อรอบ [cite: 540, 578]
+    let modeElem = document.querySelector('input[name="scan-mode-hw"]:checked'); // [cite: 578]
+    let mode = modeElem ? modeElem.value : 'in'; // [cite: 578]
+    let roundElem = document.getElementById('hw-active-round'); // [cite: 540]
+    let roundName = roundElem ? roundElem.value : 'รอบทั่วไป';
+    
+    // บันทึกลง Log [cite: 588, 590]
+    let existing = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+    let timeStr = getNow(); // [cite: 590, 591]
+    
+    if (mode === 'in') { // สแกนเข้า [cite: 578]
+        if (existing) existing.timeIn = timeStr;
+        else activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null }); // [cite: 590]
+    } else { // สแกนออก [cite: 578]
+        if (existing) existing.timeOut = timeStr;
+        else activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: '-', timeOut: timeStr }); // [cite: 590]
+    }
+    
+    // บันทึกประวัติระบบ (Audit Log) [cite: 591]
+    txHistory.unshift({ date: timeStr, name: 'สแกน' + (mode === 'in' ? 'เข้า' : 'ออก') + ' (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername }); // [cite: 591]
+    
+    finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก'); // [cite: 578]
+}
+
+// 🌟 3. ฟังก์ชันเสร็จสิ้นกระบวนการ (ล็อกหน้าจอไว้ที่แท็บสแกนเสมอ ไม่เด้งหนี)
+window.finishScanProcess = function(stuName, title, actionType = 'เข้า') { // [cite: 582]
+    // บันทึกลง LocalStorage และสั่งซิงค์ข้อมูลงชีต [cite: 582, 583]
+    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; // [cite: 582]
+    localStorage.setItem('SSSfnDB', JSON.stringify(db)); // [cite: 583]
+    clearTimeout(syncTimeout); // [cite: 583]
+    syncTimeout = setTimeout(autoSyncToGS, 2000); // [cite: 583]
+    
+    // แจ้งเตือนสแกนสำเร็จ [cite: 583]
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton: false, timer: 1500}); // [cite: 583]
+    if(typeof playBeep === 'function') playBeep('success'); // [cite: 583]
+    
+    // ทำการรีเฟรชข้อมูลในหน้านั้น [cite: 584]
+    if(currentDetailActivityTitle === title) {
+        openActivityDashboard(title); // อัปเดตตารางตัวเลขและรายชื่อเบื้องหลัง [cite: 584]
+        
+        // 🌟 ล็อกแท็บ: บังคับให้หน้าจอเปิดค้างไว้ที่แท็บ "Scan นักศึกษา" เหมือนเดิมทันที 
+        let btnScan = document.getElementById('act-tab-btn-scan');
+        if (btnScan) switchActTab('scan', btnScan); // 
+        
+        // ดึง Cursor กลับมาที่ช่องกรอกรหัส พร้อมให้เครื่องสแกนยิงคนต่อไปได้ต่อเนื่อง [cite: 554]
+        setTimeout(() => {
+            let inputF = document.getElementById('hw-input-focus');
+            if(inputF) inputF.focus(); // [cite: 554]
+            if (window.hwScanner) window.hwScanner.resume(); // เปิดรับภาพจากกล้องต่อ (ถ้าใช้กล้อง) [cite: 556]
+        }, 100);
+    } 
+}
 function closeHardwareScanner() { 
     document.removeEventListener('click', keepInputFocused);
     if (window.hwScanner) {
@@ -2439,8 +2525,6 @@ function keepInputFocused(e) {
     let inputEl = document.getElementById('hw-input-focus'); 
     if(inputEl) inputEl.focus();
 }
-        function finishScanProcess(stuName, title, actionType = 'เข้า') { let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; localStorage.setItem('SSSfnDB', JSON.stringify(db)); clearTimeout(syncTimeout); syncTimeout = setTimeout(autoSyncToGS, 2000); Swal.fire({toast:true, position:'top-end', icon:'success', title:`✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton:false, timer:1000}); playBeep('success'); refreshRecentScans(title); if(currentDetailActivityTitle === title) openActivityDashboard(title); }
-
         function manualAddParticipant(title) {
             let inputEl = document.getElementById('manual-add-input'); let inputVal = inputEl.value.trim(); if(!inputVal) return Swal.fire('เตือน', 'กรุณากรอกรหัสนักศึกษา', 'warning');
             let cleanId = formatIdSearch(inputVal); let plainId = cleanId.replace(/-/g, ''); let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === plainId); 
