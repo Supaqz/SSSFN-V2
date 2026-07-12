@@ -375,7 +375,7 @@
         <div id="page-knowledge" class="page-view hidden max-w-5xl mx-auto">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-book-reader text-blue-600 mr-2"></i> คลังความรู้และเอกสาร</h2>
-                    <button id="btn-add-knowledge" onclick="/* รอทำฟังก์ชันเพิ่มทีหลัง */" class="hidden bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-1"></i> เพิ่มเอกสาร</button>
+                    <button id="btn-add-knowledge" onclick="addKnowledgeAlert()" class="hidden bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-1"></i> เพิ่มเอกสาร</button>
                 </div>
                 
                 <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex gap-3">
@@ -3659,23 +3659,16 @@ function updateSidebarBadges() {
     let actBadge = document.getElementById('badge-activity');
     if (actBadge) { actBadge.innerText = unregActs; actBadge.style.display = unregActs > 0 ? 'inline-block' : 'none'; }
 }
-    // ============================================================================
-// 🌟 ฟังก์ชันสำหรับระบบที่ 3 (คลังความรู้) และ 4 (กระดานผู้นำ)
+// ============================================================================
+// 🌟 ฟังก์ชันจัดการคลังความรู้ (Knowledge Hub)
 // ============================================================================
 
-function renderKnowledge() {
+window.renderKnowledge = function() {
     let container = document.getElementById('knowledge-grid');
     if (!container) return;
     
-    // 💡 สร้างข้อมูลจำลอง (Mock Data) ถ้ายังไม่มีของจริงในระบบ
-    if (!appSettings.knowledgeDocs) {
-        appSettings.knowledgeDocs = [
-            { id: 1, title: 'คู่มือการยื่นขอเงินกู้ กยศ. ประจำปี 2569', category: 'แบบฟอร์ม', url: '#', date: '01/06/2569' },
-            { id: 2, title: 'สไลด์ประกอบการสอน (Midterm) วิชาการจัดการ', category: 'เอกสารเรียน', url: '#', date: '10/06/2569' },
-            { id: 3, title: 'แบบฟอร์มคำร้องทั่วไป (ขอลากิจ/ป่วย)', category: 'แบบฟอร์ม', url: '#', date: '15/06/2569' },
-            { id: 4, title: 'ตารางปฏิทินการศึกษาของมหาวิทยาลัย', category: 'อื่นๆ', url: '#', date: '20/06/2569' }
-        ];
-    }
+    // สร้าง Array ว่างถ้ายังไม่มีข้อมูล
+    if (!appSettings.knowledgeDocs) appSettings.knowledgeDocs = [];
 
     let search = document.getElementById('search-knowledge')?.value.toLowerCase() || '';
     let cat = document.getElementById('filter-knowledge-category')?.value || 'all';
@@ -3688,37 +3681,133 @@ function renderKnowledge() {
 
     if (filtered.length === 0) {
         container.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><i class="fas fa-folder-open text-5xl mb-4 opacity-20"></i><p>ไม่พบเอกสารในหมวดหมู่นี้</p></div>';
-        return;
-    }
+    } else {
+        let html = '';
+        const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
 
-    let html = '';
-    filtered.forEach(doc => {
-        let icon = 'fa-file-alt text-blue-500';
-        if(doc.category === 'เอกสารเรียน') icon = 'fa-file-pdf text-rose-500';
-        if(doc.category === 'แบบฟอร์ม') icon = 'fa-file-word text-indigo-500';
+        filtered.forEach(doc => {
+            let icon = 'fa-file-alt text-blue-500';
+            if(doc.category === 'เอกสารเรียน') icon = 'fa-file-pdf text-rose-500';
+            if(doc.category === 'แบบฟอร์ม') icon = 'fa-file-word text-indigo-500';
 
-        html += `
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition transform hover:-translate-y-1 flex flex-col group">
-            <div class="flex justify-between items-start mb-4">
-                <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover:bg-blue-50 transition">
-                    <i class="fas ${icon} text-xl"></i>
+            // ปุ่มจัดการสำหรับแอดมิน
+            let adminControls = isAdmin ? `
+                <div class="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button onclick="editKnowledgeAlert(${doc.id})" class="bg-amber-100 text-amber-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-amber-200 shadow-sm"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteKnowledge(${doc.id})" class="bg-rose-100 text-rose-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-rose-200 shadow-sm"><i class="fas fa-trash"></i></button>
+                </div>` : '';
+
+            html += `
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition transform hover:-translate-y-1 flex flex-col group relative overflow-hidden">
+                ${adminControls}
+                <div class="flex justify-between items-start mb-4 pr-16">
+                    <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover:bg-blue-50 transition shrink-0">
+                        <i class="fas ${icon} text-xl"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full whitespace-nowrap">${doc.category}</span>
                 </div>
-                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">${doc.category}</span>
-            </div>
-            <h3 class="font-bold text-slate-800 text-sm mb-2 line-clamp-2">${doc.title}</h3>
-            <p class="text-xs text-slate-400 mb-5 mt-auto"><i class="far fa-clock mr-1"></i> อัปเดต: ${doc.date}</p>
-            <a href="${doc.url}" target="_blank" class="w-full block text-center bg-white border-2 border-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
-                <i class="fas fa-download mr-1"></i> ดาวน์โหลด / เปิดไฟล์
-            </a>
-        </div>`;
-    });
-    container.innerHTML = html;
+                <h3 class="font-bold text-slate-800 text-sm mb-2 line-clamp-2">${doc.title}</h3>
+                <p class="text-[10px] text-slate-400 mb-5 mt-auto"><i class="far fa-clock mr-1"></i> อัปเดต: ${doc.date}</p>
+                <a href="${doc.url}" target="_blank" class="w-full block text-center bg-white border-2 border-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+                    <i class="fas fa-download mr-1"></i> ดาวน์โหลด / เปิดไฟล์
+                </a>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
     
     // โชว์ปุ่มเพิ่มเอกสารเฉพาะแอดมิน
     let btnAdd = document.getElementById('btn-add-knowledge');
     if(btnAdd) btnAdd.classList.toggle('hidden', currentUserRole === 'guest');
 }
 
+// 🌟 ฟังก์ชันเพิ่มเอกสาร
+window.addKnowledgeAlert = function() {
+    Swal.fire({
+        title: '<div class="text-blue-600"><i class="fas fa-file-upload mr-2"></i>เพิ่มเอกสารใหม่</div>',
+        html: `
+            <div class="text-left space-y-3 mt-2">
+                <div><label class="text-xs font-bold text-slate-500">ชื่อเอกสาร *</label><input id="k-title" class="modern-input mb-0" placeholder="เช่น สไลด์วิชาภาษาอังกฤษ"></div>
+                <div><label class="text-xs font-bold text-slate-500">หมวดหมู่</label>
+                <select id="k-cat" class="modern-input mb-0 font-bold text-slate-700">
+                    <option value="เอกสารเรียน">📚 เอกสารเรียน (สไลด์)</option>
+                    <option value="แบบฟอร์ม">📝 แบบฟอร์ม</option>
+                    <option value="อื่นๆ">📌 อื่นๆ</option>
+                </select></div>
+                <div><label class="text-xs font-bold text-slate-500">ลิงก์ไฟล์ (Google Drive, PDF ฯลฯ) *</label><input id="k-url" class="modern-input mb-0" placeholder="https://..."></div>
+            </div>
+        `,
+        confirmButtonText: 'บันทึกเอกสาร', confirmButtonColor: '#2563eb', showCancelButton: true, cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            let title = document.getElementById('k-title').value.trim();
+            let cat = document.getElementById('k-cat').value;
+            let url = document.getElementById('k-url').value.trim();
+            if(!title || !url) return Swal.showValidationMessage('กรุณากรอกชื่อเอกสารและลิงก์ไฟล์');
+            return { id: Date.now(), title: title, category: cat, url: url, date: getNow() };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            if(!appSettings.knowledgeDocs) appSettings.knowledgeDocs = [];
+            appSettings.knowledgeDocs.unshift(res.value);
+            saveToLocal(); renderKnowledge();
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'เพิ่มเอกสารสำเร็จ', showConfirmButton: false, timer: 1500});
+        }
+    });
+}
+
+// 🌟 ฟังก์ชันแก้ไขเอกสาร
+window.editKnowledgeAlert = function(id) {
+    let doc = appSettings.knowledgeDocs.find(d => d.id === id);
+    if(!doc) return;
+
+    let isEdu = doc.category === 'เอกสารเรียน' ? 'selected' : '';
+    let isForm = doc.category === 'แบบฟอร์ม' ? 'selected' : '';
+    let isOther = doc.category === 'อื่นๆ' ? 'selected' : '';
+
+    Swal.fire({
+        title: '<div class="text-amber-600"><i class="fas fa-edit mr-2"></i>แก้ไขเอกสาร</div>',
+        html: `
+            <div class="text-left space-y-3 mt-2">
+                <div><label class="text-xs font-bold text-slate-500">ชื่อเอกสาร *</label><input id="e-k-title" class="modern-input mb-0" value="${doc.title}"></div>
+                <div><label class="text-xs font-bold text-slate-500">หมวดหมู่</label>
+                <select id="e-k-cat" class="modern-input mb-0 font-bold text-slate-700">
+                    <option value="เอกสารเรียน" ${isEdu}>📚 เอกสารเรียน (สไลด์)</option>
+                    <option value="แบบฟอร์ม" ${isForm}>📝 แบบฟอร์ม</option>
+                    <option value="อื่นๆ" ${isOther}>📌 อื่นๆ</option>
+                </select></div>
+                <div><label class="text-xs font-bold text-slate-500">ลิงก์ไฟล์</label><input id="e-k-url" class="modern-input mb-0" value="${doc.url}"></div>
+            </div>
+        `,
+        confirmButtonText: 'บันทึกการแก้ไข', confirmButtonColor: '#d97706', showCancelButton: true, cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            let title = document.getElementById('e-k-title').value.trim();
+            let cat = document.getElementById('e-k-cat').value;
+            let url = document.getElementById('e-k-url').value.trim();
+            if(!title || !url) return Swal.showValidationMessage('กรุณากรอกชื่อและลิงก์เอกสาร');
+            return { title: title, category: cat, url: url };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            doc.title = res.value.title; doc.category = res.value.category; doc.url = res.value.url; doc.date = getNow();
+            saveToLocal(); renderKnowledge();
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'แก้ไขเอกสารสำเร็จ', showConfirmButton: false, timer: 1500});
+        }
+    });
+}
+
+// 🌟 ฟังก์ชันลบเอกสาร
+window.deleteKnowledge = function(id) {
+    Swal.fire({
+        title: 'ลบเอกสารนี้?', text: 'หากลบแล้วจะไม่สามารถกู้คืนได้', icon: 'warning',
+        showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบทิ้ง', cancelButtonText: 'ยกเลิก'
+    }).then(res => {
+        if(res.isConfirmed) {
+            appSettings.knowledgeDocs = appSettings.knowledgeDocs.filter(d => d.id !== id);
+            saveToLocal(); renderKnowledge();
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'ลบเอกสารสำเร็จ', showConfirmButton: false, timer: 1500});
+        }
+    });
+}
 // ----------------------------------------------------------------------------
 function calculatePoints() {
     // 💡 ระบบคำนวณแต้มอัตโนมัติ: เข้าร่วมกิจกรรม = 50 แต้ม, มาเรียน(เช็คชื่อ) = 10 แต้ม
