@@ -75,12 +75,15 @@
            <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('fin-expense')" id="nav-fin-expense" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-history text-lg w-5 text-center"></i> บันทึกบัญชีส่วนกลาง</button>
             <button onclick="switchPage('voting')" id="nav-voting" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-chalkboard-teacher text-lg w-5 text-center"></i> กิจกรรมของคุณ (โหวต) <span id="badge-voting" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
-            <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
+            <button onclick="switchPage('knowledge')" id="nav-knowledge" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-book text-lg w-5 text-center"></i> คลังความรู้ & เอกสาร</button>
+            <button onclick="switchPage('leaderboard')" id="nav-leaderboard" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-trophy text-lg w-5 text-center text-amber-500"></i> กระดานผู้นำ (สะสมแต้ม)</button>
+            
 
             <!-- เมนูแอดมิน -->
             <div id="menu-group-admin" class="hidden pt-4 mt-4 border-t border-slate-200">
                 <p class="px-3 text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-wider">ส่วนการจัดการ (Admin)</p>
                 <button onclick="switchPage('fin-fund')" id="nav-fin-fund" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-piggy-bank text-lg w-5 text-center"></i> จัดการการเงิน</button>
+                 <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
                 <button onclick="switchPage('admin-db')" id="nav-admin-db" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-database text-lg w-5 text-center"></i> ฐานข้อมูล นศ.</button>
                 <button onclick="switchPage('admin-users')" id="nav-admin-users" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-users-cog text-lg w-5 text-center"></i> สิทธิ์ผู้ใช้</button>
             </div>
@@ -369,7 +372,57 @@
                     <table class="w-full text-left text-sm"><thead class="bg-white border-b"><tr><th class="p-4">Username (ผู้ใช้)</th><th class="p-4">สิทธิ์ (Role)</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody id="user-list"></tbody></table>
                 </div>
             </div>
+        <div id="page-knowledge" class="page-view hidden max-w-5xl mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-book-reader text-blue-600 mr-2"></i> คลังความรู้และเอกสาร</h2>
+                    <button id="btn-add-knowledge" onclick="/* รอทำฟังก์ชันเพิ่มทีหลัง */" class="hidden bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 transition"><i class="fas fa-plus mr-1"></i> เพิ่มเอกสาร</button>
+                </div>
+                
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex gap-3">
+                    <input type="text" id="search-knowledge" onkeyup="renderKnowledge()" placeholder="ค้นหาชื่อเอกสาร หรือวิชา..." class="flex-1 p-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500 text-sm font-bold bg-slate-50">
+                    <select id="filter-knowledge-category" onchange="renderKnowledge()" class="p-2 border border-slate-300 rounded-lg outline-none font-bold text-slate-600 bg-slate-50 text-sm w-1/3 md:w-auto">
+                        <option value="all">ทุกหมวดหมู่</option>
+                        <option value="เอกสารเรียน">📚 เอกสารเรียน (สไลด์)</option>
+                        <option value="แบบฟอร์ม">📝 แบบฟอร์ม</option>
+                        <option value="อื่นๆ">📌 อื่นๆ</option>
+                    </select>
+                </div>
+                
+                <div id="knowledge-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    </div>
+            </div>
 
+            <div id="page-leaderboard" class="page-view hidden max-w-4xl mx-auto">
+                <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-8 text-center shadow-lg mb-8 relative overflow-hidden">
+                    <i class="fas fa-crown absolute -right-4 -top-4 text-9xl text-white opacity-20"></i>
+                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-2 relative z-10"><i class="fas fa-trophy text-yellow-200 mr-2"></i> ทำเนียบคนเก่ง SSSFN</h2>
+                    <p class="text-amber-100 text-sm relative z-10">สะสมแต้มแบบอัตโนมัติจากการเข้าร่วมกิจกรรมและวินัยการเช็คชื่อ!</p>
+                </div>
+                
+                <div id="leaderboard-podium" class="flex justify-center items-end gap-2 md:gap-6 mb-12 mt-8 h-48">
+                    </div>
+
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 bg-slate-50 border-b border-slate-200 font-bold text-slate-700 flex justify-between items-center">
+                        <span><i class="fas fa-list-ol text-slate-400 mr-2"></i> อันดับนักศึกษาทั้งหมด</span>
+                        <span class="text-xs text-slate-400 font-normal">เรียงจากคะแนนมากไปน้อย</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white border-b text-slate-400 text-xs">
+                                <tr>
+                                    <th class="p-4 text-center w-16">อันดับ</th>
+                                    <th class="p-4">นักศึกษา</th>
+                                    <th class="p-4 text-center">ห้อง</th>
+                                    <th class="p-4 text-right">คะแนน (Points)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-list">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -907,8 +960,12 @@ function switchPage(pageId) {
     else if (pageId === 'activity') { titleText = 'ลงทะเบียนกิจกรรม'; titleIcon = '<i class="fas fa-map-marker-alt mr-2 text-blue-500"></i>'; }
     else if (pageId === 'fin-expense') { titleText = 'บันทึกบัญชีส่วนกลาง'; titleIcon = '<i class="fas fa-history mr-2 text-indigo-500"></i>'; }
     else if (pageId === 'voting') { titleText = 'กิจกรรมของคุณ (โหวต)'; titleIcon = '<i class="fas fa-chalkboard-teacher mr-2 text-sky-500"></i>'; }
-    else if (pageId === 'random') { titleText = 'สุ่มตัวแทน (Lucky Draw)'; titleIcon = '<i class="fas fa-dice mr-2 text-rose-500"></i>'; }
+   
+    // (เพิ่ม 2 บรรทัดนี้ต่อท้าย if-else ชุดที่เช็คชื่อหน้าในฟังก์ชัน switchPage)
+    else if (pageId === 'knowledge') { titleText = 'คลังความรู้ & เอกสาร'; titleIcon = '<i class="fas fa-book mr-2 text-blue-500"></i>'; }
+    else if (pageId === 'leaderboard') { titleText = 'กระดานผู้นำ (Leaderboard)'; titleIcon = '<i class="fas fa-trophy mr-2 text-amber-500"></i>'; }
     else if (pageId === 'fin-fund') { titleText = 'จัดการการเงิน'; titleIcon = '<i class="fas fa-piggy-bank mr-2 text-rose-500"></i>'; }
+    else if (pageId === 'random') { titleText = 'สุ่มตัวแทน (Lucky Draw)'; titleIcon = '<i class="fas fa-dice mr-2 text-rose-500"></i>'; }
     else if (pageId === 'admin-db') { titleText = 'ฐานข้อมูล นศ.'; titleIcon = '<i class="fas fa-database mr-2 text-amber-500"></i>'; }
     else if (pageId === 'admin-users') { titleText = 'สิทธิ์ผู้ใช้'; titleIcon = '<i class="fas fa-users-cog mr-2 text-slate-500"></i>'; }
 
@@ -3220,7 +3277,7 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             let btnCreateAct = document.getElementById('btn-create-act'); if(btnCreateAct) btnCreateAct.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
             let adminRemind = document.getElementById('admin-reminder-tools'); if(adminRemind) adminRemind.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
 
-            renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();
+            renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();renderKnowledge();renderLeaderboard();
             if(randomPool.length === 0 && students.length > 0) initRandomizer();
             
             let adminStudents = cAdmRm === 'all' ? students : students.filter(s => s.room === cAdmRm);
@@ -3602,6 +3659,146 @@ function updateSidebarBadges() {
     let actBadge = document.getElementById('badge-activity');
     if (actBadge) { actBadge.innerText = unregActs; actBadge.style.display = unregActs > 0 ? 'inline-block' : 'none'; }
 }
+    // ============================================================================
+// 🌟 ฟังก์ชันสำหรับระบบที่ 3 (คลังความรู้) และ 4 (กระดานผู้นำ)
+// ============================================================================
+
+function renderKnowledge() {
+    let container = document.getElementById('knowledge-grid');
+    if (!container) return;
+    
+    // 💡 สร้างข้อมูลจำลอง (Mock Data) ถ้ายังไม่มีของจริงในระบบ
+    if (!appSettings.knowledgeDocs) {
+        appSettings.knowledgeDocs = [
+            { id: 1, title: 'คู่มือการยื่นขอเงินกู้ กยศ. ประจำปี 2569', category: 'แบบฟอร์ม', url: '#', date: '01/06/2569' },
+            { id: 2, title: 'สไลด์ประกอบการสอน (Midterm) วิชาการจัดการ', category: 'เอกสารเรียน', url: '#', date: '10/06/2569' },
+            { id: 3, title: 'แบบฟอร์มคำร้องทั่วไป (ขอลากิจ/ป่วย)', category: 'แบบฟอร์ม', url: '#', date: '15/06/2569' },
+            { id: 4, title: 'ตารางปฏิทินการศึกษาของมหาวิทยาลัย', category: 'อื่นๆ', url: '#', date: '20/06/2569' }
+        ];
+    }
+
+    let search = document.getElementById('search-knowledge')?.value.toLowerCase() || '';
+    let cat = document.getElementById('filter-knowledge-category')?.value || 'all';
+
+    let filtered = appSettings.knowledgeDocs.filter(doc => {
+        let matchSearch = doc.title.toLowerCase().includes(search);
+        let matchCat = cat === 'all' || doc.category === cat;
+        return matchSearch && matchCat;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><i class="fas fa-folder-open text-5xl mb-4 opacity-20"></i><p>ไม่พบเอกสารในหมวดหมู่นี้</p></div>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(doc => {
+        let icon = 'fa-file-alt text-blue-500';
+        if(doc.category === 'เอกสารเรียน') icon = 'fa-file-pdf text-rose-500';
+        if(doc.category === 'แบบฟอร์ม') icon = 'fa-file-word text-indigo-500';
+
+        html += `
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition transform hover:-translate-y-1 flex flex-col group">
+            <div class="flex justify-between items-start mb-4">
+                <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover:bg-blue-50 transition">
+                    <i class="fas ${icon} text-xl"></i>
+                </div>
+                <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">${doc.category}</span>
+            </div>
+            <h3 class="font-bold text-slate-800 text-sm mb-2 line-clamp-2">${doc.title}</h3>
+            <p class="text-xs text-slate-400 mb-5 mt-auto"><i class="far fa-clock mr-1"></i> อัปเดต: ${doc.date}</p>
+            <a href="${doc.url}" target="_blank" class="w-full block text-center bg-white border-2 border-slate-200 text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+                <i class="fas fa-download mr-1"></i> ดาวน์โหลด / เปิดไฟล์
+            </a>
+        </div>`;
+    });
+    container.innerHTML = html;
+    
+    // โชว์ปุ่มเพิ่มเอกสารเฉพาะแอดมิน
+    let btnAdd = document.getElementById('btn-add-knowledge');
+    if(btnAdd) btnAdd.classList.toggle('hidden', currentUserRole === 'guest');
+}
+
+// ----------------------------------------------------------------------------
+function calculatePoints() {
+    // 💡 ระบบคำนวณแต้มอัตโนมัติ: เข้าร่วมกิจกรรม = 50 แต้ม, มาเรียน(เช็คชื่อ) = 10 แต้ม
+    let ranked = students.map(s => {
+        let actsCount = activityLogs.filter(l => l.studentId === s.id).length;
+        let attCount = s.att_m || 0; 
+        let points = (actsCount * 50) + (attCount * 10);
+        return { ...s, points: points };
+    }).filter(s => s.points > 0); // โชว์เฉพาะคนที่มีคะแนนมากกว่า 0
+
+    // เรียงจากคะแนนมากไปน้อย
+    return ranked.sort((a, b) => b.points - a.points);
+}
+
+function renderLeaderboard() {
+    let rankedStudents = calculatePoints();
+    let listContainer = document.getElementById('leaderboard-list');
+    let podiumContainer = document.getElementById('leaderboard-podium');
+    if (!listContainer || !podiumContainer) return;
+
+    if (rankedStudents.length === 0) {
+        podiumContainer.innerHTML = '';
+        listContainer.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-slate-400">ยังไม่มีข้อมูลคะแนนสะสมในระบบ</td></tr>';
+        return;
+    }
+
+    // 🌟 สร้างแท่น Podium (Top 3)
+    let podiumHtml = '';
+    const top3 = rankedStudents.slice(0, 3);
+    
+    if (top3[1]) podiumHtml += createPodiumPlace(top3[1], 2, 'h-28 md:h-32', 'bg-slate-300', 'text-slate-600', 'เหรียญเงิน');
+    if (top3[0]) podiumHtml += createPodiumPlace(top3[0], 1, 'h-36 md:h-40', 'bg-yellow-400', 'text-yellow-800', 'เหรียญทอง', 'scale-110 z-10 shadow-2xl');
+    if (top3[2]) podiumHtml += createPodiumPlace(top3[2], 3, 'h-20 md:h-24', 'bg-amber-600', 'text-amber-100', 'เหรียญทองแดง');
+    
+    podiumContainer.innerHTML = podiumHtml;
+
+    // 🌟 สร้าง List อันดับที่เหลือ
+    let listHtml = '';
+    rankedStudents.forEach((s, index) => {
+        let rank = index + 1;
+        let rankDisplay = rank <= 3 ? `<i class="fas fa-medal text-xl ${rank===1?'text-yellow-400':rank===2?'text-slate-400':'text-amber-600'} drop-shadow-md"></i>` : `<span class="font-bold text-slate-400">${rank}</span>`;
+        let highlightClass = rank <= 3 ? 'bg-amber-50/30' : 'hover:bg-slate-50';
+        let isMe = (window.currentGuestStuId === s.id) ? 'border-l-4 border-l-orange-500 bg-orange-50' : highlightClass;
+        
+        listHtml += `
+        <tr class="border-b border-slate-100 transition ${isMe}">
+            <td class="p-4 text-center">${rankDisplay}</td>
+            <td class="p-4 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-[#111827] text-white flex items-center justify-center font-bold text-xs shadow-sm">${getInitials(s.name)}</div>
+                <div>
+                    <p class="font-bold text-slate-800 text-sm flex items-center gap-2">${s.name} ${window.currentGuestStuId === s.id ? '<span class="text-[9px] bg-orange-500 text-white px-2 py-0.5 rounded-full">คุณ</span>' : ''}</p>
+                    <p class="text-[10px] text-slate-500 font-mono">${s.id}</p>
+                </div>
+            </td>
+            <td class="p-4 text-center"><span class="bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">${s.room}</span></td>
+            <td class="p-4 text-right font-black text-orange-600 text-lg md:text-xl">${s.points.toLocaleString()}</td>
+        </tr>`;
+    });
+    listContainer.innerHTML = listHtml;
+}
+
+function createPodiumPlace(stu, rank, heightClass, colorClass, textColor, title, extraClass = '') {
+    return `
+    <div class="flex flex-col items-center justify-end w-24 md:w-32 ${extraClass} transform transition hover:-translate-y-2 cursor-default group">
+        <div class="relative">
+            <div class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center font-bold text-xl md:text-2xl text-slate-800 relative overflow-hidden group-hover:scale-105 transition">
+                ${getInitials(stu.name)}
+            </div>
+            <div class="absolute -bottom-1 -right-1 w-7 h-7 md:w-8 md:h-8 rounded-full ${colorClass} text-white flex items-center justify-center font-bold text-xs md:text-sm border-2 border-white shadow-md z-30">
+                ${rank}
+            </div>
+        </div>
+        <p class="font-bold text-slate-800 text-[10px] md:text-xs mt-3 mb-0.5 truncate w-full text-center px-1" title="${stu.name}">${stu.name.split(' ')[0]}</p>
+        <p class="text-[11px] font-black text-orange-600 mb-2">${stu.points} Pts</p>
+        <div class="w-full ${heightClass} ${colorClass} rounded-t-2xl border-x border-t border-white/30 shadow-inner flex items-start justify-center pt-4 overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+            <i class="fas fa-trophy ${textColor} opacity-60 text-2xl relative z-10"></i>
+        </div>
+    </div>`;
+}    
     </script>
 </body>
 </html>
