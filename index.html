@@ -2365,7 +2365,15 @@ function closeHardwareScanner() {
 
 function keepInputFocused(e) { 
     let inputEl = document.getElementById('hw-input-focus'); 
-    if(inputEl && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) inputEl.focus(); 
+    
+    // 🌟 แก้ไข: เพิ่มเงื่อนไขเช็คว่าถ้าไปคลิกที่ปุ่ม, input อื่น, หรือ selectbox ให้หยุดบังคับโฟกัส
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+        return; 
+    }
+    
+    if(inputEl && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
+        inputEl.focus();
+    }
 }
         function finishScanProcess(stuName, title, actionType = 'เข้า') { let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; localStorage.setItem('SSSfnDB', JSON.stringify(db)); clearTimeout(syncTimeout); syncTimeout = setTimeout(autoSyncToGS, 2000); Swal.fire({toast:true, position:'top-end', icon:'success', title:`✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton:false, timer:1000}); playBeep('success'); refreshRecentScans(title); if(currentDetailActivityTitle === title) openActivityDashboard(title); }
 
