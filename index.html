@@ -1596,7 +1596,7 @@ window.openActivityDashboard = function(title) {
 
         <div class="flex overflow-x-auto text-sm text-slate-300 font-bold bg-[#1f2937] px-4 scrollbar-hide">
             <button class="px-5 py-3 border-b-2 border-blue-500 text-white whitespace-nowrap"><i class="far fa-eye mr-2"></i> ภาพรวม</button>
-            <button onclick="openHardwareScanner('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-qrcode mr-2"></i> Scan นักศึกษา</button>
+            <button onclick="renderScanInterface('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-qrcode mr-2"></i> Scan นักศึกษา</button>
             <button onclick="exportActivityExcel('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-file-export mr-2"></i> Export Excel</button>
             ${roleIsAdmin ? `<button onclick="editActivityModal('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-edit mr-2"></i> แก้ไขข้อมูล</button>` : ''}
         </div>
@@ -2057,118 +2057,68 @@ window.addEditRoundRow = function() {
 // 🌟 โหมดสแกนอัจฉริยะ (การ์ด Popup + Auto Confirm + ขยายจอกล้อง)
 // =========================================================================
 
-function openHardwareScanner(title) {
+function renderScanInterface(title) {
     let act = appSettings.activities.find(a => a.title === title);
-    if (!act || act.isOpen === false) return Swal.fire('ปิดรับแล้ว', 'กิจกรรมนี้ถูกปิดการลงทะเบียนแล้ว', 'warning');
+    if (!act) return;
 
-    let roundsHtml = '';
-    if(act.rounds && act.rounds.length > 0) {
-        act.rounds.forEach(r => { roundsHtml += `<option value="${r.name}">${r.name}</option>`; });
-    } else {
-        roundsHtml = '<option value="รอบทั่วไป">รอบทั่วไป</option>';
-    }
+    let roundsHtml = act.rounds && act.rounds.length > 0 
+        ? act.rounds.map(r => `<option value="${r.name}">${r.name}</option>`).join('')
+        : '<option value="รอบทั่วไป">รอบทั่วไป</option>';
 
-    let modalHtml = `
-    <div id="hw-scan-modal" class="fixed inset-0 bg-[#1e2433] z-[9999] flex flex-col font-sans overflow-hidden">
-        <div class="px-4 md:px-8 py-4 flex justify-between items-center border-b border-slate-700/50 bg-[#181d2a] shrink-0">
-            <div class="overflow-hidden mr-2">
-                <h2 class="font-bold text-lg md:text-xl text-emerald-400 flex items-center gap-2 truncate"><i class="fas fa-barcode"></i> บันทึกการเข้าร่วมกิจกรรม</h2>
-                <p class="text-slate-400 text-xs md:text-sm truncate mt-0.5">กิจกรรม: ${title}</p>
-            </div>
-            <button onclick="closeHardwareScanner()" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 text-sm shadow-md shrink-0"><i class="fas fa-times"></i> ปิด</button>
-        </div>
+    let html = `
+    <div id="scan-interface-container" class="space-y-6">
+        <div class="bg-white p-6 rounded-2xl border shadow-sm">
+            <h4 class="font-bold text-slate-800 mb-4">บันทึกการเข้าร่วมกิจกรรม</h4>
+            <label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบลงทะเบียน</label>
+            <select id="hw-active-round" class="w-full p-3 border rounded-xl mb-6 font-bold bg-slate-50 outline-none focus:border-emerald-500">
+                ${roundsHtml}
+            </select>
 
-        <div class="flex-1 p-3 md:p-6 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 md:gap-6 max-w-[1600px] w-full mx-auto">
-            
-            <div class="flex-1 bg-white rounded-2xl md:rounded-3xl p-4 md:p-6 flex flex-col shadow-xl lg:overflow-y-auto custom-scrollbar">
+            <div class="space-y-3 mb-6 p-4 bg-slate-50 rounded-xl border">
+                <h4 class="text-xs font-bold text-slate-500 uppercase">ตัวเลือกการแสดงผล</h4>
+                <label class="flex items-center gap-2"><input type="checkbox" id="hw-show-info" checked> แสดงข้อมูลนักศึกษาก่อนสแกน</label>
+                <label class="flex items-center gap-2"><input type="checkbox" id="hw-show-avatar" checked> แสดงรูปโปรไฟล์</label>
                 
-                <div class="mb-5">
-                    <h4 class="text-sm font-bold text-slate-900 mb-2">เลือกรอบลงทะเบียน</h4>
-                    <select id="hw-active-round" class="w-full p-3 border-2 border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-bold text-slate-700 bg-slate-50 text-sm transition">
-                        ${roundsHtml}
-                    </select>
-                </div>
-
-                <div class="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-4">
-                    <div>
-                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">ตัวเลือกการแสดงผล</h4>
-                        <div class="space-y-2">
-                            <label class="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-700">
-                                <input type="checkbox" id="hw-show-info" class="w-4 h-4 accent-emerald-600" checked> แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ
-                            </label>
-                            <label class="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-700">
-                                <input type="checkbox" id="hw-show-avatar" class="w-4 h-4 accent-emerald-600" checked> แสดงรูปโปรไฟล์ของนักศึกษา
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-slate-200 pt-3">
-                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">ตัวเลือก Auto-Confirm</h4>
-                        <label class="flex items-center gap-2.5 cursor-pointer text-sm font-semibold text-slate-700 mb-2">
-                            <input type="checkbox" id="hw-auto-confirm" class="w-4 h-4 accent-emerald-600" checked> เปิด Auto-Confirm (ยืนยันอัตโนมัติ)
-                        </label>
-                        <div class="flex items-center gap-2 pl-6">
-                            <span class="text-xs text-slate-500 font-medium">จำนวนวินาที (1-60):</span>
-                            <input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-16 p-1.5 text-center font-bold border rounded-lg bg-white outline-none focus:border-emerald-500 text-sm">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mb-5">
-                    <h4 class="text-sm font-bold text-slate-900 mb-2">นำเข้าข้อมูลนักศึกษา</h4>
-                    <div class="flex gap-2 p-1.5 bg-slate-100 rounded-xl max-w-md">
-                        <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-keyboard text-blue-500"></i> กรอก / สแกน
-                        </button>
-                        <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-camera text-emerald-500"></i> กล้อง
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 mb-5">
-                    <label class="cursor-pointer">
-                        <input type="radio" name="scan-mode-hw" value="in" class="peer hidden" checked>
-                        <div class="border-2 border-slate-200 rounded-xl p-3 text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-50/60 peer-checked:text-emerald-600 text-slate-400 transition font-bold text-sm shadow-sm hover:bg-slate-50 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <i class="fas fa-sign-in-alt text-lg"></i> สแกนเข้างาน
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="scan-mode-hw" value="out" class="peer hidden">
-                        <div class="border-2 border-slate-200 rounded-xl p-3 text-center peer-checked:border-rose-500 peer-checked:bg-rose-50/60 peer-checked:text-rose-600 text-slate-400 transition font-bold text-sm shadow-sm hover:bg-slate-50 flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <i class="fas fa-sign-out-alt text-lg"></i> สแกนกลับบ้าน
-                        </div>
-                    </label>
-                </div>
-
-                <div class="flex-1 flex flex-col items-center justify-center min-h-[300px] md:min-h-[400px] relative bg-slate-50 rounded-2xl p-4 border-2 border-dashed border-slate-200">
-                    <div id="manual-section" class="w-full text-center space-y-3">
-                        <input type="text" id="hw-input-focus" class="w-full max-w-md mx-auto p-4 text-center text-xl md:text-2xl font-bold border-2 border-slate-300 bg-white rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all placeholder:text-slate-300 shadow-sm tracking-widest" placeholder="กรอกรหัส หรือ สแกนที่นี่" onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${title}'); this.value=''; }">
-                        <p class="text-[11px] text-slate-400 font-medium">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
-                    </div>
-                    <div id="camera-section" class="hidden absolute inset-0 w-full h-full bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-300 flex items-center justify-center">
-                        <div id="hw-reader" class="w-full h-full object-cover"></div>
-                    </div>
+                <h4 class="text-xs font-bold text-slate-500 uppercase mt-4">ตัวเลือก AUTO-CONFIRM</h4>
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" id="hw-auto-confirm" checked> เปิด Auto-Confirm (ยืนยันอัตโนมัติ)
+                </label>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs">จำนวนวินาที (1-60):</span>
+                    <input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-16 p-1 border rounded text-center">
                 </div>
             </div>
 
-            <div class="w-full lg:w-[380px] bg-[#1a202c] rounded-2xl flex flex-col shadow-xl overflow-hidden shrink-0 border border-slate-700/60 max-h-[40vh] lg:max-h-none">
-                <div class="p-4 border-b border-slate-700/50 flex justify-between items-center bg-[#151a24]">
-                    <h3 class="font-bold text-slate-200 text-sm flex items-center gap-2"><i class="fas fa-history text-indigo-400"></i> สแกนล่าสุด</h3>
-                    <span id="hw-scan-count" class="bg-slate-800 text-emerald-400 text-xs px-2.5 py-1 rounded-full font-mono border border-slate-700">0 คน</span>
-                </div>
-                <div id="hw-recent-scans" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar bg-[#111622] relative"></div>
+            <h4 class="font-bold text-slate-800 mb-2">นำเข้าข้อมูลนักศึกษา</h4>
+            <div class="flex gap-2 p-1.5 bg-slate-100 rounded-lg mb-4">
+                <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-2 rounded-lg font-bold text-sm bg-white shadow-sm transition">กรอก / สแกน</button>
+                <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-2 rounded-lg font-bold text-sm text-slate-500 transition">กล้อง</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <label class="cursor-pointer border p-3 rounded-lg text-center font-bold bg-emerald-50 text-emerald-700 border-emerald-500">
+                    <input type="radio" name="scan-mode-hw" value="in" checked class="hidden"> สแกนเข้างาน
+                </label>
+                <label class="cursor-pointer border p-3 rounded-lg text-center font-bold bg-slate-50 text-slate-500 border-slate-200">
+                    <input type="radio" name="scan-mode-hw" value="out" class="hidden"> สแกนกลับบ้าน
+                </label>
+            </div>
+
+            <div id="manual-section" class="p-4 border-2 border-dashed rounded-xl text-center bg-slate-50">
+                <input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border rounded-lg" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" 
+                    onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${title}'); this.value=''; }">
+                <p class="text-[10px] text-slate-400 mt-2">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
+            </div>
+
+            <div id="camera-section" class="hidden w-full h-[300px] border-2 rounded-xl overflow-hidden mt-4">
+                <div id="hw-reader" class="w-full h-full"></div>
             </div>
         </div>
     </div>`;
 
-    let div = document.createElement('div'); div.id = 'hw-modal-container'; div.innerHTML = modalHtml; document.body.appendChild(div);
-    
-    let inputFocus = document.getElementById('hw-input-focus');
-    if(inputFocus) inputFocus.focus();
-    
-    document.addEventListener('click', keepInputFocused);
-    refreshRecentScans(title);
+    // เอาไปแสดงใน Dashboard แทนที่ส่วนเก่า
+    let dashboard = document.getElementById('activity-detail-view');
+    dashboard.innerHTML += html; 
 }
 
 function switchScannerMode(mode) {
@@ -2302,16 +2252,11 @@ function closeHardwareScanner() {
 }
 
 function keepInputFocused(e) { 
+    // ถ้าผู้ใช้คลิกที่ input หรือ button ให้หยุดการบังคับ Focus
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+    
     let inputEl = document.getElementById('hw-input-focus'); 
-    
-    // 🌟 แก้ไข: เพิ่มเงื่อนไขเช็คว่าถ้าไปคลิกที่ปุ่ม, input อื่น, หรือ selectbox ให้หยุดบังคับโฟกัส
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
-        return; 
-    }
-    
-    if(inputEl && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
-        inputEl.focus();
-    }
+    if(inputEl) inputEl.focus();
 }
         function finishScanProcess(stuName, title, actionType = 'เข้า') { let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; localStorage.setItem('SSSfnDB', JSON.stringify(db)); clearTimeout(syncTimeout); syncTimeout = setTimeout(autoSyncToGS, 2000); Swal.fire({toast:true, position:'top-end', icon:'success', title:`✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton:false, timer:1000}); playBeep('success'); refreshRecentScans(title); if(currentDetailActivityTitle === title) openActivityDashboard(title); }
 
