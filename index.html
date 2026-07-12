@@ -2054,61 +2054,110 @@ window.addEditRoundRow = function() {
         function deleteActivity(title) { Swal.fire({ title: 'ลบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then((r) => { if (r.isConfirmed) { appSettings.activities = appSettings.activities.filter(a => a.title !== title); txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบกิจกรรมออกจากระบบแล้ว', 'success'); } }); }
         function approveActivity(title) { Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { if (r.isConfirmed) { let act = appSettings.activities.find(a => a.title === title); if (act) { act.status = 'อนุมัติแล้ว'; act.isOpen = true; txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('อนุมัติสำเร็จ', '', 'success'); } } }); }
         // =========================================================================
-// 🌟 ระบบสแกนเช็คชื่อเข้ากิจกรรม (กล้อง & เครื่องยิงบาร์โค้ด) สมบูรณ์แบบ 100%
+// 🌟 1. ฟังก์ชันสร้างหน้าต่างสแกน (UI แบบ IMG_8773 + ฟังก์ชันครบ)
 // =========================================================================
-
 function openHardwareScanner(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act || act.isOpen === false) return Swal.fire('ปิดรับแล้ว', 'กิจกรรมนี้ถูกปิดการลงทะเบียนแล้ว', 'warning');
-    
+
+    // ดึงข้อมูล "รอบกิจกรรม" มาสร้างเป็น Dropdown
+    let roundsHtml = '';
+    if(act.rounds && act.rounds.length > 0) {
+        act.rounds.forEach(r => { roundsHtml += `<option value="${r.name}">${r.name}</option>`; });
+    } else {
+        roundsHtml = '<option value="รอบทั่วไป">รอบทั่วไป</option>';
+    }
+
     let modalHtml = `
-    <div id="hw-scan-modal" class="fixed inset-0 bg-slate-900 z-[9999] flex flex-col font-sans">
-        <div class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-md">
-            <h2 class="font-bold text-lg"><i class="fas fa-barcode"></i> สแกนเช็คชื่อ: ${title}</h2>
-            <button onclick="closeHardwareScanner()" class="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 rounded-xl font-bold transition">ปิดหน้าต่าง</button>
-        </div>
-        
-        <div class="p-4 flex gap-4 justify-center bg-white border-b shadow-sm">
-            <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 p-4 border-2 rounded-xl text-center transition bg-blue-50 border-blue-500 shadow-sm">
-                <i class="fas fa-keyboard text-2xl text-blue-500 mb-2"></i><p class="font-bold text-sm text-slate-800">เครื่องยิงบาร์โค้ด</p>
-            </button>
-            <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 p-4 border-2 rounded-xl text-center hover:bg-slate-50 transition border-slate-200 shadow-sm">
-                <i class="fas fa-camera text-2xl text-emerald-500 mb-2"></i><p class="font-bold text-sm text-slate-800">ใช้กล้องมือถือ/ไอแพด</p>
-            </button>
+    <div id="hw-scan-modal" class="fixed inset-0 bg-[#1e2433] z-[9999] flex flex-col font-sans">
+        <div class="px-6 md:px-10 py-5 flex justify-between items-center border-b border-slate-700/50">
+            <div>
+                <h2 class="font-bold text-xl md:text-2xl text-emerald-400 flex items-center gap-2"><i class="fas fa-barcode"></i> โหมดสแกนบาร์โค้ด</h2>
+                <p class="text-slate-400 text-sm mt-1">กิจกรรม: ${title}</p>
+            </div>
+            <button onclick="closeHardwareScanner()" class="bg-[#e11d48] hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl font-bold transition flex items-center gap-2 shadow-lg"><i class="fas fa-times"></i> ปิดหน้าต่าง</button>
         </div>
 
-        <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-center gap-6 shadow-inner">
-            <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-emerald-600">
-                <input type="radio" name="scan-mode-hw" value="in" class="w-4 h-4 accent-emerald-600" checked> 🟢 สแกนเข้างาน
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-rose-600">
-                <input type="radio" name="scan-mode-hw" value="out" class="w-4 h-4 accent-rose-600"> 🔴 สแกนกลับบ้าน
-            </label>
-        </div>
+        <div class="flex-1 p-4 md:p-8 flex flex-col lg:flex-row gap-6 overflow-hidden max-w-[1400px] mx-auto w-full">
 
-        <div class="flex-1 p-6 overflow-hidden relative flex flex-col items-center justify-center bg-slate-900">
-            <div id="manual-section" class="w-full max-w-md flex flex-col items-center justify-center text-center">
-                <i class="fas fa-arrow-alt-circle-down text-blue-400 text-4xl mb-4 animate-bounce"></i>
-                <input type="text" id="hw-input-focus" class="w-full p-6 text-center text-2xl font-bold border-4 border-slate-700 bg-slate-800 text-white rounded-2xl outline-none focus:border-blue-500 transition-all shadow-inner placeholder:text-slate-500" placeholder="คลิกที่นี่แล้วสแกน..." onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${title}'); this.value=''; }">
-                <p class="text-xs text-slate-400 mt-3">* กรณีใช้เครื่องยิงบาร์โค้ด ให้เอาเมาส์จิ้มให้ตัวกะพริบอยู่ในช่องนี้ก่อนยิง *</p>
+            <div class="flex-1 bg-white rounded-3xl p-6 md:p-8 flex flex-col shadow-xl overflow-y-auto custom-scrollbar">
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-800 mb-2">เลือกรอบลงทะเบียน</label>
+                    <select id="hw-active-round" class="w-full p-3 border-2 border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-bold text-slate-700 bg-slate-50 transition">
+                        ${roundsHtml}
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="scan-mode-hw" value="in" class="peer hidden" checked>
+                        <div class="border-2 border-slate-200 rounded-2xl p-4 md:p-5 text-center peer-checked:border-emerald-500 peer-checked:bg-emerald-50/50 peer-checked:text-emerald-600 text-slate-400 transition font-bold shadow-sm hover:bg-slate-50">
+                            <i class="fas fa-sign-in-alt text-2xl md:text-3xl mb-2 block"></i> สแกนเข้างาน
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="scan-mode-hw" value="out" class="peer hidden">
+                        <div class="border-2 border-slate-200 rounded-2xl p-4 md:p-5 text-center peer-checked:border-slate-400 peer-checked:bg-slate-50 peer-checked:text-slate-600 text-slate-400 transition font-bold shadow-sm hover:bg-slate-50">
+                            <i class="fas fa-sign-out-alt text-2xl md:text-3xl mb-2 block"></i> สแกนกลับบ้าน
+                        </div>
+                    </label>
+                </div>
+
+                <div class="flex gap-2 p-1.5 bg-slate-100 rounded-xl mb-6 w-full max-w-sm mx-auto">
+                    <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-2.5 rounded-lg font-bold text-sm bg-white shadow-sm text-slate-800 transition">
+                        <i class="fas fa-barcode mr-1"></i> ทอค / สแกน
+                    </button>
+                    <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-2.5 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition">
+                        <i class="fas fa-camera mr-1"></i> กล้อง
+                    </button>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center min-h-[200px] relative">
+                    <div id="manual-section" class="w-full text-center">
+                        <p class="text-sm text-slate-500 mb-4">คลิกเลือกโหมดที่ต้องการ แล้วยิงบาร์โค้ดลงในช่องด้านล่าง</p>
+                        <input type="text" id="hw-input-focus" class="w-full max-w-md mx-auto p-5 text-center text-3xl font-bold border-4 border-blue-100 bg-white rounded-2xl outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 shadow-inner tracking-widest" placeholder="คลิกที่นี่ . . ." onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${title}'); this.value=''; }">
+                    </div>
+                    <div id="camera-section" class="hidden absolute inset-0 w-full h-full bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-200">
+                        <div id="hw-reader" class="w-full h-full object-cover"></div>
+                    </div>
+                </div>
             </div>
-            
-            <div id="camera-section" class="hidden w-full h-full max-w-xl max-h-[50vh] rounded-2xl overflow-hidden bg-black border-4 border-slate-700 shadow-2xl">
-                <div id="hw-reader" class="w-full h-full"></div>
+
+            <div class="w-full lg:w-[400px] bg-[#f8fafc] rounded-3xl flex flex-col shadow-xl overflow-hidden shrink-0 border border-slate-200">
+                <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-white">
+                    <h3 class="font-bold text-indigo-800 text-lg flex items-center gap-2"><i class="fas fa-history text-indigo-500"></i> สแกนล่าสุด</h3>
+                    <span id="hw-scan-count" class="bg-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-full font-bold">0 คน</span>
+                </div>
+                <div id="hw-recent-scans" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative">
+                    </div>
             </div>
+
         </div>
     </div>`;
-    
+
     let div = document.createElement('div'); div.id = 'hw-modal-container'; div.innerHTML = modalHtml; document.body.appendChild(div);
     document.getElementById('hw-input-focus').focus();
-    
-    // ตั้งค่าตัวดักจับหน้าจอให้ Cursor โฟกัสที่ช่องพิมพ์ตลอดเวลา (สำหรับปืนยิง)
     document.addEventListener('click', keepInputFocused);
+    
+    // ดึงรายชื่อเก่ามาแสดงทันที
+    refreshRecentScans(title);
 }
 
+// =========================================================================
+// 🌟 2. ฟังก์ชันสลับโหมดการสแกน (ปรับให้สลับสีปุ่มเข้ากับดีไซน์ใหม่)
+// =========================================================================
 function switchScannerMode(mode) {
-    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('bg-blue-50', 'border-blue-500'));
-    document.getElementById('btn-' + mode).classList.add('bg-blue-50', 'border-blue-500');
+    let btnManual = document.getElementById('btn-manual');
+    let btnCamera = document.getElementById('btn-camera');
+
+    if (mode === 'manual') {
+        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-sm bg-white shadow-sm text-slate-800 transition";
+        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition";
+    } else {
+        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-sm bg-white shadow-sm text-slate-800 transition";
+        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition";
+    }
 
     document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
     document.getElementById('camera-section').classList.toggle('hidden', mode !== 'camera');
@@ -2126,9 +2175,7 @@ function switchScannerMode(mode) {
             { fps: 15, qrbox: {width: 250, height: 250} },
             (decodedText) => {
                 window.hwScanner.pause();
-                // 🚀 ยิงตรงเข้าสู่ระบบประมวลผลทันที
                 executeScanLogic(decodedText, currentDetailActivityTitle);
-                // หน่วงเวลา 2 วินาทีก่อนให้กล้องเริ่มสแกนใบต่อไป
                 setTimeout(() => { if(window.hwScanner) window.hwScanner.resume(); }, 2000);
             }
         ).catch(err => Swal.fire('ไม่สามารถเปิดกล้องได้', 'เบราว์เซอร์บล็อกสิทธิ์ หรือกล้องกำลังถูกใช้งานอยู่', 'error'));
