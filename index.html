@@ -72,13 +72,11 @@
 
             <button onclick="switchPage('home')" id="nav-home" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition menu-active flex items-center gap-3"><i class="far fa-user text-lg w-5 text-center"></i> โปรไฟล์ของคุณ</button>
             <button onclick="openPublicSlipModal()" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition flex items-center gap-3 shadow-sm"><i class="far fa-paper-plane text-lg w-5 text-center"></i> สแกน & แนบสลิปโอนเงิน</button>
-           <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
-            <button onclick="switchPage('fin-expense')" id="nav-fin-expense" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-history text-lg w-5 text-center"></i> บันทึกบัญชีส่วนกลาง</button>
+            <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('voting')" id="nav-voting" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-chalkboard-teacher text-lg w-5 text-center"></i> กิจกรรมของคุณ (โหวต) <span id="badge-voting" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('knowledge')" id="nav-knowledge" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-book text-lg w-5 text-center"></i> คลังความรู้ & เอกสาร</button>
             <button onclick="switchPage('leaderboard')" id="nav-leaderboard" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-trophy text-lg w-5 text-center text-amber-500"></i> กระดานผู้นำ (สะสมแต้ม)</button>
-            
-
+            <button onclick="switchPage('fin-expense')" id="nav-fin-expense" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-history text-lg w-5 text-center"></i> บันทึกบัญชีส่วนกลาง</button>
             <!-- เมนูแอดมิน -->
             <div id="menu-group-admin" class="hidden pt-4 mt-4 border-t border-slate-200">
                 <p class="px-3 text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-wider">ส่วนการจัดการ (Admin)</p>
@@ -363,10 +361,22 @@
             </div>
 
             <div id="page-admin-users" class="page-view hidden max-w-3xl mx-auto">
-                <div class="bg-white rounded-2xl border p-6 shadow-sm mb-6">
-                    <h3 class="font-bold text-slate-800 mb-4 border-b pb-2"><i class="fas fa-cogs text-emerald-600"></i> ตั้งค่าระบบและแจ้งเตือน</h3>
-                    <div class="flex items-center justify-between mb-4"><div><p class="font-bold text-sm text-slate-800">แสดงสถิติเข้าเรียนหน้าแรก</p><p class="text-xs text-slate-500">หากปิด นักศึกษาจะไม่เห็นสถิติของตัวเอง</p></div><div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" name="toggle" id="toggle-att" onchange="toggleSetting()" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="toggle-att" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div></div>
-                </div>
+    <div class="bg-white rounded-2xl border p-6 shadow-sm mb-6">
+        <h3 class="font-bold text-slate-800 mb-4 border-b pb-2"><i class="fas fa-cogs text-emerald-600"></i> ตั้งค่าระบบและแจ้งเตือน</h3>
+        
+        <div class="flex items-center justify-between mb-4">
+            <div><p class="font-bold text-sm text-slate-800">แสดงสถิติเข้าเรียนหน้าแรก</p><p class="text-xs text-slate-500">หากปิด นักศึกษาจะไม่เห็นสถิติของตัวเอง</p></div>
+            <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" name="toggle" id="toggle-att" onchange="toggleSetting()" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="toggle-att" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div>
+        </div>
+
+        <div class="flex items-center justify-between mb-4 pt-4 border-t border-slate-100">
+            <div><p class="font-bold text-sm text-slate-800">แสดงกระดานผู้นำ (Leaderboard)</p><p class="text-xs text-slate-500">หากปิด เมนูนี้จะถูกซ่อนจากมุมมองของนักศึกษา</p></div>
+            <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                <input type="checkbox" name="toggle" id="toggle-leaderboard" onchange="toggleSetting()" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/>
+                <label for="toggle-leaderboard" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label>
+            </div>
+        </div>
+    </div>
                 <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">จัดการสิทธิ์ (Login)</h3><button onclick="addUserAlert()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow">+ สร้าง User</button></div>
                     <table class="w-full text-left text-sm"><thead class="bg-white border-b"><tr><th class="p-4">Username (ผู้ใช้)</th><th class="p-4">สิทธิ์ (Role)</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody id="user-list"></tbody></table>
@@ -1003,7 +1013,14 @@ function switchPage(pageId) {
             refreshAll(); 
         }
 
-        function toggleSetting() { appSettings.showPublicAttendance = document.getElementById('toggle-att').checked; appSettings.notifyAttendance = document.getElementById('noti-att').checked; appSettings.notifySlip = document.getElementById('noti-slip').checked; appSettings.notifyActivity = document.getElementById('noti-act').checked; saveToLocal(); renderHomeDirectory(); }
+        function toggleSetting() { 
+            appSettings.showPublicAttendance = document.getElementById('toggle-att').checked; 
+            appSettings.showLeaderboard = document.getElementById('toggle-leaderboard').checked; // 🌟 รับค่าปุ่มปิด-เปิด Leaderboard
+            
+            saveToLocal(); 
+            renderHomeDirectory(); 
+            refreshAll(); // อัปเดตเมนูทันที
+        }
 
         // ================= HOME =================
         // ฟังก์ชันช่วยแยกตัวอักษรย่อสำหรับรูป Avatar
@@ -3252,7 +3269,20 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             let elNotiAtt = document.getElementById('noti-att'); if(elNotiAtt) elNotiAtt.checked = appSettings.notifyAttendance !== false;
             let elNotiSlip = document.getElementById('noti-slip'); if(elNotiSlip) elNotiSlip.checked = appSettings.notifySlip !== false;
             let elNotiAct = document.getElementById('noti-act'); if(elNotiAct) elNotiAct.checked = appSettings.notifyActivity !== false;
-            
+            // โหลดสถานะปุ่มตั้งค่ากระดานผู้นำ
+    let elToggleLB = document.getElementById('toggle-leaderboard'); 
+    if(elToggleLB) elToggleLB.checked = appSettings.showLeaderboard !== false;
+
+    // 🌟 โลจิกซ่อน/แสดงเมนูกระดานผู้นำ
+    let navLeaderboard = document.getElementById('nav-leaderboard');
+    if(navLeaderboard) {
+        // ถ้าแอดมินปิดสวิตช์ จะซ่อนเมนูนี้ไม่ให้นักศึกษา (Guest) เห็น
+        if(appSettings.showLeaderboard === false && currentUserRole === 'guest') {
+            navLeaderboard.style.display = 'none';
+        } else {
+            navLeaderboard.style.display = 'flex';
+        }
+    }
             // สร้างป้ายห้องและดึงเบอร์จากเซฟโซนมาโชว์
             let elAdmRoomList = document.getElementById('admin-room-list'); 
             if(elAdmRoomList) {
