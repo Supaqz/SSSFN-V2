@@ -1000,19 +1000,42 @@ function switchPage(pageId) {
         function logout() { currentUserRole = 'guest'; currentUsername = ''; localStorage.removeItem('sssfn_session'); applyRoleUI(); switchPage('home'); }
         
         function applyRoleUI() { 
-            const isGuest = currentUserRole === 'guest'; const admin = currentUserRole === 'leader' || currentUserRole === 'vice'; const treasurer = currentUserRole === 'treasurer'; const hasAttAccess = admin || treasurer;
-            let elLogin = document.getElementById('btn-login'); if(elLogin) elLogin.classList.toggle('hidden', !isGuest); 
-            let elLogout = document.getElementById('btn-logout'); if(elLogout) elLogout.classList.toggle('hidden', isGuest); 
-            let elSysAct = document.getElementById('system-actions'); if(elSysAct) elSysAct.classList.toggle('hidden', isGuest); 
-            let elRole = document.getElementById('user-role-display'); if(elRole) elRole.innerText = isGuest ? "นักศึกษา" : currentUsername + " (" + (admin?'หัวหน้า':'เหรัญญิก') + ")"; 
-            let menuAtt = document.getElementById('menu-group-att'); if(menuAtt) menuAtt.classList.toggle('hidden', !hasAttAccess); 
-            let menuFin = document.getElementById('menu-group-fin'); if(menuFin) menuFin.classList.toggle('hidden', isGuest); 
-            let menuAdmin = document.getElementById('menu-group-admin'); if(menuAdmin) menuAdmin.classList.toggle('hidden', !admin); 
-            
-            const expAdminPanel = document.getElementById('expense-admin-panel'); const expTableContainer = document.getElementById('expense-table-container'); 
-            if(expAdminPanel && expTableContainer) { if(isGuest) { expAdminPanel.classList.add('hidden'); expTableContainer.classList.remove('lg:col-span-2'); expTableContainer.classList.add('lg:col-span-3'); } else { expAdminPanel.classList.remove('hidden'); expTableContainer.classList.remove('lg:col-span-3'); expTableContainer.classList.add('lg:col-span-2'); } } 
-            refreshAll(); 
-        }
+    const role = currentUserRole; // leader, vice, treasurer, guest
+    const isGuest = (role === 'guest');
+    
+    // ตั้งค่าแสดงเมนูหลัก
+    let elSysAct = document.getElementById('system-actions'); 
+    if(elSysAct) elSysAct.classList.toggle('hidden', isGuest); 
+    
+    // แสดง/ซ่อนเมนู Admin
+    let menuAdmin = document.getElementById('menu-group-admin'); 
+    if(menuAdmin) menuAdmin.classList.toggle('hidden', isGuest); 
+    
+    // ตั้งค่ารายปุ่มในเมนู Admin
+    let navFin = document.getElementById('nav-fin-fund');
+    let navRand = document.getElementById('nav-random');
+    let navDb = document.getElementById('nav-admin-db');
+    let navUsers = document.getElementById('nav-admin-users');
+
+    // ถ้าไม่ใช่ Guest ให้เช็คสิทธิ์รายคน
+    if (!isGuest) {
+        if(navFin) navFin.classList.remove('hidden'); // ทุกคนเห็นการเงิน
+        
+        if(navRand) navRand.classList.toggle('hidden', role === 'treasurer'); // เหรัญญิกไม่เห็นสุ่ม
+        
+        if(navDb) navDb.classList.remove('hidden'); // ทุกคนเห็นฐานข้อมูล
+        
+        if(navUsers) navUsers.classList.toggle('hidden', role !== 'leader'); // เฉพาะหัวหน้าเห็นสิทธิ์ผู้ใช้
+    } else {
+        // ถ้าเป็น Guest ซ่อนหมด
+        if(navFin) navFin.classList.add('hidden');
+        if(navRand) navRand.classList.add('hidden');
+        if(navDb) navDb.classList.add('hidden');
+        if(navUsers) navUsers.classList.add('hidden');
+    }
+    
+    refreshAll(); 
+}
 
         function toggleSetting() { 
             appSettings.showPublicAttendance = document.getElementById('toggle-att').checked; 
