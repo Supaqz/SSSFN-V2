@@ -549,7 +549,20 @@ async function pullFromGS() {
             activityLogs = d.activityLogs || []; timeLogs = d.timeLogs || []; 
             saveToLocal(false); refreshAll();
         }
-        function saveToLocal(triggerSync = true) { let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; localStorage.setItem('SSSfnDB', JSON.stringify(db)); if(triggerSync) { clearTimeout(syncTimeout); syncTimeout = setTimeout(autoSyncToGS, 1500); } }
+        // แก้ไขฟังก์ชัน saveToLocal
+function saveToLocal(triggerSync = true) { 
+    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
+    localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
+    
+    if(triggerSync) { 
+        // เพิ่มเงื่อนไขเช็คว่ากำลัง sync อยู่ไหม และเพิ่มเวลาจาก 1500 เป็น 3000ms 
+        // เพื่อรวมการส่งข้อมูลหลายๆ ครั้งเข้าด้วยกัน (Debouncing)
+        clearTimeout(syncTimeout); 
+        syncTimeout = setTimeout(() => {
+            if(!isSyncing) autoSyncToGS();
+        }, 3000); 
+    } 
+}
         function loadFromLocal() { let data = localStorage.getItem('SSSfnDB'); if(data) { let p = JSON.parse(data); appSettings = p.appSettings || appSettings; if(!appSettings.activities) appSettings.activities = []; users = p.users || users; rooms = p.rooms || rooms; students = p.students || students; txHistory = p.txHistory || txHistory; fundRounds = p.fundRounds || fundRounds; fundPayments = p.fundPayments || fundPayments; expenses = p.expenses || []; activityLogs = p.activityLogs || []; timeLogs = p.timeLogs || []; } let sess = localStorage.getItem('sssfn_session'); if(sess) { try { let s = JSON.parse(sess); currentUserRole = s.role; currentUsername = s.user; } catch(e){} } }
 
         function formatIdSearch(val) { let clean = val.replace(/-/g, ''); if(/^\d+$/.test(clean) && clean.length > 11) return clean.slice(0,11) + '-' + clean.slice(11,12); return val; }
@@ -867,10 +880,10 @@ function copyToClipboard(text) {
             reader.onload = function(e) { 
                 let img = new Image(); 
                 img.onload = async function() { 
-                    let canvas = document.createElement('canvas'); let MAX_WIDTH = 800; let scaleSize = MAX_WIDTH / img.width; let w = img.width; let h = img.height; 
+                    let canvas = document.createElement('canvas'); let MAX_WIDTH = 400; let scaleSize = MAX_WIDTH / img.width; let w = img.width; let h = img.height; 
                     if (scaleSize < 1) { w *= scaleSize; h *= scaleSize; } canvas.width = w; canvas.height = h; 
                     let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
-                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); 
                     
                     // 🌟 🌟 🌟 เปลี่ยนมายิง API แทน google.script.run 🌟 🌟 🌟
                     let result = await callBackend({
