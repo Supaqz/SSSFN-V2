@@ -34,6 +34,9 @@
         table td, table th { word-break: break-word; white-space: normal; vertical-align: middle; }
         @keyframes slotSpin { 0% { transform: translateY(-20px); opacity: 0; } 50% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(20px); opacity: 0; } }
         .animate-slot { animation: slotSpin 0.15s infinite linear; }
+        @media (min-width: 768px) { 
+            .desktop-sidebar-closed { margin-left: -16rem !important; } 
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800">
@@ -46,7 +49,7 @@
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
     
   <!-- 🌟 แถบเมนูซ้ายมือ (Sidebar) ระบบ SSSFN -->
-    <aside id="sidebar" class="w-64 bg-[#fcfcfc] border-r border-slate-200 flex flex-col z-50 fixed md:static inset-y-0 left-0 sidebar-closed transition-transform duration-300 shadow-xl md:shadow-none">
+    <aside id="sidebar" class="w-64 shrink-0 bg-[#fcfcfc] border-r border-slate-200 flex flex-col z-50 fixed md:relative inset-y-0 left-0 sidebar-closed transition-all duration-300 shadow-xl md:shadow-none">
         <!-- โลโก้ด้านบน -->
         <div class="h-20 flex items-center px-6 border-b border-transparent mt-2">
             <div class="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center text-white mr-3 shadow-md shrink-0">
@@ -69,15 +72,15 @@
 
             <button onclick="switchPage('home')" id="nav-home" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition menu-active flex items-center gap-3"><i class="far fa-user text-lg w-5 text-center"></i> โปรไฟล์ของคุณ</button>
             <button onclick="openPublicSlipModal()" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition flex items-center gap-3 shadow-sm"><i class="far fa-paper-plane text-lg w-5 text-center"></i> สแกน & แนบสลิปโอนเงิน</button>
-           <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
-            <button onclick="switchPage('fin-expense')" id="nav-fin-expense" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-history text-lg w-5 text-center"></i> บันทึกบัญชีส่วนกลาง</button>
+            <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('voting')" id="nav-voting" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-chalkboard-teacher text-lg w-5 text-center"></i> กิจกรรมของคุณ (โหวต) <span id="badge-voting" class="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full hidden">0</span></button>
-            <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
-
+            <button onclick="switchPage('leaderboard')" id="nav-leaderboard" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-trophy text-lg w-5 text-center text-amber-500"></i> กระดานผู้นำ (สะสมแต้ม)</button>
+            <button onclick="switchPage('fin-expense')" id="nav-fin-expense" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-history text-lg w-5 text-center"></i> บันทึกบัญชีส่วนกลาง</button>
             <!-- เมนูแอดมิน -->
             <div id="menu-group-admin" class="hidden pt-4 mt-4 border-t border-slate-200">
                 <p class="px-3 text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-wider">ส่วนการจัดการ (Admin)</p>
                 <button onclick="switchPage('fin-fund')" id="nav-fin-fund" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-piggy-bank text-lg w-5 text-center"></i> จัดการการเงิน</button>
+                 <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
                 <button onclick="switchPage('admin-db')" id="nav-admin-db" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-database text-lg w-5 text-center"></i> ฐานข้อมูล นศ.</button>
                 <button onclick="switchPage('admin-users')" id="nav-admin-users" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-users-cog text-lg w-5 text-center"></i> สิทธิ์ผู้ใช้</button>
             </div>
@@ -101,7 +104,12 @@
 
     <main class="flex-1 flex flex-col h-screen overflow-hidden pt-16 md:pt-0">
         <header class="bg-white border-b border-emerald-100 px-4 md:px-8 py-3 z-10 flex justify-between items-center shadow-sm">
-            <h2 id="header-title" class="text-xl font-bold text-emerald-900">หน้าหลัก</h2>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="hidden md:block text-slate-400 hover:text-emerald-600 text-xl transition" title="เปิด/ปิดเมนู"><i class="fas fa-bars"></i></button>
+                <h2 id="header-title" class="text-xl font-bold text-emerald-900">หน้าหลัก</h2>
+            </div>
+            
             <div class="flex items-center gap-2">
                 <button onclick="pullFromGS()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center gap-2"><i class="fas fa-sync-alt"></i> <span class="hidden md:inline">ดึงข้อมูล</span></button>
                 <div id="system-actions" class="hidden flex gap-2">
@@ -352,16 +360,59 @@
             </div>
 
             <div id="page-admin-users" class="page-view hidden max-w-3xl mx-auto">
-                <div class="bg-white rounded-2xl border p-6 shadow-sm mb-6">
-                    <h3 class="font-bold text-slate-800 mb-4 border-b pb-2"><i class="fas fa-cogs text-emerald-600"></i> ตั้งค่าระบบและแจ้งเตือน</h3>
-                    <div class="flex items-center justify-between mb-4"><div><p class="font-bold text-sm text-slate-800">แสดงสถิติเข้าเรียนหน้าแรก</p><p class="text-xs text-slate-500">หากปิด นักศึกษาจะไม่เห็นสถิติของตัวเอง</p></div><div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" name="toggle" id="toggle-att" onchange="toggleSetting()" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="toggle-att" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div></div>
-                </div>
+    <div class="bg-white rounded-2xl border p-6 shadow-sm mb-6">
+        <h3 class="font-bold text-slate-800 mb-4 border-b pb-2"><i class="fas fa-cogs text-emerald-600"></i> ตั้งค่าระบบและแจ้งเตือน</h3>
+        
+        <div class="flex items-center justify-between mb-4">
+            <div><p class="font-bold text-sm text-slate-800">แสดงสถิติเข้าเรียนหน้าแรก</p><p class="text-xs text-slate-500">หากปิด นักศึกษาจะไม่เห็นสถิติของตัวเอง</p></div>
+            <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in"><input type="checkbox" name="toggle" id="toggle-att" onchange="toggleSetting()" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="toggle-att" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div>
+        </div>
+
+        <div class="flex items-center justify-between mb-4 pt-4 border-t border-slate-100">
+            <div><p class="font-bold text-sm text-slate-800">แสดงกระดานผู้นำ (Leaderboard)</p><p class="text-xs text-slate-500">หากปิด เมนูนี้จะถูกซ่อนจากมุมมองของนักศึกษา</p></div>
+            <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                <input type="checkbox" name="toggle" id="toggle-leaderboard" onchange="toggleSetting()" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/>
+                <label for="toggle-leaderboard" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label>
+            </div>
+        </div>
+    </div>
                 <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">จัดการสิทธิ์ (Login)</h3><button onclick="addUserAlert()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow">+ สร้าง User</button></div>
                     <table class="w-full text-left text-sm"><thead class="bg-white border-b"><tr><th class="p-4">Username (ผู้ใช้)</th><th class="p-4">สิทธิ์ (Role)</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody id="user-list"></tbody></table>
                 </div>
             </div>
 
+            <div id="page-leaderboard" class="page-view hidden max-w-4xl mx-auto">
+                <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-8 text-center shadow-lg mb-8 relative overflow-hidden">
+                    <i class="fas fa-crown absolute -right-4 -top-4 text-9xl text-white opacity-20"></i>
+                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-2 relative z-10"><i class="fas fa-trophy text-yellow-200 mr-2"></i> ทำเนียบคนเก่ง SSSFN</h2>
+                    <p class="text-amber-100 text-sm relative z-10">สะสมแต้มแบบอัตโนมัติจากการเข้าร่วมกิจกรรมและวินัยการเช็คชื่อ!</p>
+                </div>
+                
+                <div id="leaderboard-podium" class="flex justify-center items-end gap-2 md:gap-6 mb-12 mt-8 h-48">
+                    </div>
+
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 bg-slate-50 border-b border-slate-200 font-bold text-slate-700 flex justify-between items-center">
+                        <span><i class="fas fa-list-ol text-slate-400 mr-2"></i> อันดับนักศึกษาทั้งหมด</span>
+                        <span class="text-xs text-slate-400 font-normal">เรียงจากคะแนนมากไปน้อย</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white border-b text-slate-400 text-xs">
+                                <tr>
+                                    <th class="p-4 text-center w-16">อันดับ</th>
+                                    <th class="p-4">นักศึกษา</th>
+                                    <th class="p-4 text-center">ห้อง</th>
+                                    <th class="p-4 text-right">คะแนน (Points)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-list">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -378,7 +429,6 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbwPRQBSm7uKaB5L3qJpI3SUD6lihzkLs9lMjmNE-K9K33Xf21X9YparAZubuF6y_AAu/exec";
-        const PROMPTPAY_NUMBER = '0612132851'; // 👈 เบอร์พร้อมเพย์รับเงินของห้อง
         // 🌟 ฟังก์ชันตัวช่วยส่งข้อมูลไป Google Sheets (ย้ายมา GitHub ต้องใช้ตัวนี้)
 async function callBackend(payload) {
     try {
@@ -857,7 +907,20 @@ function copyToClipboard(text) {
     applyRoleUI(); 
     silentPullFromGS(); 
 });
-        function toggleSidebar() { let sidebar = document.getElementById('sidebar'); if(sidebar) sidebar.classList.toggle('sidebar-closed'); let overlay = document.getElementById('sidebar-overlay'); if(overlay) overlay.classList.toggle('hidden'); }
+        // 🌟 ฟังก์ชันเปิด-ปิดแถบเมนูด้านซ้าย (รองรับทั้งมือถือและคอมพิวเตอร์)
+window.toggleSidebar = function() { 
+    let sidebar = document.getElementById('sidebar'); 
+    let overlay = document.getElementById('sidebar-overlay'); 
+    
+    if (window.innerWidth < 768) {
+        // สำหรับมือถือ (แสดง Overlay แผ่นสีดำทับหน้าจอ)
+        if(sidebar) sidebar.classList.toggle('sidebar-closed'); 
+        if(overlay) overlay.classList.toggle('hidden');
+    } else {
+        // สำหรับคอมพิวเตอร์/ไอแพด (หดเมนูไปด้านซ้ายขยายพื้นที่จอหลัก)
+        if(sidebar) sidebar.classList.toggle('desktop-sidebar-closed');
+    }
+}
 function switchPage(pageId) {
     currentView = pageId;
     
@@ -887,8 +950,11 @@ function switchPage(pageId) {
     else if (pageId === 'activity') { titleText = 'ลงทะเบียนกิจกรรม'; titleIcon = '<i class="fas fa-map-marker-alt mr-2 text-blue-500"></i>'; }
     else if (pageId === 'fin-expense') { titleText = 'บันทึกบัญชีส่วนกลาง'; titleIcon = '<i class="fas fa-history mr-2 text-indigo-500"></i>'; }
     else if (pageId === 'voting') { titleText = 'กิจกรรมของคุณ (โหวต)'; titleIcon = '<i class="fas fa-chalkboard-teacher mr-2 text-sky-500"></i>'; }
-    else if (pageId === 'random') { titleText = 'สุ่มตัวแทน (Lucky Draw)'; titleIcon = '<i class="fas fa-dice mr-2 text-rose-500"></i>'; }
+   
+    // (เพิ่ม 2 บรรทัดนี้ต่อท้าย if-else ชุดที่เช็คชื่อหน้าในฟังก์ชัน switchPage)
+    else if (pageId === 'leaderboard') { titleText = 'กระดานผู้นำ (Leaderboard)'; titleIcon = '<i class="fas fa-trophy mr-2 text-amber-500"></i>'; }
     else if (pageId === 'fin-fund') { titleText = 'จัดการการเงิน'; titleIcon = '<i class="fas fa-piggy-bank mr-2 text-rose-500"></i>'; }
+    else if (pageId === 'random') { titleText = 'สุ่มตัวแทน (Lucky Draw)'; titleIcon = '<i class="fas fa-dice mr-2 text-rose-500"></i>'; }
     else if (pageId === 'admin-db') { titleText = 'ฐานข้อมูล นศ.'; titleIcon = '<i class="fas fa-database mr-2 text-amber-500"></i>'; }
     else if (pageId === 'admin-users') { titleText = 'สิทธิ์ผู้ใช้'; titleIcon = '<i class="fas fa-users-cog mr-2 text-slate-500"></i>'; }
 
@@ -926,7 +992,14 @@ function switchPage(pageId) {
             refreshAll(); 
         }
 
-        function toggleSetting() { appSettings.showPublicAttendance = document.getElementById('toggle-att').checked; appSettings.notifyAttendance = document.getElementById('noti-att').checked; appSettings.notifySlip = document.getElementById('noti-slip').checked; appSettings.notifyActivity = document.getElementById('noti-act').checked; saveToLocal(); renderHomeDirectory(); }
+        function toggleSetting() { 
+            appSettings.showPublicAttendance = document.getElementById('toggle-att').checked; 
+            appSettings.showLeaderboard = document.getElementById('toggle-leaderboard').checked; // 🌟 รับค่าปุ่มปิด-เปิด Leaderboard
+            
+            saveToLocal(); 
+            renderHomeDirectory(); 
+            refreshAll(); // อัปเดตเมนูทันที
+        }
 
         // ================= HOME =================
         // ฟังก์ชันช่วยแยกตัวอักษรย่อสำหรับรูป Avatar
@@ -1416,20 +1489,18 @@ function renderHomeDirectory() {
     });
     grid.innerHTML = actHtml;
 }
-
-        // =========================================================================
-// 🌟 ฟังก์ชันเปิดหน้า Dashboard แอดมิน (อัปเกรดความแม่นยำในการดึงข้อมูล)
+// =========================================================================
+// 🌟 ฟังก์ชันเปิดหน้า Dashboard แอดมิน (อัปเกรดระบบ Tab: ภาพรวม / Scan)
 // =========================================================================
 window.openActivityDashboard = function(title) {
     currentDetailActivityTitle = title;
     
-    // 1. ทำความสะอาดชื่อกิจกรรม (ตัดช่องว่างหน้า-หลังทิ้ง ป้องกันบั๊กจาก Sheet)
     let cleanTargetTitle = String(title).trim();
     let act = appSettings.activities.find(a => String(a.title).trim() === cleanTargetTitle); 
     if(!act) return;
 
-    // 2. 🌟 แก้ปัญหาการแสดงผลตั๋วของนักศึกษา
     if (currentUserRole === 'guest' && window.currentGuestStuId) {
+        // [โค้ดเดิม] ส่วนของการแสดงตั๋วนักศึกษา ...
         let cleanGuestId = String(window.currentGuestStuId).replace(/-/g, '').trim();
         let existingLog = activityLogs.find(l => 
             String(l.studentId).replace(/-/g, '').trim() === cleanGuestId && 
@@ -1473,15 +1544,11 @@ window.openActivityDashboard = function(title) {
         }
     }
 
-    // 3. 🌟 ดึงข้อมูลผู้เข้าร่วม (ป้องกันบั๊กชื่อผิดเพี้ยนด้วย .trim())
     let participants = activityLogs.filter(l => String(l.activityTitle).trim() === cleanTargetTitle);
     let count = participants.length; 
     let isOpen = act.isOpen !== false;
     let roleIsAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
 
-    let totalMax = 0;
-    if(act.rounds) { act.rounds.forEach(r => totalMax += r.max); }
-    
     let toggleBadgeHtml = roleIsAdmin ? `
         <div class="mb-2">
             <button onclick="toggleActivityOpen('${act.title}')" class="px-3 py-1 text-[10px] md:text-xs font-bold rounded-full border ${isOpen ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500 hover:text-white' : 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500 hover:text-white'} transition shadow-sm">
@@ -1489,21 +1556,13 @@ window.openActivityDashboard = function(title) {
             </button>
         </div>` : '';
 
-    // 4. 🌟 สร้างตารางแยกรายชื่อตามรอบ (แก้บั๊กหาชื่อรอบไม่เจอ)
     let roundsHtml = '';
     let rounds = act.rounds && act.rounds.length > 0 ? act.rounds : [{name: 'รอบทั่วไป', time: '', max: 0}];
     
     rounds.forEach(r => {
-        let rNameClean = String(r.name).trim();
-        
-        // 🌟 ตัวกรองอัจฉริยะ: ตรวจสอบความคล้ายของคำแทนการเปรียบเทียบแบบเป๊ะๆ 100%
-        // ใช้ตัวนี้ไปทับฟังก์ชันเดิมใน index.html ครับ
         let roundParticipants = participants.filter(p => {
             let pName = p.roundName ? String(p.roundName).trim() : 'รอบทั่วไป';
             let rName = String(r.name).trim();
-            
-            // เปลี่ยนเงื่อนไข: ถ้าคำว่า "บ่าย" อยู่ใน "จองสิทธิ์ (บ่าย)" ให้ถือว่าใช่!
-            // .includes() จะทำให้มันหาเจอไม่ว่าชื่อในชีตจะยาวแค่ไหน
             return pName.includes(rName) || rName.includes(pName);
         });
         
@@ -1533,7 +1592,6 @@ window.openActivityDashboard = function(title) {
         if (roundParticipants.length === 0) {
             roundsHtml += '<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">ยังไม่มีผู้ลงทะเบียนรอบนี้</td></tr>';
         } else {
-            // 🌟 จับคู่รหัสนักศึกษา (ลบขีด - ออกให้หมดก่อนเทียบ ป้องกันคนนึงมีขีด คนนึงไม่มี)
             let mergedData = roundParticipants.map(p => { 
                 let pId = String(p.studentId).replace(/-/g, '').trim();
                 let s = students.find(x => String(x.id).replace(/-/g, '').trim() === pId); 
@@ -1544,7 +1602,6 @@ window.openActivityDashboard = function(title) {
             
             mergedData.forEach(item => {
                 let rawTimeIn = item.logData.timeIn || '';
-                // ดักจับสถานะทั้ง "จองสิทธิ์ล่วงหน้า" หรือคำอื่นๆ ที่มีคำว่าจองสิทธิ์
                 let timeInStr = rawTimeIn.includes('จองสิทธิ์') ? '<span class="text-amber-600 text-[10px] font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200"><i class="fas fa-ticket-alt"></i> รอสแกน</span>' : (rawTimeIn.includes(' ') ? rawTimeIn.split(' ')[1] : rawTimeIn);
                 let timeOutStr = item.logData.timeOut ? item.logData.timeOut.split(' ')[1] : '-'; 
                 let outColor = item.logData.timeOut ? 'text-rose-600 font-bold' : 'text-slate-300';
@@ -1565,8 +1622,13 @@ window.openActivityDashboard = function(title) {
         roundsHtml += '</tbody></table></div></div>';
     });
 
+    // โหลด HTML สำหรับหน้าสแกน
+    let scanHtml = generateScanHTML(act);
+
     let dashboardHtml = `
-    <div class="mb-4 text-left"><button onclick="closeActivityDashboard()" class="text-slate-500 hover:text-blue-600 font-bold text-sm transition"><i class="fas fa-arrow-left mr-2"></i> ย้อนกลับไปหน้ารวม</button></div>
+    <div class="mb-4 text-left">
+        <button onclick="closeActivityDashboard()" class="text-slate-500 hover:text-blue-600 font-bold text-sm transition"><i class="fas fa-arrow-left mr-2"></i> ย้อนกลับไปหน้ารวม</button>
+    </div>
 
     <div class="bg-[#111827] rounded-t-2xl overflow-hidden shadow-md border-b border-slate-700">
         <div class="p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative">
@@ -1594,16 +1656,23 @@ window.openActivityDashboard = function(title) {
             </div>
         </div>
 
+        <!-- แท็บเมนู (Tab Controls) -->
         <div class="flex overflow-x-auto text-sm text-slate-300 font-bold bg-[#1f2937] px-4 scrollbar-hide">
-            <button class="px-5 py-3 border-b-2 border-blue-500 text-white whitespace-nowrap"><i class="far fa-eye mr-2"></i> ภาพรวม</button>
-            <button onclick="renderScanInterface('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-qrcode mr-2"></i> Scan นักศึกษา</button>
+            <button id="act-tab-btn-overview" onclick="switchActTab('overview', this)" class="act-tab-btn px-5 py-3 border-b-2 border-blue-500 text-white whitespace-nowrap"><i class="far fa-eye mr-2"></i> ภาพรวม</button>
+            <button id="act-tab-btn-scan" onclick="switchActTab('scan', this)" class="act-tab-btn px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-qrcode mr-2"></i> Scan นักศึกษา</button>
             <button onclick="exportActivityExcel('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-file-export mr-2"></i> Export Excel</button>
             ${roleIsAdmin ? `<button onclick="editActivityModal('${act.title}')" class="px-5 py-3 border-b-2 border-transparent hover:text-white whitespace-nowrap"><i class="fas fa-edit mr-2"></i> แก้ไขข้อมูล</button>` : ''}
         </div>
     </div>
 
-    <div class="bg-slate-50 border-x border-b border-slate-200 rounded-b-2xl p-4 md:p-6 shadow-sm">
+    <!-- ส่วนเนื้อหาของ แท็บ ภาพรวม (Table) -->
+    <div id="act-tab-overview" class="act-tab-content bg-slate-50 border-x border-b border-slate-200 rounded-b-2xl p-4 md:p-6 shadow-sm block">
         ${roundsHtml}
+    </div>
+
+    <!-- ส่วนเนื้อหาของ แท็บ สแกน (Scan) -->
+    <div id="act-tab-scan" class="act-tab-content bg-slate-50 border-x border-b border-slate-200 rounded-b-2xl p-4 md:p-6 shadow-sm hidden">
+        ${scanHtml}
     </div>`;
     
     document.getElementById('activity-main-view').classList.add('hidden'); 
@@ -1611,25 +1680,190 @@ window.openActivityDashboard = function(title) {
     detailView.innerHTML = dashboardHtml; 
     detailView.classList.remove('hidden');
 }
+
+// 🌟 สร้าง HTML ดีไซน์ใหม่สำหรับหน้า Scan (อ้างอิงรูป)
+function generateScanHTML(act) {
+    let roundsHtml = act.rounds && act.rounds.length > 0 
+        ? act.rounds.map(r => `<option value="${r.name}">${r.name}</option>`).join('')
+        : '<option value="รอบทั่วไป">รอบทั่วไป</option>';
+
+    return `
+    <div id="scan-interface-container" class="space-y-6 max-w-5xl mx-auto text-left">
+        
+        <!-- ส่วนที่ 1: ตั้งค่าการสแกน -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4 text-lg">บันทึกการเข้าร่วมกิจกรรม</h3>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบลงทะเบียน</label>
+                <select id="hw-active-round" class="w-full p-3 border border-slate-300 rounded-xl font-bold bg-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    ${roundsHtml}
+                </select>
+                <div class="mt-3 text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 flex items-start gap-2">
+                    <i class="fas fa-exclamation-circle mt-0.5"></i> 
+                    <span>หากสถานะกิจกรรมยังไม่เปิดใช้งานจะไม่สามารถเลือกรอบลงทะเบียนได้ กรุณาเปิดใช้งานกิจกรรมเพื่อเลือกรอบลงทะเบียน</span>
+                </div>
+            </div>
+
+            <hr class="my-5 border-slate-100">
+
+            <!-- ตัวเลือกการแสดงผล -->
+            <div class="mb-4">
+                <h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือกการแสดงผล</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="hw-show-info" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"> 
+                        <span class="text-sm font-bold text-slate-600">แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="hw-show-avatar" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"> 
+                        <span class="text-sm font-bold text-slate-600">แสดงรูปโปรไฟล์ของนักศึกษา</span>
+                    </label>
+                </div>
+            </div>
+
+            <hr class="my-5 border-slate-100">
+
+            <!-- ตัวเลือก Auto Confirm -->
+            <div>
+                <h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือก Auto-Confirm</h4>
+                <label class="flex items-center gap-3 cursor-pointer mb-3">
+                    <input type="checkbox" id="hw-auto-confirm" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"> 
+                    <span class="text-sm font-bold text-slate-600">เปิด Auto-Confirm (ยืนยันอัตโนมัติ)</span>
+                </label>
+                <div class="ml-7">
+                    <span class="text-xs text-slate-500 block mb-1">จำนวนวินาที (1-60)</span>
+                    <input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-24 p-2 border border-slate-300 rounded-lg text-center font-bold outline-none focus:border-blue-500 bg-white shadow-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- ส่วนที่ 2: นำเข้าข้อมูล -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4 text-lg">นำเข้าข้อมูลนักศึกษา</h3>
+            
+            <div class="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 mb-6">
+                <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1">
+                    <i class="fas fa-expand text-lg"></i> กรอก / สแกน <span class="text-[10px] font-normal text-slate-400">Barcode reader</span>
+                </button>
+                <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1">
+                    <i class="fas fa-camera text-lg"></i> กล้อง <span class="text-[10px] font-normal text-slate-400">QR / Barcode</span>
+                </button>
+            </div>
+
+            <!-- สแกนเข้า/ออก -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm hover:bg-blue-100">
+                    <input type="radio" name="scan-mode-hw" value="in" checked class="hidden" onchange="updateScanModeUI(this)"> 
+                    <i class="fas fa-sign-in-alt mr-1"></i> สแกนเข้างาน
+                </label>
+                <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200 transition shadow-sm hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300">
+                    <input type="radio" name="scan-mode-hw" value="out" class="hidden" onchange="updateScanModeUI(this)"> 
+                    <i class="fas fa-sign-out-alt mr-1"></i> สแกนกลับบ้าน
+                </label>
+            </div>
+
+            <!-- ส่วนกรอกมือ หรือใช้ปืนสแกน -->
+            <div id="manual-section" class="p-6 border-2 border-dashed border-slate-300 rounded-xl text-center bg-slate-50/50">
+                <input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition shadow-sm" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" 
+                    onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${act.title}'); this.value=''; }">
+                <p class="text-[11px] text-slate-400 mt-3 font-bold">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
+            </div>
+
+            <!-- ส่วนของกล้อง -->
+            <div id="camera-section" class="hidden w-full h-[350px] md:h-[450px] border-2 border-slate-200 rounded-xl overflow-hidden mt-4 bg-black shadow-inner">
+                <div id="hw-reader" class="w-full h-full"></div>
+            </div>
+        </div>
+    </div>`;
+}
 // ----------------------------------------------------------------------
 // ฟังก์ชันเสริม (Helper Functions) สำหรับแท็บต่างๆ วางต่อท้ายได้เลยครับ
 // ----------------------------------------------------------------------
+// 🌟 1. ระบบสลับแท็บเมนู (อัปเดตให้รองรับ Scan)
+window.switchActTab = function(tabId, btnElement) {
+    // ปิดกล้องถ้ามีการสลับหน้าหนีจากแท็บ Scan
+    if (tabId !== 'scan' && window.hwScanner) {
+        window.hwScanner.stop().catch(e => console.log(e));
+        window.hwScanner = null;
+    }
 
-// 1. ระบบสลับแท็บเมนู
-function switchActTab(tabId, btnElement) {
-    // ซ่อนเนื้อหาทุกแท็บ แล้วเปิดเฉพาะอันที่เลือก
-    document.querySelectorAll('.act-tab-content').forEach(el => el.classList.add('hidden'));
+    // ซ่อนทุกแท็บ
+    document.querySelectorAll('.act-tab-content').forEach(el => {
+        el.classList.remove('block');
+        el.classList.add('hidden');
+    });
+    // เปิดแท็บที่เลือก
     document.getElementById('act-tab-' + tabId).classList.remove('hidden');
+    document.getElementById('act-tab-' + tabId).classList.add('block');
     
-    // เปลี่ยนสีเส้นใต้เมนู
+    // เปลี่ยนสีปุ่มเมนูด้านบน
     document.querySelectorAll('.act-tab-btn').forEach(btn => {
         btn.classList.remove('border-blue-500', 'text-white');
         btn.classList.add('border-transparent', 'text-slate-300');
     });
     btnElement.classList.remove('border-transparent', 'text-slate-300');
     btnElement.classList.add('border-blue-500', 'text-white');
+    
+    // ถ้าคลิกแท็บสแกน ให้ Focus ที่ช่องกรอกข้อมูลอัตโนมัติ
+    if(tabId === 'scan') {
+        setTimeout(() => {
+            let inputF = document.getElementById('hw-input-focus');
+            if(inputF) inputF.focus();
+        }, 100);
+    }
 }
 
+// 🌟 2. อัปเดต UI ปุ่มสแกนเข้า/ออก
+window.updateScanModeUI = function(radioElem) {
+    document.querySelectorAll('input[name="scan-mode-hw"]').forEach(el => {
+        let lbl = el.parentElement;
+        if (el.checked) {
+            if(el.value === 'in') {
+                lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm";
+            } else {
+                lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border-rose-500 transition shadow-sm";
+            }
+        } else {
+            lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200 transition shadow-sm hover:bg-slate-100";
+        }
+    });
+}
+
+// 🌟 3. ปรับให้ฟังก์ชันกล้องทำงานเข้ากับ UI ใหม่
+window.switchScannerMode = function(mode) {
+    let btnManual = document.getElementById('btn-manual');
+    let btnCamera = document.getElementById('btn-camera');
+
+    if (mode === 'manual') {
+        btnManual.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1";
+        btnCamera.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1";
+    } else {
+        btnCamera.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1";
+        btnManual.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1";
+    }
+
+    document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
+    document.getElementById('camera-section').classList.toggle('hidden', mode !== 'camera');
+    
+    if (mode === 'manual') {
+        if(window.hwScanner) { window.hwScanner.stop().catch(e => console.log(e)); window.hwScanner = null; }
+        document.getElementById('hw-input-focus').focus();
+        document.addEventListener('click', keepInputFocused);
+    } else {
+        document.removeEventListener('click', keepInputFocused);
+        if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
+        
+        window.hwScanner.start(
+            { facingMode: "environment" }, 
+            { fps: 15, qrbox: {width: 250, height: 250}, aspectRatio: 1.333334 },
+            (decodedText) => {
+                window.hwScanner.pause();
+                executeScanLogic(decodedText, currentDetailActivityTitle);
+            }
+        ).catch(err => Swal.fire('ไม่สามารถเปิดกล้องได้', 'โปรดตรวจสอบการอนุญาตสิทธิ์กล้องบนเบราว์เซอร์ของคุณ', 'error'));
+    }
+}
 // 2. ระบบนำเข้านักศึกษาแบบกลุ่ม (Group Import)
 function importStudentsGroup(title) {
     let idsInput = document.getElementById('import-ids-input').value;
@@ -2157,89 +2391,173 @@ function switchScannerMode(mode) {
     }
 }
 
-// 🌟 ระบบประมวลผลอัจฉริยะ (เช็ค Setting และสร้าง Popup Card)
-function executeScanLogic(rawCode, title) {
-    if(!rawCode || !rawCode.trim()) return;
-    
-    // แปลงรหัสและหาข้อมูลนักศึกษา
-    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
-    let fixedCode = '';
-    for(let c of rawCode) { fixedCode += mapTH[c] || c; }
-    rawCode = fixedCode.trim();
-    let scannedDigits = rawCode.replace(/\D/g, ''); 
-    let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits);
-
-    if(!stu) {
-        Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบข้อมูล: ' + rawCode, showConfirmButton:false, timer:1500});
-        playBeep('error');
-        return;
-    }
-
-    // 🌟 ส่วนใหม่: สร้างการ์ดแสดงผลในหน้าสแกน (ไม่ใช้ Swal Popup)
-    showStudentPreviewCard(stu, title);
-}
-
-// 🌟 ฟังก์ชันแสดงการ์ดนักศึกษาแบบ "ซ้อนอยู่ในหน้าสแกน" (ไม่บังหน้าจอ)
-function showStudentPreviewCard(stu, title) {
+// 🌟 4. ฟังก์ชันแสดงการ์ดนักศึกษาแบบ Popup (Swal) ล็อกหน้าจอ
+window.showStudentPreviewCard = function(stu, title) {
     let showInfo = document.getElementById('hw-show-info')?.checked;
     let showAvatar = document.getElementById('hw-show-avatar')?.checked;
     let autoConfirm = document.getElementById('hw-auto-confirm')?.checked;
     let confirmSecs = parseInt(document.getElementById('hw-confirm-seconds')?.value) || 5;
 
-    let modal = document.getElementById('hw-scan-modal');
-    
-    // สร้างการ์ดข้อมูล
-    let card = document.createElement('div');
-    card.id = 'student-preview-card';
-    card.className = 'absolute inset-0 z-[100] bg-white p-6 md:p-10 flex flex-col items-center justify-center animate-fade-in';
-    
-    let avatarHtml = showAvatar ? `<div class="w-32 h-32 bg-indigo-600 text-white rounded-full flex items-center justify-center text-5xl font-bold mb-6 shadow-xl">${getInitials(stu.name)}</div>` : '';
-    let infoHtml = showInfo ? `<h3 class="text-3xl font-bold text-slate-800 mb-2">${stu.name}</h3><p class="text-slate-500 font-mono mb-4 text-lg">${stu.id}</p><span class="bg-emerald-100 text-emerald-700 px-6 py-2 rounded-full font-bold">ห้อง ${stu.room}</span>` : '';
+    // สร้างเนื้อหาภายใน Popup
+    let avatarHtml = showAvatar ? `<div class="w-24 h-24 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-md border-4 border-slate-100">${getInitials(stu.name)}</div>` : '';
+    let infoHtml = showInfo ? `<h3 class="text-xl font-bold text-slate-800 mb-1">${stu.name}</h3><p class="text-slate-500 font-mono mb-3 text-sm">${stu.id}</p><span class="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-200 inline-block shadow-inner">ห้อง ${stu.room}</span>` : '';
 
-    card.innerHTML = `
-        <div class="max-w-md w-full text-center">
-            ${avatarHtml}
-            ${infoHtml}
-            <div class="mt-8 flex gap-3">
-                <button onclick="confirmScan('${stu.id}', '${title}')" class="flex-1 bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-emerald-700 transition">ยืนยัน</button>
-                <button onclick="document.getElementById('student-preview-card').remove();" class="flex-1 bg-slate-200 text-slate-700 py-4 rounded-xl font-bold text-lg hover:bg-slate-300 transition">ยกเลิก</button>
-            </div>
-            <p id="timer-text" class="mt-4 text-slate-400 text-sm font-bold"></p>
-        </div>
-    `;
-    modal.appendChild(card);
+    let popupHtml = `
+    <div class="text-center p-2 font-sans">
+        ${avatarHtml}
+        ${infoHtml}
+        <p id="timer-text" class="mt-4 text-rose-500 text-xs font-bold h-4"></p>
+    </div>`;
 
-    // ระบบ Auto-Confirm
-    if (autoConfirm) {
-        let timer = confirmSecs;
-        let timerText = document.getElementById('timer-text');
-        let interval = setInterval(() => {
-            timer--;
-            if (timerText) timerText.innerText = `ยืนยันอัตโนมัติใน ${timer} วินาที...`;
-            if (timer <= 0) {
-                clearInterval(interval);
-                confirmScan(stu.id, title);
+    let timerInterval;
+
+    Swal.fire({
+        html: popupHtml,
+        showCancelButton: true,
+        confirmButtonText: '✅ ยืนยัน',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        customClass: {
+            popup: 'rounded-3xl p-4 max-w-sm',
+            confirmButton: 'rounded-xl px-5 py-2.5 font-bold text-md',
+            cancelButton: 'rounded-xl px-5 py-2.5 font-bold text-md'
+        },
+        didOpen: () => {
+            // ระบบ Auto-Confirm นับถอยหลัง
+            if (autoConfirm) {
+                let timer = confirmSecs;
+                let timerText = document.getElementById('timer-text');
+                if (timerText) timerText.innerText = `ระบบจะยืนยันอัตโนมัติใน ${timer} วินาที...`;
+
+                timerInterval = setInterval(() => {
+                    timer--;
+                    if (timerText) timerText.innerText = `ระบบจะยืนยันอัตโนมัติใน ${timer} วินาที...`;
+                    
+                    if (timer <= 0) {
+                        clearInterval(timerInterval);
+                        Swal.clickConfirm(); // สั่งคลิกปุ่มยืนยันอัตโนมัติ
+                    }
+                }, 1000);
             }
-        }, 1000);
-        // ถ้ากดปิดการ์ดก่อน ให้เคลียร์ Interval
-        card.querySelector('button.bg-slate-200').addEventListener('click', () => clearInterval(interval));
+        },
+        willClose: () => {
+            clearInterval(timerInterval);
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // เรียกฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ
+            confirmScan(stu.id, title);
+        } else {
+            // หากกดยกเลิก ให้เปิดการทำงานกล้องใหม่อีกครั้ง และโฟกัสช่องกรอกมือ
+            if (window.hwScanner) window.hwScanner.resume();
+            let inputF = document.getElementById('hw-input-focus');
+            if (inputF) inputF.focus();
+        }
+    });
+}
+// 🌟 1. ระบบประมวลผลอัจฉริยะ (แก้ไขให้บังคับต้องมีชื่อในระบบเท่านั้น)
+window.executeScanLogic = function(rawCode, title) {
+    if(!rawCode || !rawCode.trim()) return;
+    
+    // แปลงรหัสกรณีเผลอพิมพ์ภาษาไทย [cite: 559, 560]
+    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
+    let fixedCode = '';
+    for(let c of rawCode) { fixedCode += mapTH[c] || c; } // [cite: 560]
+    rawCode = fixedCode.trim();
+    let scannedDigits = rawCode.replace(/\D/g, ''); // [cite: 561]
+
+    // ค้นหานักศึกษาในระบบ [cite: 562]
+    let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits); // [cite: 562]
+
+    // 🌟 บังคับเงื่อนไข: ถ้าไม่มีชื่อในระบบ จะแจ้งเตือนข้อผิดพลาดและหยุดการทำงานทันที (ไม่บันทึกข้อมูล)
+    if(!stu) {
+        Swal.fire({
+            toast: true, 
+            position: 'top', 
+            icon: 'error', 
+            title: '❌ ไม่พบข้อมูลนักศึกษา: ' + rawCode, 
+            showConfirmButton: false, 
+            timer: 2000
+        }); // [cite: 562]
+        if(typeof playBeep === 'function') playBeep('error'); // [cite: 563]
+        
+        // คืน Focus กลับมาที่ช่องกรอกข้อมูลเพื่อให้สแกนคนถัดไปได้ทันที
+        setTimeout(() => {
+            let inputF = document.getElementById('hw-input-focus');
+            if(inputF) inputF.focus();
+            if (window.hwScanner) window.hwScanner.resume();
+        }, 100);
+        return;
     }
+
+    // ถ้ามีรายชื่อถูกต้อง ให้แสดงการ์ด Popup เพื่อยืนยันข้อมูลตามปกติ [cite: 563, 564]
+    showStudentPreviewCard(stu, title);
 }
 
-// 🌟 ฟังก์ชันบันทึกข้อมูล (เรียกใช้หลังจากกดยืนยัน)
-function confirmScan(stuId, title) {
+// 🌟 2. ฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ (บันทึกเฉพาะคนที่มีชื่อในระบบแน่นอน)
+window.confirmScan = function(stuId, title) {
+    // ปิดการ์ด Popup ทิ้งไป [cite: 576]
     let card = document.getElementById('student-preview-card');
-    if(card) card.remove();
+    if(card) card.remove(); // [cite: 576]
+
+    let stu = students.find(s => s.id === stuId); // [cite: 577]
+    if (!stu) return; // ดักเผื่อกรณีหลุด
     
-    // โลจิกเดิมในการบันทึกเข้า Google Sheets (ดึงมาจาก logic เดิมของคุณ)
-    let stu = students.find(s => s.id === stuId);
-    let mode = document.querySelector('input[name="scan-mode-hw"]:checked').value;
+    // ดึงสถานะ สแกนเข้า/ออก และ ชื่อรอบ [cite: 540, 578]
+    let modeElem = document.querySelector('input[name="scan-mode-hw"]:checked'); // [cite: 578]
+    let mode = modeElem ? modeElem.value : 'in'; // [cite: 578]
+    let roundElem = document.getElementById('hw-active-round'); // [cite: 540]
+    let roundName = roundElem ? roundElem.value : 'รอบทั่วไป';
     
-    // ... [ใส่โค้ดบันทึก activityLogs / txHistory ที่คุณมีอยู่เดิมได้เลย] ...
+    // บันทึกลง Log [cite: 588, 590]
+    let existing = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+    let timeStr = getNow(); // [cite: 590, 591]
     
-    finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก');
+    if (mode === 'in') { // สแกนเข้า [cite: 578]
+        if (existing) existing.timeIn = timeStr;
+        else activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null }); // [cite: 590]
+    } else { // สแกนออก [cite: 578]
+        if (existing) existing.timeOut = timeStr;
+        else activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: '-', timeOut: timeStr }); // [cite: 590]
+    }
+    
+    // บันทึกประวัติระบบ (Audit Log) [cite: 591]
+    txHistory.unshift({ date: timeStr, name: 'สแกน' + (mode === 'in' ? 'เข้า' : 'ออก') + ' (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername }); // [cite: 591]
+    
+    finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก'); // [cite: 578]
 }
 
+// 🌟 3. ฟังก์ชันเสร็จสิ้นกระบวนการ (ล็อกหน้าจอไว้ที่แท็บสแกนเสมอ ไม่เด้งหนี)
+window.finishScanProcess = function(stuName, title, actionType = 'เข้า') { // [cite: 582]
+    // บันทึกลง LocalStorage และสั่งซิงค์ข้อมูลงชีต [cite: 582, 583]
+    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; // [cite: 582]
+    localStorage.setItem('SSSfnDB', JSON.stringify(db)); // [cite: 583]
+    clearTimeout(syncTimeout); // [cite: 583]
+    syncTimeout = setTimeout(autoSyncToGS, 2000); // [cite: 583]
+    
+    // แจ้งเตือนสแกนสำเร็จ [cite: 583]
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton: false, timer: 1500}); // [cite: 583]
+    if(typeof playBeep === 'function') playBeep('success'); // [cite: 583]
+    
+    // ทำการรีเฟรชข้อมูลในหน้านั้น [cite: 584]
+    if(currentDetailActivityTitle === title) {
+        openActivityDashboard(title); // อัปเดตตารางตัวเลขและรายชื่อเบื้องหลัง [cite: 584]
+        
+        // 🌟 ล็อกแท็บ: บังคับให้หน้าจอเปิดค้างไว้ที่แท็บ "Scan นักศึกษา" เหมือนเดิมทันที 
+        let btnScan = document.getElementById('act-tab-btn-scan');
+        if (btnScan) switchActTab('scan', btnScan); // 
+        
+        // ดึง Cursor กลับมาที่ช่องกรอกรหัส พร้อมให้เครื่องสแกนยิงคนต่อไปได้ต่อเนื่อง [cite: 554]
+        setTimeout(() => {
+            let inputF = document.getElementById('hw-input-focus');
+            if(inputF) inputF.focus(); // [cite: 554]
+            if (window.hwScanner) window.hwScanner.resume(); // เปิดรับภาพจากกล้องต่อ (ถ้าใช้กล้อง) [cite: 556]
+        }, 100);
+    } 
+}
 function closeHardwareScanner() { 
     document.removeEventListener('click', keepInputFocused);
     if (window.hwScanner) {
@@ -2258,8 +2576,6 @@ function keepInputFocused(e) {
     let inputEl = document.getElementById('hw-input-focus'); 
     if(inputEl) inputEl.focus();
 }
-        function finishScanProcess(stuName, title, actionType = 'เข้า') { let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; localStorage.setItem('SSSfnDB', JSON.stringify(db)); clearTimeout(syncTimeout); syncTimeout = setTimeout(autoSyncToGS, 2000); Swal.fire({toast:true, position:'top-end', icon:'success', title:`✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton:false, timer:1000}); playBeep('success'); refreshRecentScans(title); if(currentDetailActivityTitle === title) openActivityDashboard(title); }
-
         function manualAddParticipant(title) {
             let inputEl = document.getElementById('manual-add-input'); let inputVal = inputEl.value.trim(); if(!inputVal) return Swal.fire('เตือน', 'กรุณากรอกรหัสนักศึกษา', 'warning');
             let cleanId = formatIdSearch(inputVal); let plainId = cleanId.replace(/-/g, ''); let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === plainId); 
@@ -2932,7 +3248,20 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             let elNotiAtt = document.getElementById('noti-att'); if(elNotiAtt) elNotiAtt.checked = appSettings.notifyAttendance !== false;
             let elNotiSlip = document.getElementById('noti-slip'); if(elNotiSlip) elNotiSlip.checked = appSettings.notifySlip !== false;
             let elNotiAct = document.getElementById('noti-act'); if(elNotiAct) elNotiAct.checked = appSettings.notifyActivity !== false;
-            
+            // โหลดสถานะปุ่มตั้งค่ากระดานผู้นำ
+    let elToggleLB = document.getElementById('toggle-leaderboard'); 
+    if(elToggleLB) elToggleLB.checked = appSettings.showLeaderboard !== false;
+
+    // 🌟 โลจิกซ่อน/แสดงเมนูกระดานผู้นำ
+    let navLeaderboard = document.getElementById('nav-leaderboard');
+    if(navLeaderboard) {
+        // ถ้าแอดมินปิดสวิตช์ จะซ่อนเมนูนี้ไม่ให้นักศึกษา (Guest) เห็น
+        if(appSettings.showLeaderboard === false && currentUserRole === 'guest') {
+            navLeaderboard.style.display = 'none';
+        } else {
+            navLeaderboard.style.display = 'flex';
+        }
+    }
             // สร้างป้ายห้องและดึงเบอร์จากเซฟโซนมาโชว์
             let elAdmRoomList = document.getElementById('admin-room-list'); 
             if(elAdmRoomList) {
@@ -2957,7 +3286,7 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             let btnCreateAct = document.getElementById('btn-create-act'); if(btnCreateAct) btnCreateAct.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
             let adminRemind = document.getElementById('admin-reminder-tools'); if(adminRemind) adminRemind.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
 
-            renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();
+            renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();renderLeaderboard();
             if(randomPool.length === 0 && students.length > 0) initRandomizer();
             
             let adminStudents = cAdmRm === 'all' ? students : students.filter(s => s.room === cAdmRm);
@@ -3339,6 +3668,86 @@ function updateSidebarBadges() {
     let actBadge = document.getElementById('badge-activity');
     if (actBadge) { actBadge.innerText = unregActs; actBadge.style.display = unregActs > 0 ? 'inline-block' : 'none'; }
 }
+// ----------------------------------------------------------------------------
+function calculatePoints() {
+    // 💡 ระบบคำนวณแต้มอัตโนมัติ: เข้าร่วมกิจกรรม = 50 แต้ม, มาเรียน(เช็คชื่อ) = 10 แต้ม
+    let ranked = students.map(s => {
+        let actsCount = activityLogs.filter(l => l.studentId === s.id).length;
+        let attCount = s.att_m || 0; 
+        let points = (actsCount * 50) + (attCount * 10);
+        return { ...s, points: points };
+    }).filter(s => s.points > 0); // โชว์เฉพาะคนที่มีคะแนนมากกว่า 0
+
+    // เรียงจากคะแนนมากไปน้อย
+    return ranked.sort((a, b) => b.points - a.points);
+}
+
+function renderLeaderboard() {
+    let rankedStudents = calculatePoints();
+    let listContainer = document.getElementById('leaderboard-list');
+    let podiumContainer = document.getElementById('leaderboard-podium');
+    if (!listContainer || !podiumContainer) return;
+
+    if (rankedStudents.length === 0) {
+        podiumContainer.innerHTML = '';
+        listContainer.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-slate-400">ยังไม่มีข้อมูลคะแนนสะสมในระบบ</td></tr>';
+        return;
+    }
+
+    // 🌟 สร้างแท่น Podium (Top 3)
+    let podiumHtml = '';
+    const top3 = rankedStudents.slice(0, 3);
+    
+    if (top3[1]) podiumHtml += createPodiumPlace(top3[1], 2, 'h-28 md:h-32', 'bg-slate-300', 'text-slate-600', 'เหรียญเงิน');
+    if (top3[0]) podiumHtml += createPodiumPlace(top3[0], 1, 'h-36 md:h-40', 'bg-yellow-400', 'text-yellow-800', 'เหรียญทอง', 'scale-110 z-10 shadow-2xl');
+    if (top3[2]) podiumHtml += createPodiumPlace(top3[2], 3, 'h-20 md:h-24', 'bg-amber-600', 'text-amber-100', 'เหรียญทองแดง');
+    
+    podiumContainer.innerHTML = podiumHtml;
+
+    // 🌟 สร้าง List อันดับที่เหลือ
+    let listHtml = '';
+    rankedStudents.forEach((s, index) => {
+        let rank = index + 1;
+        let rankDisplay = rank <= 3 ? `<i class="fas fa-medal text-xl ${rank===1?'text-yellow-400':rank===2?'text-slate-400':'text-amber-600'} drop-shadow-md"></i>` : `<span class="font-bold text-slate-400">${rank}</span>`;
+        let highlightClass = rank <= 3 ? 'bg-amber-50/30' : 'hover:bg-slate-50';
+        let isMe = (window.currentGuestStuId === s.id) ? 'border-l-4 border-l-orange-500 bg-orange-50' : highlightClass;
+        
+        listHtml += `
+        <tr class="border-b border-slate-100 transition ${isMe}">
+            <td class="p-4 text-center">${rankDisplay}</td>
+            <td class="p-4 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-[#111827] text-white flex items-center justify-center font-bold text-xs shadow-sm">${getInitials(s.name)}</div>
+                <div>
+                    <p class="font-bold text-slate-800 text-sm flex items-center gap-2">${s.name} ${window.currentGuestStuId === s.id ? '<span class="text-[9px] bg-orange-500 text-white px-2 py-0.5 rounded-full">คุณ</span>' : ''}</p>
+                    <p class="text-[10px] text-slate-500 font-mono">${s.id}</p>
+                </div>
+            </td>
+            <td class="p-4 text-center"><span class="bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">${s.room}</span></td>
+            <td class="p-4 text-right font-black text-orange-600 text-lg md:text-xl">${s.points.toLocaleString()}</td>
+        </tr>`;
+    });
+    listContainer.innerHTML = listHtml;
+}
+
+function createPodiumPlace(stu, rank, heightClass, colorClass, textColor, title, extraClass = '') {
+    return `
+    <div class="flex flex-col items-center justify-end w-24 md:w-32 ${extraClass} transform transition hover:-translate-y-2 cursor-default group">
+        <div class="relative">
+            <div class="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center font-bold text-xl md:text-2xl text-slate-800 relative overflow-hidden group-hover:scale-105 transition">
+                ${getInitials(stu.name)}
+            </div>
+            <div class="absolute -bottom-1 -right-1 w-7 h-7 md:w-8 md:h-8 rounded-full ${colorClass} text-white flex items-center justify-center font-bold text-xs md:text-sm border-2 border-white shadow-md z-30">
+                ${rank}
+            </div>
+        </div>
+        <p class="font-bold text-slate-800 text-[10px] md:text-xs mt-3 mb-0.5 truncate w-full text-center px-1" title="${stu.name}">${stu.name.split(' ')[0]}</p>
+        <p class="text-[11px] font-black text-orange-600 mb-2">${stu.points} Pts</p>
+        <div class="w-full ${heightClass} ${colorClass} rounded-t-2xl border-x border-t border-white/30 shadow-inner flex items-start justify-center pt-4 overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+            <i class="fas fa-trophy ${textColor} opacity-60 text-2xl relative z-10"></i>
+        </div>
+    </div>`;
+}    
     </script>
 </body>
 </html>
