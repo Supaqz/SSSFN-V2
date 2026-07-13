@@ -452,7 +452,7 @@ async function callBackend(payload) {
         let quickTargetId = ''; let quickScanner = null;
         let isSyncing = false; let randomPool = []; let currentDetailActivityTitle = '';
 
-        function openQuickScan(targetId) { quickTargetId = targetId; document.getElementById('quick-scan-modal').classList.remove('hidden'); quickScanner = new Html5QrcodeScanner("quick-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false); quickScanner.render((decodedText) => { let el = document.getElementById(quickTargetId); if(el) { el.value = formatIdSearch(decodedText); el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('keyup')); } closeQuickScan(); }, (err) => {}); }
+        function openQuickScan(targetId) { quickTargetId = targetId; document.getElementById('quick-scan-modal').classList.remove('hidden'); quickScanner = new Html5QrcodeScanner("quick-reader", { fps: 30, qrbox: {width: 250, height: 250} }, false); // 🌟 ดัน FPS เป็น 30 quickScanner.render((decodedText) => { let el = document.getElementById(quickTargetId); if(el) { el.value = formatIdSearch(decodedText); el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('keyup')); } closeQuickScan(); }, (err) => {}); }
         function closeQuickScan() { document.getElementById('quick-scan-modal').classList.add('hidden'); if(quickScanner) { quickScanner.clear().catch(e => console.log(e)); quickScanner = null; } }
 
         window.onerror = function(msg) { if (!String(msg).includes("Script error") && !String(msg).includes("html5-qrcode")) { console.error('ข้อผิดพลาดระบบ:', msg); } };
@@ -559,7 +559,7 @@ async function pullFromGS() {
     let alertDiv = document.getElementById('slip-debt-alert');
     let selectRound = document.getElementById('slip-round');
     if(!alertDiv || !selectRound) return;
-    document.getElementById('slip-qr-container').innerHTML = ''; 
+    document.getElementById('slip-qr-container').innerHTML = '';
     
     if(!val || val.length < 11) { 
         alertDiv.classList.add('hidden');
@@ -584,21 +584,29 @@ async function pullFromGS() {
     fundPayments.forEach(p => {
         if (p.studentId === stu.id) {
             let r = fundRounds.find(rd => rd.id === p.roundId);
-            // 🌟 ดักเงื่อนไข: ดึงมาเฉพาะบิลที่ "เปิดรับชำระ" อยู่เท่านั้น
+            
+            // 🌟 เงื่อนไขที่ 1: ดึงมาเฉพาะบิลที่เปิดรับชำระอยู่
             if(r && r.isOpen !== false) {
                 let paid = p.paidAmt || 0;
-                if (r.amt - paid > 0) unpaidRounds.push({...r, paid: paid, remain: r.amt - paid, qrUnlocked: p.qrUnlocked});
+                
+                // 🌟 🌟 🌟 วิธีแก้ปัญหา 🌟 🌟 🌟 
+                // เพิ่มการตรวจสอบสถานะ (p.status) ต้องไม่ใช่ "รอตรวจสอบ" หรือ "รอดำเนินการ"
+                // เพื่อให้ข้ามบิลที่ส่งสลิปไปแล้ว ทำให้ระบบเปิดบิลรอบถัดไปให้จ่ายได้ทันที
+                if (r.amt - paid > 0 && p.status !== 'รอตรวจสอบ' && p.status !== 'รอดำเนินการ') {
+                    unpaidRounds.push({...r, paid: paid, remain: r.amt - paid, qrUnlocked: p.qrUnlocked});
+                }
             }
         }
     });
     
     if(unpaidRounds.length > 0) {
-        unpaidRounds.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)); 
+        // เรียงจากบิลเก่าไปใหม่
+        unpaidRounds.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
         let total = unpaidRounds.reduce((sum, r) => sum + r.remain, 0);
         buildSlipDropdown(unpaidRounds, total, alertDiv, selectRound);
     } else {
         alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-emerald-50 text-emerald-600 border border-emerald-200';
-        alertDiv.innerText = '✅ ไม่มียอดค้างชำระ ยอดเยี่ยม!';
+        alertDiv.innerText = '✅ ไม่มียอดค้างชำระ (หรือส่งสลิปครบแล้วกำลังรอตรวจสอบ) ยอดเยี่ยม!';
         alertDiv.classList.remove('hidden');
         selectRound.innerHTML = '<option value="">-- ไม่มียอดให้ชำระแล้ว --</option>';
     }
@@ -858,10 +866,10 @@ function copyToClipboard(text) {
             reader.onload = function(e) { 
                 let img = new Image(); 
                 img.onload = async function() { 
-                    let canvas = document.createElement('canvas'); let MAX_WIDTH = 800; let scaleSize = MAX_WIDTH / img.width; let w = img.width; let h = img.height; 
-                    if (scaleSize < 1) { w *= scaleSize; h *= scaleSize; } canvas.width = w; canvas.height = h; 
-                    let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
-                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+                    let canvas = document.createElement('canvas'); let MAX_WIDTH = 500; let scaleSize = MAX_WIDTH / img.width; let w = img.width; let h = img.height; 
+if (scaleSize < 1) { w *= scaleSize; h *= scaleSize; } canvas.width = w; canvas.height = h; 
+let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
+let compressedBase64 = canvas.toDataURL('image/jpeg', 0.5); // 🌟 เปลี่ยนเป็น 500 และ 0.5 รีดสปีดสูงสุด
                     
                     // 🌟 🌟 🌟 เปลี่ยนมายิง API แทน google.script.run 🌟 🌟 🌟
                     let result = await callBackend({
@@ -1070,7 +1078,7 @@ function showStudentSelectionModal(stu) {
                 switchPage('home'); // 🌟 บังคับเด้งกลับหน้าหลัก
                 
                 Swal.fire({toast:true, position:'top-end', icon:'success', title:'เข้าสู่ระบบสำเร็จ', showConfirmButton:false, timer:1500});
-            }, 300);
+            }, 100);
         }
     });
 }
@@ -1855,8 +1863,8 @@ window.switchScannerMode = function(mode) {
         if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
         
         window.hwScanner.start(
-            { facingMode: "environment" }, 
-            { fps: 15, qrbox: {width: 250, height: 250}, aspectRatio: 1.333334 },
+    { facingMode: "environment" }, 
+    { fps: 30, qrbox: {width: 250, height: 250}, aspectRatio: 1.333334 }, // 🌟 ดัน FPS เป็น 30
             (decodedText) => {
                 window.hwScanner.pause();
                 executeScanLogic(decodedText, currentDetailActivityTitle);
