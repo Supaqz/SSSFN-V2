@@ -559,7 +559,7 @@ async function pullFromGS() {
     let alertDiv = document.getElementById('slip-debt-alert');
     let selectRound = document.getElementById('slip-round');
     if(!alertDiv || !selectRound) return;
-    document.getElementById('slip-qr-container').innerHTML = ''; 
+    document.getElementById('slip-qr-container').innerHTML = '';
     
     if(!val || val.length < 11) { 
         alertDiv.classList.add('hidden');
@@ -584,21 +584,30 @@ async function pullFromGS() {
     fundPayments.forEach(p => {
         if (p.studentId === stu.id) {
             let r = fundRounds.find(rd => rd.id === p.roundId);
-            // 🌟 ดักเงื่อนไข: ดึงมาเฉพาะบิลที่ "เปิดรับชำระ" อยู่เท่านั้น
+            
+            // 🌟 เงื่อนไขที่ปรับปรุงใหม่:
+            // 1. ต้องเป็นบิลที่เปิดรับชำระ (isOpen !== false)
+            // 2. ต้องมียอดค้าง (r.amt - paid > 0)
+            // 3. **ต้องไม่ใช่บิลที่ส่งสลิปไปแล้วและรอแอดมินยืนยัน**
             if(r && r.isOpen !== false) {
                 let paid = p.paidAmt || 0;
-                if (r.amt - paid > 0) unpaidRounds.push({...r, paid: paid, remain: r.amt - paid, qrUnlocked: p.qrUnlocked});
+                let isPending = (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ');
+                
+                if (r.amt - paid > 0 && !isPending) {
+                    unpaidRounds.push({...r, paid: paid, remain: r.amt - paid, qrUnlocked: p.qrUnlocked});
+                }
             }
         }
     });
     
     if(unpaidRounds.length > 0) {
-        unpaidRounds.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)); 
+        // เรียงจากบิลเก่าไปใหม่
+        unpaidRounds.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
         let total = unpaidRounds.reduce((sum, r) => sum + r.remain, 0);
         buildSlipDropdown(unpaidRounds, total, alertDiv, selectRound);
     } else {
         alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-emerald-50 text-emerald-600 border border-emerald-200';
-        alertDiv.innerText = '✅ ไม่มียอดค้างชำระ ยอดเยี่ยม!';
+        alertDiv.innerText = '✅ ไม่มียอดค้างชำระ (หรือส่งสลิปครบแล้วกำลังรอตรวจสอบ) ยอดเยี่ยม!';
         alertDiv.classList.remove('hidden');
         selectRound.innerHTML = '<option value="">-- ไม่มียอดให้ชำระแล้ว --</option>';
     }
