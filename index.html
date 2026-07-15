@@ -1899,11 +1899,20 @@ window.switchScannerMode = function(mode) {
         document.removeEventListener('click', keepInputFocused);
         if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
         
-        // 🌟 แก้ไข: ดัน fps เป็น 30 และเปลี่ยนกล่องสแกน (qrbox) ให้เป็น "สี่เหลี่ยมผืนผ้า" กว้าง 350 x สูง 200
-        // เพื่อให้ครอบคลุมความกว้างของบาร์โค้ดบนบัตรนักศึกษาได้พอดีเป๊ะ
+        // 🌟 แก้ไขโลจิกการเปิดกล้องสำหรับไอแพด/แท็บเล็ต
         window.hwScanner.start(
             { facingMode: "environment" }, 
-            { fps: 30, qrbox: {width: 350, height: 200}, aspectRatio: 1.333334 },
+            { 
+                fps: 30, // ดันความลื่นไหลกล้องสูงสุด
+                // 🌟 ปรับปรุงจุดสแกน (qrbox) ให้คำนวณตามสัดส่วนวิดีโอจริงอัตโนมัติ
+                // โดยให้กรอบกว้าง 80% ของความกว้างจอ และมีความสูง 160px เป็นสี่เหลี่ยมผืนผ้าแนวนอนพอดีกับบาร์โค้ด
+                qrbox: function(videoWidth, videoHeight) {
+                    let widthBox = Math.min(videoWidth * 0.8, 400);
+                    let heightBox = Math.min(videoHeight * 0.4, 160);
+                    return { width: widthBox, height: heightBox };
+                }
+                // 🌟 นำ aspectRatio เดิมออก เพื่อไม่ให้ระบบบังคับครอปตัดขอบวิดีโอจนจุดศูนย์กลางเพี้ยนตกขอบล่าง
+            },
             (decodedText) => {
                 window.hwScanner.pause();
                 executeScanLogic(decodedText, currentDetailActivityTitle);
