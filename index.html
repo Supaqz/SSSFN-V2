@@ -1881,11 +1881,11 @@ window.switchScannerMode = function(mode) {
     let btnCamera = document.getElementById('btn-camera');
 
     if (mode === 'manual') {
-        btnManual.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1";
-        btnCamera.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1";
+        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
+        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
     } else {
-        btnCamera.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1";
-        btnManual.className = "mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1";
+        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
+        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
     }
 
     document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
@@ -1899,9 +1899,11 @@ window.switchScannerMode = function(mode) {
         document.removeEventListener('click', keepInputFocused);
         if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
         
+        // 🌟 แก้ไข: ดัน fps เป็น 30 และเปลี่ยนกล่องสแกน (qrbox) ให้เป็น "สี่เหลี่ยมผืนผ้า" กว้าง 350 x สูง 200
+        // เพื่อให้ครอบคลุมความกว้างของบาร์โค้ดบนบัตรนักศึกษาได้พอดีเป๊ะ
         window.hwScanner.start(
             { facingMode: "environment" }, 
-            { fps: 15, qrbox: {width: 250, height: 250}, aspectRatio: 1.333334 },
+            { fps: 30, qrbox: {width: 350, height: 200}, aspectRatio: 1.333334 },
             (decodedText) => {
                 window.hwScanner.pause();
                 executeScanLogic(decodedText, currentDetailActivityTitle);
@@ -2576,31 +2578,33 @@ window.confirmScan = function(stuId, title) {
 }
 
 // 🌟 3. ฟังก์ชันเสร็จสิ้นกระบวนการ (ล็อกหน้าจอไว้ที่แท็บสแกนเสมอ ไม่เด้งหนี)
-window.finishScanProcess = function(stuName, title, actionType = 'เข้า') { // [cite: 582]
-    // บันทึกลง LocalStorage และสั่งซิงค์ข้อมูลงชีต [cite: 582, 583]
-    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; // [cite: 582]
-    localStorage.setItem('SSSfnDB', JSON.stringify(db)); // [cite: 583]
-    clearTimeout(syncTimeout); // [cite: 583]
-    syncTimeout = setTimeout(autoSyncToGS, 2000); // [cite: 583]
+window.finishScanProcess = function(stuName, title, actionType = 'เข้า') { 
+    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
+    localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
+    clearTimeout(syncTimeout); 
+    syncTimeout = setTimeout(autoSyncToGS, 2000); 
     
-    // แจ้งเตือนสแกนสำเร็จ [cite: 583]
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton: false, timer: 1500}); // [cite: 583]
-    if(typeof playBeep === 'function') playBeep('success'); // [cite: 583]
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton: false, timer: 1500}); 
+    if(typeof playBeep === 'function') playBeep('success'); 
     
-    // ทำการรีเฟรชข้อมูลในหน้านั้น [cite: 584]
     if(currentDetailActivityTitle === title) {
-        openActivityDashboard(title); // อัปเดตตารางตัวเลขและรายชื่อเบื้องหลัง [cite: 584]
-        
-        // 🌟 ล็อกแท็บ: บังคับให้หน้าจอเปิดค้างไว้ที่แท็บ "Scan นักศึกษา" เหมือนเดิมทันที 
-        let btnScan = document.getElementById('act-tab-btn-scan');
-        if (btnScan) switchActTab('scan', btnScan); // 
-        
-        // ดึง Cursor กลับมาที่ช่องกรอกรหัส พร้อมให้เครื่องสแกนยิงคนต่อไปได้ต่อเนื่อง [cite: 554]
-        setTimeout(() => {
-            let inputF = document.getElementById('hw-input-focus');
-            if(inputF) inputF.focus(); // [cite: 554]
-            if (window.hwScanner) window.hwScanner.resume(); // เปิดรับภาพจากกล้องต่อ (ถ้าใช้กล้อง) [cite: 556]
-        }, 100);
+        // 🌟 เช็คว่าแอดมินกำลังเปิดแท็บสแกนอยู่หรือไม่
+        let scanTab = document.getElementById('act-tab-scan');
+        let isScanning = scanTab && !scanTab.classList.contains('hidden');
+
+        if (isScanning) {
+            // ถ้ายืนอยู่หน้าสแกน: ให้แค่เปิดกล้องต่อโดยไม่ต้องรีเฟรชหน้าจอ (แก้ปัญหาจอดำ)
+            setTimeout(() => {
+                let inputF = document.getElementById('hw-input-focus');
+                if(inputF) inputF.focus(); 
+                if (window.hwScanner) {
+                    try { window.hwScanner.resume(); } catch(e) { console.log(e); }
+                }
+            }, 300); // หน่วงเวลา 0.3 วินาทีรอให้ Popup ปิดสนิทก่อน
+        } else {
+            // ถ้าไม่ได้อยู่ในหน้าสแกน (อยู่หน้าภาพรวม): ค่อยรีเฟรชข้อมูลตามปกติ
+            openActivityDashboard(title);
+        }
     } 
 }
 function closeHardwareScanner() { 
