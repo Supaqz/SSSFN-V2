@@ -1259,23 +1259,44 @@ function renderHomeDirectory() {
         // ประมวลผลแจ้งเตือนต่างๆ (ยอดหนี้, โหวต, กิจกรรม)
         let alerts = []; let totalDebt = 0;
         
-        // 1. แจ้งเตือน: ค้างชำระเงิน (สีแดง/Rose)
-        fundPayments.filter(p => p.studentId === s.id && (p.status === 'ยังไม่ชำระ' || p.status === 'ค้างชำระ')).forEach(p => {
+        // 1. แจ้งเตือน: ค้างชำระเงิน, ผ่อนชำระ และ สถานะสลิปที่รอตรวจสอบ
+        fundPayments.filter(p => p.studentId === s.id).forEach(p => {
             let r = fundRounds.find(rd => rd.id === p.roundId);
             if (r && r.isOpen !== false) {
-                let remain = r.amt - (p.paidAmt || 0); totalDebt += remain;
-                alerts.push(`
-                <div class="relative bg-white border border-slate-200 border-l-4 border-l-rose-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                    <div class="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
-                    <div class="flex items-center gap-4 relative z-10 w-full">
-                        <div class="bg-rose-100 text-rose-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-file-invoice-dollar"></i></div>
-                        <div class="flex-1">
-                            <p class="text-rose-700 font-bold text-sm mb-0.5">ค้างชำระ: ${r.title}</p>
-                            <p class="text-xs text-slate-500">ยอดค้าง <span class="font-bold text-rose-600">฿${remain.toFixed(2)}</span> (กำหนด: ${r.dueDate})</p>
+                let remain = r.amt - (p.paidAmt || 0); 
+                
+                // กรณีที่ 1: ยังไม่ชำระ, ค้างชำระ หรือ ผ่อนชำระ (มียอดหนี้เหลือ)
+                if ((p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ') && remain > 0) {
+                    totalDebt += remain;
+                    let statusText = p.status === 'ตีกลับ' ? 'สลิปถูกตีกลับ (โปรดส่งใหม่)' : (p.paidAmt > 0 ? 'ค้างชำระ (ผ่อน)' : 'ค้างชำระ');
+                    alerts.push(`
+                    <div class="relative bg-white border border-slate-200 border-l-4 border-l-rose-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                        <div class="flex items-center gap-4 relative z-10 w-full">
+                            <div class="bg-rose-100 text-rose-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-file-invoice-dollar"></i></div>
+                            <div class="flex-1">
+                                <p class="text-rose-700 font-bold text-sm mb-0.5">${statusText}: ${r.title}</p>
+                                <p class="text-xs text-slate-500">ยอดค้าง <span class="font-bold text-rose-600">฿${remain.toFixed(2)}</span> (เต็ม: ฿${r.amt})</p>
+                            </div>
+                            <button onclick="openPublicSlipModal(${r.id})" class="text-xs bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 font-bold transition shadow-md whitespace-nowrap"><i class="fas fa-qrcode mr-1"></i> ชำระเงิน</button>
                         </div>
-                        <button onclick="openPublicSlipModal(${r.id})" class="text-xs bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 font-bold transition shadow-md whitespace-nowrap"><i class="fas fa-qrcode mr-1"></i> ชำระเงิน</button>
-                    </div>
-                </div>`);
+                    </div>`);
+                } 
+                // กรณีที่ 2: รอตรวจสอบ หรือ รอดำเนินการ (แสดงแถบสีฟ้าแจ้งสถานะ)
+                else if (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ') {
+                    alerts.push(`
+                    <div class="relative bg-white border border-slate-200 border-l-4 border-l-blue-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                        <div class="flex items-center gap-4 relative z-10 w-full">
+                            <div class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-hourglass-half"></i></div>
+                            <div class="flex-1">
+                                <p class="text-blue-700 font-bold text-sm mb-0.5">รอตรวจสอบสลิป: ${r.title}</p>
+                                <p class="text-xs text-slate-500">สถานะ: <span class="font-bold text-blue-600">กำลังรอเหรัญญิกตรวจสอบ</span></p>
+                            </div>
+                            <button onclick="viewSlipPopup('${p.slipUrl}')" class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-image mr-1"></i> ดูสลิป</button>
+                        </div>
+                    </div>`);
+                }
             }
         });
 
@@ -2058,7 +2079,7 @@ function renderActivityAdmins(title) {
         <!-- 🌟 รายละเอียดคะแนนและปีการศึกษา -->
         <div>
             <h4 class="font-bold text-blue-700 mb-3 text-sm">รายละเอียดคะแนนและปีการศึกษา</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">ปีการศึกษา *</label>
                     <input id="act-year" type="number" class="modern-input mb-0 w-full border-slate-300" value="${new Date().getFullYear() + 543}">
@@ -2070,6 +2091,10 @@ function renderActivityAdmins(title) {
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">หน่วยกิต / ชั่วโมง</label>
                     <input id="act-hours" type="number" class="modern-input mb-0 w-full border-slate-300" placeholder="0" value="0">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-amber-600 mb-1"><i class="fas fa-star mr-1"></i>คะแนน (Points)</label>
+                    <input id="act-points" type="number" class="modern-input mb-0 w-full border-amber-300 bg-amber-50 focus:border-amber-500" placeholder="ระบุคะแนน" value="0">
                 </div>
             </div>
         </div>
@@ -2202,7 +2227,8 @@ function renderActivityAdmins(title) {
                 status: 'รออนุมัติ', 
                 isOpen: true, 
                 rounds: rounds, 
-                hours: parseInt(document.getElementById('act-hours').value) || 0 
+                hours: parseInt(document.getElementById('act-hours').value) || 0,
+                points: parseInt(document.getElementById('act-points').value) || 0 
             }; 
         }
     }).then(res => { 
@@ -2250,10 +2276,11 @@ function renderActivityAdmins(title) {
         <hr class="border-slate-100">
         <div>
             <h4 class="font-bold text-amber-600 mb-3 text-sm">รายละเอียดคะแนนและปีการศึกษา</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">ปีการศึกษา</label><input id="edit-act-year" type="number" class="modern-input mb-0 w-full border-slate-300" value="${act.year || ''}"></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">ภาคเรียน</label><input id="edit-act-term" type="number" class="modern-input mb-0 w-full border-slate-300" value="${act.term || ''}"></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">หน่วยกิต / ชั่วโมง</label><input id="edit-act-hours" type="number" class="modern-input mb-0 w-full border-slate-300" value="${act.hours || 0}"></div>
+                <div><label class="block text-xs font-bold text-amber-600 mb-1"><i class="fas fa-star mr-1"></i>คะแนน (Points)</label><input id="edit-act-points" type="number" class="modern-input mb-0 w-full border-amber-300 bg-amber-50 focus:border-amber-500" value="${act.points || 0}"></div>
             </div>
         </div>
         <hr class="border-slate-100">
@@ -2308,7 +2335,9 @@ function renderActivityAdmins(title) {
                 year: document.getElementById('edit-act-year').value, term: document.getElementById('edit-act-term').value,
                 date: date, actEnd: document.getElementById('edit-act-end').value,
                 regStart: document.getElementById('edit-act-reg-start').value, regEnd: document.getElementById('edit-act-reg-end').value,
-                desc: document.getElementById('edit-act-desc').value, hours: parseInt(document.getElementById('edit-act-hours').value) || 0,
+                desc: document.getElementById('edit-act-desc').value, 
+                hours: parseInt(document.getElementById('edit-act-hours').value) || 0,
+                points: parseInt(document.getElementById('edit-act-points').value) || 0,
                 rounds: rounds
             };
         }
@@ -3728,13 +3757,24 @@ function updateSidebarBadges() {
 }
 // ----------------------------------------------------------------------------
 function calculatePoints() {
-    // 💡 ระบบคำนวณแต้มอัตโนมัติ: เข้าร่วมกิจกรรม = 50 แต้ม, มาเรียน(เช็คชื่อ) = 10 แต้ม
     let ranked = students.map(s => {
-        let actsCount = activityLogs.filter(l => l.studentId === s.id).length;
+        let myActs = activityLogs.filter(l => l.studentId === s.id);
+        let actsPoints = 0;
+        
+        myActs.forEach(log => {
+            let act = appSettings.activities.find(a => a.title === log.activityTitle);
+            // 🌟 ดึงคะแนนจากที่แอดมินตั้งไว้ในแต่ละกิจกรรมมาบวกกัน (ถ้าไม่ระบุ หรือเป็น 0 จะไม่ได้คะแนน)
+            if (act && act.points) {
+                actsPoints += parseInt(act.points) || 0;
+            }
+        });
+        
+        // คงระบบคะแนนเช็คชื่อไว้ (มา 1 ครั้ง = 10 แต้ม) ถ้าต้องการเอาออก ให้ลบบรรทัดนี้
         let attCount = s.att_m || 0; 
-        let points = (actsCount * 50) + (attCount * 10);
+        let points = actsPoints + (attCount * 10);
+        
         return { ...s, points: points };
-    }).filter(s => s.points > 0); // โชว์เฉพาะคนที่มีคะแนนมากกว่า 0
+    }).filter(s => s.points > 0);
 
     // เรียงจากคะแนนมากไปน้อย
     return ranked.sort((a, b) => b.points - a.points);
