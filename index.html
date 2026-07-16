@@ -112,7 +112,7 @@
                 <div id="system-actions" class="hidden flex gap-2">
                     <button onclick="pushToGS()" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> <span class="hidden md:inline">บันทึกลง Sheet</span></button>
                 </div>
-                <button id="btn-login" onclick="promptLogin()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow transition"><i class="fas fa-user-shield"></i> </button>
+                <button id="btn-login" onclick="promptLogin()" class="hidden bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow transition"><i class="fas fa-user-shield"></i> </button>
             </div>
         </header>
 
@@ -1215,20 +1215,42 @@ function renderHomeDirectory() {
     if (isGuest) {
         if(titleContainer) titleContainer.style.display = 'none'; // ซ่อนแถบค้นหาด้านบน
         
-        // 1. ถ้ายังไม่ได้ล็อกอิน (โชว์หน้าจอดำ RMUTI)
+        // 1. ถ้ายังไม่ได้ล็อกอิน (โชว์หน้าจอดำ RMUTI สลับปุ่ม)
         if (!window.currentGuestStuId) {
             grid.className = "block max-w-2xl mx-auto w-full"; grid.innerHTML = ''; empty.classList.remove('hidden');
             empty.innerHTML = `
-            <div class="bg-[#111827] rounded-3xl p-8 md:p-12 text-left shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 mt-4">
+            <div class="bg-[#111827] rounded-3xl p-6 md:p-10 text-left shadow-xl relative overflow-hidden flex flex-col items-center gap-6 mt-4">
                 <div class="absolute right-0 top-0 opacity-5 pointer-events-none text-9xl text-white transform translate-x-10 -translate-y-10"><i class="fas fa-university"></i></div>
-                <div class="relative z-10 flex-1">
-                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-2">ระบบบริการนักศึกษา</h2>
-                    <p class="text-slate-400 mb-8 text-sm">เลือกวิธีเข้าสู่ระบบที่เหมาะสมกับคุณ</p>
-                    <div class="space-y-4">
-                        <button onclick="promptStudentLogin()" class="w-full bg-[#1f2937] hover:bg-[#374151] border border-slate-700 rounded-2xl p-4 flex items-center justify-between transition group text-left">
-                            <div class="flex items-center gap-4"><div class="w-12 h-12 bg-amber-900/30 text-amber-500 rounded-xl flex items-center justify-center text-xl"><i class="fas fa-graduation-cap"></i></div><div><h3 class="text-white font-bold text-lg">นักศึกษา</h3><p class="text-slate-400 text-xs">เข้าสู่ระบบด้วยรหัสนักศึกษา (RMUTI Passport)</p></div></div>
+                <div class="relative z-10 w-full">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1 text-center md:text-left">ระบบกิจกรรม มทร.อีสาน</h2>
+                    <p class="text-slate-400 mb-6 text-xs md:text-sm text-center md:text-left">เลือกวิธีเข้าสู่ระบบที่เหมาะสมกับคุณ</p>
+                    
+                    <div class="space-y-3 w-full">
+                        <button onclick="promptStudentLogin()" class="w-full bg-[#1f2937] hover:bg-[#374151] border border-slate-700 rounded-2xl p-4 flex items-center justify-between transition group text-left shadow-sm">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-amber-950 text-amber-500 rounded-xl flex items-center justify-center text-xl shrink-0"><i class="fas fa-graduation-cap"></i></div>
+                                <div>
+                                    <h3 class="text-white font-bold text-base">นักศึกษา</h3>
+                                    <p class="text-slate-400 text-xs mt-0.5">เข้าสู่ระบบด้วยรหัสนักศึกษา (RMUTI Passport)</p>
+                                </div>
+                            </div>
                             <i class="fas fa-arrow-right text-slate-500 group-hover:text-amber-500 transition"></i>
                         </button>
+
+                        <button onclick="promptLogin()" class="w-full bg-[#1f2937] hover:bg-[#374151] border border-slate-700 rounded-2xl p-4 flex items-center justify-between transition group text-left shadow-sm">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-blue-900/30 text-blue-400 rounded-xl flex items-center justify-center text-xl shrink-0"><i class="fas fa-user-tie"></i></div>
+                                <div>
+                                    <h3 class="text-white font-bold text-base">บุคลากร / แอดมิน</h3>
+                                    <p class="text-slate-400 text-xs mt-0.5">เข้าสู่ระบบจัดการข้อมูลด้วย Username</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-arrow-right text-slate-500 group-hover:text-blue-400 transition"></i>
+                        </button>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-800 text-center">
+                        <span class="text-[11px] text-slate-500 font-medium font-mono">RMUTI Authentication Service</span>
                     </div>
                 </div>
             </div>`;
