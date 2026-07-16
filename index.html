@@ -687,7 +687,7 @@ function saveToLocal(triggerSync = true) {
         }
         
         let displayHtml = '';
-        let statusText = isUnlock ? 'ระบุจำนวนเงินเอง:' : 'ยอดที่ต้องโอนเป๊ะ:';
+        let statusText = isUnlock ? 'ระบุจำนวนเงินเอง:' : 'ยอดที่ต้องโอน:';
         let amountDisplay = isUnlock ? '<i class="fas fa-edit text-amber-500"></i>' : '฿' + remainAmt.toFixed(2);
         
         // 1. ถ้ามีพร้อมเพย์ ให้โชว์ QR Code
