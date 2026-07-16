@@ -1422,7 +1422,9 @@ function renderHomeDirectory() {
             let myPayments = fundPayments.filter(p => p.studentId === s.id); let fundBgClass = 'bg-slate-50'; let fundTextClass = 'text-slate-500'; let fundStatusLabel = 'ไม่มีรายการเรียกเก็บ'; let iconHtml = '-';
             if (myPayments.length > 0) {
                 let activeP = myPayments.filter(p => { let r = fundRounds.find(rd => rd.id === p.roundId); return r && r.isOpen !== false; });
-                let pendingCount = activeP.filter(p => p.status === 'รอดำเนินการ' || p.status === 'รอตรวจสอบ').length; let unpaidCount = activeP.filter(p => p.status === 'ยังไม่ชำระ' || p.status === 'ค้างชำระ' || p.status === 'ตีกลับ').length;
+                let pendingCount = activeP.filter(p => p.status === 'รอดำเนินการ' || p.status === 'รอตรวจสอบ').length; 
+// 🌟 เปลี่ยนให้เช็คคำว่า ค้างชำระ (ผ่อน) ด้วย
+let unpaidCount = activeP.filter(p => p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ').length;
                 if (activeP.length === 0) { fundBgClass = 'bg-slate-50'; fundTextClass = 'text-slate-500'; fundStatusLabel = 'ไม่มีรายการเรียกเก็บ'; iconHtml = '-'; }
                 else if (unpaidCount > 0) { fundBgClass = 'bg-rose-50'; fundTextClass = 'text-rose-600'; fundStatusLabel = 'ค้างชำระ ' + unpaidCount + ' รายการ'; iconHtml = `<p class="font-bold text-lg text-rose-600">- ฿${(s.debt || 0).toFixed(2)}</p>`; } 
                 else if (pendingCount > 0) { fundBgClass = 'bg-blue-50'; fundTextClass = 'text-blue-600'; fundStatusLabel = 'รอดำเนินการ ' + pendingCount + ' รายการ'; } 
