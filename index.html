@@ -1407,31 +1407,28 @@ function renderHomeDirectory() {
         grid.className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full"; empty.classList.add('hidden');
         const roomF = roomFilterEl.value; const search = searchEl.value.toLowerCase().trim();
     
-    // 🌟 🌟 🌟 เพิ่มสูตรคำนวณเงินกองกลางตรงนี้ (ฉบับแก้ไขยอดตรง Statement) 🌟 🌟 🌟
+    // 🌟 🌟 🌟 เพิ่มสูตรคำนวณเงินกองกลางตรงนี้ (ฉบับแยกส่วนกลาง + ยอดตรง Statement) 🌟 🌟 🌟
     let roomFundTotal = 0;
     
-    // 1. นำยอดเงิน "ที่จ่ายเข้ามาจริง" (paidAmt) มาบวกทั้งหมด (รวมยอดผ่อนชำระ)
+    // 1. นำยอดเงินที่ "จ่ายเข้ามาจริง" (paidAmt) มาบวกทั้งหมด (รวมยอดผ่อนชำระ)
     fundPayments.forEach(p => { 
         // กรองเอาเฉพาะรายการที่มียอดเงิน และไม่ใช่บิลที่ถูกตีกลับหรือยกเลิก
-        if(p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก' && p.status !== 'ยังไม่ชำระ' && p.paidAmt > 0) {
+        if(p.paidAmt && parseFloat(p.paidAmt) > 0 && p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก') {
             let stu = students.find(st => st.id === p.studentId);
-            
-            // กรองตามห้องที่เลือก (กรณีแอดมินเลือกดูทีละห้อง)
             if(roomF === 'all' || (stu && stu.room === roomF)) {
-                roomFundTotal += Number(p.paidAmt); // 👈 ดึงยอดเงินจริงที่ถูกบันทึกมาคำนวณ
+                roomFundTotal += parseFloat(p.paidAmt); // 👈 ดึงตัวเลขเงินจริงมาบวก
             }
         }
     });
 
-    // 2. หักลบกับรายการเบิกจ่าย/รายรับเพิ่มเติม จากเมนู "บันทึกบัญชี"
+    // 2. หักลบกับรายการเบิกจ่าย/รายรับเพิ่มเติม (ดึงเฉพาะ "บัญชีห้อง" ไม่รวมส่วนกลาง)
     expenses.forEach(e => { 
-        if(e.source === 'บัญชีห้อง' || e.source === 'เงินห้อง') { 
-            let expenseAmt = Number(e.amt) || 0;
-            roomFundTotal += (e.type === 'รายรับ' ? expenseAmt : -expenseAmt); 
-        } 
+        let expAmt = parseFloat(e.amt) || 0;
+        if (e.source === 'บัญชีห้อง' || e.source === 'เงินห้อง') {
+            roomFundTotal += (e.type === 'รายรับ' ? expAmt : -expAmt); 
+        }
     });
 
-    // 3. นำยอดรวมสุทธิไปแสดงผลบนกล่องหน้า Dashboard
     let homeBalEl = document.getElementById('home-bal-pool-fund'); 
     if(homeBalEl) {
         homeBalEl.innerText = '฿ ' + roomFundTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
