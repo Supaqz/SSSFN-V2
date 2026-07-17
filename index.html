@@ -2791,7 +2791,46 @@ function keepInputFocused(e) {
                 } 
             }); 
         }
+        function editExpense(id) {
+            // เช็คสิทธิ์ก่อนแก้ไข
+            const isFullAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
+            if (!isFullAdmin) return Swal.fire('ไม่ได้รับอนุญาต', 'เฉพาะหัวหน้า รอง หรือเหรัญญิกเท่านั้นที่แก้ไขได้', 'error');
         
+            let exp = expenses.find(e => e.id === id);
+            if (!exp) return;
+        
+            Swal.fire({
+                title: 'แก้ไขรายการ',
+                html: `
+                <div class="text-left space-y-3 mt-4">
+                    <input id="e-exp-name" class="modern-input" value="${exp.name}" placeholder="ชื่อรายการ">
+                    <input id="e-exp-amt" type="number" class="modern-input" value="${exp.amt}" placeholder="จำนวนเงิน">
+                    <select id="e-exp-type" class="modern-input">
+                        <option value="รายรับ" ${exp.type === 'รายรับ' ? 'selected' : ''}>📥 รายรับ</option>
+                        <option value="รายจ่าย" ${exp.type === 'รายจ่าย' ? 'selected' : ''}>📤 รายจ่าย</option>
+                    </select>
+                </div>`,
+                confirmButtonText: 'บันทึก',
+                confirmButtonColor: '#059669',
+                preConfirm: () => {
+                    return {
+                        name: document.getElementById('e-exp-name').value,
+                        amt: parseFloat(document.getElementById('e-exp-amt').value),
+                        type: document.getElementById('e-exp-type').value
+                    };
+                }
+            }).then(res => {
+                if (res.isConfirmed) {
+                    exp.name = res.value.name;
+                    exp.amt = res.value.amt;
+                    exp.type = res.value.type;
+                    saveToLocal(false); 
+                    autoSyncToGS(); 
+                    refreshAll();
+                    Swal.fire('บันทึกสำเร็จ', '', 'success');
+                }
+            });
+        }
         function renderExpenseTable() { 
             let centralFund = 0;
             
@@ -2815,7 +2854,9 @@ function keepInputFocused(e) {
             
             let eHtml = '';
             expenses.forEach(e => { 
-                let btnHtml = isFullAdmin ? `<button onclick="deleteExpense(${e.id})" class="text-rose-500"><i class="fas fa-trash"></i></button>` : `<span class="text-xs text-slate-400">${e.user || '-'}</span>`;
+                let btnHtml = isFullAdmin ? `<button onclick="editExpense(${e.id})" class="text-blue-500 mr-2"><i class="fas fa-edit"></i></button>
+            <button onclick="deleteExpense(${e.id})" class="text-rose-500"><i class="fas fa-trash"></i></button>
+        ` : `<span class="text-xs text-slate-400">${e.user || '-'}</span>`;
                 let typeColor = e.type === 'รายรับ' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'; 
                 let amtColor = e.type === 'รายรับ' ? 'text-emerald-600' : 'text-rose-600'; 
                 eHtml += `<tr class="border-b"><td class="p-3 text-xs text-slate-500">${formatDisplayDate(e.date)}</td><td class="p-3"><b>${e.name}</b><br><span class="text-[10px] bg-slate-100 px-1 rounded">${e.source}</span></td><td class="p-3 text-center"><span class="${typeColor} px-2 py-0.5 rounded text-[10px] font-bold">${e.type}</span></td><td class="p-3 text-right font-bold ${amtColor}">฿${e.amt.toFixed(2)}</td><td class="p-3 text-center">${btnHtml}</td></tr>`; 
