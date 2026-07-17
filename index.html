@@ -1663,14 +1663,10 @@ window.openActivityDashboard = function(title) {
             let s = students.find(x => String(x.id).replace(/-/g, '').trim() === pId); 
             return s ? { ...s, logData: p, index: idx + 1 } : null; 
         }).filter(item => item);
-        
         mergedData.forEach(item => {
             let pLog = item.logData;
-
-            // 2. 🌟 สถานะลงทะเบียนเว็บ (มีประวัติในระบบ = ติ๊กถูกสีเขียว)
-            let webRegDisplay = '<i class="far fa-check-circle text-emerald-500 text-xl"></i>';
-
-            // 3. จัดการเวลาเข้า
+            
+            // จัดการเวลาเข้า
             let timeInStr = pLog.timeIn || '';
             let isJustReg = timeInStr.includes('จองสิทธิ์');
             
@@ -1679,24 +1675,23 @@ window.openActivityDashboard = function(title) {
             
             if (isJustReg) {
                 timeInDisplay = '<div class="flex flex-col items-center justify-center"><i class="far fa-clock text-amber-400 text-xl mb-1"></i><span class="text-[9px] text-amber-600 font-bold">รอสแกน</span></div>';
-            } else if (timeInStr !== '-') {
+            } else if (timeInStr !== '-' && timeInStr !== '') {
                 timeInDisplay = `
                 <div class="flex flex-col items-center justify-center">
                     <i class="far fa-check-circle text-emerald-500 text-xl mb-1"></i>
-                    <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${timeInStr}</span>
+                    <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${timeInStr.match(/\d{2}:\d{2}/) ? timeInStr.match(/\d{2}:\d{2}/)[0] : timeInStr}</span>
                 </div>`;
-                statusBadge = `<span class="border border-emerald-500 text-emerald-600 bg-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่านกิจกรรม</span>`;
+                statusBadge = `<span class="border border-emerald-500 text-emerald-600 bg-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่านกิจกรรม (C)</span>`;
             }
 
-            // 4. จัดการเวลาออก
+            // จัดการเวลาออก
             let timeOutStr = pLog.timeOut || '';
             let timeOutDisplay = '<i class="far fa-times-circle text-slate-200 text-xl"></i>';
-            if (timeOutStr && timeOutStr !== '-') {
-                let tOutMatch = timeOutStr.match(/\d{2}:\d{2}/);
+            if (timeOutStr && timeOutStr !== '-' && timeOutStr !== '') {
                 timeOutDisplay = `
                 <div class="flex flex-col items-center justify-center">
                     <i class="far fa-check-circle text-emerald-500 text-xl mb-1"></i>
-                    <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${tOutMatch ? tOutMatch[0] : timeOutStr}</span>
+                    <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${timeOutStr.match(/\d{2}:\d{2}/) ? timeOutStr.match(/\d{2}:\d{2}/)[0] : timeOutStr}</span>
                 </div>`;
             }
 
@@ -1707,7 +1702,7 @@ window.openActivityDashboard = function(title) {
                     <p class="text-slate-500 text-[10px] font-mono leading-tight">${item.id}</p>
                     <p class="text-slate-400 text-[10px] leading-tight">${branchName}</p>
                 </td>
-                <td class="p-4 text-center">${webRegDisplay}</td>
+                <td class="p-4 text-center"><i class="far fa-check-circle text-emerald-500 text-xl"></i></td>
                 <td class="p-4 text-center">${timeInDisplay}</td>
                 <td class="p-4 text-center">${timeOutDisplay}</td>
                 <td class="p-4 text-center">${statusBadge}</td>
