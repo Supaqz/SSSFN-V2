@@ -1652,7 +1652,7 @@ window.openActivityDashboard = function(title) {
     let scanPercent = totalMax > 0 ? ((scannedInCount / totalMax) * 100).toFixed(0) : (count > 0 ? 100 : 0);
 
     // ====================================================
-    // 🌟 สร้างตารางรายชื่อแบบใหม่
+    // 🌟 สร้างตารางรายชื่อแบบใหม่ (อัปเดตสถานะ ลงทะเบียนเว็บ)
     // ====================================================
     let tableRowsHtml = '';
     if (participants.length === 0) {
@@ -1666,11 +1666,11 @@ window.openActivityDashboard = function(title) {
         
         mergedData.forEach(item => {
             let pLog = item.logData;
-            
-            // จัดการข้อมูลแผนก/สาขา (จำลองถ้าไม่มีในระบบ)
-            let branchName = item.branch || 'สาขาวิชาการจัดการทั่วไป';
 
-            // จัดการเวลาเข้า
+            // 2. 🌟 สถานะลงทะเบียนเว็บ (มีประวัติในระบบ = ติ๊กถูกสีเขียว)
+            let webRegDisplay = '<i class="far fa-check-circle text-emerald-500 text-xl"></i>';
+
+            // 3. จัดการเวลาเข้า
             let timeInStr = pLog.timeIn || '';
             let isJustReg = timeInStr.includes('จองสิทธิ์');
             
@@ -1685,10 +1685,10 @@ window.openActivityDashboard = function(title) {
                     <i class="far fa-check-circle text-emerald-500 text-xl mb-1"></i>
                     <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${timeInStr}</span>
                 </div>`;
-                statusBadge = `<span class="border border-emerald-500 text-emerald-600 bg-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่าน</span>`;
+                statusBadge = `<span class="border border-emerald-500 text-emerald-600 bg-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่านกิจกรรม</span>`;
             }
 
-            // จัดการเวลาออก (ถ้ามีข้อมูลจะขึ้นติ๊กถูกสีเขียว)
+            // 4. จัดการเวลาออก
             let timeOutStr = pLog.timeOut || '';
             let timeOutDisplay = '<i class="far fa-times-circle text-slate-200 text-xl"></i>';
             if (timeOutStr && timeOutStr !== '-') {
@@ -1707,7 +1707,7 @@ window.openActivityDashboard = function(title) {
                     <p class="text-slate-500 text-[10px] font-mono leading-tight">${item.id}</p>
                     <p class="text-slate-400 text-[10px] leading-tight">${branchName}</p>
                 </td>
-                <td class="p-4 text-center"><i class="far fa-times-circle text-slate-200 text-xl"></i></td>
+                <td class="p-4 text-center">${webRegDisplay}</td>
                 <td class="p-4 text-center">${timeInDisplay}</td>
                 <td class="p-4 text-center">${timeOutDisplay}</td>
                 <td class="p-4 text-center">${statusBadge}</td>
