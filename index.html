@@ -2953,54 +2953,90 @@ function toggleQuickRoundStatus() {
     const roundId = parseInt(roundSelectEl.value), search = searchEl.value.toLowerCase(); 
     const statusFilter = document.getElementById('fund-status-filter') ? document.getElementById('fund-status-filter').value : 'all';
 
-    if(!roundId || isNaN(roundId)) { listEl.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-slate-400">ยังไม่มีรายการชำระเงิน</td></tr>'; return; }
+    if(!roundId || isNaN(roundId)) { 
+        listEl.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-slate-400">กรุณาเลือกรอบการเรียกเก็บเงินจากเมนูด้านบน</td></tr>'; 
+        return; 
+    }
     const roundInfo = fundRounds.find(r => r.id === roundId); 
 
-    // 🌟 1. คำนวณสรุปยอดเงินของรอบบิลนี้
-    let totalExpected = students.length * roundInfo.amt; // ยอดเป้าหมายทั้งหมด
-    let currentTotal = 0; // ยอดที่เก็บได้แล้ว
+    // 🌟 1. คำนวณสรุปยอดเงิน แยกตามห้อง (เฉพาะรอบบิลที่กำลังเลือกอยู่)
+    let roomStats = {};
+    let totalAllRoomsCurrent = 0;
+    let totalAllRoomsExpected = 0;
     
-    fundPayments.forEach(p => {
-        if (p.roundId === roundId) {
-            if (p.status.includes('จ่ายแล้ว') || p.status === 'ชำระแล้ว') {
-                currentTotal += (Number(p.paidAmt) || Number(roundInfo.amt));
-            } else if (p.paidAmt > 0) { // กรณีผ่อนชำระ หรือมีรอยอดบางส่วน
-                currentTotal += Number(p.paidAmt);
+    students.forEach(s => {
+        let rName = s.room || 'ไม่ระบุห้อง';
+        if (!roomStats[rName]) roomStats[rName] = { expected: 0, current: 0, count: 0 };
+        
+        roomStats[rName].count += 1;
+        roomStats[rName].expected += Number(roundInfo.amt);
+        totalAllRoomsExpected += Number(roundInfo.amt);
+        
+        let payment = fundPayments.find(p => p.roundId === roundId && p.studentId === s.id);
+        if (payment) {
+            if (payment.status.includes('จ่ายแล้ว') || payment.status === 'ชำระแล้ว') {
+                let paid = Number(payment.paidAmt) || Number(roundInfo.amt);
+                roomStats[rName].current += paid;
+                totalAllRoomsCurrent += paid;
+            } else if (payment.paidAmt > 0) { // กรณีผ่อนชำระ
+                roomStats[rName].current += Number(payment.paidAmt);
+                totalAllRoomsCurrent += Number(payment.paidAmt);
             }
         }
     });
-    
-    let progressPercent = totalExpected > 0 ? Math.min((currentTotal / totalExpected) * 100, 100).toFixed(1) : 0;
 
-    // 🌟 2. สร้างแถบ Progress Bar ไว้บนสุดของตาราง
-    let fHtml = `
-    <tr class="bg-slate-50 border-b">
-        <td colspan="4" class="p-4 md:px-6">
+    // 🌟 2. สร้างกล่องการ์ดสรุปแยกตามห้อง
+    let summaryHtml = '';
+    for (let rName in roomStats) {
+        let stat = roomStats[rName];
+        let pct = stat.expected > 0 ? Math.min((stat.current / stat.expected) * 100, 100).toFixed(1) : 0;
+        
+        summaryHtml += `
+        <div class="bg-white p-3 md:p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
             <div class="flex justify-between items-end mb-2">
                 <div>
-                    <p class="text-[10px] md:text-xs text-slate-500 font-bold mb-0.5">ยอดที่ได้รับแล้ว</p>
-                    <p class="text-base md:text-lg font-bold text-emerald-600">฿${currentTotal.toLocaleString('th-TH')}</p>
+                    <p class="text-xs text-slate-500 font-bold mb-0.5">ห้อง <span class="text-blue-600 text-sm">${rName}</span> <span class="text-slate-400 font-normal">(${stat.count} คน)</span></p>
+                    <p class="text-base font-bold text-emerald-600">฿${stat.current.toLocaleString('th-TH')}</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] md:text-xs text-slate-500 font-bold mb-0.5">เป้าหมายทั้งหมด (${students.length} คน)</p>
-                    <p class="text-sm md:text-base font-bold text-slate-700">฿${totalExpected.toLocaleString('th-TH')}</p>
+                    <p class="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5">เป้าหมายทั้งหมด</p>
+                    <p class="text-sm font-bold text-slate-700">฿${stat.expected.toLocaleString('th-TH')}</p>
                 </div>
             </div>
-            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden relative">
-                <div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-1000" style="width: ${progressPercent}%"></div>
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden relative">
+                <div class="bg-emerald-500 h-2 rounded-full transition-all duration-1000" style="width: ${pct}%"></div>
             </div>
-            <div class="flex justify-between items-center mt-1">
-                <p class="text-[10px] text-slate-400 font-medium">รวมยอดเงินสดและเงินโอน</p>
-                <p class="text-[10px] md:text-xs text-emerald-600 font-bold">${progressPercent}%</p>
+            <div class="text-right mt-1">
+                <p class="text-[10px] text-emerald-600 font-bold">${pct}%</p>
+            </div>
+        </div>`;
+    }
+
+    // 🌟 3. ประกอบร่าง Dashboard นำไปวางบนสุดของตาราง
+    let fHtml = `
+    <tr class="bg-slate-50 border-b">
+        <td colspan="4" class="p-4 md:p-6">
+            <div class="mb-4 border-l-4 border-amber-500 pl-3 flex justify-between items-center">
+                <div>
+                    <h3 class="text-base font-bold text-slate-800">สรุปยอด: ${roundInfo.title}</h3>
+                    <p class="text-[11px] text-slate-500">เป้าหมายคนละ ฿${roundInfo.amt}</p>
+                </div>
+                <div class="text-right bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                    <p class="text-[9px] text-slate-400 font-bold">รวมทุกห้อง (เก็บได้ / เป้าหมาย)</p>
+                    <p class="text-sm font-bold text-slate-700"><span class="text-emerald-600">฿${totalAllRoomsCurrent.toLocaleString('th-TH')}</span> / ฿${totalAllRoomsExpected.toLocaleString('th-TH')}</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+                ${summaryHtml}
             </div>
         </td>
     </tr>`;
 
+    // 🌟 4. กรองและแสดงรายชื่อนักศึกษาตามปกติ
     let filteredStudents = students.filter(s => {
         let matchName = s.name.toLowerCase().includes(search) || s.room.toLowerCase().includes(search);
         if (!matchName) return false;
         
-        // กรองสถานะ
         if (statusFilter !== 'all') {
             let payment = fundPayments.find(p => p.roundId === roundId && p.studentId === s.id);
             let pStat = payment ? payment.status : 'ยังไม่ชำระ';
@@ -3016,7 +3052,6 @@ function toggleQuickRoundStatus() {
         let payment = fundPayments.find(p => p.roundId === roundId && p.studentId === s.id); if(!payment) return;
         let paid = payment.paidAmt || 0; let remain = roundInfo.amt - paid; let isFull = paid >= roundInfo.amt;
         
-        // 🌟 ปรับเปลี่ยนสถานะเป็น 'รอตรวจสอบ' และ 'ตีกลับ'
         let displayStatus = isFull ? (payment.status === 'จ่ายแล้ว (เงินสด)' ? '💵 จ่ายเงินสด' : '✅ จ่ายครบแล้ว') : (payment.status === 'รอดำเนินการ' || payment.status === 'รอตรวจสอบ' ? '⏳ รอตรวจสอบ' : (payment.status === 'ตีกลับ' ? '❌ ตีกลับ' : (paid > 0 ? 'ผ่อนชำระ' : 'ยังไม่จ่าย')));
         let badgeClass = isFull ? (payment.status === 'จ่ายแล้ว (เงินสด)' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700') : (payment.status === 'รอดำเนินการ' || payment.status === 'รอตรวจสอบ' ? 'bg-blue-100 text-blue-700 animate-pulse' : (payment.status === 'ตีกลับ' ? 'bg-rose-100 text-rose-700' : (paid > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500')));
         
@@ -3030,16 +3065,13 @@ function toggleQuickRoundStatus() {
             let btnReceipt = paid > 0 ? `<button onclick="printReceipt(${roundId}, '${s.id}')" class="bg-slate-800 text-white px-2 py-1.5 rounded text-xs font-bold hover:bg-slate-900 shadow-sm transition" title="ใบเสร็จ"><i class="fas fa-receipt"></i></button>` : '';
             let lockBtn = ''; if (!isFull) { let isUn = payment.qrUnlocked; lockBtn = `<button onclick="toggleQrLock(${roundId}, '${s.id}')" class="${isUn ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'} px-2 py-1.5 rounded text-[10px] font-bold hover:bg-slate-200 transition shadow-sm" title="${isUn ? 'ปลดล็อกให้แล้ว' : 'ล็อกยอดเป๊ะอยู่'}"><i class="fas fa-${isUn ? 'unlock' : 'lock'}"></i></button>`; }
             
-            // 🌟 เพิ่มปุ่มแก้ไข (เฟือง)
             let btnEdit = `<button onclick="editPaymentStatus(${roundId}, '${s.id}')" class="bg-slate-100 text-slate-500 px-2 py-1.5 rounded text-xs font-bold hover:bg-slate-200 transition shadow-sm" title="แก้ไขสถานะ/ยอดเงิน"><i class="fas fa-cog"></i></button>`;
-            
-            // ปรับกล่องปุ่มให้มีพื้นที่กว้างขึ้น (min-w)
             actionHtml = `<div class="flex flex-wrap gap-1 justify-center items-center min-w-[140px]">${btnView}${btnApprove}${btnReceipt}${lockBtn}${btnEdit}</div>`;
         }
         
-        // 🌟 ปรับตารางให้ยืดหยุ่นกับมือถือ (ใส่ whitespace-nowrap และ min-w)
         fHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 whitespace-nowrap min-w-[150px]"><b>${s.name}</b><br><span class="text-[10px] text-slate-400 font-mono">${s.id}</span></td><td class="p-3 text-center w-32 min-w-[120px]"><span class="${badgeClass} px-2 py-1 rounded text-[10px] font-bold inline-block">${displayStatus}</span>${progHtml}</td><td class="p-3 text-right font-bold min-w-[80px] ${remain>0?'text-rose-500':'text-slate-300'}">฿${remain.toFixed(2)}</td><td class="p-3 text-center">${actionHtml}</td></tr>`;
     });
+    
     listEl.innerHTML = fHtml;
 }
 
