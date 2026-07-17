@@ -1008,23 +1008,25 @@ function switchPage(pageId) {
     let menuAdmin = document.getElementById('menu-group-admin'); 
     if(menuAdmin) menuAdmin.classList.toggle('hidden', isGuest); 
     
+    // 🌟 1. กำหนดกลุ่มสิทธิ์บริหารการเงิน (หัวหน้า, รอง, เหรัญญิก)
+    const isFullAdmin = (role === 'leader' || role === 'vice' || role === 'treasurer');
+
+    // 🌟 2. แสดง Panel บันทึกบัญชี (Expense Admin Panel) เฉพาะ 3 ตำแหน่งนี้
+    const expAdminPanel = document.getElementById('expense-admin-panel'); 
+    if(expAdminPanel) expAdminPanel.classList.toggle('hidden', !isFullAdmin);
+    
     // ตั้งค่ารายปุ่มในเมนู Admin
     let navFin = document.getElementById('nav-fin-fund');
     let navRand = document.getElementById('nav-random');
     let navDb = document.getElementById('nav-admin-db');
     let navUsers = document.getElementById('nav-admin-users');
 
-    // ถ้าไม่ใช่ Guest ให้เช็คสิทธิ์รายคน
     if (!isGuest) {
-        if(navFin) navFin.classList.remove('hidden'); // ทุกคนเห็นการเงิน
-        
-        if(navRand) navRand.classList.toggle('hidden', role === 'treasurer'); // เหรัญญิกไม่เห็นสุ่ม
-        
-        if(navDb) navDb.classList.remove('hidden'); // ทุกคนเห็นฐานข้อมูล
-        
-        if(navUsers) navUsers.classList.toggle('hidden', role !== 'leader'); // เฉพาะหัวหน้าเห็นสิทธิ์ผู้ใช้
+        if(navFin) navFin.classList.remove('hidden');
+        if(navRand) navRand.classList.toggle('hidden', role === 'treasurer');
+        if(navDb) navDb.classList.remove('hidden');
+        if(navUsers) navUsers.classList.toggle('hidden', role !== 'leader'); // เฉพาะหัวหน้าจัดการสิทธิ์
     } else {
-        // ถ้าเป็น Guest ซ่อนหมด
         if(navFin) navFin.classList.add('hidden');
         if(navRand) navRand.classList.add('hidden');
         if(navDb) navDb.classList.add('hidden');
@@ -2755,8 +2757,40 @@ function keepInputFocused(e) {
         function saveAttendance() { students.forEach(s => { let radio = document.querySelector(`input[name="c_${s.id}"]:checked`); if(radio) { if(radio.value === 'มา') s.att_m = (s.att_m||0)+1; else if(radio.value === 'ขาด') s.att_abs = (s.att_abs||0)+1; else if(radio.value === 'ลา') s.att_leave = (s.att_leave||0)+1; else if(radio.value === 'กิจกรรม') s.att_act = (s.att_act||0)+1; } }); txHistory.unshift({ date: getNow(), name: 'บันทึกเช็คชื่อ (Manual)', type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('บันทึกสำเร็จ', '', 'success'); }
 
         // ================= EXPENSES & FUND ROUNDS =================
-        function saveExpense() { const name = document.getElementById('exp-name').value.trim(), type = document.getElementById('exp-type').value, amt = parseFloat(document.getElementById('exp-amt').value), user = document.getElementById('exp-user').value, source = document.getElementById('exp-source').value; if(!name || isNaN(amt) || amt <= 0) return Swal.fire('เตือน', 'กรอกข้อมูลให้ครบ', 'warning'); expenses.unshift({ id: Date.now(), date: getNow(), name: name, type: type, amt: amt, user: user, source: source }); txHistory.unshift({ date: getNow(), name: 'ลงบัญชี: ' + name, type: type==='รายรับ'?'ฝาก':'ถอน', amt: amt, user: currentUsername }); document.getElementById('exp-name').value = ''; document.getElementById('exp-amt').value = ''; saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', '', 'success'); }
-        function deleteExpense(id) { Swal.fire({ title: 'ลบรายการ?', icon: 'warning', showCancelButton: true }).then(r => { if(r.isConfirmed) { expenses = expenses.filter(e => e.id !== id); saveToLocal(); refreshAll(); } }); }
+        // =========================================================================
+        // 🌟 บันทึกบัญชี (เพิ่มเงื่อนไขตรวจสอบสิทธิ์ หัวหน้า/รอง/เหรัญญิก)
+        // =========================================================================
+        function saveExpense() {
+            // 🌟 เช็คสิทธิ์ก่อนบันทึก (เฉพาะ หัวหน้า, รอง, เหรัญญิก)
+            const isFullAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
+            if (!isFullAdmin) return Swal.fire('ไม่ได้รับอนุญาต', 'เฉพาะหัวหน้า รอง หรือเหรัญญิกเท่านั้นที่บันทึกบัญชีได้', 'error');
+        
+            // โค้ดบันทึกเดิมของคุณ
+            const name = document.getElementById('exp-name').value.trim(), type = document.getElementById('exp-type').value, amt = parseFloat(document.getElementById('exp-amt').value), user = document.getElementById('exp-user').value, source = document.getElementById('exp-source').value; 
+            if(!name || isNaN(amt) || amt <= 0) return Swal.fire('เตือน', 'กรอกข้อมูลให้ครบ', 'warning'); 
+            expenses.unshift({ id: Date.now(), date: getNow(), name: name, type: type, amt: amt, user: user, source: source }); 
+            txHistory.unshift({ date: getNow(), name: 'ลงบัญชี: ' + name, type: type==='รายรับ'?'ฝาก':'ถอน', amt: amt, user: currentUsername }); 
+            document.getElementById('exp-name').value = ''; 
+            document.getElementById('exp-amt').value = ''; 
+            saveToLocal(); refreshAll(); 
+            Swal.fire('สำเร็จ', '', 'success'); 
+        }
+
+        // =========================================================================
+        // 🌟 ลบบัญชี (เพิ่มเงื่อนไขตรวจสอบสิทธิ์ หัวหน้า/รอง/เหรัญญิก)
+        // =========================================================================
+        function deleteExpense(id) {
+            // 🌟 เช็คสิทธิ์ก่อนลบ
+            const isFullAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
+            if (!isFullAdmin) return Swal.fire('ไม่ได้รับอนุญาต', 'เฉพาะหัวหน้า รอง หรือเหรัญญิกเท่านั้นที่ลบรายการได้', 'error');
+        
+            Swal.fire({ title: 'ลบรายการ?', icon: 'warning', showCancelButton: true }).then(r => { 
+                if(r.isConfirmed) { 
+                    expenses = expenses.filter(e => e.id !== id); 
+                    saveToLocal(); refreshAll(); 
+                } 
+            }); 
+        }
         
         function renderExpenseTable() { 
             let centralFund = 0;
@@ -2773,7 +2807,7 @@ function keepInputFocused(e) {
             if(balFundEl) balFundEl.innerText = '฿ ' + centralFund.toFixed(2); 
             
             const list = document.getElementById('expense-list');
-            const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); 
+            const isFullAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
             if(!list) return;
             if(expenses.length === 0) { 
                 list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ยังไม่มีประวัติบัญชี</td></tr>'; return;
@@ -2781,7 +2815,7 @@ function keepInputFocused(e) {
             
             let eHtml = '';
             expenses.forEach(e => { 
-                let btnHtml = isAdmin ? `<button onclick="deleteExpense(${e.id})" class="text-rose-500"><i class="fas fa-trash"></i></button>` : `<span class="text-xs text-slate-400">${e.user || '-'}</span>`; 
+                let btnHtml = isFullAdmin ? `<button onclick="deleteExpense(${e.id})" class="text-rose-500"><i class="fas fa-trash"></i></button>` : `<span class="text-xs text-slate-400">${e.user || '-'}</span>`;
                 let typeColor = e.type === 'รายรับ' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'; 
                 let amtColor = e.type === 'รายรับ' ? 'text-emerald-600' : 'text-rose-600'; 
                 eHtml += `<tr class="border-b"><td class="p-3 text-xs text-slate-500">${formatDisplayDate(e.date)}</td><td class="p-3"><b>${e.name}</b><br><span class="text-[10px] bg-slate-100 px-1 rounded">${e.source}</span></td><td class="p-3 text-center"><span class="${typeColor} px-2 py-0.5 rounded text-[10px] font-bold">${e.type}</span></td><td class="p-3 text-right font-bold ${amtColor}">฿${e.amt.toFixed(2)}</td><td class="p-3 text-center">${btnHtml}</td></tr>`; 
