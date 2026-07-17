@@ -2953,36 +2953,48 @@ function toggleQuickRoundStatus() {
     const roundId = parseInt(roundSelectEl.value), search = searchEl.value.toLowerCase(); 
     const statusFilter = document.getElementById('fund-status-filter') ? document.getElementById('fund-status-filter').value : 'all';
 
+    // --- 🌟 ส่วนจัดตำแหน่ง Dashboard: ย้ายขึ้นไปไว้ก่อนเริ่มตาราง (ใต้ปุ่มทวงเงิน) ---
+    let tableCard = listEl.closest('.bg-white'); // หาการ์ดสีขาวที่ครอบตารางอยู่
+    let summaryDiv = document.getElementById('dynamic-fund-summary');
+    
+    if(!summaryDiv) {
+        summaryDiv = document.createElement('div');
+        summaryDiv.id = 'dynamic-fund-summary';
+        summaryDiv.className = 'mb-4 w-full';
+        // แทรกกล่องสรุปไว้ก่อนการ์ดสีขาว
+        if(tableCard && tableCard.parentNode) {
+            tableCard.parentNode.insertBefore(summaryDiv, tableCard);
+        }
+    }
+
     if(!roundId || isNaN(roundId)) { 
         listEl.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-slate-400">กรุณาเลือกรอบการเรียกเก็บเงินจากเมนูด้านบน</td></tr>'; 
+        summaryDiv.innerHTML = ''; // ซ่อนกล่องสรุปถ้ายังไม่เลือกบิล
         return; 
     }
     const roundInfo = fundRounds.find(r => r.id === roundId); 
 
-    // 🌟 1. ดึงข้อมูลห้องเป้าหมายจากที่ "เลือกไว้ตอนสร้างรอบบิล" โดยตรง!
+    // 🌟 1. คัดกรองห้องแบบเข้มงวด (ถ้าชื่อบิลคือ A ห้อง B จะหายไปทันที)
     let allRooms = [...new Set(students.map(s => s.room || 'ไม่ระบุห้อง'))];
     let targetRooms = [];
     
-    // ดึงค่าห้องจากฐานข้อมูล (รองรับตัวแปร room, targetRoom หรือ target เผื่อไว้)
-    let selectedRoom = roundInfo.room || roundInfo.targetRoom || roundInfo.target || 'all';
-
-    if (selectedRoom.toLowerCase() === 'all' || selectedRoom === 'ทุกห้อง' || selectedRoom.trim() === '') {
-        targetRooms = allRooms; // ถ้าเลือก "ทุกห้อง" ก็แสดงรายชื่อห้องทั้งหมด
-    } else {
-        // กรองเอาเฉพาะห้องที่เลือกไว้ตอนสร้างบิลจริงๆ
+    let selectedRoom = roundInfo.room || roundInfo.targetRoom || roundInfo.target;
+    if (selectedRoom && selectedRoom !== 'all' && selectedRoom !== 'ทุกห้อง') {
         targetRooms = allRooms.filter(r => selectedRoom.includes(r));
+    } else {
+        // ใช้ AI ดึงเฉพาะตัวอักษรของห้อง (เช่น เอาแค่ "a" มาเทียบกับชื่อบิล)
+        targetRooms = allRooms.filter(r => {
+            let roomCode = r.toLowerCase().replace(/fn|ปวส|ปวช|สค|ห้อง|\s/ig, ''); 
+            let titleStr = roundInfo.title.toLowerCase().replace(/\s/g, ''); 
+            return roomCode !== '' && titleStr.includes(roomCode);
+        });
     }
-    
-    // กันเหนียว: ถ้าชื่อห้องในระบบไม่ตรงกันเลย ให้กลับไปแสดงทั้งหมดจะได้ไม่บั๊กจอดาวน์
     if (targetRooms.length === 0) targetRooms = allRooms; 
 
-    // กรองเอาแค่นักศึกษาที่อยู่ "ในห้องเป้าหมาย" มาคิดคำนวณ
     let targetStudents = students.filter(s => targetRooms.includes(s.room || 'ไม่ระบุห้อง'));
 
-    // 🌟 2. คำนวณสรุปยอดเงิน (เฉพาะห้องที่เกี่ยวข้อง)
+    // 🌟 2. คำนวณยอดเงินเฉพาะห้องที่เกี่ยวข้อง
     let roomStats = {};
-    let totalAllRoomsCurrent = 0;
-    let totalAllRoomsExpected = 0;
     
     targetStudents.forEach(s => {
         let rName = s.room || 'ไม่ระบุห้อง';
@@ -2990,95 +3002,64 @@ function toggleQuickRoundStatus() {
         
         roomStats[rName].count += 1;
         roomStats[rName].expected += Number(roundInfo.amt);
-        totalAllRoomsExpected += Number(roundInfo.amt);
         
         let payment = fundPayments.find(p => p.roundId === roundId && p.studentId === s.id);
         if (payment) {
             if (payment.status.includes('จ่ายแล้ว') || payment.status === 'ชำระแล้ว') {
-                let paid = Number(payment.paidAmt) || Number(roundInfo.amt);
-                roomStats[rName].current += paid;
-                totalAllRoomsCurrent += paid;
+                roomStats[rName].current += (Number(payment.paidAmt) || Number(roundInfo.amt));
             } else if (payment.paidAmt > 0) {
                 roomStats[rName].current += Number(payment.paidAmt);
-                totalAllRoomsCurrent += Number(payment.paidAmt);
             }
         }
     });
 
-    // 🌟 3. สร้าง UI ดีไซน์ Dashboard
+    // 🌟 3. สร้างดีไซน์ใหม่ "แถบยาวแนวนอน"
     let summaryHtml = '';
     for (let rName in roomStats) {
         let stat = roomStats[rName];
         let pct = stat.expected > 0 ? Math.min((stat.current / stat.expected) * 100, 100).toFixed(1) : 0;
         let isComplete = stat.current >= stat.expected && stat.expected > 0;
         
-        let borderCol = isComplete ? 'border-emerald-200' : 'border-slate-100';
-        let bgCol = isComplete ? 'bg-emerald-50/40' : 'bg-white';
-        
         summaryHtml += `
-        <div class="${bgCol} p-4 rounded-2xl border ${borderCol} shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group">
-            ${isComplete ? '<div class="absolute -right-4 -top-4 w-16 h-16 bg-emerald-100 rounded-full opacity-50"></div><i class="fas fa-check-circle absolute top-4 right-4 text-emerald-400 text-lg opacity-80"></i>' : ''}
+        <div class="bg-white p-4 rounded-xl border ${isComplete ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200'} shadow-sm flex flex-col md:flex-row items-center gap-4 mb-3 transition-all hover:shadow-md">
             
-            <div class="flex justify-between items-start mb-3 relative z-10">
-                <div>
-                    <span class="inline-block px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold tracking-wide mb-2">
-                        <i class="fas fa-users text-slate-400 mr-1"></i> ห้อง ${rName}
-                    </span>
-                    <p class="text-[11px] text-slate-500">นักศึกษา <span class="font-bold text-slate-700">${stat.count}</span> คน</p>
+            <!-- ไอคอน และ ชื่อห้อง -->
+            <div class="flex-shrink-0 w-full md:w-40 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}">
+                    <i class="fas ${isComplete ? 'fa-check' : 'fa-users'}"></i>
                 </div>
-                <div class="text-right">
-                    <p class="text-[10px] text-slate-400 font-medium mb-0.5">เป้าหมายห้อง</p>
-                    <p class="text-sm font-bold text-slate-700">฿${stat.expected.toLocaleString('th-TH')}</p>
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">ห้อง ${rName}</p>
+                    <p class="text-xs text-slate-500">${stat.count} คน</p>
                 </div>
             </div>
             
-            <div class="relative z-10 mt-2">
-                <div class="flex justify-between items-end mb-1.5">
-                    <p class="text-[10px] font-bold ${isComplete ? 'text-emerald-600' : 'text-blue-500'}">ยอดที่เก็บได้</p>
-                    <p class="text-lg font-bold ${isComplete ? 'text-emerald-600' : 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500'}">฿${stat.current.toLocaleString('th-TH')}</p>
+            <!-- หลอดความคืบหน้าแบบยาว -->
+            <div class="flex-grow w-full">
+                <div class="flex justify-between text-xs mb-1.5">
+                    <span class="font-bold ${isComplete ? 'text-emerald-600' : 'text-blue-600'}">ยอดจัดเก็บ ฿${stat.current.toLocaleString('th-TH')}</span>
+                    <span class="text-slate-500 font-medium">เป้าหมาย ฿${stat.expected.toLocaleString('th-TH')}</span>
                 </div>
-                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner">
-                    <div class="h-2.5 rounded-full transition-all duration-1000 ${isComplete ? 'bg-emerald-400' : 'bg-gradient-to-r from-blue-400 to-indigo-500'}" style="width: ${pct}%"></div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5 shadow-inner overflow-hidden">
+                    <div class="h-2.5 rounded-full transition-all duration-1000 ${isComplete ? 'bg-emerald-500' : 'bg-blue-500'}" style="width: ${pct}%"></div>
                 </div>
-                <div class="text-right mt-1.5">
-                    <span class="text-[10px] font-bold ${isComplete ? 'text-emerald-600' : 'text-indigo-500'} bg-white px-1.5 py-0.5 rounded border border-slate-100 shadow-sm">${pct}%</span>
-                </div>
+            </div>
+            
+            <!-- ตัวเลขเปอร์เซ็นต์ด้านขวาสุด -->
+            <div class="flex-shrink-0 w-full md:w-16 text-right md:text-center mt-2 md:mt-0">
+                <span class="font-bold text-lg ${isComplete ? 'text-emerald-600' : 'text-slate-700'}">${pct}%</span>
             </div>
         </div>`;
     }
 
-    let allPct = totalAllRoomsExpected > 0 ? ((totalAllRoomsCurrent / totalAllRoomsExpected) * 100).toFixed(1) : 0;
+    // อัปเดตกล่องสรุป
+    summaryDiv.innerHTML = `
+    <div class="mb-2 px-1">
+        <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><i class="fas fa-chart-bar text-blue-500"></i> สรุปความคืบหน้า: ${roundInfo.title}</h3>
+        ${summaryHtml}
+    </div>`;
 
-    let fHtml = `
-    <tr class="bg-slate-50/50 border-b">
-        <td colspan="4" class="p-4 md:p-6">
-            <div class="bg-white rounded-2xl p-4 md:p-5 border border-slate-200 shadow-sm mb-5 flex flex-col md:flex-row justify-between items-center gap-4 relative overflow-hidden">
-                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-400 to-indigo-600"></div>
-                <div class="w-full md:w-auto">
-                    <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1"><i class="fas fa-chart-line mr-1"></i> Financial Summary</p>
-                    <h3 class="text-lg font-bold text-slate-800">${roundInfo.title}</h3>
-                    <p class="text-xs text-slate-500 mt-1">เป้าหมายจัดเก็บ <span class="font-bold text-slate-700">฿${roundInfo.amt}</span> / คน</p>
-                </div>
-                <div class="w-full md:w-auto flex items-center gap-4 bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
-                    <div>
-                        <p class="text-[10px] text-slate-500 font-bold mb-0.5">รวมทุกห้องที่เกี่ยวข้อง</p>
-                        <div class="flex items-baseline gap-2">
-                            <p class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">฿${totalAllRoomsCurrent.toLocaleString('th-TH')}</p>
-                            <p class="text-xs font-bold text-slate-400">/ ฿${totalAllRoomsExpected.toLocaleString('th-TH')}</p>
-                        </div>
-                    </div>
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-md bg-gradient-to-br from-blue-500 to-indigo-600">
-                        ${allPct}%
-                    </div>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                ${summaryHtml}
-            </div>
-        </td>
-    </tr>`;
-
-    // 🌟 4. กรองและแสดงรายชื่อนักศึกษา (เฉพาะเด็กห้องที่เลือกตอนสร้างบิล!)
+    // 🌟 4. โหลดรายชื่อเด็กลงตาราง (โดยตัด `<tr>` สรุปของเก่าออกแล้ว)
     let filteredStudents = targetStudents.filter(s => {
         let matchName = s.name.toLowerCase().includes(search) || s.room.toLowerCase().includes(search);
         if (!matchName) return false;
@@ -3094,6 +3075,8 @@ function toggleQuickRoundStatus() {
         return true;
     });
                 
+    let fHtml = ''; 
+    
     filteredStudents.forEach(s => {
         let payment = fundPayments.find(p => p.roundId === roundId && p.studentId === s.id); if(!payment) return;
         let paid = payment.paidAmt || 0; let remain = roundInfo.amt - paid; let isFull = paid >= roundInfo.amt;
