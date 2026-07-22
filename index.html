@@ -804,7 +804,6 @@ function copyToClipboard(text) {
     Swal.fire({ 
         title: 'ส่งสลิปแจ้งชำระเงิน', html: formHtml, confirmButtonText: 'ส่งสลิปให้เหรัญญิก', confirmButtonColor: '#059669', showCancelButton: true,
         didOpen: () => { 
-            // 1. ระบบตรวจสลิป (ของเดิม)
             document.getElementById('slip-file').addEventListener('change', function(e) { 
                 let file = e.target.files[0]; if (!file) return; 
                 let statusDiv = document.getElementById('qr-scan-status'); statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin text-emerald-500"></i> กำลังเตรียมวิเคราะห์...'; 
@@ -823,29 +822,19 @@ function copyToClipboard(text) {
                 }; reader.readAsDataURL(file); 
             }); 
 
-            // 🌟 2. ดึงรหัสนักศึกษามาเติมอัตโนมัติ (ถ้าล็อกอินอยู่)
             if (currentUserRole === 'guest' && window.currentGuestStuId) {
                 let idInput = document.getElementById('slip-st-id');
                 let camBtn = document.getElementById('btn-scan-id');
-                
-                // ใส่รหัสและเปลี่ยนสีให้รู้ว่าถูกล็อก
                 idInput.value = window.currentGuestStuId;
                 idInput.readOnly = true;
                 idInput.className = "modern-input mb-2 font-bold text-center tracking-wider bg-slate-100 text-slate-500 cursor-not-allowed";
-                if(camBtn) camBtn.style.display = 'none'; // ซ่อนปุ่มกล้องเพราะไม่ต้องใช้แล้ว
-
-                // สั่งระบบค้นหาบิลของคนนี้ทันที
+                if(camBtn) camBtn.style.display = 'none';
                 checkSlipDebtFront(window.currentGuestStuId);
-                
-                // รอให้บิลโหลดเสร็จ (0.5 วิ) แล้วเสก QR Code ขึ้นมา
                 setTimeout(() => {
                     let select = document.getElementById('slip-round');
                     if (select) {
-                        // เลือกรอบตามที่กดปุ่มมา (ถ้าทำได้และไม่ผิดกฎบิลเก่าสุด)
-                        if (targetRoundId && select.querySelector(`option[value="${targetRoundId}"]`)) {
-                            select.value = targetRoundId;
-                        }
-                        updateSlipQR(); // เรียกรูป QR ขึ้นมาโชว์ทันที
+                        if (targetRoundId && select.querySelector(`option[value="${targetRoundId}"]`)) select.value = targetRoundId;
+                        updateSlipQR(); 
                     }
                 }, 500);
             }
@@ -882,7 +871,6 @@ function copyToClipboard(text) {
                     let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
                     let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); 
                     
-                    // 🌟 🌟 🌟 เปลี่ยนมายิง API แทน google.script.run 🌟 🌟 🌟
                     let result = await callBackend({
                         action: 'uploadSlip',
                         studentId: res.value.studentId,
@@ -897,6 +885,16 @@ function copyToClipboard(text) {
 
                     if (result.status === 'success') { 
                         let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
+                        
+                        // 🌟 ยิงแจ้งเตือนเข้า LINE เมื่อแนบสลิปสำเร็จ
+                        let r_noti = fundRounds.find(rd => rd.id === res.value.roundId);
+                        callBackend({
+                            action: 'notifySlipSubmit',
+                            studentName: res.value.studentName,
+                            studentId: res.value.studentId,
+                            roundTitle: r_noti ? r_noti.title : 'รายการชำระเงิน'
+                        });
+
                         if (payment) { 
                             payment.status = 'รอตรวจสอบ';
                             payment.slipUrl = result.slipUrl; 
@@ -2227,8 +2225,6 @@ function renderActivityAdmins(title) {
         function createActivityModal() { 
     let htmlForm = `
     <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4">
-        
-        <!-- 🌟 ข้อมูลพื้นฐานกิจกรรม -->
         <div>
             <h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐานกิจกรรม</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2245,7 +2241,6 @@ function renderActivityAdmins(title) {
 
         <hr class="border-slate-100">
 
-        <!-- 🌟 รายละเอียดคะแนนและปีการศึกษา -->
         <div>
             <h4 class="font-bold text-blue-700 mb-3 text-sm">รายละเอียดคะแนนและปีการศึกษา</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2270,9 +2265,7 @@ function renderActivityAdmins(title) {
 
         <hr class="border-slate-100">
 
-        <!-- 🌟 ช่วงเวลาการสมัคร & จัดกิจกรรม (ปรับแก้ใหม่ให้เหมือน SAMS) 🌟 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- ฝั่งซ้าย: รับสมัคร -->
             <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-200 shadow-sm">
                 <h4 class="font-bold text-blue-700 mb-4 text-sm underline decoration-blue-200 decoration-2 underline-offset-4">ช่วงเวลาการสมัคร</h4>
                 <div class="space-y-4">
@@ -2287,7 +2280,6 @@ function renderActivityAdmins(title) {
                 </div>
             </div>
             
-            <!-- ฝั่งขวา: จัดกิจกรรม -->
             <div class="bg-slate-50/50 p-4 rounded-xl border border-slate-200 shadow-sm">
                 <h4 class="font-bold text-blue-700 mb-4 text-sm underline decoration-blue-200 decoration-2 underline-offset-4">ช่วงเวลาจัดกิจกรรม</h4>
                 <div class="space-y-4">
@@ -2305,7 +2297,6 @@ function renderActivityAdmins(title) {
 
         <hr class="border-slate-100">
 
-        <!-- 🌟 เงื่อนไขการรับสมัคร (ระบบรอบ SSSFN) -->
         <div>
             <h4 class="font-bold text-blue-700 mb-3 text-sm">เงื่อนไขการรับสมัคร (ตั้งค่ารอบและจำนวนคน)</h4>
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-2">
@@ -2322,37 +2313,10 @@ function renderActivityAdmins(title) {
 
         <hr class="border-slate-100">
 
-        <!-- 🌟 รายละเอียดกิจกรรมเพิ่มเติม -->
         <div>
             <h4 class="font-bold text-slate-800 mb-3 text-sm">รายละเอียดกิจกรรมเพิ่มเติม</h4>
             <textarea id="act-desc" rows="3" class="modern-input mb-0 w-full border-slate-300 text-sm" placeholder="ระบุรายละเอียดโครงการ หรือหมายเหตุเพิ่มเติม..."></textarea>
         </div>
-
-        <hr class="border-slate-100">
-
-        <!-- 🌟 จัดการผู้ดูแลกิจกรรม -->
-        <div>
-            <h4 class="font-bold text-blue-700 mb-1 text-sm">จัดการผู้ดูแลกิจกรรม</h4>
-            <p class="text-[10px] text-slate-400 mb-3"><i class="fas fa-info-circle"></i> ไม่จำเป็นต้องเพิ่มชื่อตัวคุณเองในระบบ</p>
-            <div class="flex flex-col md:flex-row gap-3 items-end">
-                <div class="flex-1">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Username ผู้ใช้งาน</label>
-                    <div class="relative">
-                        <i class="far fa-user absolute left-3 top-3 text-slate-400"></i>
-                        <input class="modern-input mb-0 w-full border-slate-300 pl-8" placeholder="ระบุ Username">
-                    </div>
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
-                    <div class="relative">
-                        <i class="fas fa-phone-alt absolute left-3 top-3 text-slate-400"></i>
-                        <input class="modern-input mb-0 w-full border-slate-300 pl-8" placeholder="08X-XXXXXXX">
-                    </div>
-                </div>
-                <button type="button" class="bg-[#111827] text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-800 transition">เพิ่มรายชื่อ</button>
-            </div>
-        </div>
-
     </div>`;
     
     Swal.fire({ 
@@ -2369,7 +2333,7 @@ function renderActivityAdmins(title) {
         preConfirm: () => { 
             const title = document.getElementById('act-title').value.trim(); 
             const titleEng = document.getElementById('act-title-eng').value.trim();
-            const date = document.getElementById('act-start').value; // ใช้วันที่เริ่มกิจกรรมเป็น Date หลักของระบบ
+            const date = document.getElementById('act-start').value; 
             
             if(!title || !date) return Swal.showValidationMessage('กรุณาระบุชื่อกิจกรรม(ไทย) และ วันที่เริ่มกิจกรรม'); 
             if(appSettings.activities.find(a => a.title === title)) return Swal.showValidationMessage('มีชื่อกิจกรรมนี้ในระบบแล้ว'); 
@@ -2381,7 +2345,7 @@ function renderActivityAdmins(title) {
                 let rMax = parseInt(row.querySelector('.r-max').value) || 0;
                 if(rName) rounds.push({ name: rName, time: rTime, max: rMax });
             });
-            if(rounds.length === 0) return Swal.showValidationMessage('กรุณาสร้างอย่างน้อย 1 รอบ (ในหัวข้อเงื่อนไขการรับสมัคร)');
+            if(rounds.length === 0) return Swal.showValidationMessage('กรุณาสร้างอย่างน้อย 1 รอบ');
 
             return { 
                 title: title, 
@@ -2405,6 +2369,14 @@ function renderActivityAdmins(title) {
             appSettings.activities.push(res.value); 
             txHistory.unshift({ date: getNow(), name: 'สร้างกิจกรรม: ' + res.value.title, type: 'ระบบ', amt: 0, user: currentUsername }); 
             saveToLocal(); refreshAll(); 
+            
+            // 🌟 ยิงแจ้งเตือนเข้า LINE เมื่อสร้างคำขอสำเร็จ
+            callBackend({
+                action: 'notifyNewActivity',
+                actTitle: res.value.title,
+                actDate: res.value.date
+            });
+
             Swal.fire({
                 title: 'สำเร็จ', 
                 text: 'บันทึกข้อมูลกิจกรรมเรียบร้อยแล้ว', 
