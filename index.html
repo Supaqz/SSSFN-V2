@@ -1894,16 +1894,28 @@ window.openActivityDashboard = function(title) {
 
 // 🌟 ฟังก์ชันเสริมสำหรับสลับ Tab ให้ปุ่มเมนูด้านบนเปลี่ยนสี
 window.switchActTab = function(tabId, btnElement) {
+    // ปิดกล้องถ้ามีการสลับหน้าหนีจากแท็บ Scan
     if (tabId !== 'scan' && window.hwScanner) {
-        window.hwScanner.stop().catch(e => console.log(e)); window.hwScanner = null;
+        window.hwScanner.stop().catch(e => console.log(e));
+        window.hwScanner = null;
     }
+
+    // 🌟 แก้ปัญหาตารางไม่อัปเดต: ถ้ากดกลับมาหน้า "ภาพรวม" ให้ดึงข้อมูลมาวาดตารางใหม่ทั้งหมด
+    if (tabId === 'overview') {
+        openActivityDashboard(currentDetailActivityTitle);
+        return; 
+    }
+
+    // ซ่อนทุกแท็บ
     document.querySelectorAll('.act-tab-content').forEach(el => {
-        el.classList.remove('block'); el.classList.add('hidden');
+        el.classList.remove('block');
+        el.classList.add('hidden');
     });
+    // เปิดแท็บที่เลือก
     document.getElementById('act-tab-' + tabId).classList.remove('hidden');
     document.getElementById('act-tab-' + tabId).classList.add('block');
     
-    // เปลี่ยนสีปุ่ม
+    // เปลี่ยนสีปุ่มเมนูด้านบน
     document.querySelectorAll('.act-tab-btn').forEach(btn => {
         btn.classList.remove('bg-[#2d3748]', 'border-blue-500', 'text-white');
         btn.classList.add('bg-transparent', 'border-slate-600', 'text-slate-300');
@@ -1911,8 +1923,12 @@ window.switchActTab = function(tabId, btnElement) {
     btnElement.classList.remove('bg-transparent', 'border-slate-600', 'text-slate-300');
     btnElement.classList.add('bg-[#2d3748]', 'border-blue-500', 'text-white');
     
+    // ถ้าคลิกแท็บสแกน ให้ Focus ที่ช่องกรอกข้อมูลอัตโนมัติ
     if(tabId === 'scan') {
-        setTimeout(() => { let inputF = document.getElementById('hw-input-focus'); if(inputF) inputF.focus(); }, 100);
+        setTimeout(() => {
+            let inputF = document.getElementById('hw-input-focus');
+            if(inputF) inputF.focus();
+        }, 100);
     }
 }
 
@@ -2741,50 +2757,41 @@ window.confirmScan = function(stuId, title) {
     if(card) card.remove();
     
     let stu = students.find(s => s.id === stuId);
-    let mode = document.querySelector('input[name="scan-mode-hw"]:checked').value;
+    if(!stu) return;
+
+    let modeElem = document.querySelector('input[name="scan-mode-hw"]:checked');
+    let mode = modeElem ? modeElem.value : 'in';
     let timeStr = getNow();
     
-    // 🌟 ดึงข้อมูลกิจกรรม เพื่อเตรียมหารอบให้เด็กอัตโนมัติ
     let act = appSettings.activities.find(a => a.title === title);
     let defaultRound = (act && act.rounds && act.rounds.length > 0) ? act.rounds[0].name : 'รอบทั่วไป';
 
-    let existingLog = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+    let cleanStuId = String(stuId).replace(/-/g, '').trim();
+    let cleanTitle = String(title).trim();
     
-    // 🌟 ถ้าเคยจองสิทธิ์มาแล้ว ให้ยึดรอบเดิมที่จองไว้ ถ้าเพิ่งโผล่มาสแกนเลย (Walk-in) ให้ยัดเข้ารอบแรกอัตโนมัติ
+    // ค้นหาประวัติว่าเด็กเคยจองสิทธิ์ไว้ไหม
+    let existingLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanStuId && String(l.activityTitle).trim() === cleanTitle);
+    
+    // 🌟 ถ้านักศึกษาเคยจองรอบไหนมา ให้ใช้รอบนั้นเลย ถ้าไม่เคยจอง (Walk-in) ให้ยัดเข้ารอบแรกอัตโนมัติ
     let roundName = (existingLog && existingLog.roundName) ? existingLog.roundName : defaultRound;
     
-    if (mode === 'in') {
+    if (mode === 'in') { // สแกนเข้า
         if (existingLog) {
             existingLog.timeIn = timeStr;
-            existingLog.roundName = roundName; // อัปเดตชื่อรอบ
+            existingLog.roundName = roundName; 
         } else {
-            activityLogs.unshift({ 
-                studentId: stu.id, 
-                activityTitle: title, 
-                roundName: roundName, 
-                timeIn: timeStr, 
-                timeOut: null 
-            });
+            activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null });
         }
-    } else { // โหมดสแกนออก
+    } else { // สแกนออก
         if (existingLog) {
             existingLog.timeOut = timeStr;
         } else {
-            // กรณีสแกนออกแต่ไม่มีประวัติสแกนเข้า
-            activityLogs.unshift({ 
-                studentId: stu.id, 
-                activityTitle: title, 
-                roundName: roundName, 
-                timeIn: '-', 
-                timeOut: timeStr 
-            });
+            activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: '-', timeOut: timeStr });
         }
     }
     
-    // บันทึกประวัติการทำรายการ (Audit Log)
     txHistory.unshift({ date: timeStr, name: 'สแกน' + (mode === 'in' ? 'เข้า' : 'ออก') + ' (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
     
-    // สั่งบันทึกลงเครื่องและส่งไป Google Sheets
     finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก');
 }
         
@@ -2799,25 +2806,24 @@ window.finishScanProcess = function(stuName, title, actionType = 'เข้า')
     if(typeof playBeep === 'function') playBeep('success'); 
     
     if(currentDetailActivityTitle === title) {
-        // 🌟 เช็คว่าแอดมินกำลังเปิดแท็บสแกนอยู่หรือไม่
         let scanTab = document.getElementById('act-tab-scan');
         let isScanning = scanTab && !scanTab.classList.contains('hidden');
 
+        // ถ้าเปิดหน้าสแกนอยู่ ไม่ต้องรีเฟรชตาราง (แค่กระตุ้นช่องรับข้อมูล)
         if (isScanning) {
-            // ถ้ายืนอยู่หน้าสแกน: ให้แค่เปิดกล้องต่อโดยไม่ต้องรีเฟรชหน้าจอ (แก้ปัญหาจอดำ)
             setTimeout(() => {
                 let inputF = document.getElementById('hw-input-focus');
                 if(inputF) inputF.focus(); 
                 if (window.hwScanner) {
                     try { window.hwScanner.resume(); } catch(e) { console.log(e); }
                 }
-            }, 300); // หน่วงเวลา 0.3 วินาทีรอให้ Popup ปิดสนิทก่อน
+            }, 300); 
         } else {
-            // ถ้าไม่ได้อยู่ในหน้าสแกน (อยู่หน้าภาพรวม): ค่อยรีเฟรชข้อมูลตามปกติ
             openActivityDashboard(title);
         }
     } 
 }
+        
 function closeHardwareScanner() { 
     document.removeEventListener('click', keepInputFocused);
     if (window.hwScanner) {
