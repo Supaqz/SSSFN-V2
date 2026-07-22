@@ -778,7 +778,10 @@ function copyToClipboard(text) {
         }
     }
 
-        function openPublicSlipModal(targetRoundId = null) {
+        // =========================================================================
+// 🌟 ฟังก์ชันเปิดหน้าต่างแนบสลิปโอนเงิน (เพิ่มระบบยิงแจ้งเตือน LINE)
+// =========================================================================
+function openPublicSlipModal(targetRoundId = null) {
     window.currentQrPayload = "";
     let formHtml = `
     <div class="text-left space-y-2">
@@ -856,8 +859,11 @@ function copyToClipboard(text) {
 
             let selectOpt = document.getElementById('slip-round');
             let expectedAmount = parseFloat(selectOpt.options[selectOpt.selectedIndex].dataset.remain);
+            
+            // ดึงชื่อบิลไปใช้ส่ง LINE เลย จะได้ไม่ต้องไปหาใหม่ให้ Error
+            let cleanRoundTitle = selectOpt.options[selectOpt.selectedIndex].text.split(' (')[0];
 
-            return { studentId: stu.id, studentName: stu.name, roundId: roundId, file: fileInput.files[0], qrPayload: window.currentQrPayload, room: stu.room, expectedAmount: expectedAmount }; 
+            return { studentId: stu.id, studentName: stu.name, roundId: roundId, file: fileInput.files[0], qrPayload: window.currentQrPayload, room: stu.room, expectedAmount: expectedAmount, roundTitle: cleanRoundTitle }; 
         }
     }).then(async res => { 
         if (res.isConfirmed) { 
@@ -886,13 +892,12 @@ function copyToClipboard(text) {
                     if (result.status === 'success') { 
                         let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
                         
-                        // 🌟 ยิงแจ้งเตือนเข้า LINE เมื่อแนบสลิปสำเร็จ
-                        let r_noti = fundRounds.find(rd => rd.id === res.value.roundId);
+                        // 🌟 ยิงแจ้งเตือนเข้า LINE ทันทีที่อัปโหลดสลิปสำเร็จ
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
                             studentId: res.value.studentId,
-                            roundTitle: r_noti ? r_noti.title : 'รายการชำระเงิน'
+                            roundTitle: res.value.roundTitle
                         });
 
                         if (payment) { 
