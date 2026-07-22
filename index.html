@@ -1916,31 +1916,14 @@ window.switchActTab = function(tabId, btnElement) {
     }
 }
 
-// 🌟 สร้าง HTML ดีไซน์ใหม่สำหรับหน้า Scan (อ้างอิงรูป)
+// 🌟 สร้าง HTML ดีไซน์ใหม่สำหรับหน้า Scan (ซ่อนเมนูเลือกรอบแล้ว)
 function generateScanHTML(act) {
-    let roundsHtml = act.rounds && act.rounds.length > 0 
-        ? act.rounds.map(r => `<option value="${r.name}">${r.name}</option>`).join('')
-        : '<option value="รอบทั่วไป">รอบทั่วไป</option>';
-
     return `
     <div id="scan-interface-container" class="space-y-6 max-w-5xl mx-auto text-left">
         
         <!-- ส่วนที่ 1: ตั้งค่าการสแกน -->
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <h3 class="font-bold text-slate-800 mb-4 text-lg">บันทึกการเข้าร่วมกิจกรรม</h3>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบลงทะเบียน</label>
-                <select id="hw-active-round" class="w-full p-3 border border-slate-300 rounded-xl font-bold bg-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    ${roundsHtml}
-                </select>
-                <div class="mt-3 text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 flex items-start gap-2">
-                    <i class="fas fa-exclamation-circle mt-0.5"></i> 
-                    <span>หากสถานะกิจกรรมยังไม่เปิดใช้งานจะไม่สามารถเลือกรอบลงทะเบียนได้ กรุณาเปิดใช้งานกิจกรรมเพื่อเลือกรอบลงทะเบียน</span>
-                </div>
-            </div>
-
-            <hr class="my-5 border-slate-100">
 
             <!-- ตัวเลือกการแสดงผล -->
             <div class="mb-4">
@@ -2012,6 +1995,7 @@ function generateScanHTML(act) {
         </div>
     </div>`;
 }
+
 // ----------------------------------------------------------------------
 // ฟังก์ชันเสริม (Helper Functions) สำหรับแท็บต่างๆ วางต่อท้ายได้เลยครับ
 // ----------------------------------------------------------------------
@@ -2751,24 +2735,28 @@ window.executeScanLogic = function(rawCode, title) {
     showStudentPreviewCard(stu, title);
 }
 
-// 🌟 2. ฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ (บันทึกเฉพาะคนที่มีชื่อในระบบแน่นอน)
+// 🌟 2. ฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ (ระบบประมวลผลรอบให้อัตโนมัติ)
 window.confirmScan = function(stuId, title) {
     let card = document.getElementById('student-preview-card');
     if(card) card.remove();
     
     let stu = students.find(s => s.id === stuId);
     let mode = document.querySelector('input[name="scan-mode-hw"]:checked').value;
-    let roundElem = document.getElementById('hw-active-round'); 
-    let roundName = roundElem ? roundElem.value.trim() : 'รอบทั่วไป';
     let timeStr = getNow();
     
-    // 🌟 ส่วนสำคัญ: บันทึกข้อมูลเข้าตัวแปร activityLogs
+    // 🌟 ดึงข้อมูลกิจกรรม เพื่อเตรียมหารอบให้เด็กอัตโนมัติ
+    let act = appSettings.activities.find(a => a.title === title);
+    let defaultRound = (act && act.rounds && act.rounds.length > 0) ? act.rounds[0].name : 'รอบทั่วไป';
+
     let existingLog = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+    
+    // 🌟 ถ้าเคยจองสิทธิ์มาแล้ว ให้ยึดรอบเดิมที่จองไว้ ถ้าเพิ่งโผล่มาสแกนเลย (Walk-in) ให้ยัดเข้ารอบแรกอัตโนมัติ
+    let roundName = (existingLog && existingLog.roundName) ? existingLog.roundName : defaultRound;
     
     if (mode === 'in') {
         if (existingLog) {
             existingLog.timeIn = timeStr;
-            existingLog.roundName = roundName; // อัปเดตชื่อรอบให้ตรงปัจจุบัน
+            existingLog.roundName = roundName; // อัปเดตชื่อรอบ
         } else {
             activityLogs.unshift({ 
                 studentId: stu.id, 
@@ -2799,7 +2787,7 @@ window.confirmScan = function(stuId, title) {
     // สั่งบันทึกลงเครื่องและส่งไป Google Sheets
     finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก');
 }
-
+        
 // 🌟 3. ฟังก์ชันเสร็จสิ้นกระบวนการ (ล็อกหน้าจอไว้ที่แท็บสแกนเสมอ ไม่เด้งหนี)
 window.finishScanProcess = function(stuName, title, actionType = 'เข้า') { 
     let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
