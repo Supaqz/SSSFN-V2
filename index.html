@@ -474,20 +474,33 @@ async function callBackend(payload) {
     }); 
 }
 
-        async function autoSyncToGS() { 
-    if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
-    isSyncing = true; let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-    await callBackend({ action: 'saveAll', data: dbData });
-    isSyncing = false;
-}
+       async function autoSyncToGS() {
+        if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
+        isSyncing = true; 
+        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+        
+        // 🌟 1. ดึงชื่อจากตัวแปร currentUsername ที่ระบบของคุณมีอยู่แล้ว!
+        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
+        
+        // 🌟 2. แนบ adminName ส่งไปหลังบ้าน
+        await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
+        
+        isSyncing = false;
+    }
 
-async function pushToGS() { 
-    isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
-    let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-    let r = await callBackend({ action: 'saveAll', data: dbData });
-    isSyncing = false;
-    if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
-}
+    async function pushToGS() {
+        isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
+        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+        
+        // 🌟 1. ดึงชื่อจากตัวแปร currentUsername
+        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
+        
+        // 🌟 2. แนบ adminName ส่งไปหลังบ้าน
+        let r = await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
+        
+        isSyncing = false;
+        if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
+    } 
 
 async function silentPullFromGS() { 
     if(isSyncing) return;
