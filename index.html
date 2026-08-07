@@ -905,7 +905,7 @@ function openPublicSlipModal(targetRoundId = null) {
                     if (result.status === 'success') { 
                         let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
                         
-                        // 🌟 ยิงแจ้งเตือนเข้า LINE ทันทีที่อัปโหลดสลิปสำเร็จ
+                        // ยิงแจ้งเตือนเข้า LINE
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
@@ -918,7 +918,12 @@ function openPublicSlipModal(targetRoundId = null) {
                             payment.slipUrl = result.slipUrl; 
                             payment.qrPayload = res.value.qrPayload;
                         } 
-                        saveToLocal(); refreshAll(); 
+                        
+                        // 🌟 แก้ไข 3 บรรทัดนี้ (จุดสำคัญที่สุด!) 🌟
+                        saveToLocal(false); // 👈 เติมคำว่า false เพื่อสั่งไม่ให้มันแพ็คข้อมูลไปเซฟทับมั่วซั่ว
+                        refreshAll(); 
+                        silentPullFromGS(); // 👈 ให้มันดึงฐานข้อมูลใหม่ล่าสุดจากเซิร์ฟเวอร์มาแทน
+                        
                         if(result.isMatch === false && result.detectedAmount !== -1) { 
                             Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
                         } else { 
@@ -926,7 +931,7 @@ function openPublicSlipModal(targetRoundId = null) {
                         }
                     } else { 
                         Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถอัปโหลดสลิปได้', 'error');
-                    } 
+                    }
                 }; 
                 img.src = e.target.result; 
             }; 
