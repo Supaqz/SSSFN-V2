@@ -38,6 +38,7 @@
             .desktop-sidebar-closed { margin-left: -16rem !important; } 
         }
     </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800">
 
@@ -1101,6 +1102,49 @@ function getInitials(name) {
     if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return cleanName.substring(0, 2).toUpperCase();
 }
+
+// ================= ระบบ Google Sign-In (Real Email Login) =================
+function decodeJwtResponse(token) {
+    let base64Url = token.split('.')[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+}
+
+function handleGoogleCredentialResponse(response) {
+    // 1. ถอดรหัส Token เพื่อเอาอีเมล
+    const responsePayload = decodeJwtResponse(response.credential);
+    const userEmail = responsePayload.email;
+    
+    // 2. ตรวจสอบว่าเป็นสิทธิ์ "แอดมิน" หรือไม่ (สมมติว่าคุณเพิ่มช่อง email ให้แอดมินแล้ว)
+    const adminUser = users.find(u => u.email === userEmail || u.user === userEmail); 
+    if (adminUser) {
+        currentUserRole = adminUser.role; 
+        currentUsername = adminUser.user; 
+        localStorage.setItem('sssfn_session', JSON.stringify({user: adminUser.user, role: adminUser.role, email: userEmail})); 
+        Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับแอดมิน: ${userEmail}`, showConfirmButton: false, timer: 1500}); 
+        applyRoleUI(); 
+        switchPage(adminUser.role === 'treasurer' ? 'fin-fund' : 'admin-db'); 
+        return;
+    }
+
+    // 3. ตรวจสอบว่าเป็นสิทธิ์ "นักศึกษา" หรือไม่
+    const stu = students.find(s => s.email === userEmail);
+    if (stu) {
+        showStudentSelectionModal(stu);
+        return;
+    }
+
+    // 4. ถ้าไม่เจอในระบบ
+    Swal.fire({
+        icon: 'error', 
+        title: 'ไม่พบสิทธิ์การใช้งาน', 
+        html: `อีเมล <b>${userEmail}</b><br>ยังไม่ได้ลงทะเบียนในระบบ หรือข้อมูลไม่ตรงกัน กรุณาติดต่อแอดมินครับ`
+    });
+}
+
 // ================= ระบบเข้าสู่ระบบของนักศึกษา (RMUTI Style) =================
 function promptStudentLogin() {
     Swal.fire({
@@ -1272,38 +1316,39 @@ function renderHomeDirectory() {
                 <div class="absolute right-0 top-0 opacity-5 pointer-events-none text-9xl text-white transform translate-x-10 -translate-y-10"><i class="fas fa-university"></i></div>
                 <div class="relative z-10 w-full">
                     <h2 class="text-2xl md:text-3xl font-bold text-white mb-1 text-center md:text-left">ระบบบริการนักศึกษา SSSFN</h2>
-                    <p class="text-slate-400 mb-6 text-xs md:text-sm text-center md:text-left">เลือกวิธีเข้าสู่ระบบที่เหมาะสมกับคุณ</p>
+                    <p class="text-slate-400 mb-6 text-xs md:text-sm text-center md:text-left">เข้าสู่ระบบด้วยอีเมลเพื่อความปลอดภัย</p>
                     
-                    <div class="space-y-3 w-full">
-                        <button onclick="promptStudentLogin()" class="w-full bg-[#1f2937] hover:bg-[#374151] border border-slate-700 rounded-2xl p-4 flex items-center justify-between transition group text-left shadow-sm">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-amber-950 text-amber-500 rounded-xl flex items-center justify-center text-xl shrink-0"><i class="fas fa-graduation-cap"></i></div>
-                                <div>
-                                    <h3 class="text-white font-bold text-base">นักศึกษา</h3>
-                                    <p class="text-slate-400 text-xs mt-0.5">เข้าสู่ระบบด้วยรหัสนักศึกษา (RMUTI Passport)</p>
-                                </div>
-                            </div>
-                            <i class="fas fa-arrow-right text-slate-500 group-hover:text-amber-500 transition"></i>
-                        </button>
-
-                        <button onclick="promptLogin()" class="w-full bg-[#1f2937] hover:bg-[#374151] border border-slate-700 rounded-2xl p-4 flex items-center justify-between transition group text-left shadow-sm">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-blue-900/30 text-blue-400 rounded-xl flex items-center justify-center text-xl shrink-0"><i class="fas fa-user-tie"></i></div>
-                                <div>
-                                    <h3 class="text-white font-bold text-base">คณะกรรมการ & แอดมิน</h3>
-                                    <p class="text-slate-400 text-xs mt-0.5">เข้าสู่ระบบจัดการข้อมูลด้วย Username</p>
-                                </div>
-                            </div>
-                            <i class="fas fa-arrow-right text-slate-500 group-hover:text-blue-400 transition"></i>
-                        </button>
+                    <div class="bg-[#1f2937] border border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center shadow-sm w-full relative z-20">
+                        <div class="w-16 h-16 bg-white/10 text-white rounded-full flex items-center justify-center text-3xl mb-4"><i class="fab fa-google"></i></div>
+                        <h3 class="text-white font-bold text-lg mb-2">ลงชื่อเข้าใช้ (Sign In)</h3>
+                        <p class="text-slate-400 text-xs mb-6 text-center">รองรับอีเมล @rmuti.ac.th และ @gmail.com<br>ที่ลงทะเบียนไว้กับทางสาขาเท่านั้น</p>
+                        
+                        <!-- 🌟 กล่องสำหรับปุ่ม Google Sign-In -->
+                        <div id="google-btn-container" class="w-full flex justify-center h-[40px]"></div>
                     </div>
 
-                    <div class="mt-6 pt-4 border-t border-slate-800 text-center">
-                        <span class="text-[11px] text-slate-500 font-medium font-mono">RMUTI Authentication Service</span>
+                    <div class="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center px-2">
+                        <span class="text-[11px] text-slate-500 font-medium font-mono">RMUTI Authentication</span>
+                        <!-- ซ่อนปุ่มล็อกอินแบบเก่าเผื่อฉุกเฉินฉบับแอดมิน -->
+                        <button onclick="promptLogin()" class="text-[10px] text-slate-500 hover:text-white underline"><i class="fas fa-lock"></i> เข้าระบบด้วยรหัสผ่าน</button>
                     </div>
                 </div>
             </div>`;
             
+            // 🌟 สั่งให้วาดปุ่ม Google (อย่าลืมเปลี่ยน YOUR_CLIENT_ID นะครับ)
+            setTimeout(() => {
+                if(typeof google !== 'undefined' && google.accounts) {
+                    google.accounts.id.initialize({
+                        client_id: "890404917484-07hsh7mdnkmau2btju1sklgt6av5g09m.apps.googleusercontent.com", // <-- เอา Client ID ของคุณมาใส่ตรงนี้
+                        callback: handleGoogleCredentialResponse
+                    });
+                    google.accounts.id.renderButton(
+                        document.getElementById("google-btn-container"),
+                        { theme: "outline", size: "large", text: "continue_with", shape: "pill", width: 250 }
+                    );
+                }
+            }, 300);
+
             let sbName = document.getElementById('sidebar-name'); let sbId = document.getElementById('sidebar-id'); let sbAvatar = document.getElementById('sidebar-avatar');
             if(sbName) sbName.innerText = "ผู้เยี่ยมชม"; if(sbId) sbId.innerText = "กรุณาเข้าสู่ระบบ"; if(sbAvatar) { sbAvatar.innerText = "G"; sbAvatar.className = "w-10 h-10 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center font-bold text-sm shadow-inner"; }
             return;
