@@ -497,20 +497,37 @@ async function callBackend(payload) {
         if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
     }
 
-async function silentPullFromGS() { 
-    if(isSyncing) return;
-    let r = await callBackend({ action: 'loadAll' });
-    if(r.status === 'success' && !isSyncing) applyLoadedData(r.data);
-}
-
-async function pullFromGS() { 
-    Swal.fire({title: 'กำลังดึงข้อมูลอัปเดต...', didOpen:()=>{Swal.showLoading()}});
-    let r = await callBackend({ action: 'loadAll' });
-    if(r.status === 'success') { 
-        applyLoadedData(r.data); Swal.fire({icon: 'success', title: 'อัปเดตข้อมูลตรงกับชีตแล้ว!', timer: 1500, showConfirmButton: false}); 
+        async function pullFromGS() { 
+        // 🌟 เพิ่ม allowOutsideClick: false ป้องกันการเผลอกดปิด
+        Swal.fire({title: 'กำลังดึงข้อมูลอัปเดต...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()}});
+        let r = await callBackend({ action: 'loadAll' });
+        
+        if(r.status === 'success') { 
+            applyLoadedData(r.data); 
+            Swal.fire({icon: 'success', title: 'อัปเดตข้อมูลตรงกับชีตแล้ว!', timer: 1500, showConfirmButton: false}); 
+        } else {
+            // 🌟 เพิ่มตัวดัก Error! ถ้าโหลดไม่ขึ้น ให้มันปิดหน้าต่างหมุนๆ แล้วแจ้งเตือนแทน
+            Swal.fire('ผิดพลาด', 'ดึงข้อมูลไม่สำเร็จ: ' + (r.message || 'โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'), 'error');
+        }
     }
-}
 
+    async function pushToGS() {
+        isSyncing = true; 
+        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()}});
+        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+        
+        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
+        let r = await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
+        
+        isSyncing = false;
+        if(r.status === 'success') {
+            Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
+        } else {
+            // 🌟 เพิ่มตัวดัก Error ให้ปุ่มบันทึกด้วย
+            Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ: ' + (r.message || 'เซิร์ฟเวอร์อาจทำงานหนักเกินไป'), 'error');
+        }
+    }
+        
         function applyLoadedData(d) { 
             appSettings = d.appSettings || appSettings;
             if(!appSettings.activities) appSettings.activities = []; 
