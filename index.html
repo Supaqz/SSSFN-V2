@@ -624,12 +624,13 @@ function saveToLocal(triggerSync = true) {
 }
 
         function buildSlipDropdown(unpaidRounds, total, alertDiv, selectRound) {
+            window.currentUnpaidRounds = unpaidRounds; // 🌟 เก็บข้อมูลบิลค้างไว้ใช้ตอนกระจายสลิป
+            
             let oldestRound = unpaidRounds[0];
             let dParts = oldestRound.dueDate ? oldestRound.dueDate.split('-') : ['0000','00','00']; 
             let dateStr = (dParts[0] !== '0000') ? `(บิล: ${dParts[2]}/${dParts[1]}/${parseInt(dParts[0])+543})` : '';
             let isUn = oldestRound.qrUnlocked ? 'true' : 'false';
             
-            // 🌟 เพิ่มการบังคับแปลงเป็นตัวเลข เพื่อแก้ Error toFixed
             let totalFixed = parseFloat(total || 0);
             let oldestRemainFixed = parseFloat(oldestRound.remain || 0);
             
@@ -637,7 +638,8 @@ function saveToLocal(triggerSync = true) {
             
             if (unpaidRounds.length > 1) {
                 opts += `<option value="${oldestRound.id}" data-remain="${oldestRemainFixed}" data-unlocked="${isUn}">[จ่ายแค่บิลเก่าสุด] ${oldestRound.title} (฿${oldestRemainFixed.toFixed(2)})</option>`;
-                opts += `<option value="${oldestRound.id}" data-remain="${totalFixed}" data-unlocked="${isUn}">[จ่ายทั้งหมด] เหมาเคลียร์ทุกบิล (฿${totalFixed.toFixed(2)})</option>`;
+                // 🌟 เปลี่ยน value เป็น "ALL" เพื่อให้ระบบรู้ว่านี่คือการเหมาจ่าย
+                opts += `<option value="ALL" data-remain="${totalFixed}" data-unlocked="${isUn}">[จ่ายทั้งหมด] เหมาเคลียร์ทุกบิล (฿${totalFixed.toFixed(2)})</option>`;
                 
                 alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-amber-50 text-amber-600 border border-amber-200'; 
                 alertDiv.innerHTML = `⚠️ มียอดค้างชำระหลายรายการ (รวม <b>฿${totalFixed.toFixed(2)}</b>)<br><span class="text-rose-500 font-bold">*โปรดเลือกรูปแบบการชำระในช่องด้านล่าง*</span>`; 
@@ -656,20 +658,21 @@ function saveToLocal(triggerSync = true) {
             }, 100);
         }
         function updateSlipQR() {
-    let select = document.getElementById('slip-round');
-    let qrContainer = document.getElementById('slip-qr-container');
-    if(!select || !select.value) { qrContainer.innerHTML = ''; return; }
-    
-    let roundId = parseInt(select.value);
-    let roundData = fundRounds.find(r => r.id === roundId);
-    
-    if (roundData && roundData.isOpen === false) {
-        qrContainer.innerHTML = '<div class="bg-rose-50 p-5 rounded-xl border-2 border-rose-100 mt-2 shadow-inner text-center"><p class="font-bold text-rose-700"><i class="fas fa-lock"></i> รอบบิลนี้ปิดรับชำระแล้ว</p><p class="text-xs text-rose-600">กรุณาติดต่อเหรัญญิกหากมีข้อสงสัย</p></div>';
-        return;
-    }
-    
-    let remainAmt = parseFloat(select.options[select.selectedIndex].dataset.remain);
-    let isUnlock = select.options[select.selectedIndex].dataset.unlocked === 'true'; 
+            let select = document.getElementById('slip-round');
+            let qrContainer = document.getElementById('slip-qr-container');
+            if(!select || !select.value) { qrContainer.innerHTML = ''; return; }
+            
+            // 🌟 เช็คว่าถ้าเลือกเหมาจ่าย (ALL) ให้ใช้ ID ของบิลเก่าสุดเพื่อตรวจสอบสถานะ
+            let roundId = select.value === "ALL" ? window.currentUnpaidRounds[0].id : parseInt(select.value);
+            let roundData = fundRounds.find(r => r.id === roundId);
+            
+            if (roundData && roundData.isOpen === false) {
+                qrContainer.innerHTML = '<div class="bg-rose-50 p-5 rounded-xl border-2 border-rose-100 mt-2 shadow-inner text-center"><p class="font-bold text-rose-700"><i class="fas fa-lock"></i> รอบบิลนี้ปิดรับชำระแล้ว</p><p class="text-xs text-rose-600">กรุณาติดต่อเหรัญญิกหากมีข้อสงสัย</p></div>';
+                return;
+            }
+            
+            let remainAmt = parseFloat(select.options[select.selectedIndex].dataset.remain);
+            let isUnlock = select.options[select.selectedIndex].dataset.unlocked === 'true'; 
     
     if(remainAmt > 0) {
         let myRoom = window.currentStudentRoom || "ไม่ระบุ";
@@ -843,9 +846,15 @@ function openPublicSlipModal(targetRoundId = null) {
             }
         },
         preConfirm: () => { 
-            const stId = document.getElementById('slip-st-id').value.trim(); const roundId = parseInt(document.getElementById('slip-round').value); const fileInput = document.getElementById('slip-file'); 
-            if (!stId) return Swal.showValidationMessage('กรุณาระบุรหัส'); let stu = students.find(s => s.id === stId || s.id.replace(/-/g,'') === stId.replace(/-/g,'')); 
-            if (!stu) return Swal.showValidationMessage('ไม่พบรหัสในระบบ'); if (isNaN(roundId)) return Swal.showValidationMessage('กรุณาเลือกรายการที่ต้องการชำระ');
+            const stId = document.getElementById('slip-st-id').value.trim(); 
+            const fileInput = document.getElementById('slip-file'); 
+            
+            if (!stId) return Swal.showValidationMessage('กรุณาระบุรหัส'); 
+            let stu = students.find(s => s.id === stId || s.id.replace(/-/g,'') === stId.replace(/-/g,'')); 
+            if (!stu) return Swal.showValidationMessage('ไม่พบรหัสในระบบ'); 
+            
+            let selectOpt = document.getElementById('slip-round');
+            if (!selectOpt || !selectOpt.value) return Swal.showValidationMessage('กรุณาเลือกรายการที่ต้องการชำระ');
             if (fileInput.files.length === 0) return Swal.showValidationMessage('กรุณาเลือกไฟล์สลิป'); 
             
             if (window.currentQrPayload && window.currentQrPayload !== "No QR detected") {
@@ -857,13 +866,25 @@ function openPublicSlipModal(targetRoundId = null) {
                 }
             }
 
-            let selectOpt = document.getElementById('slip-round');
-            let expectedAmount = parseFloat(selectOpt.options[selectOpt.selectedIndex].dataset.remain);
+            // 🌟 เช็คว่านักศึกษากดเลือก "เหมาจ่าย (ALL)" หรือไม่
+            let isLumpSum = selectOpt.value === "ALL";
             
-            // ดึงชื่อบิลไปใช้ส่ง LINE เลย จะได้ไม่ต้องไปหาใหม่ให้ Error
+            // ถ้าเหมาจ่าย ให้เอา ID ของบิลเก่าสุดมาอ้างอิงส่งไปให้หลังบ้าน
+            let roundId = isLumpSum ? window.currentUnpaidRounds[0].id : parseInt(selectOpt.value);
+            let expectedAmount = parseFloat(selectOpt.options[selectOpt.selectedIndex].dataset.remain);
             let cleanRoundTitle = selectOpt.options[selectOpt.selectedIndex].text.split(' (')[0];
 
-            return { studentId: stu.id, studentName: stu.name, roundId: roundId, file: fileInput.files[0], qrPayload: window.currentQrPayload, room: stu.room, expectedAmount: expectedAmount, roundTitle: cleanRoundTitle }; 
+            return { 
+                studentId: stu.id, 
+                studentName: stu.name, 
+                roundId: roundId, 
+                file: fileInput.files[0], 
+                qrPayload: window.currentQrPayload, 
+                room: stu.room, 
+                expectedAmount: expectedAmount, 
+                roundTitle: cleanRoundTitle,
+                isLumpSum: isLumpSum // ส่งค่าเหมาจ่ายไปให้ระบบด้านล่างประมวลผลต่อ
+            }; 
         }
     }).then(async res => { 
         if (res.isConfirmed) { 
@@ -890,22 +911,45 @@ function openPublicSlipModal(targetRoundId = null) {
                     });
 
                     if (result.status === 'success') { 
-                        let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
-                        
-                        // 🌟 ยิงแจ้งเตือนเข้า LINE ทันทีที่อัปโหลดสลิปสำเร็จ
+                        // 🌟 ระบบกระจายสลิปให้ทุกบิล (ถ้านักศึกษากดเหมาจ่าย)
+                        let amountToDistribute = result.detectedAmount !== -1 ? result.detectedAmount : res.value.expectedAmount;
+                        let notiRoundTitle = res.value.roundTitle;
+
+                        if (res.value.isLumpSum) {
+                            let distCount = 0;
+                            window.currentUnpaidRounds.forEach(ur => {
+                                if (amountToDistribute > 0) {
+                                    let payment = fundPayments.find(p => p.roundId === ur.id && p.studentId === res.value.studentId);
+                                    if (payment) {
+                                        payment.status = 'รอตรวจสอบ';
+                                        payment.slipUrl = result.slipUrl;
+                                        payment.qrPayload = res.value.qrPayload;
+                                        amountToDistribute -= ur.remain; // หักเงินออกจากก้อนเหมา
+                                        distCount++;
+                                    }
+                                }
+                            });
+                            notiRoundTitle = `เหมาจ่ายเคลียร์ ${distCount} บิล`;
+                        } else {
+                            // 🌟 ระบบปกติ: อัปเดตแค่บิลเดียว
+                            let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
+                            if (payment) { 
+                                payment.status = 'รอตรวจสอบ';
+                                payment.slipUrl = result.slipUrl; 
+                                payment.qrPayload = res.value.qrPayload;
+                            }
+                        }
+
+                        // ยิงแจ้งเตือนเข้า LINE/Facebook
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
                             studentId: res.value.studentId,
-                            roundTitle: res.value.roundTitle
+                            roundTitle: notiRoundTitle
                         });
 
-                        if (payment) { 
-                            payment.status = 'รอตรวจสอบ';
-                            payment.slipUrl = result.slipUrl; 
-                            payment.qrPayload = res.value.qrPayload;
-                        } 
                         saveToLocal(); refreshAll(); 
+                        
                         if(result.isMatch === false && result.detectedAmount !== -1) { 
                             Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
                         } else { 
@@ -3370,8 +3414,9 @@ function toggleQuickRoundStatus() {
             let totalOtherDebt = 0;
             
             fundPayments.forEach(p => {
+                //🌟 เพิ่มการดึงบิลที่ขึ้น 'รอตรวจสอบ' หรือ 'รอดำเนินการ' มารวมด้วย เผื่อกรณีที่เพื่อนเหมาจ่ายมา
                 if (p.studentId === studentId && p.roundId != roundId && 
-                   (p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ')) {
+                   (p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ' || p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ')) {
                     let r = fundRounds.find(rd => rd.id === p.roundId);
                     if (r && r.isOpen !== false) {
                         let remain = r.amt - (p.paidAmt || 0);
