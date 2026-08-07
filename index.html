@@ -473,61 +473,36 @@ async function callBackend(payload) {
         s.debt = currentDebt > 0 ? currentDebt : 0; 
     }); 
 }
-        async function autoSyncToGS() {
-        if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
-        isSyncing = true; 
-        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-        
-        // 🌟 ดึงชื่อจากตัวแปร currentUsername
-        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
-        await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
-        
-        isSyncing = false;
-    }
 
-    async function pushToGS() {
-        isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
-        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-        
-        // 🌟 ดึงชื่อจากตัวแปร currentUsername
-        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
-        let r = await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
-        
-        isSyncing = false;
-        if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
-    }
+        async function autoSyncToGS() { 
+    if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
+    isSyncing = true; let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+    await callBackend({ action: 'saveAll', data: dbData });
+    isSyncing = false;
+}
 
-        async function pullFromGS() { 
-        // 🌟 เพิ่ม allowOutsideClick: false ป้องกันการเผลอกดปิด
-        Swal.fire({title: 'กำลังดึงข้อมูลอัปเดต...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()}});
-        let r = await callBackend({ action: 'loadAll' });
-        
-        if(r.status === 'success') { 
-            applyLoadedData(r.data); 
-            Swal.fire({icon: 'success', title: 'อัปเดตข้อมูลตรงกับชีตแล้ว!', timer: 1500, showConfirmButton: false}); 
-        } else {
-            // 🌟 เพิ่มตัวดัก Error! ถ้าโหลดไม่ขึ้น ให้มันปิดหน้าต่างหมุนๆ แล้วแจ้งเตือนแทน
-            Swal.fire('ผิดพลาด', 'ดึงข้อมูลไม่สำเร็จ: ' + (r.message || 'โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'), 'error');
-        }
-    }
+async function pushToGS() { 
+    isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
+    let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+    let r = await callBackend({ action: 'saveAll', data: dbData });
+    isSyncing = false;
+    if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
+}
 
-    async function pushToGS() {
-        isSyncing = true; 
-        Swal.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen:()=>{Swal.showLoading()}});
-        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-        
-        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
-        let r = await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
-        
-        isSyncing = false;
-        if(r.status === 'success') {
-            Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
-        } else {
-            // 🌟 เพิ่มตัวดัก Error ให้ปุ่มบันทึกด้วย
-            Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ: ' + (r.message || 'เซิร์ฟเวอร์อาจทำงานหนักเกินไป'), 'error');
-        }
+async function silentPullFromGS() { 
+    if(isSyncing) return;
+    let r = await callBackend({ action: 'loadAll' });
+    if(r.status === 'success' && !isSyncing) applyLoadedData(r.data);
+}
+
+async function pullFromGS() { 
+    Swal.fire({title: 'กำลังดึงข้อมูลอัปเดต...', didOpen:()=>{Swal.showLoading()}});
+    let r = await callBackend({ action: 'loadAll' });
+    if(r.status === 'success') { 
+        applyLoadedData(r.data); Swal.fire({icon: 'success', title: 'อัปเดตข้อมูลตรงกับชีตแล้ว!', timer: 1500, showConfirmButton: false}); 
     }
-        
+}
+
         function applyLoadedData(d) { 
             appSettings = d.appSettings || appSettings;
             if(!appSettings.activities) appSettings.activities = []; 
@@ -914,9 +889,10 @@ function openPublicSlipModal(targetRoundId = null) {
                         expectedAmount: res.value.expectedAmount
                     });
 
-                     if (result.status === 'success') { 
+                    if (result.status === 'success') { 
                         let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
                         
+                        // 🌟 ยิงแจ้งเตือนเข้า LINE ทันทีที่อัปโหลดสลิปสำเร็จ
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
@@ -929,12 +905,7 @@ function openPublicSlipModal(targetRoundId = null) {
                             payment.slipUrl = result.slipUrl; 
                             payment.qrPayload = res.value.qrPayload;
                         } 
-                        
-                        // 🌟 แก้ไขให้หยุดเซฟทับ และดึงข้อมูลใหม่มาโชว์แทน
-                        saveToLocal(false); 
-                        refreshAll(); 
-                        silentPullFromGS(); 
-                        
+                        saveToLocal(); refreshAll(); 
                         if(result.isMatch === false && result.detectedAmount !== -1) { 
                             Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
                         } else { 
@@ -942,7 +913,7 @@ function openPublicSlipModal(targetRoundId = null) {
                         }
                     } else { 
                         Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถอัปโหลดสลิปได้', 'error');
-                    }
+                    } 
                 }; 
                 img.src = e.target.result; 
             }; 
@@ -958,11 +929,6 @@ function openPublicSlipModal(targetRoundId = null) {
     applyRoleUI(); 
     silentPullFromGS(); 
 });
-        async function silentPullFromGS() { 
-    if(isSyncing) return;
-    let r = await callBackend({ action: 'loadAll' });
-    if(r.status === 'success' && !isSyncing) applyLoadedData(r.data);
-}
         // 🌟 ฟังก์ชันเปิด-ปิดแถบเมนูด้านซ้าย (รองรับทั้งมือถือและคอมพิวเตอร์)
 window.toggleSidebar = function() { 
     let sidebar = document.getElementById('sidebar'); 
@@ -3348,76 +3314,23 @@ function toggleQuickRoundStatus() {
 
         function approveFundPayment(roundId, studentId, maxRemain, isCash = false) {
             let cashTitle = isCash ? '(รับเงินสด)' : '(รับเงินโอน)';
-            let stu = students.find(s => s.id == studentId); 
-            
-            // 🌟 1. ดึงบิลค้างชำระทั้งหมดมาเรียงคิว
-            let unpaidRounds = [];
-            fundPayments.forEach(p => {
-                if (p.studentId === studentId) {
-                    let r = fundRounds.find(rd => rd.id === p.roundId);
-                    if(r && r.isOpen !== false) {
-                        let remain = r.amt - (p.paidAmt || 0);
-                        if (remain > 0) unpaidRounds.push({...p, remain: remain, roundTitle: r.title, dueDate: r.dueDate});
-                    }
-                }
-            });
-            unpaidRounds.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
-            let totalDebt = unpaidRounds.reduce((sum, r) => sum + r.remain, 0);
-
             Swal.fire({ 
                 title: `บันทึกรับเงิน ${cashTitle}`, 
-                html: `<div class="text-left bg-slate-50 p-4 rounded-xl border">
-                        <label class="text-xs font-bold text-slate-500">ระบุยอดเงินที่ได้รับจริง</label>
-                        <input type="number" id="pay-amt-input" class="modern-input mt-2 text-2xl font-bold text-emerald-600 text-center" value="${maxRemain}" min="1">
-                        <p class="text-xs text-rose-500 mt-1">*ยอดคงค้างหนี้รวมทั้งหมด: ฿${totalDebt.toFixed(2)}</p>
-                       </div>`, 
-                showCancelButton: true, confirmButtonText: '✅ ยืนยันทะลวงบิล', confirmButtonColor: '#10b981', cancelButtonText: 'ยกเลิก', 
-                preConfirm: () => { 
-                    let amt = parseFloat(document.getElementById('pay-amt-input').value); 
-                    if(!amt || amt <= 0) return Swal.showValidationMessage('กรุณาระบุจำนวนเงินที่ถูกต้อง'); 
-                    return amt; 
-                } 
+                html: `<div class="text-left bg-slate-50 p-4 rounded-xl border"><label class="text-xs font-bold text-slate-500">ระบุยอดเงินที่ได้รับจริง</label><input type="number" id="pay-amt-input" class="modern-input mt-2 text-2xl font-bold text-emerald-600 text-center" value="${maxRemain}" min="1"><p class="text-xs text-rose-500 mt-1">*ยอดคงค้างปัจจุบัน: ฿${maxRemain}</p></div>`, 
+                showCancelButton: true, confirmButtonText: '✅ ยืนยัน', confirmButtonColor: '#10b981', cancelButtonText: 'ยกเลิก', 
+                preConfirm: () => { let amt = parseFloat(document.getElementById('pay-amt-input').value); if(!amt || amt <= 0) return Swal.showValidationMessage('กรุณาระบุจำนวนเงินที่ถูกต้อง'); return amt; } 
             }).then(r => {
                 if(r.isConfirmed) {
-                    let moneyInHand = r.value;
-                    let logMsg = `รับเงิน ${cashTitle}: ${stu.name} (${moneyInHand} บ.)`;
-                    let startStatus = isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว';
-
-                    // 🌟 2. ระบบทะลวงบิล (ไหลแบบน้ำตก)
-                    for (let i = 0; i < unpaidRounds.length; i++) {
-                        if (moneyInHand <= 0) break;
-                        
-                        let targetRound = unpaidRounds[i];
-                        let p = fundPayments.find(x => x.roundId === targetRound.roundId && x.studentId === studentId);
-                        
-                        if (moneyInHand >= targetRound.remain) {
-                            p.paidAmt = (p.paidAmt || 0) + targetRound.remain;
-                            p.status = i === 0 ? startStatus : 'จ่ายแล้ว (หักยอดเกิน)';
-                            moneyInHand -= targetRound.remain;
-                            logMsg += ` -> ปิดบิล ${targetRound.roundTitle}`;
-                        } else {
-                            p.paidAmt = (p.paidAmt || 0) + moneyInHand;
-                            p.status = 'ค้างชำระ (ผ่อน)';
-                            logMsg += ` -> ผ่อนบิล ${targetRound.roundTitle} (${moneyInHand} บ.)`;
-                            moneyInHand = 0;
-                        }
+                    let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+                    if(payment) {
+                        payment.paidAmt = (payment.paidAmt || 0) + r.value; 
+                        let stu = students.find(s => s.id == studentId); let round = fundRounds.find(rd => rd.id == roundId);
+                        if(payment.paidAmt >= round.amt) { payment.status = isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว'; } else { payment.status = 'ค้างชำระ (ผ่อน)'; }
+                        txHistory.unshift({ date: getNow(), name: `รับเงิน ${cashTitle} (${round.title}): ${stu.name}`, type: 'ระบบ', amt: r.value, user: currentUsername });
+                        saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
+                        if (payment.status.includes('จ่ายแล้ว') && stu && round) { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'notifyPayment', name: stu.name, room: stu.room, roundTitle: round.title, status: payment.status }) }).catch(e=>{}); }
+                        Swal.fire({toast:true, position:'top-end', icon:'success', title:'อัปเดตยอดบัญชีสำเร็จ', showConfirmButton:false, timer:1500});
                     }
-
-                    // 🌟 3. ถ้าเงินเหลือ เอาเข้ายอดฝาก (แก้ไขตัวแปรเป็น stu.dep และลบการยิง API ซ้ำซ้อน)
-                    if (moneyInHand > 0) {
-                        stu.dep = (stu.dep || 0) + moneyInHand;
-                        logMsg += ` -> 💰 ทอนเข้ายอดฝาก (${moneyInHand} บ.)`;
-                    }
-
-                    // บรรทัดด้านล่างนี้จะทำการเหมารวมทั้งการแก้สถานะบิลและยอดเงินฝาก ส่งไปเซฟที่หลังบ้านทีเดียวจบเลยครับ
-                    txHistory.unshift({ date: getNow(), name: logMsg, type: 'ระบบ', amt: r.value, user: currentUsername });
-                    saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
-                    
-                    Swal.fire({
-                        title: 'อัปเดตยอดบัญชีสำเร็จ', 
-                        text: moneyInHand > 0 ? `และทอนเงิน ฿${moneyInHand.toFixed(2)} เข้ายอดฝากล่วงหน้าเรียบร้อยแล้ว` : 'ตัดบิลอัตโนมัติสำเร็จ',
-                        icon: 'success', confirmButtonText: 'ตกลง'
-                    });
                 }
             });
         }
