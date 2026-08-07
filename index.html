@@ -1427,12 +1427,29 @@ function renderHomeDirectory() {
                 <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm"><i class="fas fa-check"></i></div>
                 <h3 class="font-bold text-emerald-700 text-lg">ไม่มีการแจ้งเตือนใหม่</h3><p class="text-sm text-emerald-600 mt-1">คุณทำครบทุกอย่างแล้ว ยอดเยี่ยมมากครับ!</p>
             </div>`;
+            
         let initialLetters = getInitials(s.name);
         let topGreenBar = `
-     <div class="bg-[#059669] rounded-xl p-4 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-         <h2 class="text-lg font-bold text-white"><i class="far fa-address-card mr-2"></i> โปรไฟล์ส่วนตัว</h2>
-         <div class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold tracking-wider w-full md:w-auto text-center shadow-inner">${s.id}</div>
-     </div>`;
+        <div class="bg-[#059669] rounded-xl p-4 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <h2 class="text-lg font-bold text-white"><i class="far fa-address-card mr-2"></i> โปรไฟล์ส่วนตัว</h2>
+            <div class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold tracking-wider w-full md:w-auto text-center shadow-inner">${s.id}</div>
+        </div>`;
+
+        // 🌟 เพิ่ม UI แสดงยอดเงินฝากคงเหลือ
+        let depAmt = s.dep || 0;
+        let depositUi = `
+        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-100 mt-8 flex items-center justify-between shadow-sm">
+            <div class="text-left flex items-center gap-4">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-emerald-500 shadow-sm text-xl shrink-0"><i class="fas fa-piggy-bank"></i></div>
+                <div>
+                    <p class="text-sm font-bold text-emerald-700 mb-0.5">ยอดเงินฝากคงเหลือ</p>
+                    <p class="text-[10px] text-emerald-600/80 font-bold">ระบบจะหักจ่ายบิลใหม่อัตโนมัติ</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-black text-emerald-600 tracking-tight">฿${depAmt.toFixed(2)}</p>
+            </div>
+        </div>`;
 
         grid.innerHTML = `
         ${topGreenBar}
@@ -1446,6 +1463,9 @@ function renderHomeDirectory() {
                 <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-building mr-1"></i> ห้องเรียน</p><p class="font-bold text-sm text-slate-700">${s.room}</p></div>
                 <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-id-badge mr-1"></i> รหัสประจำตัว</p><p class="font-bold text-sm text-slate-700">${s.id}</p></div>
             </div>
+            
+            <!-- นำยอดเงินฝากมาแสดงในการ์ดโปรไฟล์ -->
+            ${depositUi}
         </div>
         <!-- ยอดค้างชำระย้ายมาไว้ด้านล่าง -->
         ${notificationCard}`;
@@ -1456,35 +1476,31 @@ function renderHomeDirectory() {
         grid.className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full"; empty.classList.add('hidden');
         const roomF = roomFilterEl.value; const search = searchEl.value.toLowerCase().trim();
     
-    // 🌟 🌟 🌟 เพิ่มสูตรคำนวณเงินกองกลางตรงนี้ (ฉบับแยกส่วนกลาง + ยอดตรง Statement) 🌟 🌟 🌟
-    let roomFundTotal = 0;
-    
-    // 1. นำยอดเงินที่ "จ่ายเข้ามาจริง" (paidAmt) มาบวกทั้งหมด (รวมยอดผ่อนชำระ)
-    fundPayments.forEach(p => { 
-        // กรองเอาเฉพาะรายการที่มียอดเงิน และไม่ใช่บิลที่ถูกตีกลับหรือยกเลิก
-        if(p.paidAmt && parseFloat(p.paidAmt) > 0 && p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก') {
-            let stu = students.find(st => st.id === p.studentId);
-            if(roomF === 'all' || (stu && stu.room === roomF)) {
-                roomFundTotal += parseFloat(p.paidAmt); // 👈 ดึงตัวเลขเงินจริงมาบวก
+        // 🌟 สูตรคำนวณเงินกองกลาง
+        let roomFundTotal = 0;
+        
+        fundPayments.forEach(p => { 
+            if(p.paidAmt && parseFloat(p.paidAmt) > 0 && p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก') {
+                let stu = students.find(st => st.id === p.studentId);
+                if(roomF === 'all' || (stu && stu.room === roomF)) {
+                    roomFundTotal += parseFloat(p.paidAmt);
+                }
             }
+        });
+
+        expenses.forEach(e => { 
+            let expAmt = parseFloat(e.amt) || 0;
+            if (e.source === 'บัญชีห้อง' || e.source === 'เงินห้อง') {
+                roomFundTotal += (e.type === 'รายรับ' ? expAmt : -expAmt); 
+            }
+        });
+
+        let homeBalEl = document.getElementById('home-bal-pool-fund'); 
+        if(homeBalEl) {
+            homeBalEl.innerText = '฿ ' + roomFundTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
-    });
 
-    // 2. หักลบกับรายการเบิกจ่าย/รายรับเพิ่มเติม (ดึงเฉพาะ "บัญชีห้อง" ไม่รวมส่วนกลาง)
-    expenses.forEach(e => { 
-        let expAmt = parseFloat(e.amt) || 0;
-        if (e.source === 'บัญชีห้อง' || e.source === 'เงินห้อง') {
-            roomFundTotal += (e.type === 'รายรับ' ? expAmt : -expAmt); 
-        }
-    });
-
-    let homeBalEl = document.getElementById('home-bal-pool-fund'); 
-    if(homeBalEl) {
-        homeBalEl.innerText = '฿ ' + roomFundTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    }
-    // 🌟 🌟 🌟 สิ้นสุดสูตรคำนวณเงิน 🌟 🌟 🌟
-
-    let filtered = students.filter(s => (roomF === 'all' || s.room === roomF) && (s.name.toLowerCase().includes(search) || s.id.includes(search)));
+        let filtered = students.filter(s => (roomF === 'all' || s.room === roomF) && (s.name.toLowerCase().includes(search) || s.id.includes(search)));
         
         let sbName = document.getElementById('sidebar-name'); let sbId = document.getElementById('sidebar-id'); let sbAvatar = document.getElementById('sidebar-avatar');
         if(sbName) { sbName.innerText = currentUsername; sbId.innerText = "ผู้ดูแลระบบ"; sbAvatar.innerText = currentUsername.substring(0,2).toUpperCase(); sbAvatar.className = "w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md"; }
@@ -1500,8 +1516,7 @@ function renderHomeDirectory() {
             if (myPayments.length > 0) {
                 let activeP = myPayments.filter(p => { let r = fundRounds.find(rd => rd.id === p.roundId); return r && r.isOpen !== false; });
                 let pendingCount = activeP.filter(p => p.status === 'รอดำเนินการ' || p.status === 'รอตรวจสอบ').length; 
-// 🌟 เปลี่ยนให้เช็คคำว่า ค้างชำระ (ผ่อน) ด้วย
-let unpaidCount = activeP.filter(p => p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ').length;
+                let unpaidCount = activeP.filter(p => p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ').length;
                 if (activeP.length === 0) { fundBgClass = 'bg-slate-50'; fundTextClass = 'text-slate-500'; fundStatusLabel = 'ไม่มีรายการเรียกเก็บ'; iconHtml = '-'; }
                 else if (unpaidCount > 0) { fundBgClass = 'bg-rose-50'; fundTextClass = 'text-rose-600'; fundStatusLabel = 'ค้างชำระ ' + unpaidCount + ' รายการ'; iconHtml = `<p class="font-bold text-lg text-rose-600">- ฿${(s.debt || 0).toFixed(2)}</p>`; } 
                 else if (pendingCount > 0) { fundBgClass = 'bg-blue-50'; fundTextClass = 'text-blue-600'; fundStatusLabel = 'รอดำเนินการ ' + pendingCount + ' รายการ'; } 
@@ -1512,7 +1527,6 @@ let unpaidCount = activeP.filter(p => p.status === 'ยังไม่ชำร�
         grid.innerHTML = gridHtml;
     }
 }
-
         // ================= ACTIVITY ENTERPRISE SYSTEM =================
         function renderActivities() {
     let actSearchEl = document.getElementById('act-search'); if(!actSearchEl) return;
