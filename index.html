@@ -958,6 +958,11 @@ function openPublicSlipModal(targetRoundId = null) {
     applyRoleUI(); 
     silentPullFromGS(); 
 });
+        async function silentPullFromGS() { 
+    if(isSyncing) return;
+    let r = await callBackend({ action: 'loadAll' });
+    if(r.status === 'success' && !isSyncing) applyLoadedData(r.data);
+}
         // 🌟 ฟังก์ชันเปิด-ปิดแถบเมนูด้านซ้าย (รองรับทั้งมือถือและคอมพิวเตอร์)
 window.toggleSidebar = function() { 
     let sidebar = document.getElementById('sidebar'); 
