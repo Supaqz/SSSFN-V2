@@ -474,33 +474,20 @@ async function callBackend(payload) {
     }); 
 }
 
-       async function autoSyncToGS() {
-        if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
-        isSyncing = true; 
-        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-        
-        // 🌟 1. ดึงชื่อจากตัวแปร currentUsername ที่ระบบของคุณมีอยู่แล้ว!
-        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
-        
-        // 🌟 2. แนบ adminName ส่งไปหลังบ้าน
-        await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
-        
-        isSyncing = false;
-    }
+        async function autoSyncToGS() { 
+    if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
+    isSyncing = true; let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+    await callBackend({ action: 'saveAll', data: dbData });
+    isSyncing = false;
+}
 
-    async function pushToGS() {
-        isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
-        let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-        
-        // 🌟 1. ดึงชื่อจากตัวแปร currentUsername
-        let loggedInUser = currentUsername || "แอดมิน (ล็อกอินผ่านเว็บ)";
-        
-        // 🌟 2. แนบ adminName ส่งไปหลังบ้าน
-        let r = await callBackend({ action: 'saveAll', data: dbData, adminName: loggedInUser });
-        
-        isSyncing = false;
-        if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
-    } 
+async function pushToGS() { 
+    isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
+    let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
+    let r = await callBackend({ action: 'saveAll', data: dbData });
+    isSyncing = false;
+    if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
+}
 
 async function silentPullFromGS() { 
     if(isSyncing) return;
@@ -905,7 +892,7 @@ function openPublicSlipModal(targetRoundId = null) {
                     if (result.status === 'success') { 
                         let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
                         
-                        // ยิงแจ้งเตือนเข้า LINE
+                        // 🌟 ยิงแจ้งเตือนเข้า LINE ทันทีที่อัปโหลดสลิปสำเร็จ
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
@@ -918,12 +905,7 @@ function openPublicSlipModal(targetRoundId = null) {
                             payment.slipUrl = result.slipUrl; 
                             payment.qrPayload = res.value.qrPayload;
                         } 
-                        
-                        // 🌟 แก้ไข 3 บรรทัดนี้ (จุดสำคัญที่สุด!) 🌟
-                        saveToLocal(false); // 👈 เติมคำว่า false เพื่อสั่งไม่ให้มันแพ็คข้อมูลไปเซฟทับมั่วซั่ว
-                        refreshAll(); 
-                        silentPullFromGS(); // 👈 ให้มันดึงฐานข้อมูลใหม่ล่าสุดจากเซิร์ฟเวอร์มาแทน
-                        
+                        saveToLocal(); refreshAll(); 
                         if(result.isMatch === false && result.detectedAmount !== -1) { 
                             Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
                         } else { 
@@ -931,7 +913,7 @@ function openPublicSlipModal(targetRoundId = null) {
                         }
                     } else { 
                         Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถอัปโหลดสลิปได้', 'error');
-                    }
+                    } 
                 }; 
                 img.src = e.target.result; 
             }; 
