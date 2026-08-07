@@ -3381,19 +3381,13 @@ function toggleQuickRoundStatus() {
                         }
                     }
 
-                    // 🌟 3. ถ้าเงินเหลือ เอาเข้ายอดฝาก (Wallet)
+                    // 🌟 3. ถ้าเงินเหลือ เอาเข้ายอดฝาก (แก้ไขตัวแปรเป็น stu.dep และลบการยิง API ซ้ำซ้อน)
                     if (moneyInHand > 0) {
-                        stu.wallet = (stu.wallet || 0) + moneyInHand;
+                        stu.dep = (stu.dep || 0) + moneyInHand;
                         logMsg += ` -> 💰 ทอนเข้ายอดฝาก (${moneyInHand} บ.)`;
-                        
-                        callBackend({
-                            action: 'updateWallet',
-                            studentId: stu.id,
-                            room: stu.room,
-                            amount: moneyInHand
-                        });
                     }
 
+                    // บรรทัดด้านล่างนี้จะทำการเหมารวมทั้งการแก้สถานะบิลและยอดเงินฝาก ส่งไปเซฟที่หลังบ้านทีเดียวจบเลยครับ
                     txHistory.unshift({ date: getNow(), name: logMsg, type: 'ระบบ', amt: r.value, user: currentUsername });
                     saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
                     
