@@ -1113,12 +1113,21 @@ function decodeJwtResponse(token) {
     return JSON.parse(jsonPayload);
 }
 
+// ================= ระบบ Google Sign-In (Real Email Login & PDPA) =================
+function decodeJwtResponse(token) {
+    let base64Url = token.split('.')[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+}
+
 function handleGoogleCredentialResponse(response) {
-    // 1. ถอดรหัส Token เพื่อเอาอีเมล
     const responsePayload = decodeJwtResponse(response.credential);
     const userEmail = responsePayload.email;
     
-    // 2. ตรวจสอบว่าเป็นสิทธิ์ "แอดมิน" หรือไม่ (สมมติว่าคุณเพิ่มช่อง email ให้แอดมินแล้ว)
+    // 1. ตรวจสอบว่าเป็นแอดมินหรือไม่
     const adminUser = users.find(u => u.email === userEmail || u.user === userEmail); 
     if (adminUser) {
         currentUserRole = adminUser.role; 
@@ -1130,19 +1139,128 @@ function handleGoogleCredentialResponse(response) {
         return;
     }
 
-    // 3. ตรวจสอบว่าเป็นสิทธิ์ "นักศึกษา" หรือไม่
+    // 2. ตรวจสอบว่าเป็นนักศึกษา (ที่เคยผูกอีเมลไว้แล้ว) หรือไม่
     const stu = students.find(s => s.email === userEmail);
     if (stu) {
         showStudentSelectionModal(stu);
         return;
     }
 
-    // 4. ถ้าไม่เจอในระบบ
+    // 3. ถ้าเป็นอีเมลใหม่ ไม่เคยมีในระบบ -> เด้งหน้าต่างขอรหัส + PDPA
+    promptLinkAccount(userEmail);
+}
+
+// 🌟 ฟังก์ชันขอรหัสนักศึกษาและยืนยัน PDPA
+function promptLinkAccount(email) {
+    let html = `
+    <div class="text-left text-sm space-y-4 mt-2">
+        <div class="bg-blue-50 text-blue-700 p-4 rounded-xl border border-blue-200 shadow-inner">
+            <p class="font-bold mb-1 text-base"><i class="fas fa-link"></i> ผูกบัญชีครั้งแรก</p>
+            <p class="text-xs">อีเมล <b>${email}</b> ยังไม่ได้ผูกกับรหัสนักศึกษาในระบบ SSSFN<br>กรุณากรอกรหัสของคุณเพื่อเชื่อมต่อข้อมูลครับ</p>
+        </div>
+        
+        <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">รหัสนักศึกษา (12 หลัก) *</label>
+            <div class="relative">
+                <i class="fas fa-id-card absolute left-3 top-3 text-slate-400"></i>
+                <input id="link-stu-id" class="w-full pl-10 pr-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-emerald-500 transition font-bold text-slate-800 tracking-widest" placeholder="เช่น 68152110001-2" oninput="this.value = formatIdSearch(this.value)">
+            </div>
+        </div>
+        
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-100 transition" onclick="document.getElementById('pdpa-consent').click()">
+            <label class="flex items-start gap-3 cursor-pointer pointer-events-none">
+                <input type="checkbox" id="pdpa-consent" class="mt-1 w-5 h-5 text-emerald-600 rounded border-slate-300 pointer-events-auto">
+                <span class="text-[10px] text-slate-600 leading-relaxed">
+                    <b class="text-slate-800 text-xs">ความยินยอมเก็บข้อมูลส่วนบุคคล (PDPA)</b><br>
+                    ข้าพเจ้ายินยอมให้ระบบ SSSFN เก็บรวบรวมและใช้อีเมล <u>${email}</u> เพื่อวัตถุประสงค์ในการเข้าสู่ระบบ, การส่งใบเสร็จรับเงิน (E-Receipt), และการแจ้งเตือนข้อมูลที่เกี่ยวข้องกับกิจกรรม/การเงินของห้องเรียนเท่านั้น
+                </span>
+            </label>
+        </div>
+    </div>`;
+
     Swal.fire({
-        icon: 'error', 
-        title: 'ไม่พบสิทธิ์การใช้งาน', 
-        html: `อีเมล <b>${userEmail}</b><br>ยังไม่ได้ลงทะเบียนในระบบ หรือข้อมูลไม่ตรงกัน กรุณาติดต่อแอดมินครับ`
+        title: 'ยืนยันตัวตน',
+        html: html,
+        confirmButtonText: 'ยอมรับและผูกบัญชี',
+        confirmButtonColor: '#059669',
+        showCancelButton: true,
+        cancelButtonText: 'ยกเลิก',
+        customClass: { confirmButton: 'rounded-xl px-5', cancelButton: 'rounded-xl px-5' },
+        preConfirm: () => {
+            let stId = document.getElementById('link-stu-id').value.trim();
+            let pdpa = document.getElementById('pdpa-consent').checked;
+            
+            if (!stId) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษาครับ');
+            if (!pdpa) return Swal.showValidationMessage('กรุณาติ๊กยอมรับเงื่อนไข PDPA ก่อนครับ');
+            
+            let cleanId = formatIdSearch(stId);
+            let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === cleanId.replace(/-/g,''));
+            
+            if (!stu) return Swal.showValidationMessage('ไม่พบรหัสนักศึกษานี้ในระบบ');
+            
+            // เช็คว่ารหัสนี้เคยมีอีเมลผูกไว้ก่อนหน้าแล้วหรือไม่
+            let isOverride = false;
+            if (stu.email && stu.email.trim() !== '') {
+                isOverride = true;
+            }
+            
+            return { stu: stu, email: email, isOverride: isOverride };
+        }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            let stu = res.value.stu;
+            let newEmail = res.value.email;
+            
+            if (res.value.isOverride) {
+                Swal.fire({
+                    title: 'พบอีเมลเดิมในระบบ',
+                    html: `รหัส <b>${stu.id}</b> มีการผูกกับอีเมล <b class="text-slate-500">${stu.email}</b> ไว้อยู่แล้ว<br><br>คุณต้องการเปลี่ยนมาใช้อีเมล <b class="text-emerald-600">${newEmail}</b> แทนใช่หรือไม่?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'ใช่, อัปเดตอีเมลใหม่',
+                    confirmButtonColor: '#059669',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((overrideRes) => {
+                    if (overrideRes.isConfirmed) executeEmailLinking(stu, newEmail);
+                });
+            } else {
+                executeEmailLinking(stu, newEmail);
+            }
+        }
     });
+}
+
+// 🌟 ฟังก์ชันส่งคำสั่งบันทึกอีเมลไปที่ Google Sheets
+async function executeEmailLinking(stu, email) {
+    Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
+    // ยิง API ไปหลังบ้านเพื่อให้บันทึกอีเมลลงในชีตของห้องนั้นๆ
+    let result = await callBackend({
+        action: 'linkEmail',
+        studentId: stu.id,
+        room: stu.room,
+        email: email
+    });
+
+    if (result.status === 'success') {
+        // อัปเดตข้อมูลในหน่วยความจำหน้าเว็บ
+        stu.email = email;
+        saveToLocal(false); // เซฟลง LocalStorage ไม่ต้องดันข้อมูลขยะขึ้น
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'ผูกบัญชีสำเร็จ!',
+            text: 'ระบบได้บันทึกอีเมลของคุณเรียบร้อยแล้ว',
+            confirmButtonColor: '#059669',
+            timer: 2000,
+            showConfirmButton: false
+        }).then(() => {
+            // พาเข้าสู่ระบบทันที
+            showStudentSelectionModal(stu);
+        });
+    } else {
+        Swal.fire('ข้อผิดพลาด', result.message || 'ไม่สามารถผูกบัญชีได้', 'error');
+    }
 }
 
 // ================= ระบบเข้าสู่ระบบของนักศึกษา (RMUTI Style) =================
