@@ -4619,37 +4619,55 @@ async function processBulkSlips(files, roundId) {
         if (payload) payloads.push(payload);
     }
 
-    if (payloads.length === 0) return Swal.fire('ผิดพลาด', 'ไม่สามารถอ่าน QR Code จากรูปที่เลือกได้เลย', 'error');
+    if (payloads.length === 0) return Swal.fire('ผิดพลาด', 'ไม่สามารถอ่าน QR Code จากรูปที่เลือกได้เลย (ภาพเบลอ/ไม่ใช่สลิป)', 'error');
 
     Swal.fire({ title: 'กำลังยิงเช็คกับธนาคาร...', html: `ส่งรหัส QR จำนวน ${payloads.length} รายการ<br>ให้ AI จับคู่ชื่ออัตโนมัติ แป๊บนึงนะครับ...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
     let result = await callBackend({ action: 'bulkVerifySlips', payloads: payloads, roundId: roundId });
 
     if (result.status === 'success') {
-        let matched = result.data.matched;
-        let unmatched = result.data.unmatched;
+        let matched = result.data.matched || [];
+        let unmatched = result.data.unmatched || [];
+        let errors = result.data.errors || []; // 🌟 ดึงข้อมูล Error ออกมาโชว์
         
-        await silentPullFromGS(); // อัปเดตข้อมูลมาวาดตารางใหม่
+        await silentPullFromGS(); 
         
-        let summaryHtml = `<div class="text-left space-y-3">
+        let summaryHtml = `<div class="text-left space-y-3">`;
+        
+        // กล่องสีเขียว: แมตช์สำเร็จ
+        if (matched.length > 0) {
+            summaryHtml += `
             <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
                 <p class="font-bold text-emerald-700 text-lg mb-1"><i class="fas fa-check-circle"></i> จับคู่สำเร็จ: ${matched.length} ใบ</p>
                 <div class="text-xs text-emerald-600 max-h-32 overflow-y-auto pl-2">${matched.map(m => `• ${m.studentName} (฿${m.amount})`).join('<br>')}</div>
             </div>`;
-        
+        }
+
+        // กล่องสีส้ม: หาชื่อไม่เจอ
         if (unmatched.length > 0) {
             summaryHtml += `
             <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
-                <p class="font-bold text-amber-700 text-lg mb-1"><i class="fas fa-exclamation-triangle"></i> ชื่อไม่ตรง (พ่อแม่โอน): ${unmatched.length} ใบ</p>
-                <p class="text-xs text-amber-600 mb-2">คลิก "จัดสรรด้วยตัวเอง" เพื่อระบุเจ้าของสลิปครับ</p>
+                <p class="font-bold text-amber-700 text-lg mb-1"><i class="fas fa-exclamation-triangle"></i> พ่อแม่โอน/หาชื่อไม่เจอ: ${unmatched.length} ใบ</p>
+                <p class="text-xs text-amber-600 mb-2">คลิกปุ่มด้านล่างเพื่อเลือกชื่อด้วยตัวเองครับ</p>
             </div>`;
         }
+        
+        // 🌟 กล่องสีแดง: สลิปมีปัญหา (Error)
+        if (errors.length > 0) {
+            summaryHtml += `
+            <div class="bg-rose-50 p-4 rounded-xl border border-rose-200">
+                <p class="font-bold text-rose-700 text-lg mb-1"><i class="fas fa-times-circle"></i> สลิปมีปัญหา: ${errors.length} ใบ</p>
+                <div class="text-[10px] text-rose-600 max-h-32 overflow-y-auto pl-2">${errors.map(e => `• ${e.message}`).join('<br>')}</div>
+                <p class="text-[10px] text-rose-500 mt-2 font-bold">*สลิปอาจจะหมดอายุ, สแกนไม่ติด, หรือธนาคารต้นทางล่ม</p>
+            </div>`;
+        }
+        
         summaryHtml += `</div>`;
 
         Swal.fire({
-            title: 'ผลลัพธ์การจับคู่ AI',
+            title: 'ผลลัพธ์การตรวจสอบ',
             html: summaryHtml,
-            confirmButtonText: unmatched.length > 0 ? 'จัดสรรสลิปด้วยตัวเอง' : 'ยอดเยี่ยม! (เสร็จสิ้น)',
+            confirmButtonText: unmatched.length > 0 ? 'จัดสรรสลิปตกค้าง <i class="fas fa-arrow-right"></i>' : 'ยอดเยี่ยม! (เสร็จสิ้น)',
             confirmButtonColor: unmatched.length > 0 ? '#d97706' : '#059669',
             allowOutsideClick: false
         }).then((r) => {
