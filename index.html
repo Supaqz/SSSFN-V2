@@ -3842,13 +3842,64 @@ function editRoom(roomName) {
             }); 
         }
         function addStudentAlert() { 
-            let rOpts = '';
-            rooms.forEach(r => { rOpts += `<option value="${r}">${r}</option>`; });
-            // 🌟 เพิ่มกล่องกรอกอีเมล
-            let formHtml = `<select id="a-r" class="modern-input">${rOpts}</select><div class="relative"><input id="a-id" class="modern-input" placeholder="รหัส"><button onclick="openQuickScan('a-id')" class="absolute right-2 top-3 text-emerald-600"><i class="fas fa-camera"></i></button></div><input id="a-nm" class="modern-input" placeholder="ชื่อ-นามสกุล"><input id="a-no" type="number" class="modern-input" placeholder="เลขที่"><input id="a-email" type="email" class="modern-input" placeholder="อีเมล (ถ้ามี)">`;
+    let rOpts = '';
+    rooms.forEach(r => { rOpts += `<option value="${r}">${r}</option>`; });
+    
+    // 🌟 จัดเรียงหน้าต่างใหม่ และเพิ่มช่องกรอกชื่อภาษาอังกฤษ (a-nmen)
+    let formHtml = `
+        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">ห้องเรียน</label>
+        <select id="a-r" class="modern-input mb-3">${rOpts}</select>
+        
+        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">รหัสนักศึกษา</label>
+        <div class="relative mb-3">
+            <input id="a-id" class="modern-input" placeholder="เช่น 68152110001-2" oninput="this.value = formatIdSearch(this.value)">
+            <button onclick="openQuickScan('a-id')" class="absolute right-2 top-3 text-emerald-600"><i class="fas fa-camera"></i></button>
+        </div>
+        
+        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">เลขที่</label>
+        <input id="a-no" type="number" class="modern-input mb-3" placeholder="เช่น 1">
+        
+        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">ชื่อ-นามสกุล (TH)</label>
+        <input id="a-nm" class="modern-input mb-3" placeholder="นาย สมชาย ใจดี">
+        
+        <label class="text-[10px] font-bold text-emerald-600 mb-1 block text-left"><i class="fas fa-globe"></i> ชื่อ-นามสกุล (EN) *สำหรับโอนเงิน</label>
+        <input id="a-nmen" class="modern-input mb-3 border-emerald-300 bg-emerald-50 text-emerald-800" placeholder="เช่น SUPHACHAI MANSAN">
+        
+        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">อีเมล (ถ้ามี)</label>
+        <input id="a-email" type="email" class="modern-input" placeholder="example@rmuti.ac.th">
+    `;
+    
+    Swal.fire({ 
+        title: 'เพิ่มนักศึกษา', 
+        html: formHtml, 
+        confirmButtonColor: '#059669', 
+        preConfirm: () => {
+            let id = document.getElementById('a-id').value.trim();
+            let nm = document.getElementById('a-nm').value.trim();
+            let no = document.getElementById('a-no').value;
             
-            Swal.fire({ title: 'เพิ่มนักศึกษา', html: formHtml, confirmButtonColor: '#059669', preConfirm:()=>{return {id:document.getElementById('a-id').value, room:document.getElementById('a-r').value, name:document.getElementById('a-nm').value, number:parseInt(document.getElementById('a-no').value), email:document.getElementById('a-email').value.trim()};} }).then(r=>{ if(r.isConfirmed) { students.push(r.value); saveToLocal(); refreshAll(); } });
-        }
+            if(!id || !nm || !no) return Swal.showValidationMessage('กรุณากรอกรหัส, เลขที่ และชื่อภาษาไทยให้ครบถ้วน');
+            
+            return {
+                id: id, 
+                room: document.getElementById('a-r').value, 
+                name: nm, 
+                number: parseInt(no), 
+                email: document.getElementById('a-email').value.trim(),
+                // 🌟 ดึงข้อมูลชื่ออังกฤษ พร้อมบังคับแปลงเป็นพิมพ์ใหญ่ทั้งหมด (Uppercase) ทันที
+                nameEn: document.getElementById('a-nmen').value.trim().toUpperCase() 
+            };
+        } 
+    }).then(r => { 
+        if(r.isConfirmed) { 
+            students.push(r.value); 
+            // เซฟข้อมูลไปที่หลังบ้าน (ระบบหลังบ้านจะดึงค่าไปลงตารางให้เอง)
+            saveToLocal(true); 
+            refreshAll(); 
+            Swal.fire({icon: 'success', title: 'เพิ่มข้อมูลเรียบร้อย!', showConfirmButton: false, timer: 1500});
+        } 
+    });
+}
 
         function editStudent(id) { 
             let stu = students.find(s=>s.id===id);
