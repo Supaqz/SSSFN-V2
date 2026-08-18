@@ -4610,55 +4610,54 @@ function openBulkSlipModal() {
 }
 
 async function processBulkSlips(files, roundId) {
-    Swal.fire({ title: 'กำลังสกัด QR Code...', html: `ประมวลผลไฟล์ที่ 1/${files.length}<br><span class="text-xs text-slate-400">ระบบใช้ AI ในโทรศัพท์คุณถอดรหัสรูปภาพ...</span>`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังเตรียมรูปภาพและสกัด QR Code...', html: `ประมวลผลไฟล์ที่ 1/${files.length}<br><span class="text-xs text-slate-400">ระบบกำลังแปลงไฟล์และถอดรหัส...</span>`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
-    let payloads = [];
+    let payloads = []; // เก็บข้อมูลทั้ง QR, Base64 และชื่อไฟล์
     for (let i = 0; i < files.length; i++) {
         Swal.update({ html: `ประมวลผลรูปที่ ${i+1}/${files.length}` });
-        let payload = await extractQrFromImage(files[i]);
-        if (payload) payloads.push(payload);
+        let slipData = await extractQrFromImage(files[i]);
+        if (slipData) {
+            payloads.push(slipData);
+        }
     }
 
     if (payloads.length === 0) return Swal.fire('ผิดพลาด', 'ไม่สามารถอ่าน QR Code จากรูปที่เลือกได้เลย (ภาพเบลอ/ไม่ใช่สลิป)', 'error');
 
-    Swal.fire({ title: 'กำลังยิงเช็คกับธนาคาร...', html: `ส่งรหัส QR จำนวน ${payloads.length} รายการ<br>ให้ AI จับคู่ชื่ออัตโนมัติ แป๊บนึงนะครับ...`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังยิงเช็คกับธนาคารและบันทึกรูปลงไดรฟ์...', html: `ส่งข้อมูลจำนวน ${payloads.length} รายการ<br><span class="text-xs text-rose-500">อาจใช้เวลาสักครู่ กรุณาอย่าปิดหน้าจอ...</span>`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-    let result = await callBackend({ action: 'bulkVerifySlips', payloads: payloads, roundId: roundId });
+    // 🌟 ส่ง payloads (ที่มีทั้ง QR และรูปภาพ) ไปให้หลังบ้าน
+    let result = await callBackend({ action: 'bulkVerifySlips', slips: payloads, roundId: roundId });
 
     if (result.status === 'success') {
         let matched = result.data.matched || [];
         let unmatched = result.data.unmatched || [];
-        let errors = result.data.errors || []; // 🌟 ดึงข้อมูล Error ออกมาโชว์
+        let errors = result.data.errors || [];
         
-        await silentPullFromGS(); 
+        await silentPullFromGS(); // รีเฟรชข้อมูลล่าสุดมาแสดงผล
         
         let summaryHtml = `<div class="text-left space-y-3">`;
         
-        // กล่องสีเขียว: แมตช์สำเร็จ
         if (matched.length > 0) {
             summaryHtml += `
             <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-                <p class="font-bold text-emerald-700 text-lg mb-1"><i class="fas fa-check-circle"></i> จับคู่สำเร็จ: ${matched.length} ใบ</p>
+                <p class="font-bold text-emerald-700 text-lg mb-1"><i class="fas fa-check-circle"></i> จับคู่สำเร็จ & แนบรูปแล้ว: ${matched.length} ใบ</p>
                 <div class="text-xs text-emerald-600 max-h-32 overflow-y-auto pl-2">${matched.map(m => `• ${m.studentName} (฿${m.amount})`).join('<br>')}</div>
             </div>`;
         }
 
-        // กล่องสีส้ม: หาชื่อไม่เจอ
         if (unmatched.length > 0) {
             summaryHtml += `
             <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
                 <p class="font-bold text-amber-700 text-lg mb-1"><i class="fas fa-exclamation-triangle"></i> พ่อแม่โอน/หาชื่อไม่เจอ: ${unmatched.length} ใบ</p>
-                <p class="text-xs text-amber-600 mb-2">คลิกปุ่มด้านล่างเพื่อเลือกชื่อด้วยตัวเองครับ</p>
+                <p class="text-xs text-amber-600 mb-2">สลิปรอการจัดสรรด้วยตัวเอง</p>
             </div>`;
         }
         
-        // 🌟 กล่องสีแดง: สลิปมีปัญหา (Error)
         if (errors.length > 0) {
             summaryHtml += `
             <div class="bg-rose-50 p-4 rounded-xl border border-rose-200">
                 <p class="font-bold text-rose-700 text-lg mb-1"><i class="fas fa-times-circle"></i> สลิปมีปัญหา: ${errors.length} ใบ</p>
                 <div class="text-[10px] text-rose-600 max-h-32 overflow-y-auto pl-2">${errors.map(e => `• ${e.message}`).join('<br>')}</div>
-                <p class="text-[10px] text-rose-500 mt-2 font-bold">*สลิปอาจจะหมดอายุ, สแกนไม่ติด, หรือธนาคารต้นทางล่ม</p>
             </div>`;
         }
         
@@ -4675,14 +4674,16 @@ async function processBulkSlips(files, roundId) {
             else refreshAll();
         });
     } else {
-        Swal.fire('ข้อผิดพลาด', result.message || 'API เช็คสลิปขัดข้อง', 'error');
+        Swal.fire('ข้อผิดพลาด', result.message || 'ระบบขัดข้อง', 'error');
     }
 }
 
+// 🌟 อัปเกรดฟังก์ชันสกัด QR Code ให้คืนค่า "ไฟล์รูป (Base64)" กลับไปให้ด้วย
 function extractQrFromImage(file) {
     return new Promise((resolve) => {
         let reader = new FileReader();
         reader.onload = function(e) {
+            let base64Data = e.target.result; // เก็บรูปภาพเป็นตัวหนังสือ
             let img = new Image();
             img.onload = function() {
                 let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d');
@@ -4690,22 +4691,29 @@ function extractQrFromImage(file) {
                 ctx.drawImage(img, 0, 0, img.width, img.height);
                 let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-                resolve(code ? code.data : null);
+                
+                if (code && code.data) {
+                    // ส่งรหัสคิวอาร์ พร้อมกับ รูปภาพ เพื่อให้หลังบ้านเอาไปอัปโหลดลง Drive
+                    resolve({ qrPayload: code.data, base64: base64Data, fileName: file.name });
+                } else {
+                    resolve(null);
+                }
             };
             img.onerror = () => resolve(null);
-            img.src = e.target.result;
+            img.src = base64Data;
         };
         reader.onerror = () => resolve(null);
         reader.readAsDataURL(file);
     });
 }
 
+// 🌟 จัดสรรสลิปตกค้าง พร้อมส่งข้อมูลรูปภาพไปแนบ
 function resolveUnmatchedSlips(unmatchedList, roundId) {
     let currentIdx = 0;
     
     function showNextUnmatched() {
         if (currentIdx >= unmatchedList.length) {
-            Swal.fire('เรียบร้อย', 'จัดสรรสลิปตกค้างทั้งหมดเสร็จสิ้นแล้ว!', 'success');
+            Swal.fire('เรียบร้อย', 'จัดสรรสลิปตกค้าง และอัปโหลดลง Drive เสร็จสิ้น!', 'success');
             refreshAll(); return;
         }
         
@@ -4713,19 +4721,23 @@ function resolveUnmatchedSlips(unmatchedList, roundId) {
         let stuOpts = '<option value="">-- เลือกนักศึกษาที่เป็นเจ้าของสลิป --</option>';
         students.forEach(s => { stuOpts += `<option value="${s.id}">${s.number}. ${s.name}</option>`; });
 
+        // โชว์รูปสลิปให้แอดมินดูง่ายๆ เวลาเลือกชื่อ
         Swal.fire({
             title: `สลิปตกค้าง (${currentIdx + 1}/${unmatchedList.length})`,
             html: `
             <div class="text-left space-y-3">
-                <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
-                    <p class="text-xs text-amber-600 mb-1">ชื่อผู้โอนในสลิป (ไม่ตรงกับ นศ. ใดเลย):</p>
-                    <p class="font-bold text-amber-800 text-lg border-b border-amber-200 pb-2 mb-2">${item.senderName}</p>
-                    <p class="text-xs text-amber-600">ยอดเงินโอน</p>
-                    <p class="font-bold text-emerald-600 text-3xl">฿${item.amount}</p>
+                <div class="flex justify-center mb-2">
+                    <img src="${item.base64}" class="h-40 rounded-xl shadow-sm border border-slate-200 object-contain">
+                </div>
+                <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center">
+                    <p class="text-[10px] text-amber-600 mb-1">โอนโดย (ไม่ตรงกับ นศ. ใดเลย):</p>
+                    <p class="font-bold text-amber-800 text-sm border-b border-amber-200 pb-2 mb-2">${item.senderName}</p>
+                    <p class="text-[10px] text-amber-600">ยอดเงินโอน</p>
+                    <p class="font-bold text-emerald-600 text-2xl">฿${item.amount}</p>
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-500 mb-1">สลิปใบนี้เป็นของใคร?</label>
-                    <select id="unmatched-stu-id" class="modern-input font-bold text-slate-700 bg-slate-50 border-slate-300 focus:border-amber-500">${stuOpts}</select>
+                    <select id="unmatched-stu-id" class="modern-input font-bold text-slate-700 bg-slate-50">${stuOpts}</select>
                 </div>
             </div>`,
             confirmButtonText: 'บันทึกจัดสรร', confirmButtonColor: '#0ea5e9',
@@ -4737,12 +4749,24 @@ function resolveUnmatchedSlips(unmatchedList, roundId) {
             }
         }).then(async res => {
             if (res.isConfirmed) {
-                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                let apiRes = await callBackend({ action: 'resolveUnmatchedSlip', studentId: res.value, roundId: roundId, amount: item.amount, qrPayload: item.qrPayload, senderName: item.senderName });
+                Swal.fire({ title: 'กำลังบันทึกลง Google Drive...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                
+                // 🌟 ยิง API พร้อมส่ง base64Data ไปให้หลังบ้านบันทึกรูป
+                let apiRes = await callBackend({ 
+                    action: 'resolveUnmatchedSlip', 
+                    studentId: res.value, 
+                    roundId: roundId, 
+                    amount: item.amount, 
+                    qrPayload: item.qrPayload, 
+                    senderName: item.senderName,
+                    base64: item.base64,       // 👈 ส่งรูป
+                    fileName: item.fileName    // 👈 ส่งชื่อไฟล์รูป
+                });
+                
                 if (apiRes.status === 'success') { currentIdx++; showNextUnmatched(); } 
                 else { Swal.fire('ผิดพลาด', apiRes.message, 'error').then(() => showNextUnmatched()); }
             } else {
-                currentIdx++; showNextUnmatched(); // ข้ามไปใบถัดไป
+                currentIdx++; showNextUnmatched(); 
             }
         });
     }
