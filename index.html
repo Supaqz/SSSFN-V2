@@ -431,7 +431,7 @@
         <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
     <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwPRQBSm7uKaB5L3qJpI3SUD61ihzkLs91MjmNE-K9K33Xf21X9YparAZubuF6y_AAu/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwPRQBSm7uKaB5L3qJpI3SUD6lihzkLs9lMjmNE-K9K33Xf21X9YparAZubuF6y_AAu/exec";
 
     // 🌟 🌟 🌟 วางโค้ด Firebase ขั้นตอนที่ 2 แทรกตรงนี้ครับ 🌟 🌟 🌟
     const firebaseConfig = {
@@ -469,6 +469,7 @@ async function callBackend(payload) {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(payload)
+            redirect: 'follow'
         });
         return await res.json();
     } catch(e) {
