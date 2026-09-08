@@ -427,9 +427,41 @@
             <div class="p-3 text-center text-xs text-slate-500 bg-slate-100">นำกล้องส่องไปที่ QR หรือ บาร์โค้ด</div>
         </div>
     </div>
-
+        <!-- นำเข้า Firebase -->
+        <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbwPRQBSm7uKaB5L3qJpI3SUD6lihzkLs9lMjmNE-K9K33Xf21X9YparAZubuF6y_AAu/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwPRQBSm7uKaB5L3qJpI3SUD61ihzkLs91MjmNE-K9K33Xf21X9YparAZubuF6y_AAu/exec";
+
+    // 🌟 🌟 🌟 วางโค้ด Firebase ขั้นตอนที่ 2 แทรกตรงนี้ครับ 🌟 🌟 🌟
+    const firebaseConfig = {
+      apiKey: "AIzaSyCUKWOibjCub6mLiwaSb0ZwPf-9YtxxwYA",
+      authDomain: "slip-matching-system.firebaseapp.com",
+      projectId: "slip-matching-system",
+      storageBucket: "slip-matching-system.firebasestorage.app",
+      messagingSenderId: "492435847824",
+      appId: "1:492435847824:web:fc26718c2476aed89cf615",
+      measurementId: "G-GH3ZK4DF62"
+    };
+
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.firestore();
+
+    function notifyFirebaseUpdate() {
+        db.collection('systemSignals').doc('lastUpdate').set({
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            message: "อัปเดตข้อมูลแล้ว"
+        }).catch(err => console.log("Firebase Error:", err));
+    }
+
+    let isFirstLoad = true;
+    db.collection('systemSignals').doc('lastUpdate').onSnapshot((doc) => {
+        if (isFirstLoad) { isFirstLoad = false; return; }
+        if (typeof Swal !== 'undefined' && !Swal.isVisible()) {
+            console.log("🔥 Firebase กริ่งดัง! กำลังดึงข้อมูลล่าสุด...");
+            if (typeof silentPullFromGS === "function") silentPullFromGS();
+        }
+    });
         // 🌟 ฟังก์ชันตัวช่วยส่งข้อมูลไป Google Sheets (ย้ายมา GitHub ต้องใช้ตัวนี้)
 async function callBackend(payload) {
     try {
@@ -483,6 +515,9 @@ async function callBackend(payload) {
     isSyncing = true; let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
     await callBackend({ action: 'saveAll', data: dbData });
     isSyncing = false;
+    
+    // 🌟 ขั้นตอนที่ 3: กดกริ่ง Firebase ทันทีที่ระบบแอบเซฟข้อมูลหลังบ้านเสร็จ
+    if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
 }
 
 async function pushToGS() { 
@@ -490,7 +525,11 @@ async function pushToGS() {
     let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
     let r = await callBackend({ action: 'saveAll', data: dbData });
     isSyncing = false;
-    if(r.status === 'success') Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
+    if(r.status === 'success') {
+        Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
+        // 🌟 ขั้นตอนที่ 3: กดกริ่ง Firebase ทันทีที่แอดมินกดปุ่มเซฟสีน้ำเงิน
+        if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
+    }
 }
 
 async function silentPullFromGS() { 
@@ -4685,6 +4724,9 @@ async function processBulkSlips(files, roundId) {
         let errors = result.data.errors || [];
         
         await silentPullFromGS(); // รีเฟรชข้อมูลล่าสุดมาแสดงผล
+        
+        // 🌟 ขั้นตอนที่ 3: กดกริ่ง Firebase เพื่อให้หน้าจอแอดมินคนอื่นโชว์สลิปที่เพิ่งโยนทันที
+        if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
         
         let summaryHtml = `<div class="text-left space-y-3">`;
         
