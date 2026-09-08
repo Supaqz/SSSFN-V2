@@ -511,27 +511,32 @@ async function callBackend(payload) {
     }); 
 }
 
-        async function autoSyncToGS() { 
+       async function autoSyncToGS() { 
     if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
-    isSyncing = true; let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-    await callBackend({ action: 'saveAll', data: dbData });
-    isSyncing = false;
+    isSyncing = true; 
+    let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
     
-    // 🌟 ขั้นตอนที่ 3: กดกริ่ง Firebase ทันทีที่ระบบแอบเซฟข้อมูลหลังบ้านเสร็จ
-    if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
+    // 🌟 สั่งอัปเดตแบบเบื้องหลัง (ไม่ล็อกหน้าจอ)
+    callBackend({ action: 'saveAll', data: dbData }).then(r => {
+        isSyncing = false;
+        // เซฟเสร็จเงียบๆ ไม่ต้องโชว์อะไร
+    }).catch(e => {
+        isSyncing = false;
+        console.error("Sync Error:", e);
+    });
 }
 
 async function pushToGS() { 
+    // กดปุ่มบันทึกแบบแมนนวล ค่อยโชว์โหลด (เผื่อแอดมินอยากชัวร์)
     isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
     let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
     let r = await callBackend({ action: 'saveAll', data: dbData });
     isSyncing = false;
     if(r.status === 'success') {
-        Swal.fire('สำเร็จ', 'บันทึกสำเร็จ', 'success');
-        // 🌟 ขั้นตอนที่ 3: กดกริ่ง Firebase ทันทีที่แอดมินกดปุ่มเซฟสีน้ำเงิน
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อัปเดตฐานข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500});
         if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
     }
-}
+} 
 
 async function silentPullFromGS() { 
     if(isSyncing) return;
@@ -2781,7 +2786,26 @@ window.addEditRoundRow = function() {
 }
 
         function deleteActivity(title) { Swal.fire({ title: 'ลบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then((r) => { if (r.isConfirmed) { appSettings.activities = appSettings.activities.filter(a => a.title !== title); txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบกิจกรรมออกจากระบบแล้ว', 'success'); } }); }
-        function approveActivity(title) { Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { if (r.isConfirmed) { let act = appSettings.activities.find(a => a.title === title); if (act) { act.status = 'อนุมัติแล้ว'; act.isOpen = true; txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('อนุมัติสำเร็จ', '', 'success'); } } }); }
+        function approveActivity(title) { 
+    Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { 
+        if (r.isConfirmed) { 
+            let act = appSettings.activities.find(a => a.title === title); 
+            if (act) { 
+                act.status = 'อนุมัติแล้ว'; 
+                act.isOpen = true; 
+                txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); 
+                
+                // 🌟 อัปเกรด: อัปเดตหน้าจอและกดกริ่งทันที แล้วปล่อยเซฟทำงานเบื้องหลัง
+                saveToLocal(false); 
+                refreshAll(); 
+                if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
+                autoSyncToGS(); 
+                
+                Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อนุมัติกิจกรรมสำเร็จ', showConfirmButton: false, timer: 1500}); 
+            } 
+        } 
+    }); 
+}
 // =========================================================================
 // 🌟 โหมดสแกนอัจฉริยะ (การ์ด Popup + Auto Confirm + ขยายจอกล้อง)
 // =========================================================================
@@ -3752,18 +3776,26 @@ function toggleQuickRoundStatus() {
                             });
                             
                             // 3. ทบยอดฝาก
-                            if (depositAdd > 0) {
-                                stu.dep = (stu.dep || 0) + depositAdd;
-                                txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า: ${stu.name}`, type: 'ระบบ', amt: depositAdd, user: currentUsername });
-                            }
+                    if (depositAdd > 0) {
+                        stu.dep = (stu.dep || 0) + depositAdd;
+                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า: ${stu.name}`, type: 'ระบบ', amt: depositAdd, user: currentUsername });
+                    }
 
-                            saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
-                            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกข้อมูลเรียบร้อย', showConfirmButton:false, timer:2000});
-                        }
-                    });
+                    // 🌟 อัปเกรด: ให้อัปเดตหน้าจอทันที + กดกริ่งทันที + ส่งเซฟหลังบ้านแบบเบื้องหลัง
+                    saveToLocal(false); // เซฟลงเครื่อง
+                    recalculateDebts(); 
+                    renderFundTable(); // รีเฟรชตารางให้เป็นสีเขียวทันที
+                    renderHomeDirectory();
+                    
+                    if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate(); // กริ่งดังให้เครื่องอื่นอัปเดต
+                    autoSyncToGS(); // แอบส่งไป Sheets ขนานกับเวลาที่แอดมินทำงานต่อ
+                    
+                    Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกรับเงินสำเร็จ!', showConfirmButton:false, timer:1500});
                 }
             });
         }
+    });
+}
 
         // 🌟 ฟังก์ชันอัปเกรด: กล่องแก้ไขสถานะ (Popup) ตัดหนี้ให้อัตโนมัติ
         function editPaymentStatus(roundId, studentId) {
