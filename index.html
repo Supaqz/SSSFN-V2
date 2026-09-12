@@ -70,9 +70,9 @@
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800">
 
-    <div class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-emerald-100 z-40 flex justify-between items-center px-4 shadow-sm">
+    <div class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-emerald-100 z-40 flex items-center px-4 shadow-sm gap-4">
+        <button onclick="toggleSidebar()" class="text-emerald-800 text-2xl p-1"><i class="fas fa-bars"></i></button>
         <div class="font-bold text-emerald-800 text-lg flex items-center gap-2"><i class="fas fa-university text-emerald-600"></i> SSSFN</div>
-        <button onclick="toggleSidebar()" class="text-emerald-800 text-2xl p-2"><i class="fas fa-bars"></i></button>
     </div>
 
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
