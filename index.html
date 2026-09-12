@@ -1522,10 +1522,15 @@ function renderHomeDirectory() {
         if (isGuest) {
         // 1. ถ้ายังไม่ได้ล็อกอิน (สร้างหน้าจอล็อกอินแบบ RMUTI SAMS)
         if (!window.currentGuestStuId) {
-            // 🌟 ซ่อน Header และ Sidebar ให้หมด เพื่อความเหมือน
+            // 🌟 ซ่อน Header, Sidebar และแถบมือถือ ให้หมด เพื่อความเหมือน
             document.querySelector('aside').classList.add('hidden');
             document.querySelector('header').classList.add('hidden');
-            document.querySelector('main').classList.remove('pt-16', 'md:pt-0'); 
+            
+            // 🌟 คำสั่งซ่อนแถบ 3 ขีดในมือถือ
+            let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0');
+            if(mobileNav) mobileNav.classList.add('hidden');
+            
+            document.querySelector('main').classList.remove('pt-16', 'md:pt-0');
             
             // 🌟 เปลี่ยนพื้นหลังของ Body ให้เป็นสีเทาเข้มเหมือนในรูป
             document.body.className = "flex h-screen overflow-hidden bg-[#222222]";
@@ -1606,8 +1611,11 @@ function renderHomeDirectory() {
        // 2. ถ้าล็อกอินแล้ว (ดึงหน้าตากลับมาให้ปกติ โชว์โปรไฟล์ + ยอดค้าง)
         let asideEl = document.querySelector('aside');
         let headerEl = document.querySelector('header');
+        let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0'); // ดึงมือถือกลับมา
+        
         if(asideEl) asideEl.classList.remove('hidden');
         if(headerEl) headerEl.classList.remove('hidden');
+        if(mobileNav) mobileNav.classList.remove('hidden');
         
         let mainEl = document.querySelector('main');
         if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
@@ -1780,8 +1788,11 @@ function renderHomeDirectory() {
         // 🌟 คืนค่าหน้าตากลับมาให้แอดมิน (กรณีเพิ่งล็อกอินเข้ามา)
         let asideEl = document.querySelector('aside');
         let headerEl = document.querySelector('header');
+        let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0'); // ดึงมือถือกลับมา
+        
         if(asideEl) asideEl.classList.remove('hidden');
         if(headerEl) headerEl.classList.remove('hidden');
+        if(mobileNav) mobileNav.classList.remove('hidden');
         
         let mainEl = document.querySelector('main');
         if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
