@@ -17,25 +17,66 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f0fdf4; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #fcfcfc; color: #0f172a; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #6ee7b7; border-radius: 10px; }
-        .menu-active { background-color: #d1fae5; color: #065f46; font-weight: 700; border-right: 4px solid #059669; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        
+        /* 🌟 Notion Style Classes 🌟 */
+        .notion-card {
+            background-color: white;
+            border: 2px solid #0f172a; /* ขอบดำหนา */
+            border-radius: 0.75rem; /* โค้งมนนิดๆ */
+            box-shadow: 4px 4px 0px 0px #0f172a; /* เงาดำแข็งๆ */
+            transition: all 0.2s ease-in-out;
+        }
+        .notion-card:hover {
+            box-shadow: 6px 6px 0px 0px #0f172a;
+            transform: translate(-2px, -2px);
+        }
+        .notion-btn {
+            background-color: #0f172a;
+            color: white;
+            border: 2px solid #0f172a;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 3px 3px 0px 0px rgba(15, 23, 42, 0.2);
+            transition: all 0.15s ease;
+        }
+        .notion-btn:hover {
+            background-color: white;
+            color: #0f172a;
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px 0px rgba(15, 23, 42, 0.3);
+        }
+        
+        .menu-active { background-color: #f1f5f9 !important; color: #0f172a !important; font-weight: 900 !important; border-left: 4px solid #0f172a !important; border-right: none !important; }
         .sidebar-open { transform: translateX(0%); }
         .sidebar-closed { transform: translateX(-100%); }
         @media (min-width: 768px) { .sidebar-closed { transform: translateX(0%); } }
         input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
-        .modern-input { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; margin-bottom: 0.75rem; outline: none; font-family: 'Sarabun'; }
-        .modern-input:focus { border-color: #059669; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
-        .toggle-checkbox:checked { right: 0; border-color: #059669; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #059669; }
+        
+        /* 🌟 Modern Input แบบ Notion 🌟 */
+        .modern-input { 
+            width: 100%; padding: 0.75rem; 
+            border: 2px solid #cbd5e1; 
+            border-radius: 0.5rem; margin-bottom: 0.75rem; outline: none; font-family: 'Sarabun'; 
+            transition: all 0.2s;
+        }
+        .modern-input:focus { 
+            border-color: #0f172a; 
+            box-shadow: 2px 2px 0px 0px #cbd5e1; 
+        }
+        
+        .toggle-checkbox:checked { right: 0; border-color: #0f172a; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #0f172a; }
         table td, table th { word-break: break-word; white-space: normal; vertical-align: middle; }
         @keyframes slotSpin { 0% { transform: translateY(-20px); opacity: 0; } 50% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(20px); opacity: 0; } }
         .animate-slot { animation: slotSpin 0.15s infinite linear; }
-        @media (min-width: 768px) { 
-            .desktop-sidebar-closed { margin-left: -16rem !important; } 
+        @media (min-width: 768px) {  
+            .desktop-sidebar-closed { margin-left: -16rem !important; }  
         }
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -120,33 +161,41 @@
         <div class="flex-1 overflow-y-auto p-4 md:p-6 relative">
             
             <div id="page-home" class="page-view block max-w-6xl mx-auto">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-emerald-100 flex justify-between items-center mb-6">
-                    <div>
-                        <p id="home-bal-label" class="text-xs text-slate-400 font-bold mb-1">งบประมาณเงินห้องปัจจุบัน</p>
-                        <h3 id="home-bal-pool-fund" class="text-3xl font-bold text-emerald-700">฿ 0.00</h3>
+                <!-- 🌟 สรุปยอดเงินกองกลาง (Notion Style) 🌟 -->
+                <div class="notion-card p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+                    <div class="mb-4 md:mb-0 border-l-4 border-slate-900 pl-4">
+                        <h3 class="text-slate-900 font-black text-2xl tracking-wide">บัญชีส่วนกลาง</h3>
+                        <p id="home-bal-label" class="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Total Available Fund</p>
                     </div>
-                    <div class="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 text-2xl shadow-inner"><i class="fas fa-vault"></i></div>
+                    <div class="flex items-center gap-4">
+                        <h3 id="home-bal-pool-fund" class="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter">฿ 0.00</h3>
+                        <i class="fas fa-piggy-bank text-4xl text-slate-300"></i>
+                    </div>
                 </div>
 
-                <!-- 🌟 แถบค้นหาและตัวกรอง (Admin Header) สไตล์มินิมอล -->
-        <div id="home-title-container" class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4 transition-all">
-            <h2 class="text-lg font-bold text-slate-800 w-full md:w-auto"><i class="fas fa-user-friends text-slate-400 mr-2"></i> รายชื่อนักศึกษาทั้งหมด</h2>
-            
-            <div class="flex items-center w-full md:w-auto bg-slate-50 p-1.5 rounded-lg border border-slate-200 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-                <select id="home-room-filter" onchange="renderHomeDirectory()" class="bg-transparent border-none text-slate-700 font-bold text-sm focus:ring-0 cursor-pointer pr-6 py-1.5 outline-none">
-                    <option value="all">ทุกห้อง</option>
-                </select>
-                
-                <div class="w-px h-5 bg-slate-300 mx-2"></div>
-                
-                <div class="relative w-full md:w-48 flex items-center">
-                    <i class="fas fa-search text-blue-500 text-sm ml-2"></i>
-                    <input id="home-search" oninput="renderHomeDirectory()" class="w-full pl-2 pr-3 py-1.5 bg-transparent border-none text-sm text-slate-700 outline-none focus:ring-0 placeholder:text-slate-400" placeholder="ค้นหาชื่อ / รหัส...">
+                <!-- 🌟 แถบค้นหาและตัวกรอง (Notion Style) 🌟 -->
+                <div id="home-title-container" class="border-b-2 border-slate-900 pb-4 mb-6 flex flex-col md:flex-row justify-between items-end gap-4 transition-all">
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-black text-slate-900"><i class="fas fa-users text-slate-400 mr-2"></i> รายชื่อนักศึกษา</h2>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Student Directory</p>
+                    </div>
+                    
+                    <div class="flex items-center w-full md:w-auto bg-white border-2 border-slate-900 p-1.5 rounded-lg shadow-[2px_2px_0px_0px_#0f172a] focus-within:shadow-[4px_4px_0px_0px_#0f172a] focus-within:-translate-y-0.5 transition-all">
+                        <select id="home-room-filter" onchange="renderHomeDirectory()" class="bg-transparent border-none text-slate-800 font-black text-sm focus:ring-0 cursor-pointer pr-6 py-1.5 outline-none">
+                            <option value="all">ทุกห้อง</option>
+                        </select>
+                        
+                        <div class="w-px h-6 bg-slate-300 mx-2"></div>
+                        
+                        <div class="relative w-full md:w-56 flex items-center">
+                            <i class="fas fa-search text-slate-500 text-sm ml-2"></i>
+                            <input id="home-search" oninput="renderHomeDirectory()" class="w-full pl-3 pr-3 py-1.5 bg-transparent border-none text-sm text-slate-800 font-bold outline-none focus:ring-0 placeholder:text-slate-400" placeholder="ค้นหาชื่อ / รหัส...">
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-                <div id="home-directory-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
-                <div id="home-empty" class="hidden text-center py-20 text-slate-400"><i class="fas fa-box-open text-6xl mb-4 opacity-30"></i><p>ยังไม่มีข้อมูลนักศึกษาในระบบ</p></div>
+                
+                <div id="home-directory-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+                <div id="home-empty" class="hidden text-center py-20 text-slate-400"><i class="fas fa-box-open text-6xl mb-4 opacity-30"></i><p class="font-bold">ยังไม่มีข้อมูลนักศึกษาในระบบ</p></div>
             </div>
             <!-- 🌟 เพิ่มหน้ากระดานโหวต (Voting Page) -->
             <div id="page-voting" class="page-view hidden max-w-4xl mx-auto">
@@ -1733,7 +1782,31 @@ function renderHomeDirectory() {
                 else if (pendingCount > 0) { fundBgClass = 'bg-blue-50'; fundTextClass = 'text-blue-600'; fundStatusLabel = 'รอดำเนินการ ' + pendingCount + ' รายการ'; } 
                 else { fundBgClass = 'bg-emerald-50 border-emerald-200'; fundTextClass = 'text-emerald-600'; fundStatusLabel = 'จ่ายครบเรียบร้อย'; iconHtml = '<i class="fas fa-check-circle text-emerald-500 text-lg"></i>'; }
             }
-            gridHtml += `<div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition"><div class="flex items-center gap-3 mb-4 border-b border-slate-100 pb-4"><div class="w-12 h-12 bg-[#111827] text-white rounded-full flex items-center justify-center font-bold shadow-sm">${getInitials(s.name)}</div><div><h3 class="font-bold text-slate-800">${s.name}</h3><p class="text-xs text-slate-400 font-mono">${s.id} | ห้อง ${s.room}</p></div></div><div class="p-3 rounded-xl border ${fundBgClass} flex items-center justify-between mt-2"><div><p class="text-[10px] font-bold ${fundTextClass} uppercase">สถานะเงินห้อง</p><p class="font-bold text-sm ${fundTextClass}">${fundStatusLabel}</p></div><div class="text-right">${iconHtml}</div></div></div>`;
+            // 🌟 แก้ไข: การ์ดนักศึกษา (Notion Style)
+            let iconBoxClass = activeP.length === 0 ? 'bg-slate-100 text-slate-400' : (unpaidCount > 0 ? 'bg-rose-100 text-rose-600' : (pendingCount > 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-900 text-white'));
+            
+            gridHtml += `
+            <div class="notion-card p-5 flex flex-col h-full">
+                <div class="flex items-start gap-4 mb-4 border-b-2 border-slate-100 pb-4">
+                    <div class="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center font-black shadow-sm shrink-0 border-2 border-slate-900">
+                        ${getInitials(s.name)}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-black text-slate-900 text-base leading-tight">${s.name}</h3>
+                        <p class="text-xs text-slate-500 font-mono mt-1 font-bold">${s.id} | ห้อง ${s.room}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-auto flex items-center justify-between">
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                        <p class="font-bold text-sm ${fundTextClass}">${fundStatusLabel}</p>
+                    </div>
+                    <div class="text-right">
+                        ${iconHtml !== '-' ? iconHtml : `<div class="w-8 h-8 rounded-full ${iconBoxClass} flex items-center justify-center text-sm border-2 border-transparent"><i class="fas fa-minus"></i></div>`}
+                    </div>
+                </div>
+            </div>`;
         });
         grid.innerHTML = gridHtml;
     }
