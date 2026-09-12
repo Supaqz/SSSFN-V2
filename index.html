@@ -1510,40 +1510,78 @@ function renderHomeDirectory() {
 
     // 🌟 โหมดนักศึกษา (Guest)
     if (isGuest) {
-        if(titleContainer) titleContainer.style.display = 'none'; // ซ่อนแถบค้นหาด้านบน
-        
-        // 1. ถ้ายังไม่ได้ล็อกอิน (โชว์หน้าจอดำ RMUTI สลับปุ่ม)
+        // 1. ถ้ายังไม่ได้ล็อกอิน (สร้างหน้าจอล็อกอินแบบ RMUTI SAMS)
         if (!window.currentGuestStuId) {
-            grid.className = "block max-w-2xl mx-auto w-full"; grid.innerHTML = ''; empty.classList.remove('hidden');
+            // 🌟 ซ่อน Header และ Sidebar ให้หมด เพื่อความเหมือน
+            document.querySelector('aside').classList.add('hidden');
+            document.querySelector('header').classList.add('hidden');
+            document.querySelector('main').classList.remove('pt-16', 'md:pt-0'); 
+            
+            // 🌟 เปลี่ยนพื้นหลังของ Body ให้เป็นสีเทาเข้มเหมือนในรูป
+            document.body.className = "flex h-screen overflow-hidden bg-[#222222]";
+
+            grid.className = "block w-full h-full flex items-center justify-center"; 
+            grid.innerHTML = ''; 
+            empty.classList.remove('hidden');
+            
+            // 🌟 สร้าง Layout กล่องล็อกอินแบบ RMUTI SAMS (ซ้ายดำ ขาวขวา)
             empty.innerHTML = `
-            <div class="bg-[#111827] rounded-3xl p-6 md:p-10 text-left shadow-xl relative overflow-hidden flex flex-col items-center gap-6 mt-4">
-                <div class="absolute right-0 top-0 opacity-5 pointer-events-none text-9xl text-white transform translate-x-10 -translate-y-10"><i class="fas fa-university"></i></div>
-                <div class="relative z-10 w-full">
-                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1 text-center md:text-left">ระบบบริการนักศึกษา SSSFN</h2>
-                    <p class="text-slate-400 mb-6 text-xs md:text-sm text-center md:text-left">เข้าสู่ระบบด้วยอีเมลเพื่อความปลอดภัย</p>
+            <div class="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto md:h-[500px] m-4 relative z-10 animate-[slotSpin_0.3s_ease-out]">
+                
+                <!-- ฝั่งซ้าย: โซนเลือกเข้าสู่ระบบ (สีดำ) -->
+                <div class="w-full md:w-1/2 bg-[#141414] p-8 md:p-10 flex flex-col justify-center text-left">
+                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2">ระบบบริการนักศึกษา</h2>
+                    <p class="text-slate-400 text-sm mb-8">เลือกวิธีเข้าสู่ระบบที่เหมาะสมกับคุณ</p>
                     
-                    <div class="bg-[#1f2937] border border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center shadow-sm w-full relative z-20">
-                        <div class="w-16 h-16 bg-white/10 text-white rounded-full flex items-center justify-center text-3xl mb-4"><i class="fab fa-google"></i></div>
-                        <h3 class="text-white font-bold text-lg mb-2">ลงชื่อเข้าใช้ (Sign In)</h3>
-                        <p class="text-slate-400 text-xs mb-6 text-center">รองรับอีเมล @rmuti.ac.th และ @gmail.com<br>ที่ลงทะเบียนไว้กับทางสาขาเท่านั้น</p>
+                    <div class="space-y-4">
+                        <!-- ปุ่มแอดมิน -->
+                        <button onclick="promptLogin()" class="w-full group flex items-center gap-4 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-slate-700/50 p-4 rounded-2xl transition-all duration-300 text-left">
+                            <div class="w-12 h-12 bg-slate-800 text-slate-300 group-hover:text-white rounded-xl flex items-center justify-center text-xl transition"><i class="fas fa-user-shield"></i></div>
+                            <div class="flex-1">
+                                <h3 class="text-white font-bold text-base group-hover:text-blue-400 transition">บุคลากร / อาจารย์ / แอดมิน</h3>
+                                <p class="text-slate-500 text-xs">เข้าสู่ระบบด้วยบัญชี Admin</p>
+                            </div>
+                            <i class="fas fa-arrow-right text-slate-600 group-hover:text-blue-400 transition"></i>
+                        </button>
                         
-                        <!-- 🌟 กล่องสำหรับปุ่ม Google Sign-In -->
-                        <div id="google-btn-container" class="w-full flex justify-center h-[40px]"></div>
+                        <!-- ปุ่มนักศึกษา -->
+                        <button onclick="document.getElementById('google-auth-btn-wrapper').classList.toggle('hidden')" class="w-full group flex items-center gap-4 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-slate-700/50 p-4 rounded-2xl transition-all duration-300 text-left">
+                            <div class="w-12 h-12 bg-[#2d1f11] text-amber-500 group-hover:text-amber-400 rounded-xl flex items-center justify-center text-xl transition"><i class="fas fa-graduation-cap"></i></div>
+                            <div class="flex-1">
+                                <h3 class="text-white font-bold text-base group-hover:text-amber-400 transition">นักศึกษา</h3>
+                                <p class="text-slate-500 text-xs">เข้าสู่ระบบด้วย Google Account</p>
+                            </div>
+                            <i class="fas fa-arrow-right text-slate-600 group-hover:text-amber-400 transition"></i>
+                        </button>
+                        
+                        <!-- ซ่อนปุ่ม Google ไว้ กดปุ่มนักศึกษาแล้วค่อยโชว์ -->
+                        <div id="google-auth-btn-wrapper" class="hidden mt-4 bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center">
+                            <p class="text-xs text-slate-400 mb-3 text-center">โปรดใช้อีเมล @rmuti.ac.th หรืออีเมลที่ลงทะเบียนไว้</p>
+                            <div id="google-btn-container" class="w-full flex justify-center h-[40px]"></div>
+                        </div>
                     </div>
 
-                    <div class="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center px-2">
-                        <span class="text-[11px] text-slate-500 font-medium font-mono">RMUTI Authentication</span>
-                        <!-- ซ่อนปุ่มล็อกอินแบบเก่าเผื่อฉุกเฉินฉบับแอดมิน -->
-                        <button onclick="promptLogin()" class="text-[10px] text-slate-500 hover:text-white underline"><i class="fas fa-lock"></i> เข้าระบบด้วยรหัสผ่าน</button>
+                    <div class="mt-8 pt-4 border-t border-slate-800 flex justify-center">
+                        <button onclick="localStorage.removeItem('sssfn_session'); localStorage.removeItem('sssfn_guest_id'); location.reload();" class="text-[10px] text-slate-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-sign-out-alt"></i> Clear session</button>
                     </div>
                 </div>
-            </div>`;
+
+                <!-- ฝั่งขวา: โลโก้และชื่อระบบ (สีขาว) -->
+                <div class="w-full md:w-1/2 bg-white p-10 flex flex-col items-center justify-center relative">
+                    <img src="https://upload.wikimedia.org/wikipedia/th/thumb/a/a2/RMUTI_KORAT.png/1200px-RMUTI_KORAT.png" alt="RMUTI Logo" class="w-40 md:w-56 mb-8 drop-shadow-xl hover:scale-105 transition duration-500">
+                    <h2 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-2">SSSFN</h2>
+                    <p class="text-slate-500 font-bold text-sm tracking-widest uppercase">Student Service System</p>
+                </div>
+                
+            </div>
+            <p class="absolute bottom-4 w-full text-center text-[10px] text-slate-500 font-mono tracking-widest z-0">By SSSFN Information Technology</p>
+            `;
             
-            // 🌟 สั่งให้วาดปุ่ม Google (อย่าลืมเปลี่ยน YOUR_CLIENT_ID นะครับ)
+            // 🌟 สั่งให้วาดปุ่ม Google
             setTimeout(() => {
                 if(typeof google !== 'undefined' && google.accounts) {
                     google.accounts.id.initialize({
-                        client_id: "890404917484-07hsh7mdnkmau2btju1sklgt6av5g09m.apps.googleusercontent.com", // <-- เอา Client ID ของคุณมาใส่ตรงนี้
+                        client_id: "890404917484-07hsh7mdnkmau2btju1sklgt6av5g09m.apps.googleusercontent.com", 
                         callback: handleGoogleCredentialResponse
                     });
                     google.accounts.id.renderButton(
@@ -1553,13 +1591,22 @@ function renderHomeDirectory() {
                 }
             }, 300);
 
-            let sbName = document.getElementById('sidebar-name'); let sbId = document.getElementById('sidebar-id'); let sbAvatar = document.getElementById('sidebar-avatar');
-            if(sbName) sbName.innerText = "ผู้เยี่ยมชม"; if(sbId) sbId.innerText = "กรุณาเข้าสู่ระบบ"; if(sbAvatar) { sbAvatar.innerText = "G"; sbAvatar.className = "w-10 h-10 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center font-bold text-sm shadow-inner"; }
-            return;
+            return; // 🌟 หยุดการทำงานฟังก์ชันแค่นี้เลย
         }
+       // 2. ถ้าล็อกอินแล้ว (ดึงหน้าตากลับมาให้ปกติ โชว์โปรไฟล์ + ยอดค้าง)
+        let asideEl = document.querySelector('aside');
+        let headerEl = document.querySelector('header');
+        if(asideEl) asideEl.classList.remove('hidden');
+        if(headerEl) headerEl.classList.remove('hidden');
+        
+        let mainEl = document.querySelector('main');
+        if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
+        
+        document.body.className = "flex h-screen overflow-hidden bg-[#f0fdf4] text-slate-800"; // คืนสีพื้นหลังปกติ
 
-        // 2. ถ้าล็อกอินแล้ว (โชว์โปรไฟล์ + ยอดค้างด้านล่าง)
-        empty.classList.add('hidden'); grid.className = "block max-w-2xl mx-auto w-full";
+        empty.classList.add('hidden'); 
+        grid.className = "block max-w-2xl mx-auto w-full";
+        
         // 🌟 เปลี่ยนชื่อ Header ด้านบนสุดให้เป็น "โปรไฟล์ส่วนตัว"
         let topHeaderTitle = document.querySelector('header h2');
         if (topHeaderTitle && currentView === 'home') {
@@ -1720,9 +1767,21 @@ function renderHomeDirectory() {
         ${notificationCard}`;
     } 
     else {
+        // 🌟 คืนค่าหน้าตากลับมาให้แอดมิน (กรณีเพิ่งล็อกอินเข้ามา)
+        let asideEl = document.querySelector('aside');
+        let headerEl = document.querySelector('header');
+        if(asideEl) asideEl.classList.remove('hidden');
+        if(headerEl) headerEl.classList.remove('hidden');
+        
+        let mainEl = document.querySelector('main');
+        if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
+        
+        document.body.className = "flex h-screen overflow-hidden bg-[#f0fdf4] text-slate-800"; // คืนสีพื้นหลังปกติ
+
         // 🌟 โหมดแอดมิน (โชว์ปกติ)
         if(titleContainer) titleContainer.style.display = 'flex';
-        grid.className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full"; empty.classList.add('hidden');
+        grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 w-full"; 
+        empty.classList.add('hidden');
         const roomF = roomFilterEl.value; const search = searchEl.value.toLowerCase().trim();
     
         // 🌟 สูตรคำนวณเงินกองกลาง
