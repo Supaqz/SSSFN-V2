@@ -1758,7 +1758,6 @@ function renderHomeDirectory() {
             grid.innerHTML = ''; empty.classList.remove('hidden');
             empty.innerHTML = '<i class="fas fa-search text-4xl mb-4 opacity-20 text-slate-400"></i><p class="text-slate-500">ไม่พบข้อมูลที่ค้นหา</p>'; return;
         }
-        
         let gridHtml = '';
         filtered.forEach(s => {
             let myPayments = fundPayments.filter(p => p.studentId === s.id); let fundBgClass = 'bg-slate-50'; let fundTextClass = 'text-slate-500'; let fundStatusLabel = 'ไม่มีรายการเรียกเก็บ'; let iconHtml = '-';
@@ -1771,6 +1770,7 @@ function renderHomeDirectory() {
                 else if (pendingCount > 0) { fundBgClass = 'bg-blue-50'; fundTextClass = 'text-blue-600'; fundStatusLabel = 'รอดำเนินการ ' + pendingCount + ' รายการ'; } 
                 else { fundBgClass = 'bg-emerald-50 border-emerald-200'; fundTextClass = 'text-emerald-600'; fundStatusLabel = 'จ่ายครบเรียบร้อย'; iconHtml = '<i class="fas fa-check-circle text-emerald-500 text-lg"></i>'; }
             }
+            
             // 🌟 แก้ไข: การ์ดนักศึกษา (Playful Style) แก้บั๊ก activeP
             let badgeStyle = 'bg-slate-100 text-slate-500 border-slate-200';
             if (fundBgClass.includes('rose')) badgeStyle = 'bg-rose-100 text-rose-600 border-rose-200';
