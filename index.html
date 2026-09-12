@@ -1504,12 +1504,22 @@ function renderHomeDirectory() {
     const isGuest = (currentUserRole === 'guest');
 
     let titleContainer = document.getElementById('home-title-container');
-    let fundCard = document.getElementById('home-bal-pool-fund')?.closest('.bg-white.p-5.rounded-2xl');
-    if(fundCard) fundCard.style.display = isGuest ? 'none' : 'flex';
-    if(roomFilterEl) roomFilterEl.style.display = isGuest ? 'none' : 'block';
+        // 🌟 ปรับปรุงการค้นหากล่องยอดเงินให้เจอในดีไซน์ใหม่ (Playful Style)
+        let fundCard = document.getElementById('home-bal-pool-fund')?.closest('.playful-card') || document.getElementById('home-bal-pool-fund')?.closest('.bg-white');
+        
+        // 🌟 บังคับซ่อน/แสดง แบบเด็ดขาด
+        if (isGuest) {
+            if (fundCard) fundCard.style.cssText = 'display: none !important;';
+            if (titleContainer) titleContainer.style.cssText = 'display: none !important;';
+            if (roomFilterEl) roomFilterEl.style.display = 'none';
+        } else {
+            if (fundCard) fundCard.style.cssText = 'display: flex !important;';
+            if (titleContainer) titleContainer.style.cssText = 'display: flex !important;';
+            if (roomFilterEl) roomFilterEl.style.display = 'block';
+        }
 
-    // 🌟 โหมดนักศึกษา (Guest)
-    if (isGuest) {
+        // 🌟 โหมดนักศึกษา หรือ ผู้เยี่ยมชม
+        if (isGuest) {
         // 1. ถ้ายังไม่ได้ล็อกอิน (สร้างหน้าจอล็อกอินแบบ RMUTI SAMS)
         if (!window.currentGuestStuId) {
             // 🌟 ซ่อน Header และ Sidebar ให้หมด เพื่อความเหมือน
@@ -1568,7 +1578,7 @@ function renderHomeDirectory() {
 
                 <!-- ฝั่งขวา: โลโก้และชื่อระบบ (สีขาว) -->
                 <div class="w-full md:w-1/2 bg-white p-10 flex flex-col items-center justify-center relative">
-                    <img src="https://upload.wikimedia.org/wikipedia/th/thumb/a/a2/RMUTI_KORAT.png/1200px-RMUTI_KORAT.png" alt="RMUTI Logo" class="w-40 md:w-56 mb-8 drop-shadow-xl hover:scale-105 transition duration-500">
+                    <img src="logo-2.png" alt="SSSFN Logo" class="w-32 md:w-48 mb-8 drop-shadow-xl hover:scale-105 transition duration-500 rounded-3xl">
                     <h2 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-2">SSSFN</h2>
                     <p class="text-slate-500 font-bold text-sm tracking-widest uppercase">Student Service System</p>
                 </div>
