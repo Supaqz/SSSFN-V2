@@ -1541,55 +1541,57 @@ function renderHomeDirectory() {
             
             // 🌟 สร้าง Layout กล่องล็อกอินแบบ RMUTI SAMS (ซ้ายดำ ขาวขวา)
             empty.innerHTML = `
-            <div class="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto md:h-[500px] m-4 relative z-10 animate-[slotSpin_0.3s_ease-out]">
-                
-                <!-- ฝั่งซ้าย: โซนเลือกเข้าสู่ระบบ (สีดำ) -->
-                <div class="w-full md:w-1/2 bg-[#141414] p-8 md:p-10 flex flex-col justify-center text-left">
-                    <h2 class="text-2xl md:text-3xl font-black text-white mb-2">ระบบบริการนักศึกษา</h2>
-                    <p class="text-slate-400 text-sm mb-8">เลือกวิธีเข้าสู่ระบบที่เหมาะสมกับคุณ</p>
+            <div class="w-full h-full flex items-center justify-center p-4 relative">
+                <div class="w-full max-w-3xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto md:h-[440px] relative z-10 my-auto">
                     
-                    <div class="space-y-4">
-                        <!-- ปุ่มแอดมิน -->
-                        <button onclick="promptLogin()" class="w-full group flex items-center gap-4 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-slate-700/50 p-4 rounded-2xl transition-all duration-300 text-left">
-                            <div class="w-12 h-12 bg-slate-800 text-slate-300 group-hover:text-white rounded-xl flex items-center justify-center text-xl transition"><i class="fas fa-user-shield"></i></div>
-                            <div class="flex-1">
-                                <h3 class="text-white font-bold text-base group-hover:text-blue-400 transition">บุคลากร / อาจารย์ / แอดมิน</h3>
-                                <p class="text-slate-500 text-xs">เข้าสู่ระบบด้วยบัญชี Admin</p>
-                            </div>
-                            <i class="fas fa-arrow-right text-slate-600 group-hover:text-blue-400 transition"></i>
-                        </button>
+                    <!-- ฝั่งซ้าย: โซนเลือกเข้าสู่ระบบ (สีดำ) -->
+                    <div class="w-full md:w-1/2 bg-[#141414] p-6 md:p-8 flex flex-col justify-center text-left">
+                        <h2 class="text-xl md:text-2xl font-black text-white mb-1">ระบบบริการนักศึกษา</h2>
+                        <p class="text-slate-400 text-xs mb-6">เลือกวิธีเข้าสู่ระบบที่เหมาะสมกับคุณ</p>
                         
-                        <!-- ปุ่มนักศึกษา -->
-                        <button onclick="document.getElementById('google-auth-btn-wrapper').classList.toggle('hidden')" class="w-full group flex items-center gap-4 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-slate-700/50 p-4 rounded-2xl transition-all duration-300 text-left">
-                            <div class="w-12 h-12 bg-[#2d1f11] text-amber-500 group-hover:text-amber-400 rounded-xl flex items-center justify-center text-xl transition"><i class="fas fa-graduation-cap"></i></div>
-                            <div class="flex-1">
-                                <h3 class="text-white font-bold text-base group-hover:text-amber-400 transition">นักศึกษา</h3>
-                                <p class="text-slate-500 text-xs">เข้าสู่ระบบด้วย Google Account</p>
+                        <div class="space-y-3">
+                            <!-- ปุ่มแอดมิน -->
+                            <button onclick="promptLogin()" class="w-full group flex items-center gap-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-slate-700/50 p-3 rounded-xl transition-all duration-300 text-left">
+                                <div class="w-10 h-10 bg-slate-800 text-slate-300 group-hover:text-white rounded-lg flex items-center justify-center text-lg transition"><i class="fas fa-user-shield"></i></div>
+                                <div class="flex-1">
+                                    <h3 class="text-white font-bold text-sm group-hover:text-blue-400 transition">บุคลากร / อาจารย์ / แอดมิน</h3>
+                                    <p class="text-slate-500 text-[10px]">เข้าสู่ระบบด้วยบัญชี Admin</p>
+                                </div>
+                                <i class="fas fa-arrow-right text-slate-600 group-hover:text-blue-400 transition text-xs"></i>
+                            </button>
+                            
+                            <!-- ปุ่มนักศึกษา -->
+                            <button onclick="document.getElementById('google-auth-btn-wrapper').classList.toggle('hidden')" class="w-full group flex items-center gap-3 bg-[#1e1e1e] hover:bg-[#2a2a2a] border border-slate-700/50 p-3 rounded-xl transition-all duration-300 text-left">
+                                <div class="w-10 h-10 bg-[#2d1f11] text-amber-500 group-hover:text-amber-400 rounded-lg flex items-center justify-center text-lg transition"><i class="fas fa-graduation-cap"></i></div>
+                                <div class="flex-1">
+                                    <h3 class="text-white font-bold text-sm group-hover:text-amber-400 transition">นักศึกษา</h3>
+                                    <p class="text-slate-500 text-[10px]">เข้าสู่ระบบด้วย Google Account</p>
+                                </div>
+                                <i class="fas fa-arrow-right text-slate-600 group-hover:text-amber-400 transition text-xs"></i>
+                            </button>
+                            
+                            <!-- ซ่อนปุ่ม Google ไว้ -->
+                            <div id="google-auth-btn-wrapper" class="hidden mt-2 bg-white/5 p-3 rounded-xl border border-white/10 flex flex-col items-center">
+                                <p class="text-[11px] text-slate-400 mb-2 text-center">โปรดใช้อีเมล @rmuti.ac.th หรืออีเมลที่ลงทะเบียน</p>
+                                <div id="google-btn-container" class="w-full flex justify-center h-[36px]"></div>
                             </div>
-                            <i class="fas fa-arrow-right text-slate-600 group-hover:text-amber-400 transition"></i>
-                        </button>
-                        
-                        <!-- ซ่อนปุ่ม Google ไว้ กดปุ่มนักศึกษาแล้วค่อยโชว์ -->
-                        <div id="google-auth-btn-wrapper" class="hidden mt-4 bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col items-center">
-                            <p class="text-xs text-slate-400 mb-3 text-center">โปรดใช้อีเมล @rmuti.ac.th หรืออีเมลที่ลงทะเบียนไว้</p>
-                            <div id="google-btn-container" class="w-full flex justify-center h-[40px]"></div>
+                        </div>
+
+                        <div class="mt-6 pt-3 border-t border-slate-800 flex justify-center">
+                            <button onclick="localStorage.removeItem('sssfn_session'); localStorage.removeItem('sssfn_guest_id'); location.reload();" class="text-[10px] text-slate-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-sign-out-alt"></i> Clear session</button>
                         </div>
                     </div>
 
-                    <div class="mt-8 pt-4 border-t border-slate-800 flex justify-center">
-                        <button onclick="localStorage.removeItem('sssfn_session'); localStorage.removeItem('sssfn_guest_id'); location.reload();" class="text-[10px] text-slate-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-sign-out-alt"></i> Clear session</button>
+                    <!-- ฝั่งขวา: โลโก้และชื่อระบบ (สีขาว) -->
+                    <div class="w-full md:w-1/2 bg-white p-6 md:p-8 flex flex-col items-center justify-center relative">
+                        <img src="logo-2.png" alt="SSSFN Logo" class="w-24 md:w-36 mb-4 drop-shadow-md hover:scale-105 transition duration-500 rounded-2xl">
+                        <h2 class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-1">SSSFN</h2>
+                        <p class="text-slate-400 font-bold text-[10px] tracking-widest uppercase">Student Service System</p>
                     </div>
+                    
                 </div>
-
-                <!-- ฝั่งขวา: โลโก้และชื่อระบบ (สีขาว) -->
-                <div class="w-full md:w-1/2 bg-white p-10 flex flex-col items-center justify-center relative">
-                    <img src="logo-2.png" alt="SSSFN Logo" class="w-32 md:w-48 mb-8 drop-shadow-xl hover:scale-105 transition duration-500 rounded-3xl">
-                    <h2 class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-2">SSSFN</h2>
-                    <p class="text-slate-500 font-bold text-sm tracking-widest uppercase">Student Service System</p>
-                </div>
-                
+                <p class="absolute bottom-4 w-full text-center text-[10px] text-slate-500 font-mono tracking-widest z-0 left-0">By SSSFN Information Technology</p>
             </div>
-            <p class="absolute bottom-4 w-full text-center text-[10px] text-slate-500 font-mono tracking-widest z-0">By SSSFN Information Technology</p>
             `;
             
             // 🌟 สั่งให้วาดปุ่ม Google
