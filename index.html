@@ -303,6 +303,7 @@
                     <div><h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-piggy-bank text-pink-600"></i> จัดการการเงิน</h2></div>
                     <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                         <button onclick="openBulkSlipModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 transition"><i class="fas fa-magic"></i> โยนสลิป Auto-Match</button>
+                        <button onclick="openDriveSyncModal()" class="bg-sky-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-sky-700 transition"><i class="fab fa-google-drive"></i> ดึงสลิปจากโฟลเดอร์ Drive</button>
                         <button onclick="createFundRoundAlert()" class="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-pink-700 transition">+ สร้างรายการใหม่</button>
                     </div>
                 </div>
@@ -5043,6 +5044,108 @@ function resolveUnmatchedSlips(unmatchedList, roundId) {
         });
     }
     showNextUnmatched();
+}
+        // =========================================================================
+// 🌟 ระบบ Auto-Sync สลิปจากโฟลเดอร์ Google Drive
+// =========================================================================
+function openDriveSyncModal() {
+    let rOpts = '';
+    fundRounds.filter(r => r.isOpen !== false).forEach(r => { rOpts += `<option value="${r.id}">${r.title}</option>`; });
+    if (!rOpts) return Swal.fire('ไม่พบรอบบิล', 'ต้องมีรอบบิลที่เปิดรับชำระก่อนนะครับ', 'warning');
+
+    Swal.fire({
+        title: '<i class="fab fa-google-drive text-sky-500 mr-2"></i> ดึงสลิปจาก Google Drive',
+        html: `
+        <div class="text-left space-y-3 mt-4">
+            <label class="text-xs font-bold text-slate-500">1. เลือกบิลที่ต้องการนำสลิปไปตัดยอด</label>
+            <select id="drive-round-id" class="modern-input font-bold text-sky-700 bg-sky-50">${rOpts}</select>
+            
+            <label class="text-xs font-bold text-slate-500 mt-2 block">2. ลิงก์โฟลเดอร์ (หรือ ID โฟลเดอร์) Google Drive</label>
+            <input id="drive-folder-id" class="modern-input border-sky-300" placeholder="ตัวอย่าง: https://drive.google.com/drive/folders/1A2b3C...">
+            <p class="text-[10px] text-rose-500 font-bold">* สำคัญ: โฟลเดอร์ใน Drive ต้องเปิดแชร์เป็น "ทุกคนที่มีลิงก์ (Anyone with the link)" ก่อนนะครับ</p>
+        </div>
+        `,
+        confirmButtonText: '🚀 เริ่มดึงข้อมูล', confirmButtonColor: '#0284c7', showCancelButton: true, cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            let roundId = document.getElementById('drive-round-id').value;
+            let folderUrl = document.getElementById('drive-folder-id').value.trim();
+            if(!folderUrl) return Swal.showValidationMessage('กรุณาใส่ลิงก์หรือ ID โฟลเดอร์');
+            
+            // สกัดเอาเฉพาะ ID ออกมาจากลิงก์ยาวๆ
+            let folderId = folderUrl;
+            let match = folderUrl.match(/folders\/([a-zA-Z0-9_-]+)/);
+            if(match) folderId = match[1];
+            else if (folderUrl.includes('id=')) folderId = folderUrl.split('id=')[1].split('&')[0];
+            
+            return { roundId: parseInt(roundId), folderId: folderId };
+        }
+    }).then(async res => {
+        if(res.isConfirmed) processDriveSlips(res.value.folderId, res.value.roundId);
+    });
+}
+
+async function processDriveSlips(folderId, roundId) {
+    Swal.fire({ title: 'เชื่อมต่อ Google Drive...', html: 'กำลังแพ็คไฟล์รูปลงมาที่ระบบ<br><span class="text-xs text-slate-400">ดึงได้สูงสุดครั้งละ 20 รูป เพื่อป้องกันระบบค้าง</span>', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
+    // 1. เรียกให้หลังบ้านไปกวาดรูปจาก Drive
+    let result = await callBackend({ action: 'fetchDriveImages', folderId: folderId });
+    
+    if (result.status !== 'success') return Swal.fire('ข้อผิดพลาด', result.message || 'ไม่สามารถดึงข้อมูลได้ โปรดเช็คลิงก์โฟลเดอร์และสิทธิ์การแชร์', 'error');
+
+    let files = result.data; 
+    if (!files || files.length === 0) return Swal.fire('ไม่พบไฟล์', 'โฟลเดอร์ว่างเปล่า หรือ ไม่มีไฟล์รูปภาพครับ', 'info');
+
+    let payloads = [];
+    // 2. ให้หน้าเว็บอ่าน QR Code ทีละรูป (เพื่อลดภาระเซิร์ฟเวอร์)
+    for (let i = 0; i < files.length; i++) {
+        Swal.update({ html: `กำลังสกัด QR Code รูปที่ ${i+1}/${files.length}<br><span class="text-xs font-bold text-sky-600 truncate block">${files[i].fileName}</span>` });
+        let code = await scanBase64QR(files[i].base64);
+        if (code) payloads.push({ qrPayload: code, base64: files[i].base64, fileName: files[i].fileName });
+    }
+
+    if (payloads.length === 0) return Swal.fire('ข้อผิดพลาด', `ดึงรูปมา ${files.length} รูป แต่ระบบหา QR Code ไม่เจอเลยครับ (รูปอาจเบลอเกินไป)`, 'error');
+
+    // 3. โยน QR ที่ได้ไปเช็คยอดกับธนาคารเหมือนระบบปกติ
+    Swal.fire({ title: 'สกัด QR สำเร็จ!', html: `พบ QR Code ${payloads.length} ใบ<br><span class="text-xs text-slate-500">กำลังยิงตรวจสอบยอดเงินกับธนาคารและจับคู่รายชื่อ...</span>`, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    let verifyResult = await callBackend({ action: 'bulkVerifySlips', slips: payloads, roundId: roundId });
+
+    if (verifyResult.status === 'success') {
+        let matched = verifyResult.data.matched || [];
+        let unmatched = verifyResult.data.unmatched || [];
+        let errors = verifyResult.data.errors || [];
+        
+        await silentPullFromGS(); if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
+        
+        let summaryHtml = '<div class="text-left space-y-3">';
+        if (matched.length > 0) summaryHtml += `<div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200"><p class="font-bold text-emerald-700 text-lg mb-1"><i class="fas fa-check-circle"></i> จับคู่สำเร็จ: ${matched.length} ใบ</p><div class="text-xs text-emerald-600 max-h-32 overflow-y-auto pl-2">${matched.map(m => `• ${m.studentName} (฿${m.amount})`).join('<br>')}</div></div>`;
+        if (unmatched.length > 0) summaryHtml += `<div class="bg-amber-50 p-4 rounded-xl border border-amber-200"><p class="font-bold text-amber-700 text-lg mb-1"><i class="fas fa-exclamation-triangle"></i> หาชื่อไม่เจอ: ${unmatched.length} ใบ</p></div>`;
+        if (errors.length > 0) summaryHtml += `<div class="bg-rose-50 p-4 rounded-xl border border-rose-200"><p class="font-bold text-rose-700 text-lg mb-1"><i class="fas fa-times-circle"></i> สลิปมีปัญหา: ${errors.length} ใบ</p></div>`;
+        summaryHtml += '</div>';
+
+        Swal.fire({ title: 'สรุปการซิงค์จาก Drive', html: summaryHtml, confirmButtonText: unmatched.length > 0 ? 'จัดสรรสลิปตกค้าง <i class="fas fa-arrow-right"></i>' : 'ยอดเยี่ยม! (เสร็จสิ้น)', confirmButtonColor: unmatched.length > 0 ? '#d97706' : '#059669', allowOutsideClick: false
+        }).then((r) => {
+            if (r.isConfirmed && unmatched.length > 0) resolveUnmatchedSlips(unmatched, roundId); else refreshAll();
+        });
+    } else {
+        Swal.fire('ข้อผิดพลาด', verifyResult.message || 'ระบบขัดข้องตอนตรวจบิล', 'error');
+    }
+}
+
+// ตัวช่วย: แปลง Base64 ให้เป็นภาพแล้วสกัด QR (ซ่อนการทำงานไว้หลังบ้าน)
+function scanBase64QR(base64Data) {
+    return new Promise((resolve) => {
+        let img = new Image();
+        img.onload = function() {
+            let canvas = document.createElement('canvas'); let ctx = canvas.getContext('2d');
+            canvas.width = img.width; canvas.height = img.height;
+            ctx.drawImage(img, 0, 0, img.width, img.height);
+            let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+            resolve(code ? code.data : null);
+        };
+        img.onerror = () => resolve(null); img.src = base64Data;
+    });
 }
     </script>
 </body>
