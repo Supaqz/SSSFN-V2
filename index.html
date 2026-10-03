@@ -5054,30 +5054,26 @@ function openDriveSyncModal() {
     if (!rOpts) return Swal.fire('ไม่พบรอบบิล', 'ต้องมีรอบบิลที่เปิดรับชำระก่อนนะครับ', 'warning');
 
     Swal.fire({
-        title: '<i class="fab fa-google-drive text-sky-500 mr-2"></i> ดึงสลิปจาก Google Drive',
+        title: '<i class="fab fa-google-drive text-sky-500 mr-2"></i> ดึงสลิปจากโฟลเดอร์ FINANCE68',
         html: `
         <div class="text-left space-y-3 mt-4">
-            <label class="text-xs font-bold text-slate-500">1. เลือกบิลที่ต้องการนำสลิปไปตัดยอด</label>
+            <label class="text-xs font-bold text-slate-500">เลือกบิลที่ต้องการนำสลิปไปตัดยอด</label>
             <select id="drive-round-id" class="modern-input font-bold text-sky-700 bg-sky-50">${rOpts}</select>
             
-            <label class="text-xs font-bold text-slate-500 mt-2 block">2. ลิงก์โฟลเดอร์ (หรือ ID โฟลเดอร์) Google Drive</label>
-            <input id="drive-folder-id" class="modern-input border-sky-300" placeholder="ตัวอย่าง: https://drive.google.com/drive/folders/1A2b3C...">
-            <p class="text-[10px] text-rose-500 font-bold">* สำคัญ: โฟลเดอร์ใน Drive ต้องเปิดแชร์เป็น "ทุกคนที่มีลิงก์ (Anyone with the link)" ก่อนนะครับ</p>
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mt-4">
+                <p class="font-bold text-blue-800 text-sm mb-1"><i class="fas fa-folder-open text-blue-500"></i> แหล่งดึงข้อมูลสลิป:</p>
+                <p class="text-xs text-blue-600">โฟลเดอร์ "FINANCE68_สลิปเงินห้อง"</p>
+            </div>
         </div>
         `,
         confirmButtonText: '🚀 เริ่มดึงข้อมูล', confirmButtonColor: '#0284c7', showCancelButton: true, cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
             let roundId = document.getElementById('drive-round-id').value;
-            let folderUrl = document.getElementById('drive-folder-id').value.trim();
-            if(!folderUrl) return Swal.showValidationMessage('กรุณาใส่ลิงก์หรือ ID โฟลเดอร์');
             
-            // สกัดเอาเฉพาะ ID ออกมาจากลิงก์ยาวๆ
-            let folderId = folderUrl;
-            let match = folderUrl.match(/folders\/([a-zA-Z0-9_-]+)/);
-            if(match) folderId = match[1];
-            else if (folderUrl.includes('id=')) folderId = folderUrl.split('id=')[1].split('&')[0];
+            // 🌟 นำรหัส ID โฟลเดอร์ "FINANCE68_สลิปเงินห้อง" มาวางไว้ในเครื่องหมายคำพูดด้านล่างนี้ครับ
+            let targetFolderId = "1qZ7pjePjMv8q1APkyQBjXmd_L90ZBkd5"; 
             
-            return { roundId: parseInt(roundId), folderId: folderId };
+            return { roundId: parseInt(roundId), folderId: targetFolderId };
         }
     }).then(async res => {
         if(res.isConfirmed) processDriveSlips(res.value.folderId, res.value.roundId);
