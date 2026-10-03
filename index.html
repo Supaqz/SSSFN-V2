@@ -5070,8 +5070,8 @@ function openDriveSyncModal() {
         preConfirm: () => {
             let roundId = document.getElementById('drive-round-id').value;
             
-            // 🌟 นำรหัส ID โฟลเดอร์ "FINANCE68_สลิปเงินห้อง" มาวางไว้ในเครื่องหมายคำพูดด้านล่างนี้ครับ
-            let targetFolderId = "1qZ7pjePjMv8q1APkyQBjXmd_L90ZBkd5"; 
+            // เปลี่ยนจาก "ใส่_ID_โฟลเดอร์_ของคุณที่นี่" เป็นรหัสของโฟลเดอร์ FINANCE68
+            let targetFolderId = "1qZ7pjePjMv8q1APkyQBjXmd_L90ZBkd5";
             
             return { roundId: parseInt(roundId), folderId: targetFolderId };
         }
