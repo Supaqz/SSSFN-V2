@@ -5084,7 +5084,7 @@ async function processDriveSlips(folderId, roundId) {
     Swal.fire({ title: 'เชื่อมต่อ Google Drive...', html: 'กำลังแพ็คไฟล์รูปลงมาที่ระบบ<br><span class="text-xs text-slate-400">ดึงได้สูงสุดครั้งละ 20 รูป เพื่อป้องกันระบบค้าง</span>', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     // 1. เรียกให้หลังบ้านไปกวาดรูปจาก Drive
-    let result = await callBackend({ action: 'fetchDriveImages', folderId: folderId });
+    let result = await callBackend({ action: 'fetchDriveImages', folderId: folderId, roundId: roundId });
     
     if (result.status !== 'success') return Swal.fire('ข้อผิดพลาด', result.message || 'ไม่สามารถดึงข้อมูลได้ โปรดเช็คลิงก์โฟลเดอร์และสิทธิ์การแชร์', 'error');
 
