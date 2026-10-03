@@ -5116,7 +5116,7 @@ async function processDriveSlips(folderId, roundId) {
         let summaryHtml = '<div class="text-left space-y-3">';
         if (matched.length > 0) summaryHtml += `<div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200"><p class="font-bold text-emerald-700 text-lg mb-1"><i class="fas fa-check-circle"></i> จับคู่สำเร็จ: ${matched.length} ใบ</p><div class="text-xs text-emerald-600 max-h-32 overflow-y-auto pl-2">${matched.map(m => `• ${m.studentName} (฿${m.amount})`).join('<br>')}</div></div>`;
         if (unmatched.length > 0) summaryHtml += `<div class="bg-amber-50 p-4 rounded-xl border border-amber-200"><p class="font-bold text-amber-700 text-lg mb-1"><i class="fas fa-exclamation-triangle"></i> หาชื่อไม่เจอ: ${unmatched.length} ใบ</p></div>`;
-        if (errors.length > 0) summaryHtml += `<div class="bg-rose-50 p-4 rounded-xl border border-rose-200"><p class="font-bold text-rose-700 text-lg mb-1"><i class="fas fa-times-circle"></i> สลิปมีปัญหา: ${errors.length} ใบ</p></div>`;
+        if (errors.length > 0) summaryHtml += `<div class="bg-rose-50 p-4 rounded-xl border border-rose-200"><p class="font-bold text-rose-700 text-lg mb-1"><i class="fas fa-times-circle"></i> สลิปมีปัญหา: ${errors.length} ใบ</p><div class="text-[10px] text-rose-600 max-h-32 overflow-y-auto pl-2">${errors.map(e => `• ${e.message}`).join('<br>')}</div></div>`;
         summaryHtml += '</div>';
 
         Swal.fire({ title: 'สรุปการซิงค์จาก Drive', html: summaryHtml, confirmButtonText: unmatched.length > 0 ? 'จัดสรรสลิปตกค้าง <i class="fas fa-arrow-right"></i>' : 'ยอดเยี่ยม! (เสร็จสิ้น)', confirmButtonColor: unmatched.length > 0 ? '#d97706' : '#059669', allowOutsideClick: false
