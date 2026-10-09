@@ -4007,7 +4007,10 @@ function toggleQuickRoundStatus() {
                                 currentPayment.paidDate = getNow(); 
                                 
                                 txHistory.unshift({ date: getNow(), name: `รับเงิน (${round.title}): ${stu.name}`, type: 'ระบบ', amt: currentBillPay, user: currentUsername });
+                                currentPayment.paidDate = getNow(); // บันทึกเวลา
+                                currentPayment.paidBy = currentUsername; // บันทึกชื่อแอดมินที่กด
                             }
+        
                             
                             // 2. ตัดบิลค้างเก่า
                             otherPaymentsToUpdate.forEach(upd => {
@@ -4087,9 +4090,10 @@ function editPaymentStatus(roundId, studentId) {
             payment.paidAmt = r.value.paidAmt;
             
             // 🌟 จุดสำคัญ: ตรวจสอบว่าถ้าสถานะถูกเปลี่ยนเป็น "จ่ายแล้ว" ให้บันทึกเวลาปัจจุบัน
-            if (r.value.status.includes('จ่ายแล้ว')) {
-                payment.paidDate = getNow(); 
-            }
+           if (r.value.status.includes('จ่ายแล้ว')) {
+            payment.paidDate = getNow(); // บันทึกเวลา
+            payment.paidBy = currentUsername; // บันทึกชื่อแอดมินที่กด
+        }
 
             txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${round.title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
 
@@ -5289,6 +5293,9 @@ function ArabicNumberToText(Number) {
     return text;
 }
 
+// =========================================================================
+// 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (ดึงเวลาและชื่อแอดมินจากฐานข้อมูล)
+// =========================================================================
 function printReceipt(roundId, studentId) {
     let stu = students.find(s => s.id == studentId);
     let round = fundRounds.find(r => r.id == roundId);
@@ -5296,16 +5303,45 @@ function printReceipt(roundId, studentId) {
     
     let paid = payment.paidAmt || 0;
     
+    // ดึงเวลาและชื่อคนอนุมัติ
+    let displayDate = "-";
+    let approverName = "-";
+    let historyRef = "";
+    
+    if (payment.paidDate && payment.paidDate.trim() !== '') {
+        displayDate = payment.paidDate;
+        approverName = payment.paidBy || "ระบบ";
+        historyRef = payment.paidDate.replace(/\D/g, '').substring(0, 8);
+    } else {
+        let matchLog = txHistory.find(tx => tx.name.includes(stu.name) && tx.name.includes(round.title) && (tx.name.includes('รับเงิน') || tx.name.includes('แอดมินแก้ไขสถานะ')));
+        if (matchLog) {
+            displayDate = matchLog.date;
+            approverName = matchLog.user || "ระบบ";
+            payment.paidDate = matchLog.date; 
+            payment.paidBy = matchLog.user;
+            historyRef = matchLog.date.replace(/\D/g, '').substring(0, 8);
+        } else {
+            displayDate = getNow() + " (เวลาเปิดดู)";
+            approverName = "ระบบอัตโนมัติ";
+            historyRef = Math.floor(10000000 + Math.random() * 90000000);
+        }
+    }
+    
     document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
     document.getElementById('receiptStuId').innerText = stu.id;
     document.getElementById('receiptName').innerText = stu.name;
     document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
     document.getElementById('receiptRound').innerText = round.title;
-    document.getElementById('receiptDate').innerText = getNow();
     
-    let randomRef = Math.floor(100000 + Math.random() * 900000);
-    document.getElementById('receiptRef').innerText = `Ref: SSSFN-${roundId}-${randomRef}`;
+    document.getElementById('receiptDate').innerText = displayDate; 
+    document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${historyRef}`;
+    
+    // 🌟 อัปเดตชื่อผู้อนุมัติลงใน HTML ของใบเสร็จ
+    let approverElement = document.getElementById('receiptApprover');
+    if (approverElement) {
+        approverElement.innerHTML = `<i class="fas fa-user-check"></i> อนุมัติโดย: ${approverName}`;
+    }
 
     document.getElementById('receiptModal').classList.remove('hidden');
     document.getElementById('receiptModal').classList.add('flex');
@@ -5519,6 +5555,7 @@ window.openStudentProfileModal = function(studentId) {
                 <div>
                     <p class="text-[9px] text-slate-400 font-mono tracking-widest mb-0.5" id="receiptRef">REF: SSSFN-XXXXXXXX</p>
                     <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                    <p class="text-[10px] font-bold text-emerald-600 mt-2" id="receiptApprover"><i class="fas fa-user-check"></i> อนุมัติโดย: -</p>
                         <i class="fas fa-shield-check"></i> SSSFN Verified
                     </p>
                 </div>
