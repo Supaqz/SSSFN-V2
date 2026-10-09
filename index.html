@@ -1861,7 +1861,7 @@ function renderHomeDirectory() {
             else if (fundBgClass.includes('emerald')) badgeStyle = 'bg-emerald-100 text-emerald-600 border-emerald-200';
             
             gridHtml += `
-            <div class="playful-card p-4 md:p-5 flex flex-col h-full cursor-pointer w-full overflow-hidden">
+<div onclick="openStudentProfileModal('${s.id}')" class="playful-card p-4 md:p-5 flex flex-col h-full cursor-pointer w-full overflow-hidden hover:ring-2 hover:ring-emerald-400 transition-all hover:shadow-lg">
                 <div class="flex items-center gap-3 md:gap-4 mb-4">
                     <div class="w-12 h-12 md:w-14 md:h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center font-black text-lg md:text-xl border-2 border-slate-700 border-b-[4px] shrink-0">
                         ${getInitials(s.name)}
@@ -1885,6 +1885,7 @@ function renderHomeDirectory() {
         grid.innerHTML = gridHtml;
     }
 }
+        
         // ================= ACTIVITY ENTERPRISE SYSTEM =================
         function renderActivities() {
     let actSearchEl = document.getElementById('act-search'); if(!actSearchEl) return;
