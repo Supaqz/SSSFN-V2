@@ -3332,28 +3332,41 @@ function keepInputFocused(e) {
             return text;
         }
 
-        function printReceipt(roundId, studentId) {
+        // =========================================================================
+// 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (แก้ปัญหาเวลาไม่อัปเดต)
+// =========================================================================
+function printReceipt(roundId, studentId) {
     let stu = students.find(s => s.id == studentId);
     let round = fundRounds.find(r => r.id == roundId);
     let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
     
     let paid = payment.paidAmt || 0;
     
-    // 🌟 ดึงเวลาที่ระบบบันทึกไว้ใน paidDate ถ้าไม่มี ให้ใช้ประวัติ (txHistory) แทน ถ้ายังไม่มีอีก ถึงจะใช้วันนี้
+    // 🌟 กลไกการหาเวลาที่แน่นอนที่สุด (Priority 1 -> 3)
     let displayDate = "-";
-    if (payment.paidDate && payment.paidDate.trim() !== '') {
-        displayDate = payment.paidDate; // ใช้เวลาที่มีใน payment
-    } else {
-        // ค้นหาเวลาจากประวัติการทำรายการ (txHistory) ที่ตรงกับนักศึกษาคนนี้ และบิลนี้
-        let historyLog = txHistory.find(tx => tx.name.includes(`(${round.title}): ${stu.name}`) && tx.amt === paid);
-        if (historyLog) {
-            displayDate = historyLog.date; // ดึงเวลาจากประวัติ
-            payment.paidDate = historyLog.date; // สลักเวลาไว้ใน payment เผื่อรอบหน้า
-            saveToLocal(false);
-            autoSyncToGS();
-        } else {
-             displayDate = getNow(); // ท่าสุดท้าย ถ้าไม่มีประวัติจริงๆ
-        }
+    let historyRef = "";
+    
+    // 1. ลองค้นหาประวัติการทำรายการล่าสุดที่มีคำว่า "รับเงิน" หรือ "แอดมินแก้ไขสถานะ" สำหรับเด็กคนนี้และบิลนี้
+    // txHistory จะเก็บเวลาเป๊ะๆ ณ วินาทีที่แอดมินกดปุ่ม
+    let matchLog = txHistory.find(tx => 
+        tx.name.includes(stu.name) && 
+        tx.name.includes(round.title) && 
+        (tx.name.includes('รับเงิน') || tx.name.includes('แอดมินแก้ไขสถานะ') || tx.name.includes('ตัดหนี้'))
+    );
+
+    if (matchLog) {
+        displayDate = matchLog.date; // ใช้เวลาจากประวัติที่เจอ
+        historyRef = matchLog.date.replace(/\D/g, '').substring(0, 8); // ดึงตัวเลขจากวันที่มาทำ Ref
+    } 
+    // 2. ถ้าหาประวัติไม่เจอ ลองดูว่าใน payment เองมีฝังไว้หรือยัง
+    else if (payment.paidDate && payment.paidDate.trim() !== '') {
+        displayDate = payment.paidDate;
+        historyRef = payment.paidDate.replace(/\D/g, '').substring(0, 8);
+    } 
+    // 3. ถ้าไม่มีทั้ง 2 อย่าง (บิลเก่ามากๆๆ ที่ไม่มีประวัติ) ค่อยใช้วันนี้ 
+    else {
+        displayDate = getNow() + " (เวลาเปิดดู)"; // เติมข้อความเพื่อบอกให้รู้ว่ามันคือเวลาปัจจุบัน
+        historyRef = Math.floor(10000000 + Math.random() * 90000000);
     }
     
     document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -3363,12 +3376,11 @@ function keepInputFocused(e) {
     document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
     document.getElementById('receiptRound').innerText = round.title;
     
-    // 🌟 อัปเดตเวลาลงใน HTML
+    // 🌟 นำเวลาที่หาได้ไปแสดง
     document.getElementById('receiptDate').innerText = displayDate; 
     
-    // สร้างเลข Ref อ้างอิง
-    let refNum = payment.paidDate ? payment.paidDate.replace(/\D/g, '').substring(0, 8) : Math.floor(10000000 + Math.random() * 90000000);
-    document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${refNum}`;
+    // 🌟 ตั้งเลข Ref แบบอ้างอิงจากวันที่ เพื่อไม่ให้เปลี่ยนไปมาทุกครั้งที่กด
+    document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${historyRef}`;
 
     document.getElementById('receiptModal').classList.remove('hidden');
     document.getElementById('receiptModal').classList.add('flex');
