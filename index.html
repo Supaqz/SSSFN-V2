@@ -996,6 +996,7 @@ function openPublicSlipModal(targetRoundId = null) {
                         room: res.value.room,
                         studentName: res.value.studentName,
                         expectedAmount: res.value.expectedAmount
+                        userRole: currentUserRole
                     });
 
                     if (result.status === 'success') { 
