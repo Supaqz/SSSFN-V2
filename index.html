@@ -3287,11 +3287,73 @@ function keepInputFocused(e) {
             if(payment) { payment.qrUnlocked = !payment.qrUnlocked; saveToLocal(false); autoSyncToGS(); renderFundTable(); let statusTxt = payment.qrUnlocked ? '🔓 ปลดล็อกให้พิมพ์ยอดเองแล้ว' : '🔒 ล็อกยอดเป๊ะแล้ว'; Swal.fire({toast:true, position:'top', icon:'success', title: statusTxt, showConfirmButton:false, timer:1500}); }
         }
 
+        // ฟังก์ชันช่วยแปลงตัวเลขเป็นคำอ่านภาษาไทย
+        function ArabicNumberToText(Number) {
+            var Number = Number.toString();
+            var parseIntNumber = parseInt(Number);
+            if (Number == 0 || isNaN(parseIntNumber)) return "ศูนย์บาทถ้วน";
+            var textNumber = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า", "สิบ"];
+            var textPos = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
+            var text = "";
+            var numberSplit = Number.split('.');
+            var intNumber = numberSplit[0];
+            var decNumber = numberSplit[1];
+            if (intNumber.length > 7) return "จำนวนเงินเยอะเกินไป";
+            if (parseInt(intNumber) > 0) {
+                for (var i = 0; i < intNumber.length; i++) {
+                    var n = intNumber.substring(i, i + 1);
+                    if (n != 0) {
+                        if (i == intNumber.length - 1 && n == 1 && intNumber.length > 1) text += "เอ็ด";
+                        else if (i == intNumber.length - 2 && n == 2) text += "ยี่";
+                        else if (i == intNumber.length - 2 && n == 1) text += "";
+                        else text += textNumber[n];
+                        text += textPos[intNumber.length - i - 1];
+                    }
+                }
+                text += "บาท";
+            }
+            if (decNumber && parseInt(decNumber) > 0) {
+                decNumber = decNumber.substring(0, 2);
+                for (var i = 0; i < decNumber.length; i++) {
+                    var n = decNumber.substring(i, i + 1);
+                    if (n != 0) {
+                        if (i == decNumber.length - 1 && n == 1 && decNumber.length > 1) text += "เอ็ด";
+                        else if (i == decNumber.length - 2 && n == 2) text += "ยี่";
+                        else if (i == decNumber.length - 2 && n == 1) text += "";
+                        else text += textNumber[n];
+                        text += textPos[decNumber.length - i - 1];
+                    }
+                }
+                text += "สตางค์";
+            } else {
+                text += "ถ้วน";
+            }
+            return text;
+        }
+
         function printReceipt(roundId, studentId) {
-            let stu = students.find(s => s.id == studentId); let round = fundRounds.find(r => r.id == roundId); let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
-            let paid = payment.paidAmt || 0; let remain = round.amt - paid;
-            let html = `<div class="p-6 bg-white border-2 border-slate-200 rounded-xl text-left font-sarabun shadow-inner relative overflow-hidden" id="receipt-print-area">${remain <= 0 ? '<div class="absolute top-4 right-4 text-emerald-500 opacity-10 text-7xl"><i class="fas fa-check-circle"></i></div>' : ''}<div class="text-center mb-4 border-b border-dashed border-slate-300 pb-4"><div class="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xl mx-auto mb-2"><i class="fas fa-university"></i></div><h2 class="font-bold text-lg text-slate-800">ใบเสร็จรับเงิน (E-Receipt)</h2><p class="text-xs text-slate-500">ระบบการเงินห้อง SSSFN</p></div><div class="space-y-2 text-sm text-slate-700 mb-6 relative z-10"><p><b>วันที่ออกใบเสร็จ:</b> ${getNow()}</p><p><b>รหัสนักศึกษา:</b> ${stu.id}</p><p><b>ชื่อ-นามสกุล:</b> ${stu.name} (ห้อง ${stu.room})</p><div class="bg-slate-50 p-4 rounded-lg border mt-3"><p class="font-bold text-slate-800 border-b pb-2 mb-2"><i class="fas fa-file-invoice"></i> รายการ: ${round.title}</p><div class="flex justify-between text-xs text-slate-500 mb-1"><span>ยอดเรียกเก็บเต็ม:</span> <span>฿${round.amt.toFixed(2)}</span></div><div class="flex justify-between text-sm text-slate-700 mb-1 font-bold"><span>ยอดชำระแล้วรวม:</span> <span class="text-emerald-600">฿${paid.toFixed(2)}</span></div><div class="flex justify-between font-bold text-slate-800 mt-2 pt-2 border-t border-slate-200"><span>ยอดคงเหลือ (ค้าง):</span> <span class="${remain > 0 ? 'text-rose-600' : 'text-slate-400'}">฿${remain.toFixed(2)}</span></div></div></div><p class="text-[10px] text-center text-slate-400 bg-slate-50 p-2 rounded">เอกสารฉบับนี้ออกโดยระบบอิเล็กทรอนิกส์ ไม่ต้องใช้ลายเซ็น</p></div><p class="mt-4 text-xs font-bold text-blue-600 text-center animate-bounce"><i class="fas fa-camera"></i> แคปหน้าจอนี้เก็บไว้เป็นหลักฐานได้เลยครับ</p>`;
-            Swal.fire({ html: html, showConfirmButton: false, showCloseButton: true, width: 400 });
+            let stu = students.find(s => s.id == studentId);
+            let round = fundRounds.find(r => r.id == roundId);
+            let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+            
+            let paid = payment.paidAmt || 0;
+            
+            // นำข้อมูลไปใส่ใน Modal
+            document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
+            document.getElementById('receiptStuId').innerText = stu.id;
+            document.getElementById('receiptName').innerText = stu.name;
+            document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
+            document.getElementById('receiptRound').innerText = round.title;
+            document.getElementById('receiptDate').innerText = getNow();
+            
+            // สร้าง Ref No จำลองให้ดูน่าเชื่อถือ
+            let randomRef = Math.floor(100000 + Math.random() * 900000);
+            document.getElementById('receiptRef').innerText = `Ref: SSSFN-${roundId}-${randomRef}`;
+
+            // แสดง Modal
+            document.getElementById('receiptModal').classList.remove('hidden');
+            document.getElementById('receiptModal').classList.add('flex');
         }
 
         // ================= TIME LOGS TABLE =================
@@ -5144,5 +5206,79 @@ function scanBase64QR(base64Data) {
     });
 }
     </script>
+    <!-- ================= Modal E-Receipt ================= -->
+<div id="receiptModal" class="fixed inset-0 bg-black/80 z-[9999] hidden flex-col items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative border border-slate-100 transform transition-all duration-300">
+        
+        <!-- ปุ่มกากบาทปิดหน้าต่าง -->
+        <button onclick="document.getElementById('receiptModal').classList.add('hidden')" class="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white w-8 h-8 rounded-full flex items-center justify-center transition z-10">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <!-- Header แบบไล่เฉดสี Modern Gradient -->
+        <div class="bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-center text-white relative">
+            <div class="absolute top-4 left-4 bg-emerald-500/20 text-emerald-400 text-[10px] px-3 py-1 rounded-full font-bold border border-emerald-500/30 flex items-center gap-1">
+                <i class="fas fa-check-circle"></i> VERIFIED
+            </div>
+            
+            <div class="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-3xl font-black mx-auto mb-4 shadow-[0_8px_16px_rgba(5,150,105,0.4)] border-2 border-emerald-400/20">
+                ฿
+            </div>
+            
+            <h2 class="text-xl font-bold tracking-wide mb-1">ใบสำคัญรับเงินอิเล็กทรอนิกส์</h2>
+            <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">SSSFN Financial System</p>
+        </div>
+
+        <!-- ส่วนยอดเงินเด่นๆ (Hero Amount) -->
+        <div class="bg-slate-50 p-6 text-center border-b border-dashed border-slate-200">
+            <p class="text-xs font-bold text-slate-500 mb-1">จำนวนเงินที่ชำระทั้งหมด</p>
+            <div class="text-4xl font-black text-emerald-600 tracking-tight mb-2">
+                <span id="receiptAmt">0.00</span> <span class="text-lg font-bold">บาท</span>
+            </div>
+            <div class="inline-block bg-emerald-50 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-lg border border-emerald-100">
+                (<span id="receiptAmtThai">ศูนย์บาทถ้วน</span>)
+            </div>
+        </div>
+
+        <!-- รายละเอียดข้อมูล (Details List) -->
+        <div class="p-6 space-y-4 text-sm">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-id-card w-4 text-center mr-1"></i> รหัสนักศึกษา</span>
+                <span class="font-bold text-slate-800 font-mono" id="receiptStuId">68xxxxxxxxx</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-user w-4 text-center mr-1"></i> ชื่อ-สกุล</span>
+                <span class="font-bold text-slate-800" id="receiptName">ชื่อ นามสกุล</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-building w-4 text-center mr-1"></i> ห้องเรียน</span>
+                <span class="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded" id="receiptRoom">FN A</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-file-invoice w-4 text-center mr-1"></i> รายการชำระ</span>
+                <span class="font-bold text-slate-800" id="receiptRound">ค่าเทอม</span>
+            </div>
+            <div class="flex justify-between items-center pb-1">
+                <span class="text-slate-500 font-bold text-xs"><i class="far fa-clock w-4 text-center mr-1"></i> วันที่ทำรายการ</span>
+                <span class="font-bold text-slate-800" id="receiptDate">00/00/0000</span>
+            </div>
+        </div>
+
+        <!-- ส่วนท้ายสลิป (Footer & Security Stamp) -->
+        <div class="bg-slate-50 p-5 border-t border-slate-200 flex justify-between items-center">
+            <div>
+                <p class="text-[9px] text-slate-400 font-mono mb-1" id="receiptRef">Ref: SSSFN-PAY-XXXXXXXX</p>
+                <p class="text-[10px] font-bold text-slate-500">ระบบอัตโนมัติ SSSFN</p>
+            </div>
+            <div class="text-right">
+                <div class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-dashed border-emerald-400 flex items-center gap-1">
+                    <i class="fas fa-stamp"></i> อนุมัติแล้ว
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+<!-- ================= End Modal E-Receipt ================= -->
 </body>
 </html>
