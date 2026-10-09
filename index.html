@@ -5206,7 +5206,190 @@ function scanBase64QR(base64Data) {
         img.onerror = () => resolve(null); img.src = base64Data;
     });
 }
+
+// =========================================================================
+// 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (E-Receipt) รุ่นใหม่
+// =========================================================================
+function ArabicNumberToText(Number) {
+    var Number = Number.toString();
+    var parseIntNumber = parseInt(Number);
+    if (Number == 0 || isNaN(parseIntNumber)) return "ศูนย์บาทถ้วน";
+    var textNumber = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า", "สิบ"];
+    var textPos = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
+    var text = "";
+    var numberSplit = Number.split('.');
+    var intNumber = numberSplit[0];
+    var decNumber = numberSplit[1];
+    if (intNumber.length > 7) return "จำนวนเงินเยอะเกินไป";
+    if (parseInt(intNumber) > 0) {
+        for (var i = 0; i < intNumber.length; i++) {
+            var n = intNumber.substring(i, i + 1);
+            if (n != 0) {
+                if (i == intNumber.length - 1 && n == 1 && intNumber.length > 1) text += "เอ็ด";
+                else if (i == intNumber.length - 2 && n == 2) text += "ยี่";
+                else if (i == intNumber.length - 2 && n == 1) text += "";
+                else text += textNumber[n];
+                text += textPos[intNumber.length - i - 1];
+            }
+        }
+        text += "บาท";
+    }
+    if (decNumber && parseInt(decNumber) > 0) {
+        decNumber = decNumber.substring(0, 2);
+        for (var i = 0; i < decNumber.length; i++) {
+            var n = decNumber.substring(i, i + 1);
+            if (n != 0) {
+                if (i == decNumber.length - 1 && n == 1 && decNumber.length > 1) text += "เอ็ด";
+                else if (i == decNumber.length - 2 && n == 2) text += "ยี่";
+                else if (i == decNumber.length - 2 && n == 1) text += "";
+                else text += textNumber[n];
+                text += textPos[decNumber.length - i - 1];
+            }
+        }
+        text += "สตางค์";
+    } else {
+        text += "ถ้วน";
+    }
+    return text;
+}
+
+function printReceipt(roundId, studentId) {
+    let stu = students.find(s => s.id == studentId);
+    let round = fundRounds.find(r => r.id == roundId);
+    let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+    
+    let paid = payment.paidAmt || 0;
+    
+    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
+    document.getElementById('receiptStuId').innerText = stu.id;
+    document.getElementById('receiptName').innerText = stu.name;
+    document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
+    document.getElementById('receiptRound').innerText = round.title;
+    document.getElementById('receiptDate').innerText = getNow();
+    
+    let randomRef = Math.floor(100000 + Math.random() * 900000);
+    document.getElementById('receiptRef').innerText = `Ref: SSSFN-${roundId}-${randomRef}`;
+
+    document.getElementById('receiptModal').classList.remove('hidden');
+    document.getElementById('receiptModal').classList.add('flex');
+}
+
+// =========================================================================
+// 🌟 ฟังก์ชันเปิดหน้าต่างดูข้อมูลโปรไฟล์นักศึกษา (คลิกจากการ์ดหน้าแรก)
+// =========================================================================
+window.openStudentProfileModal = function(studentId) {
+    let stu = students.find(s => s.id === studentId);
+    if (!stu) return;
+
+    let actsPoints = 0;
+    let myActs = activityLogs.filter(l => l.studentId === stu.id);
+    myActs.forEach(log => {
+        let act = appSettings.activities.find(a => a.title === log.activityTitle);
+        if (act && act.points) actsPoints += parseInt(act.points) || 0;
+    });
+    let attCount = stu.att_m || 0; 
+    let totalPoints = actsPoints + (attCount * 10);
+
+    let myPayments = fundPayments.filter(p => p.studentId === stu.id);
+    let financeHtml = '';
+    if (myPayments.length === 0) {
+        financeHtml = '<p class="text-xs text-slate-400 text-center py-4 border-2 border-dashed rounded-lg border-slate-200">ไม่มีประวัติการเรียกเก็บเงิน</p>';
+    } else {
+        myPayments.sort((a,b) => b.roundId - a.roundId).forEach(p => {
+            let r = fundRounds.find(rd => rd.id === p.roundId);
+            if (r) {
+                let isPaid = p.status.includes('จ่ายแล้ว');
+                let remain = r.amt - (p.paidAmt || 0);
+                let badge = isPaid 
+                    ? '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold"><i class="fas fa-check"></i> จ่ายแล้ว</span>'
+                    : (p.paidAmt > 0 
+                        ? `<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold">ผ่อน (ค้าง ฿${remain})</span>` 
+                        : `<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold">ค้าง ฿${r.amt}</span>`);
+                financeHtml += `
+                <div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition px-2 rounded-lg">
+                    <span class="text-xs font-bold text-slate-700 truncate w-2/3" title="${r.title}">${r.title}</span>
+                    <div class="shrink-0">${badge}</div>
+                </div>`;
+            }
+        });
+    }
+
+    let actHtml = '';
+    if (myActs.length === 0) {
+        actHtml = '<p class="text-xs text-slate-400 text-center py-4 border-2 border-dashed rounded-lg border-slate-200">ยังไม่เคยเข้าร่วมกิจกรรม</p>';
+    } else {
+        myActs.reverse().forEach(log => {
+            let isCheckedIn = (log.timeIn && log.timeIn !== '-' && !log.timeIn.includes('จองสิทธิ์'));
+            let actBadge = isCheckedIn
+                ? '<span class="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold"><i class="fas fa-check-circle"></i> ผ่าน</span>'
+                : '<span class="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold"><i class="fas fa-hourglass-half"></i> รอสแกน</span>';
+            
+            actHtml += `
+            <div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition px-2 rounded-lg">
+                <span class="text-xs font-bold text-slate-700 truncate w-3/4" title="${log.activityTitle}">${log.activityTitle}</span>
+                <div class="shrink-0">${actBadge}</div>
+            </div>`;
+        });
+    }
+
+    function getInitials(name) {
+        if(!name) return "??";
+        let cleanName = name.replace(/(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.)/g, '').trim();
+        let parts = cleanName.split(' ');
+        if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return cleanName.substring(0, 2).toUpperCase();
+    }
+
+    let html = `
+    <div class="text-left font-sans">
+        <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-3xl text-white mb-5 flex items-center gap-4 shadow-lg relative overflow-hidden">
+            <i class="fas fa-user-graduate absolute -right-4 -bottom-6 text-8xl text-white opacity-10 transform -rotate-12"></i>
+            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-2xl font-black border-2 border-white/50 shrink-0 z-10 backdrop-blur-sm shadow-inner">
+                ${getInitials(stu.name)}
+            </div>
+            <div class="z-10 flex-1 min-w-0">
+                <h2 class="text-lg font-bold leading-tight mb-1 truncate" title="${stu.name}">${stu.name}</h2>
+                <p class="text-xs text-emerald-100 font-mono truncate">${stu.id}</p>
+                <div class="inline-block mt-1 bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm border border-white/20">
+                    ห้อง ${stu.room}
+                </div>
+            </div>
+            <div class="z-10 text-center bg-white/10 p-2.5 rounded-xl border border-white/20 backdrop-blur-sm shrink-0">
+                <p class="text-[9px] text-emerald-100 mb-0.5 font-bold uppercase tracking-wider">Points</p>
+                <p class="text-2xl font-black text-yellow-300 drop-shadow-md leading-none">${totalPoints}</p>
+            </div>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-bl-full -z-0"></div>
+                <h3 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2 pb-2 border-b border-slate-100 relative z-10">
+                    <div class="w-7 h-7 bg-amber-100 text-amber-500 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-wallet"></i></div>
+                    ประวัติจ่ายเงินกองกลาง
+                </h3>
+                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-1 relative z-10">${financeHtml}</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -z-0"></div>
+                <h3 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2 pb-2 border-b border-slate-100 relative z-10">
+                    <div class="w-7 h-7 bg-blue-100 text-blue-500 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-calendar-check"></i></div>
+                    ประวัติเข้าร่วมกิจกรรม
+                </h3>
+                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-1 relative z-10">${actHtml}</div>
+            </div>
+        </div>
+    </div>`;
+
+    Swal.fire({
+        html: html, showConfirmButton: false, showCloseButton: true, padding: '1rem',
+        customClass: { 
+            popup: 'rounded-[2rem] w-full max-w-md bg-slate-50/80 backdrop-blur-md',
+            closeButton: 'bg-white text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-full w-8 h-8 focus:outline-none shadow-sm transition-colors mt-2 mr-2'
+        }
+    });
+}
     </script>
+    
     <!-- ================= Modal E-Receipt ================= -->
 <div id="receiptModal" class="fixed inset-0 bg-black/80 z-[9999] hidden flex-col items-center justify-center p-4">
     <div class="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative border border-slate-100 transform transition-all duration-300">
