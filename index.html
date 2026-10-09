@@ -4026,63 +4026,66 @@ function toggleQuickRoundStatus() {
     });
 }
 
-        // 🌟 ฟังก์ชันอัปเกรด: กล่องแก้ไขสถานะ (Popup) ตัดหนี้ให้อัตโนมัติ
-        function editPaymentStatus(roundId, studentId) {
-            let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
-            let stu = students.find(s => s.id == studentId); let round = fundRounds.find(rd => rd.id == roundId);
-            if(!payment || !stu || !round) return;
+        // 🌟 กล่องแก้ไขสถานะ (Popup) ที่เพิ่มการบันทึกเวลาประทับ (Timestamp)
+function editPaymentStatus(roundId, studentId) {
+    let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+    let stu = students.find(s => s.id == studentId); 
+    let round = fundRounds.find(rd => rd.id == roundId);
+    if(!payment || !stu || !round) return;
 
-            let statuses = ['ยังไม่ชำระ', 'รอตรวจสอบ', 'จ่ายแล้ว', 'จ่ายแล้ว (เงินสด)', 'ตีกลับ', 'ค้างชำระ (ผ่อน)'];
-            let currentStat = payment.status === 'รอดำเนินการ' ? 'รอตรวจสอบ' : payment.status;
-            let optHtml = statuses.map(st => `<option value="${st}" ${currentStat === st ? 'selected' : ''}>${st}</option>`).join('');
-            
-            Swal.fire({
-                title: `แก้ไขข้อมูล: ${stu.name}`,
-                html: `
-                <div class="text-left space-y-3">
-                    <label class="text-xs font-bold text-slate-500">บิล: ${round.title} (เต็ม ฿${round.amt.toFixed(2)})</label>
-                    <div class="bg-slate-50 p-3 rounded-lg border">
-                        <label class="text-xs font-bold text-slate-500 mb-1 block">เปลี่ยนสถานะ</label>
-                        <select id="edit-p-stat" class="modern-input mb-0 font-bold text-slate-700" onchange="
-                            let amtInput = document.getElementById('edit-p-amt');
-                            // ลูกเล่นใหม่: ถ้าเปลี่ยนสถานะเป็นจ่ายแล้ว ให้เติมตัวเลขยอดเต็มให้อัตโนมัติ
-                            if(this.value === 'จ่ายแล้ว' || this.value === 'จ่ายแล้ว (เงินสด)') {
-                                amtInput.value = ${round.amt};
-                            } else if(this.value === 'ยังไม่ชำระ' || this.value === 'ตีกลับ') {
-                                amtInput.value = 0;
-                            }
-                        ">${optHtml}</select>
-                    </div>
-                   
-                    <div class="bg-slate-50 p-3 rounded-lg border">
-                        <label class="text-xs font-bold text-slate-500 mb-1 block">แก้ไขยอดที่จ่ายมาแล้ว (บาท)</label>
-                        <input type="number" id="edit-p-amt" class="modern-input mb-0 font-bold text-emerald-600" value="${payment.paidAmt || 0}" min="0">
-                    </div>
-                </div>`,
-                showCancelButton: true, confirmButtonText: '💾 บันทึกการแก้ไข', confirmButtonColor: '#059669', cancelButtonText: 'ยกเลิก',
-                preConfirm: () => {
-                    let stat = document.getElementById('edit-p-stat').value;
-                    let amt = parseFloat(document.getElementById('edit-p-amt').value) || 0;
-                    
-                    // ป้องกันแอดมินเผลอพิมพ์เลขผิด: ถ้าตั้งเป็น 'จ่ายแล้ว' บังคับยอดต้องไม่น้อยกว่าบิลเต็ม
-                    if (stat === 'จ่ายแล้ว' || stat === 'จ่ายแล้ว (เงินสด)') {
-                        if (amt < round.amt) amt = round.amt;
+    let statuses = ['ยังไม่ชำระ', 'รอตรวจสอบ', 'จ่ายแล้ว', 'จ่ายแล้ว (เงินสด)', 'ตีกลับ', 'ค้างชำระ (ผ่อน)'];
+    let currentStat = payment.status === 'รอดำเนินการ' ? 'รอตรวจสอบ' : payment.status;
+    let optHtml = statuses.map(st => `<option value="${st}" ${currentStat === st ? 'selected' : ''}>${st}</option>`).join('');
+    
+    Swal.fire({
+        title: `แก้ไขข้อมูล: ${stu.name}`,
+        html: `
+        <div class="text-left space-y-3">
+            <label class="text-xs font-bold text-slate-500">บิล: ${round.title} (เต็ม ฿${round.amt.toFixed(2)})</label>
+            <div class="bg-slate-50 p-3 rounded-lg border">
+                <label class="text-xs font-bold text-slate-500 mb-1 block">เปลี่ยนสถานะ</label>
+                <select id="edit-p-stat" class="modern-input mb-0 font-bold text-slate-700" onchange="
+                    let amtInput = document.getElementById('edit-p-amt');
+                    if(this.value === 'จ่ายแล้ว' || this.value === 'จ่ายแล้ว (เงินสด)') {
+                        amtInput.value = ${round.amt};
+                    } else if(this.value === 'ยังไม่ชำระ' || this.value === 'ตีกลับ') {
+                        amtInput.value = 0;
                     }
-                    return { status: stat, paidAmt: amt };
-                }
-            }).then(r => {
-                if(r.isConfirmed) {
-                    payment.status = r.value.status; 
-                    payment.paidAmt = r.value.paidAmt;
-                    if (r.value.status.includes('จ่ายแล้ว')) payment.paidDate = getNow(); 
-                    
-                    txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${round.title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
-         
-                    saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
-                    Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขสำเร็จ', showConfirmButton:false, timer:1500});
-                }
-            });
+                ">${optHtml}</select>
+            </div>
+            
+            <div class="bg-slate-50 p-3 rounded-lg border">
+                <label class="text-xs font-bold text-slate-500 mb-1 block">แก้ไขยอดที่จ่ายมาแล้ว (บาท)</label>
+                <input type="number" id="edit-p-amt" class="modern-input mb-0 font-bold text-emerald-600" value="${payment.paidAmt || 0}" min="0">
+            </div>
+        </div>`,
+        showCancelButton: true, confirmButtonText: '💾 บันทึกการแก้ไข', confirmButtonColor: '#059669', cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            let stat = document.getElementById('edit-p-stat').value;
+            let amt = parseFloat(document.getElementById('edit-p-amt').value) || 0;
+            
+            if (stat === 'จ่ายแล้ว' || stat === 'จ่ายแล้ว (เงินสด)') {
+                if (amt < round.amt) amt = round.amt;
+            }
+            return { status: stat, paidAmt: amt };
         }
+    }).then(r => {
+        if(r.isConfirmed) {
+            payment.status = r.value.status; 
+            payment.paidAmt = r.value.paidAmt;
+            
+            // 🌟 จุดสำคัญ: ตรวจสอบว่าถ้าสถานะถูกเปลี่ยนเป็น "จ่ายแล้ว" ให้บันทึกเวลาปัจจุบัน
+            if (r.value.status.includes('จ่ายแล้ว')) {
+                payment.paidDate = getNow(); 
+            }
+
+            txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${round.title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+
+            saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขสำเร็จ', showConfirmButton:false, timer:1500});
+        }
+    });
+}
 
         // ================= ADMIN DB =================
         function addRoomAlert() { 
