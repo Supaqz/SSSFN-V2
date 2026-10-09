@@ -3339,8 +3339,22 @@ function keepInputFocused(e) {
     
     let paid = payment.paidAmt || 0;
     
-    // 🌟 ดึงเวลาที่บันทึกไว้ตอนจ่ายเงิน (ถ้าเป็นบิลเก่าที่ยังไม่เคยมีเวลาเก็บไว้ ให้ใช้วันนี้แทน)
-    let displayDate = payment.paidDate ? payment.paidDate : getNow();
+    // 🌟 ดึงเวลาที่ระบบบันทึกไว้ใน paidDate ถ้าไม่มี ให้ใช้ประวัติ (txHistory) แทน ถ้ายังไม่มีอีก ถึงจะใช้วันนี้
+    let displayDate = "-";
+    if (payment.paidDate && payment.paidDate.trim() !== '') {
+        displayDate = payment.paidDate; // ใช้เวลาที่มีใน payment
+    } else {
+        // ค้นหาเวลาจากประวัติการทำรายการ (txHistory) ที่ตรงกับนักศึกษาคนนี้ และบิลนี้
+        let historyLog = txHistory.find(tx => tx.name.includes(`(${round.title}): ${stu.name}`) && tx.amt === paid);
+        if (historyLog) {
+            displayDate = historyLog.date; // ดึงเวลาจากประวัติ
+            payment.paidDate = historyLog.date; // สลักเวลาไว้ใน payment เผื่อรอบหน้า
+            saveToLocal(false);
+            autoSyncToGS();
+        } else {
+             displayDate = getNow(); // ท่าสุดท้าย ถ้าไม่มีประวัติจริงๆ
+        }
+    }
     
     document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
@@ -3348,10 +3362,13 @@ function keepInputFocused(e) {
     document.getElementById('receiptName').innerText = stu.name;
     document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
     document.getElementById('receiptRound').innerText = round.title;
-    document.getElementById('receiptDate').innerText = displayDate; // 🌟 ตรงนี้เปลี่ยนให้ใช้เวลาที่ดึงมา
     
-    let randomRef = Math.floor(100000 + Math.random() * 900000);
-    document.getElementById('receiptRef').innerText = `Ref: SSSFN-${roundId}-${randomRef}`;
+    // 🌟 อัปเดตเวลาลงใน HTML
+    document.getElementById('receiptDate').innerText = displayDate; 
+    
+    // สร้างเลข Ref อ้างอิง
+    let refNum = payment.paidDate ? payment.paidDate.replace(/\D/g, '').substring(0, 8) : Math.floor(10000000 + Math.random() * 90000000);
+    document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${refNum}`;
 
     document.getElementById('receiptModal').classList.remove('hidden');
     document.getElementById('receiptModal').classList.add('flex');
@@ -3975,8 +3992,6 @@ function toggleQuickRoundStatus() {
                             if(currentPayment) {
                                 currentPayment.paidAmt = (currentPayment.paidAmt || 0) + currentBillPay;
                                 currentPayment.status = (currentPayment.paidAmt >= round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
-                                
-                                // 🌟 เพิ่มบรรทัดนี้ลงไป เพื่อบันทึกเวลาที่กดยืนยัน
                                 currentPayment.paidDate = getNow(); 
                                 
                                 txHistory.unshift({ date: getNow(), name: `รับเงิน (${round.title}): ${stu.name}`, type: 'ระบบ', amt: currentBillPay, user: currentUsername });
@@ -4059,8 +4074,6 @@ function toggleQuickRoundStatus() {
                 if(r.isConfirmed) {
                     payment.status = r.value.status; 
                     payment.paidAmt = r.value.paidAmt;
-                    
-                    // 🌟 เพิ่มบรรทัดนี้: ถ้าแอดมินเปลี่ยนสถานะเป็น "จ่ายแล้ว" ให้บันทึกเวลา ณ ตอนนั้นเลย
                     if (r.value.status.includes('จ่ายแล้ว')) payment.paidDate = getNow(); 
                     
                     txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${round.title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
