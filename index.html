@@ -5276,7 +5276,7 @@ function printReceipt(roundId, studentId) {
 }
 
 // =========================================================================
-// 🌟 ฟังก์ชันเปิดหน้าต่างดูข้อมูลโปรไฟล์นักศึกษา (คลิกจากการ์ดหน้าแรก)
+// 🌟 ฟังก์ชันเปิดหน้าต่างดูข้อมูลโปรไฟล์นักศึกษา (Ultra-Modern Style)
 // =========================================================================
 window.openStudentProfileModal = function(studentId) {
     let stu = students.find(s => s.id === studentId);
@@ -5294,7 +5294,7 @@ window.openStudentProfileModal = function(studentId) {
     let myPayments = fundPayments.filter(p => p.studentId === stu.id);
     let financeHtml = '';
     if (myPayments.length === 0) {
-        financeHtml = '<p class="text-xs text-slate-400 text-center py-4 border-2 border-dashed rounded-lg border-slate-200">ไม่มีประวัติการเรียกเก็บเงิน</p>';
+        financeHtml = '<div class="text-center py-6 bg-slate-50 rounded-2xl"><i class="fas fa-box-open text-slate-300 text-2xl mb-2"></i><p class="text-xs text-slate-400 font-bold">ไม่มีประวัติการเรียกเก็บเงิน</p></div>';
     } else {
         myPayments.sort((a,b) => b.roundId - a.roundId).forEach(p => {
             let r = fundRounds.find(rd => rd.id === p.roundId);
@@ -5302,13 +5302,16 @@ window.openStudentProfileModal = function(studentId) {
                 let isPaid = p.status.includes('จ่ายแล้ว');
                 let remain = r.amt - (p.paidAmt || 0);
                 let badge = isPaid 
-                    ? '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold"><i class="fas fa-check"></i> จ่ายแล้ว</span>'
+                    ? '<span class="bg-emerald-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm"><i class="fas fa-check"></i> จ่ายแล้ว</span>'
                     : (p.paidAmt > 0 
-                        ? `<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold">ผ่อน (ค้าง ฿${remain})</span>` 
-                        : `<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold">ค้าง ฿${r.amt}</span>`);
+                        ? `<span class="bg-amber-400 text-amber-900 px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่อน (ค้าง ฿${remain})</span>` 
+                        : `<span class="bg-rose-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ค้าง ฿${r.amt}</span>`);
                 financeHtml += `
-                <div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition px-2 rounded-lg">
-                    <span class="text-xs font-bold text-slate-700 truncate w-2/3" title="${r.title}">${r.title}</span>
+                <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1">
+                    <div class="flex-1 min-w-0 pr-3">
+                        <p class="text-sm font-bold text-slate-800 truncate" title="${r.title}">${r.title}</p>
+                        <p class="text-[10px] text-slate-400 font-mono">฿${r.amt.toFixed(2)}</p>
+                    </div>
                     <div class="shrink-0">${badge}</div>
                 </div>`;
             }
@@ -5317,18 +5320,21 @@ window.openStudentProfileModal = function(studentId) {
 
     let actHtml = '';
     if (myActs.length === 0) {
-        actHtml = '<p class="text-xs text-slate-400 text-center py-4 border-2 border-dashed rounded-lg border-slate-200">ยังไม่เคยเข้าร่วมกิจกรรม</p>';
+        actHtml = '<div class="text-center py-6 bg-slate-50 rounded-2xl"><i class="fas fa-calendar-times text-slate-300 text-2xl mb-2"></i><p class="text-xs text-slate-400 font-bold">ยังไม่เคยเข้าร่วมกิจกรรม</p></div>';
     } else {
         myActs.reverse().forEach(log => {
             let isCheckedIn = (log.timeIn && log.timeIn !== '-' && !log.timeIn.includes('จองสิทธิ์'));
             let actBadge = isCheckedIn
-                ? '<span class="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold"><i class="fas fa-check-circle"></i> ผ่าน</span>'
-                : '<span class="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-bold"><i class="fas fa-hourglass-half"></i> รอสแกน</span>';
+                ? '<div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center"><i class="fas fa-check"></i></div>'
+                : '<div class="w-8 h-8 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center"><i class="fas fa-clock"></i></div>';
             
             actHtml += `
-            <div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition px-2 rounded-lg">
-                <span class="text-xs font-bold text-slate-700 truncate w-3/4" title="${log.activityTitle}">${log.activityTitle}</span>
-                <div class="shrink-0">${actBadge}</div>
+            <div class="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1">
+                ${actBadge}
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-800 truncate" title="${log.activityTitle}">${log.activityTitle}</p>
+                    <p class="text-[10px] text-slate-400">${isCheckedIn ? 'ผ่านกิจกรรมแล้ว' : 'รอยืนยันการเข้าร่วม'}</p>
+                </div>
             </div>`;
         });
     }
@@ -5342,127 +5348,150 @@ window.openStudentProfileModal = function(studentId) {
     }
 
     let html = `
-    <div class="text-left font-sans">
-        <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-3xl text-white mb-5 flex items-center gap-4 shadow-lg relative overflow-hidden">
-            <i class="fas fa-user-graduate absolute -right-4 -bottom-6 text-8xl text-white opacity-10 transform -rotate-12"></i>
-            <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-2xl font-black border-2 border-white/50 shrink-0 z-10 backdrop-blur-sm shadow-inner">
-                ${getInitials(stu.name)}
-            </div>
-            <div class="z-10 flex-1 min-w-0">
-                <h2 class="text-lg font-bold leading-tight mb-1 truncate" title="${stu.name}">${stu.name}</h2>
-                <p class="text-xs text-emerald-100 font-mono truncate">${stu.id}</p>
-                <div class="inline-block mt-1 bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm border border-white/20">
-                    ห้อง ${stu.room}
+    <div class="text-left font-sans relative">
+        <!-- Profile Hero Section -->
+        <div class="mb-6 relative z-10 text-center pt-4">
+            <div class="relative inline-block mb-3">
+                <div class="w-24 h-24 bg-gradient-to-tr from-slate-800 to-slate-600 text-white rounded-[2rem] flex items-center justify-center text-4xl font-black shadow-2xl mx-auto rotate-3 hover:rotate-0 transition-transform duration-300 border-4 border-white">
+                    ${getInitials(stu.name)}
+                </div>
+                <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-md">
+                    ACTIVE
                 </div>
             </div>
-            <div class="z-10 text-center bg-white/10 p-2.5 rounded-xl border border-white/20 backdrop-blur-sm shrink-0">
-                <p class="text-[9px] text-emerald-100 mb-0.5 font-bold uppercase tracking-wider">Points</p>
-                <p class="text-2xl font-black text-yellow-300 drop-shadow-md leading-none">${totalPoints}</p>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">${stu.name}</h2>
+            <div class="mt-2 inline-flex items-center gap-2 bg-slate-100 rounded-full px-4 py-1.5 border border-slate-200">
+                <span class="text-xs font-mono text-slate-600 font-bold">${stu.id}</span>
+                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                <span class="text-xs text-slate-500 font-bold">ห้อง ${stu.room}</span>
             </div>
         </div>
-        <div class="space-y-4">
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-bl-full -z-0"></div>
-                <h3 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2 pb-2 border-b border-slate-100 relative z-10">
-                    <div class="w-7 h-7 bg-amber-100 text-amber-500 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-wallet"></i></div>
-                    ประวัติจ่ายเงินกองกลาง
-                </h3>
-                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-1 relative z-10">${financeHtml}</div>
+
+        <!-- Points Card -->
+        <div class="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl p-5 mb-6 flex justify-between items-center text-white shadow-[0_10px_20px_rgba(16,185,129,0.3)] relative overflow-hidden">
+            <i class="fas fa-award absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
+            <div class="relative z-10">
+                <p class="text-[10px] text-emerald-100 uppercase tracking-widest font-bold mb-1">Total Score</p>
+                <p class="text-4xl font-black leading-none drop-shadow-md">${totalPoints}</p>
             </div>
-            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -z-0"></div>
-                <h3 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2 pb-2 border-b border-slate-100 relative z-10">
-                    <div class="w-7 h-7 bg-blue-100 text-blue-500 rounded-lg flex items-center justify-center text-xs"><i class="fas fa-calendar-check"></i></div>
-                    ประวัติเข้าร่วมกิจกรรม
-                </h3>
-                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-1 relative z-10">${actHtml}</div>
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl backdrop-blur-sm border border-white/30 relative z-10">
+                <i class="fas fa-trophy text-yellow-300"></i>
+            </div>
+        </div>
+
+        <!-- Bento Grid Sections -->
+        <div class="space-y-4">
+            <!-- Finance Section -->
+            <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <div class="w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xs"><i class="fas fa-wallet"></i></div>
+                        ประวัติการเงิน
+                    </h3>
+                </div>
+                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${financeHtml}</div>
+            </div>
+
+            <!-- Activity Section -->
+            <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <div class="w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xs"><i class="fas fa-flag"></i></div>
+                        กิจกรรมที่เข้าร่วม
+                    </h3>
+                </div>
+                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${actHtml}</div>
             </div>
         </div>
     </div>`;
 
     Swal.fire({
-        html: html, showConfirmButton: false, showCloseButton: true, padding: '1rem',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        padding: '1.5rem',
+        background: '#f8fafc',
         customClass: { 
-            popup: 'rounded-[2rem] w-full max-w-md bg-slate-50/80 backdrop-blur-md',
-            closeButton: 'bg-white text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-full w-8 h-8 focus:outline-none shadow-sm transition-colors mt-2 mr-2'
+            popup: 'rounded-[2.5rem] w-full max-w-md shadow-2xl',
+            closeButton: 'bg-white text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full w-10 h-10 focus:outline-none shadow-md transition-all mt-4 mr-4 absolute z-50'
         }
     });
 }
     </script>
-    
-    <!-- ================= Modal E-Receipt ================= -->
-<div id="receiptModal" class="fixed inset-0 bg-black/80 z-[9999] hidden flex-col items-center justify-center p-4">
-    <div class="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative border border-slate-100 transform transition-all duration-300">
+
+    <!-- ================= Ultra-Modern E-Receipt ================= -->
+<div id="receiptModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex-col items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-[#f1f5f9] rounded-[2.5rem] overflow-hidden shadow-2xl relative transform transition-all duration-300">
         
         <!-- ปุ่มกากบาทปิดหน้าต่าง -->
-        <button onclick="document.getElementById('receiptModal').classList.add('hidden')" class="absolute top-4 right-4 bg-black/20 hover:bg-black/40 text-white w-8 h-8 rounded-full flex items-center justify-center transition z-10">
+        <button onclick="document.getElementById('receiptModal').classList.add('hidden')" class="absolute top-4 right-4 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white w-8 h-8 rounded-full flex items-center justify-center transition z-50">
             <i class="fas fa-times"></i>
         </button>
 
-        <!-- Header แบบไล่เฉดสี Modern Gradient -->
-        <div class="bg-gradient-to-br from-slate-900 to-slate-800 p-8 text-center text-white relative">
-            <div class="absolute top-4 left-4 bg-emerald-500/20 text-emerald-400 text-[10px] px-3 py-1 rounded-full font-bold border border-emerald-500/30 flex items-center gap-1">
-                <i class="fas fa-check-circle"></i> VERIFIED
+        <!-- ส่วนหัว (Header Card) สีเขียวมรกต -->
+        <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-8 pb-12 text-center text-white relative rounded-b-[2.5rem] shadow-lg z-10">
+            <!-- ลายน้ำพื้นหลัง -->
+            <i class="fas fa-shield-check absolute -right-6 -top-6 text-8xl opacity-10"></i>
+            
+            <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-500 text-3xl font-black mx-auto mb-4 shadow-lg rotate-3">
+                <i class="fas fa-check"></i>
             </div>
             
-            <div class="w-16 h-16 bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-3xl font-black mx-auto mb-4 shadow-[0_8px_16px_rgba(5,150,105,0.4)] border-2 border-emerald-400/20">
-                ฿
-            </div>
-            
-            <h2 class="text-xl font-bold tracking-wide mb-1">ใบสำคัญรับเงินอิเล็กทรอนิกส์</h2>
-            <p class="text-[10px] text-slate-400 font-mono tracking-widest uppercase">SSSFN Financial System</p>
-        </div>
-
-        <!-- ส่วนยอดเงินเด่นๆ (Hero Amount) -->
-        <div class="bg-slate-50 p-6 text-center border-b border-dashed border-slate-200">
-            <p class="text-xs font-bold text-slate-500 mb-1">จำนวนเงินที่ชำระทั้งหมด</p>
-            <div class="text-4xl font-black text-emerald-600 tracking-tight mb-2">
-                <span id="receiptAmt">0.00</span> <span class="text-lg font-bold">บาท</span>
-            </div>
-            <div class="inline-block bg-emerald-50 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-lg border border-emerald-100">
-                (<span id="receiptAmtThai">ศูนย์บาทถ้วน</span>)
+            <p class="text-emerald-100 text-[10px] font-bold tracking-widest uppercase mb-1">Payment Successful</p>
+            <h2 class="text-4xl font-black tracking-tight mb-2">฿<span id="receiptAmt">0.00</span></h2>
+            <div class="inline-block bg-black/10 backdrop-blur-sm text-emerald-50 text-[10px] font-bold px-4 py-1.5 rounded-full border border-white/20">
+                <span id="receiptAmtThai">ศูนย์บาทถ้วน</span>
             </div>
         </div>
 
-        <!-- รายละเอียดข้อมูล (Details List) -->
-        <div class="p-6 space-y-4 text-sm">
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-id-card w-4 text-center mr-1"></i> รหัสนักศึกษา</span>
-                <span class="font-bold text-slate-800 font-mono" id="receiptStuId">68xxxxxxxxx</span>
-            </div>
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-user w-4 text-center mr-1"></i> ชื่อ-สกุล</span>
-                <span class="font-bold text-slate-800" id="receiptName">ชื่อ นามสกุล</span>
-            </div>
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-building w-4 text-center mr-1"></i> ห้องเรียน</span>
-                <span class="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded" id="receiptRoom">FN A</span>
-            </div>
-            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <span class="text-slate-500 font-bold text-xs"><i class="fas fa-file-invoice w-4 text-center mr-1"></i> รายการชำระ</span>
-                <span class="font-bold text-slate-800" id="receiptRound">ค่าเทอม</span>
-            </div>
-            <div class="flex justify-between items-center pb-1">
-                <span class="text-slate-500 font-bold text-xs"><i class="far fa-clock w-4 text-center mr-1"></i> วันที่ทำรายการ</span>
-                <span class="font-bold text-slate-800" id="receiptDate">00/00/0000</span>
-            </div>
-        </div>
+        <!-- รายละเอียดสลิป (Body) -->
+        <div class="p-6 pt-8 bg-white relative -mt-6 rounded-[2.5rem] shadow-sm z-0">
+            <div class="space-y-4 text-sm px-2">
+                <div class="flex justify-between items-end border-b border-slate-100 pb-3">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">รหัสนักศึกษา</p>
+                        <p class="font-mono font-bold text-slate-800 text-base" id="receiptStuId">68xxxxxxxxx</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">ห้อง</p>
+                        <p class="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg text-xs" id="receiptRoom">FN A</p>
+                    </div>
+                </div>
+                
+                <div class="border-b border-slate-100 pb-3">
+                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">ชื่อ - นามสกุล</p>
+                    <p class="font-bold text-slate-800 text-base" id="receiptName">ชื่อ นามสกุล</p>
+                </div>
 
-        <!-- ส่วนท้ายสลิป (Footer & Security Stamp) -->
-        <div class="bg-slate-50 p-5 border-t border-slate-200 flex justify-between items-center">
-            <div>
-                <p class="text-[9px] text-slate-400 font-mono mb-1" id="receiptRef">Ref: SSSFN-PAY-XXXXXXXX</p>
-                <p class="text-[10px] font-bold text-slate-500">ระบบอัตโนมัติ SSSFN</p>
-            </div>
-            <div class="text-right">
-                <div class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-dashed border-emerald-400 flex items-center gap-1">
-                    <i class="fas fa-stamp"></i> อนุมัติแล้ว
+                <div class="border-b border-slate-100 pb-3">
+                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">รายการชำระ</p>
+                    <p class="font-bold text-slate-800 text-base" id="receiptRound">ค่าเทอม</p>
+                </div>
+
+                <div class="pb-1">
+                    <p class="text-[10px] text-slate-400 font-bold mb-1 uppercase tracking-wider">วันที่บันทึกรายการ</p>
+                    <p class="font-bold text-slate-800 text-sm" id="receiptDate">00/00/0000</p>
                 </div>
             </div>
+        </div>
+
+        <!-- รอยปรุแยกส่วนท้ายแบบตั๋ว -->
+        <div class="relative flex justify-between items-center bg-white px-2">
+            <div class="w-4 h-8 bg-[#f1f5f9] rounded-r-full absolute left-0"></div>
+            <div class="w-full border-t-2 border-dashed border-slate-200 mx-4 mt-2"></div>
+            <div class="w-4 h-8 bg-[#f1f5f9] rounded-l-full absolute right-0"></div>
+        </div>
+
+        <!-- ส่วนท้ายบาร์โค้ด -->
+        <div class="bg-white p-6 text-center rounded-b-[2.5rem]">
+            <i class="fas fa-barcode text-5xl text-slate-300 block mb-2 transform scale-x-150"></i>
+            <p class="text-[10px] text-slate-400 font-mono tracking-widest" id="receiptRef">SSSFN-PAY-XXXXXXXX</p>
+            <p class="text-[9px] font-bold text-slate-400 mt-3 uppercase tracking-widest">ระบบบริการนักศึกษาอัตโนมัติ</p>
         </div>
         
     </div>
 </div>
-<!-- ================= End Modal E-Receipt ================= -->
+<!-- ================= End Ultra-Modern E-Receipt ================= -->
+    
 </body>
 </html>
