@@ -1781,10 +1781,15 @@ function renderHomeDirectory() {
                }
 
                let btnAction = '';
+               
+               // แสดงปุ่มใบเสร็จ ถ้ามียอดจ่ายแล้ว
                if (p.status.includes('จ่ายแล้ว') && p.paidAmt > 0) {
-                   btnAction = `<button onclick="printReceipt(${r.id}, '${s.id}')" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-receipt mr-1"></i> ใบเสร็จ</button>`;
-               } else if (p.slipUrl) {
-                   btnAction = `<button onclick="viewSlipPopup('${p.slipUrl}')" class="text-xs bg-white text-slate-600 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-image mr-1"></i> ดูสลิป</button>`;
+                   btnAction += `<button onclick="printReceipt(${r.id}, '${s.id}')" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-receipt mr-1"></i> ใบเสร็จ</button>`;
+               } 
+               
+               // แสดงปุ่มดูสลิป ถ้ามี URL สลิปบันทึกอยู่ (เปลี่ยนมาใช้ if เดี่ยวๆ และ +=)
+               if (p.slipUrl && p.slipUrl !== '') {
+                   btnAction += `<button onclick="viewSlipPopup('${p.slipUrl}')" class="text-xs bg-white text-slate-600 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 font-bold transition shadow-sm whitespace-nowrap ml-1"><i class="fas fa-image mr-1"></i> ดูสลิป</button>`;
                }
 
                return `
