@@ -1516,42 +1516,42 @@ function renderHomeDirectory() {
     const isGuest = (currentUserRole === 'guest');
 
     let titleContainer = document.getElementById('home-title-container');
-        // 🌟 ปรับปรุงการค้นหากล่องยอดเงินให้เจอในดีไซน์ใหม่ (Playful Style)
-        let fundCard = document.getElementById('home-bal-pool-fund')?.closest('.playful-card') || document.getElementById('home-bal-pool-fund')?.closest('.bg-white');
-        
-        // 🌟 บังคับซ่อน/แสดง แบบเด็ดขาด
-        if (isGuest) {
-            if (fundCard) fundCard.style.cssText = 'display: none !important;';
-            if (titleContainer) titleContainer.style.cssText = 'display: none !important;';
-            if (roomFilterEl) roomFilterEl.style.display = 'none';
-        } else {
-            if (fundCard) fundCard.style.cssText = 'display: flex !important;';
-            if (titleContainer) titleContainer.style.cssText = 'display: flex !important;';
-            if (roomFilterEl) roomFilterEl.style.display = 'block';
-        }
+    let fundCard = document.getElementById('home-bal-pool-fund')?.closest('.playful-card') || document.getElementById('home-bal-pool-fund')?.closest('.bg-white');
+    
+    // 🌟 บังคับซ่อน/แสดง แบบเด็ดขาด
+    if (isGuest) {
+        if (fundCard) fundCard.style.cssText = 'display: none !important;';
+        if (titleContainer) titleContainer.style.cssText = 'display: none !important;';
+        if (roomFilterEl) roomFilterEl.style.display = 'none';
+    } else {
+        if (fundCard) fundCard.style.cssText = 'display: flex !important;';
+        if (titleContainer) titleContainer.style.cssText = 'display: flex !important;';
+        if (roomFilterEl) roomFilterEl.style.display = 'block';
+    }
 
-        // 🌟 โหมดนักศึกษา หรือ ผู้เยี่ยมชม
-        if (isGuest) {
+    // 🌟 โหมดนักศึกษา หรือ ผู้เยี่ยมชม
+    if (isGuest) {
         // 1. ถ้ายังไม่ได้ล็อกอิน (สร้างหน้าจอล็อกอินแบบ RMUTI SAMS)
         if (!window.currentGuestStuId) {
-            // 🌟 ซ่อน Header, Sidebar และแถบมือถือ ให้หมด เพื่อความเหมือน
+            // ซ่อนองค์ประกอบที่ไม่จำเป็นสำหรับหน้าล็อกอิน
             document.querySelector('aside').classList.add('hidden');
             document.querySelector('header').classList.add('hidden');
             
-            // 🌟 คำสั่งซ่อนแถบ 3 ขีดในมือถือ
             let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0');
             if(mobileNav) mobileNav.classList.add('hidden');
             
             document.querySelector('main').classList.remove('pt-16', 'md:pt-0');
-            
-            // 🌟 เปลี่ยนพื้นหลังของ Body ให้เป็นสีเทาเข้มเหมือนในรูป
             document.body.className = "flex h-screen overflow-hidden bg-[#222222]";
+
+            // ควบคุม Footer
+            document.getElementById('footer-credit-login')?.classList.remove('hidden');
+            document.getElementById('footer-credit-main')?.classList.add('hidden');
 
             grid.className = "block w-full h-full flex items-center justify-center"; 
             grid.innerHTML = ''; 
             empty.classList.remove('hidden');
             
-            // 🌟 สร้าง Layout กล่องล็อกอินแบบ RMUTI SAMS (ซ้ายดำ ขาวขวา)
+            // สร้าง Layout กล่องล็อกอิน
             empty.innerHTML = `
             <div class="w-full h-full flex items-center justify-center p-4 relative">
                 <div class="w-full max-w-3xl bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-auto md:h-[440px] relative z-10 my-auto">
@@ -1600,13 +1600,11 @@ function renderHomeDirectory() {
                         <h2 class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-1">SSSFN</h2>
                         <p class="text-slate-400 font-bold text-[10px] tracking-widest uppercase">Student Service System</p>
                     </div>
-                    
                 </div>
-                <p class="absolute bottom-4 w-full text-center text-[10px] text-slate-500 font-mono tracking-widest z-0 left-0">By SSSFN Information Technology</p>
             </div>
             `;
             
-            // 🌟 สั่งให้วาดปุ่ม Google
+            // สั่งให้วาดปุ่ม Google
             setTimeout(() => {
                 if(typeof google !== 'undefined' && google.accounts) {
                     google.accounts.id.initialize({
@@ -1620,189 +1618,257 @@ function renderHomeDirectory() {
                 }
             }, 300);
 
-            return; // 🌟 หยุดการทำงานฟังก์ชันแค่นี้เลย
-        }
-       // 2. ถ้าล็อกอินแล้ว (ดึงหน้าตากลับมาให้ปกติ โชว์โปรไฟล์ + ยอดค้าง)
-        let asideEl = document.querySelector('aside');
-        let headerEl = document.querySelector('header');
-        let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0'); // ดึงมือถือกลับมา
-        
-        if(asideEl) asideEl.classList.remove('hidden');
-        if(headerEl) headerEl.classList.remove('hidden');
-        if(mobileNav) mobileNav.classList.remove('hidden');
-        
-        let mainEl = document.querySelector('main');
-        if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
-        
-        document.body.className = "flex h-screen overflow-hidden bg-[#f0fdf4] text-slate-800"; // คืนสีพื้นหลังปกติ
-
-        empty.classList.add('hidden'); 
-        grid.className = "block max-w-2xl mx-auto w-full";
-        
-        // 🌟 เปลี่ยนชื่อ Header ด้านบนสุดให้เป็น "โปรไฟล์ส่วนตัว"
-        let topHeaderTitle = document.querySelector('header h2');
-        if (topHeaderTitle && currentView === 'home') {
-            topHeaderTitle.innerHTML = '<i class="far fa-user text-emerald-500 mr-2"></i> โปรไฟล์ส่วนตัว';
-            let sidebarIcon = document.getElementById('sidebar-icon');
-            if(sidebarIcon) sidebarIcon.className = "fas fa-sign-out-alt text-rose-300 text-lg group-hover:text-rose-500 transition";
-        }
-        let s = students.find(x => x.id === window.currentGuestStuId);
-        if(!s) return guestLogout();
-
-        let sbName = document.getElementById('sidebar-name'); let sbId = document.getElementById('sidebar-id'); let sbAvatar = document.getElementById('sidebar-avatar');
-        if(sbName) sbName.innerText = s.name.replace(/(นาย|นางสาว|นาง)/g, '').trim(); if(sbId) sbId.innerText = s.id; if(sbAvatar) { sbAvatar.innerText = getInitials(s.name); sbAvatar.className = "w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md"; }
-
-        // ประมวลผลแจ้งเตือนต่างๆ (ยอดหนี้, โหวต, กิจกรรม)
-        let alerts = []; let totalDebt = 0;
-        
-        // 1. แจ้งเตือน: ค้างชำระเงิน, ผ่อนชำระ และ สถานะสลิปที่รอตรวจสอบ
-        fundPayments.filter(p => p.studentId === s.id).forEach(p => {
-            let r = fundRounds.find(rd => rd.id === p.roundId);
-            if (r && r.isOpen !== false) {
-                let remain = r.amt - (p.paidAmt || 0); 
-                
-                // กรณีที่ 1: ยังไม่ชำระ, ค้างชำระ หรือ ผ่อนชำระ (มียอดหนี้เหลือ)
-                if ((p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ') && remain > 0) {
-                    totalDebt += remain;
-                    let statusText = p.status === 'ตีกลับ' ? 'สลิปถูกตีกลับ (โปรดส่งใหม่)' : (p.paidAmt > 0 ? 'ค้างชำระ (ผ่อน)' : 'ค้างชำระ');
-                    alerts.push(`
-                    <div class="relative bg-white border border-slate-200 border-l-4 border-l-rose-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                        <div class="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
-                        <div class="flex items-center gap-4 relative z-10 w-full">
-                            <div class="bg-rose-100 text-rose-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-file-invoice-dollar"></i></div>
-                            <div class="flex-1">
-                                <p class="text-rose-700 font-bold text-sm mb-0.5">${statusText}: ${r.title}</p>
-                                <p class="text-xs text-slate-500">ยอดค้าง <span class="font-bold text-rose-600">฿${remain.toFixed(2)}</span> (เต็ม: ฿${r.amt})</p>
-                            </div>
-                            <button onclick="openPublicSlipModal(${r.id})" class="text-xs bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 font-bold transition shadow-md whitespace-nowrap"><i class="fas fa-qrcode mr-1"></i> ชำระเงิน</button>
-                        </div>
-                    </div>`);
-                } 
-                // กรณีที่ 2: รอตรวจสอบ หรือ รอดำเนินการ (แสดงแถบสีฟ้าแจ้งสถานะ)
-                else if (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ') {
-                    alerts.push(`
-                    <div class="relative bg-white border border-slate-200 border-l-4 border-l-blue-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                        <div class="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
-                        <div class="flex items-center gap-4 relative z-10 w-full">
-                            <div class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-hourglass-half"></i></div>
-                            <div class="flex-1">
-                                <p class="text-blue-700 font-bold text-sm mb-0.5">รอตรวจสอบสลิป: ${r.title}</p>
-                                <p class="text-xs text-slate-500">สถานะ: <span class="font-bold text-blue-600">กำลังรอเหรัญญิกตรวจสอบ</span></p>
-                            </div>
-                            <button onclick="viewSlipPopup('${p.slipUrl}')" class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-image mr-1"></i> ดูสลิป</button>
-                        </div>
-                    </div>`);
-                }
-            }
-        });
-
-        // 🌟 2. แจ้งเตือน: กระดานโหวตใหม่ที่ยังไม่ได้โหวต (สีฟ้า/Sky)
-        if (appSettings.polls) {
-            appSettings.polls.forEach(poll => {
-                if (poll.isOpen) {
-                    let hasVoted = false;
-                    poll.options.forEach(opt => { if (opt.votes && opt.votes.includes(s.id)) hasVoted = true; });
-                    if (!hasVoted) {
-                        alerts.push(`
-                        <div class="relative bg-white border border-slate-200 border-l-4 border-l-sky-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                            <div class="absolute top-0 right-0 w-16 h-16 bg-sky-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
-                            <div class="flex items-center gap-4 relative z-10 w-full">
-                                <div class="bg-sky-100 text-sky-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-poll"></i></div>
-                                <div class="flex-1">
-                                    <p class="text-sky-700 font-bold text-sm mb-0.5">กระทู้โหวตใหม่!</p>
-                                    <p class="text-xs text-slate-500 line-clamp-1">${poll.question}</p>
-                                </div>
-                                <button onclick="switchPage('voting')" class="text-xs bg-sky-500 text-white px-4 py-2 rounded-lg hover:bg-sky-600 font-bold transition shadow-md whitespace-nowrap">ไปโหวตเลย</button>
-                            </div>
-                        </div>`);
-                    }
-                }
-            });
-        }
-
-        // 🌟 3. แจ้งเตือน: กิจกรรมใหม่ที่เปิดรับสมัคร (สีม่วง/Purple)
-        if (appSettings.activities) {
-            appSettings.activities.forEach(act => {
-                if (act.isOpen && act.status !== 'รออนุมัติ') {
-                    let hasRegistered = activityLogs.find(l => l.studentId === s.id && l.activityTitle === act.title);
-                    if (!hasRegistered) {
-                        alerts.push(`
-                        <div class="relative bg-white border border-slate-200 border-l-4 border-l-purple-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                            <div class="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
-                            <div class="flex items-center gap-4 relative z-10 w-full">
-                                <div class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-calendar-star"></i></div>
-                                <div class="flex-1">
-                                    <p class="text-purple-700 font-bold text-sm mb-0.5">เปิดรับสมัครกิจกรรม!</p>
-                                    <p class="text-xs text-slate-500 line-clamp-1">${act.title}</p>
-                                </div>
-                                <button onclick="switchPage('activity')" class="text-xs bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 font-bold transition shadow-md whitespace-nowrap">ดูรายละเอียด</button>
-                            </div>
-                        </div>`);
-                    }
-                }
-            });
+            return; // หยุดการทำงานถ้าอยู่ในหน้าล็อกอิน
         }
         
-        let totalDebtHtml = totalDebt > 0 ? `<div class="mt-6 pt-5 border-t border-slate-200 flex justify-between items-center"><span class="font-bold text-slate-600">รวมยอดค้างชำระทั้งหมด</span><span class="font-bold text-rose-600 text-2xl tracking-tight">฿${totalDebt.toFixed(2)}</span></div>` : '';
+       // 2. ถ้าล็อกอินแล้ว (โหมดนักศึกษา)
+       let asideEl = document.querySelector('aside');
+       let headerEl = document.querySelector('header');
+       let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0'); 
+       
+       if(asideEl) asideEl.classList.remove('hidden');
+       if(headerEl) headerEl.classList.remove('hidden');
+       if(mobileNav) mobileNav.classList.remove('hidden');
+       
+       let mainEl = document.querySelector('main');
+       if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
+       
+       document.body.className = "flex h-screen overflow-hidden bg-[#f0fdf4] text-slate-800";
 
-        let notificationCard = alerts.length > 0 ? `
-            <div class="bg-slate-50/50 rounded-3xl border border-slate-200 shadow-sm p-6 mb-6">
-                <h3 class="font-bold text-slate-800 mb-5 flex items-center"><i class="fas fa-bell text-amber-500 mr-2 text-lg animate-bounce"></i> การแจ้งเตือนด่วนของคุณ</h3>
-                ${alerts.join('')}
-                ${totalDebtHtml}
-            </div>` : `
-            <div class="bg-white rounded-3xl border border-emerald-200 shadow-sm p-6 mb-6 text-center">
-                <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm"><i class="fas fa-check"></i></div>
-                <h3 class="font-bold text-emerald-700 text-lg">ไม่มีการแจ้งเตือนใหม่</h3><p class="text-sm text-emerald-600 mt-1">คุณทำครบทุกอย่างแล้ว ยอดเยี่ยมมากครับ!</p>
-            </div>`;
-            
-        let initialLetters = getInitials(s.name);
-        let topGreenBar = `
-        <div class="bg-[#059669] rounded-xl p-4 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <h2 class="text-lg font-bold text-white"><i class="far fa-address-card mr-2"></i> โปรไฟล์ส่วนตัว</h2>
-            <div class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold tracking-wider w-full md:w-auto text-center shadow-inner">${s.id}</div>
-        </div>`;
+       // ควบคุม Footer
+       document.getElementById('footer-credit-login')?.classList.add('hidden');
+       document.getElementById('footer-credit-main')?.classList.remove('hidden');
 
-        // 🌟 เพิ่ม UI แสดงยอดเงินฝากคงเหลือ
-        let depAmt = s.dep || 0;
-        let depositUi = `
-        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-100 mt-8 flex items-center justify-between shadow-sm">
-            <div class="text-left flex items-center gap-4">
-                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-emerald-500 shadow-sm text-xl shrink-0"><i class="fas fa-piggy-bank"></i></div>
-                <div>
-                    <p class="text-sm font-bold text-emerald-700 mb-0.5">ยอดเงินฝากคงเหลือ</p>
-                    <p class="text-[10px] text-emerald-600/80 font-bold">ระบบจะหักจ่ายบิลใหม่อัตโนมัติ</p>
-                </div>
-            </div>
-            <div class="text-right">
-                <p class="text-2xl font-black text-emerald-600 tracking-tight">฿${depAmt.toFixed(2)}</p>
-            </div>
-        </div>`;
+       empty.classList.add('hidden'); 
+       grid.className = "block max-w-2xl mx-auto w-full";
+       
+       // เปลี่ยนชื่อ Header
+       let topHeaderTitle = document.querySelector('header h2');
+       if (topHeaderTitle && currentView === 'home') {
+           topHeaderTitle.innerHTML = '<i class="far fa-user text-emerald-500 mr-2"></i> โปรไฟล์ส่วนตัว';
+           let sidebarIcon = document.getElementById('sidebar-icon');
+           if(sidebarIcon) sidebarIcon.className = "fas fa-sign-out-alt text-rose-300 text-lg group-hover:text-rose-500 transition";
+       }
+       
+       let s = students.find(x => x.id === window.currentGuestStuId);
+       if(!s) return guestLogout();
 
-        grid.innerHTML = `
-        ${topGreenBar}
-        <!-- การ์ดโปรไฟล์หลัก -->
-        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center mb-6 relative overflow-hidden">
-            <div class="w-24 h-24 bg-[#111827] text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4 tracking-widest shadow-lg">${initialLetters}</div>
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">${s.name}</h2>
-            <span class="bg-slate-100 text-slate-600 text-xs px-4 py-1.5 rounded-full font-bold">สถานะ: นักศึกษาปัจจุบัน</span>
-            <hr class="my-6 border-slate-100">
-            <div class="text-left grid grid-cols-1 md:grid-cols-2 gap-6 pl-4 md:pl-8">
-                <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-building mr-1"></i> ห้องเรียน</p><p class="font-bold text-sm text-slate-700">${s.room}</p></div>
-                <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-id-badge mr-1"></i> รหัสประจำตัว</p><p class="font-bold text-sm text-slate-700">${s.id}</p></div>
-            </div>
-            
-            <!-- นำยอดเงินฝากมาแสดงในการ์ดโปรไฟล์ -->
-            ${depositUi}
-        </div>
-        <!-- ยอดค้างชำระย้ายมาไว้ด้านล่าง -->
-        ${notificationCard}`;
+       let sbName = document.getElementById('sidebar-name'); let sbId = document.getElementById('sidebar-id'); let sbAvatar = document.getElementById('sidebar-avatar');
+       if(sbName) sbName.innerText = s.name.replace(/(นาย|นางสาว|นาง)/g, '').trim(); 
+       if(sbId) sbId.innerText = s.id; 
+       if(sbAvatar) { sbAvatar.innerText = getInitials(s.name); sbAvatar.className = "w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md"; }
+
+       let alerts = []; 
+       let totalDebt = 0;
+       
+       // 🌟 🌟 เพิ่มส่วนเก็บประวัติบิลที่ "ชำระแล้ว" หรือ "รอตรวจสอบ"
+       let historyPayments = []; 
+       
+       // ประมวลผลบิล (แยกบิลค้างจ่าย กับ บิลที่ส่งแล้ว)
+       fundPayments.filter(p => p.studentId === s.id).forEach(p => {
+           let r = fundRounds.find(rd => rd.id === p.roundId);
+           if (r && r.isOpen !== false) {
+               let remain = r.amt - (p.paidAmt || 0); 
+               
+               // กรณีที่ 1: ยังไม่ชำระ หรือ ค้างชำระ (มียอดหนี้เหลือ) -> แจ้งเตือนด่วน
+               if ((p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ') && remain > 0) {
+                   totalDebt += remain;
+                   let statusText = p.status === 'ตีกลับ' ? 'สลิปถูกตีกลับ (โปรดส่งใหม่)' : (p.paidAmt > 0 ? 'ค้างชำระ (ผ่อน)' : 'ค้างชำระ');
+                   alerts.push(`
+                   <div class="relative bg-white border border-slate-200 border-l-4 border-l-rose-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                       <div class="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                       <div class="flex items-center gap-4 relative z-10 w-full">
+                           <div class="bg-rose-100 text-rose-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-file-invoice-dollar"></i></div>
+                           <div class="flex-1">
+                               <p class="text-rose-700 font-bold text-sm mb-0.5">${statusText}: ${r.title}</p>
+                               <p class="text-xs text-slate-500">ยอดค้าง <span class="font-bold text-rose-600">฿${remain.toFixed(2)}</span> (เต็ม: ฿${r.amt})</p>
+                           </div>
+                           <button onclick="openPublicSlipModal(${r.id})" class="text-xs bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 font-bold transition shadow-md whitespace-nowrap"><i class="fas fa-qrcode mr-1"></i> ชำระเงิน</button>
+                       </div>
+                   </div>`);
+               } 
+               // กรณีที่ 2: บิลที่จัดการไปแล้ว (รอตรวจสอบ หรือ จ่ายแล้ว) -> เก็บเข้าประวัติ
+               else if (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ' || p.status.includes('จ่ายแล้ว')) {
+                   historyPayments.push({ payment: p, round: r });
+               }
+           }
+       });
+
+       // 🌟 2. แจ้งเตือน: กระดานโหวตใหม่ที่ยังไม่ได้โหวต (สีฟ้า/Sky)
+       if (appSettings.polls) {
+           appSettings.polls.forEach(poll => {
+               if (poll.isOpen) {
+                   let hasVoted = false;
+                   poll.options.forEach(opt => { if (opt.votes && opt.votes.includes(s.id)) hasVoted = true; });
+                   if (!hasVoted) {
+                       alerts.push(`
+                       <div class="relative bg-white border border-slate-200 border-l-4 border-l-sky-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                           <div class="absolute top-0 right-0 w-16 h-16 bg-sky-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                           <div class="flex items-center gap-4 relative z-10 w-full">
+                               <div class="bg-sky-100 text-sky-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-poll"></i></div>
+                               <div class="flex-1">
+                                   <p class="text-sky-700 font-bold text-sm mb-0.5">กระทู้โหวตใหม่!</p>
+                                   <p class="text-xs text-slate-500 line-clamp-1">${poll.question}</p>
+                               </div>
+                               <button onclick="switchPage('voting')" class="text-xs bg-sky-500 text-white px-4 py-2 rounded-lg hover:bg-sky-600 font-bold transition shadow-md whitespace-nowrap">ไปโหวตเลย</button>
+                           </div>
+                       </div>`);
+                   }
+               }
+           });
+       }
+
+       // 🌟 3. แจ้งเตือน: กิจกรรมใหม่ที่เปิดรับสมัคร (สีม่วง/Purple)
+       if (appSettings.activities) {
+           appSettings.activities.forEach(act => {
+               if (act.isOpen && act.status !== 'รออนุมัติ') {
+                   let hasRegistered = activityLogs.find(l => l.studentId === s.id && l.activityTitle === act.title);
+                   if (!hasRegistered) {
+                       alerts.push(`
+                       <div class="relative bg-white border border-slate-200 border-l-4 border-l-purple-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                           <div class="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                           <div class="flex items-center gap-4 relative z-10 w-full">
+                               <div class="bg-purple-100 text-purple-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 shadow-sm"><i class="fas fa-calendar-star"></i></div>
+                               <div class="flex-1">
+                                   <p class="text-purple-700 font-bold text-sm mb-0.5">เปิดรับสมัครกิจกรรม!</p>
+                                   <p class="text-xs text-slate-500 line-clamp-1">${act.title}</p>
+                               </div>
+                               <button onclick="switchPage('activity')" class="text-xs bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 font-bold transition shadow-md whitespace-nowrap">ดูรายละเอียด</button>
+                           </div>
+                       </div>`);
+                   }
+               }
+           });
+       }
+       
+       // กล่องแสดงแจ้งเตือนด่วน
+       let totalDebtHtml = totalDebt > 0 ? `<div class="mt-6 pt-5 border-t border-slate-200 flex justify-between items-center"><span class="font-bold text-slate-600">รวมยอดค้างชำระทั้งหมด</span><span class="font-bold text-rose-600 text-2xl tracking-tight">฿${totalDebt.toFixed(2)}</span></div>` : '';
+
+       let notificationCard = alerts.length > 0 ? `
+           <div class="bg-slate-50/50 rounded-3xl border border-slate-200 shadow-sm p-6 mb-6">
+               <h3 class="font-bold text-slate-800 mb-5 flex items-center"><i class="fas fa-bell text-amber-500 mr-2 text-lg animate-bounce"></i> การแจ้งเตือนด่วนของคุณ</h3>
+               ${alerts.join('')}
+               ${totalDebtHtml}
+           </div>` : `
+           <div class="bg-white rounded-3xl border border-emerald-200 shadow-sm p-6 mb-6 text-center">
+               <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm"><i class="fas fa-check"></i></div>
+               <h3 class="font-bold text-emerald-700 text-lg">ไม่มีการแจ้งเตือนใหม่</h3><p class="text-sm text-emerald-600 mt-1">คุณทำครบทุกอย่างแล้ว ยอดเยี่ยมมากครับ!</p>
+           </div>`;
+
+       // 🌟 🌟 กล่องประวัติบิลที่จัดการแล้ว (จ่ายแล้ว/รอตรวจสอบ)
+       let historyCardHtml = '';
+       if (historyPayments.length > 0) {
+           let historyItemsHtml = historyPayments.map(item => {
+               let p = item.payment;
+               let r = item.round;
+               
+               let statusConfig = {
+                   bg: 'bg-emerald-50 border-emerald-200 border-l-4 border-l-emerald-500',
+                   iconBg: 'bg-emerald-100 text-emerald-600',
+                   icon: 'fa-check',
+                   titleColor: 'text-emerald-700',
+                   statusText: 'จ่ายแล้ว'
+               };
+               
+               if (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ') {
+                   statusConfig = {
+                       bg: 'bg-blue-50 border-blue-200 border-l-4 border-l-blue-500',
+                       iconBg: 'bg-blue-100 text-blue-600',
+                       icon: 'fa-hourglass-half',
+                       titleColor: 'text-blue-700',
+                       statusText: 'รอเหรัญญิกตรวจสอบ'
+                   };
+               }
+
+               let btnAction = '';
+               if (p.status.includes('จ่ายแล้ว') && p.paidAmt > 0) {
+                   btnAction = `<button onclick="printReceipt(${r.id}, '${s.id}')" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg hover:bg-slate-900 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-receipt mr-1"></i> ใบเสร็จ</button>`;
+               } else if (p.slipUrl) {
+                   btnAction = `<button onclick="viewSlipPopup('${p.slipUrl}')" class="text-xs bg-white text-slate-600 border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50 font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-image mr-1"></i> ดูสลิป</button>`;
+               }
+
+               return `
+               <div class="${statusConfig.bg} p-3 rounded-xl mb-3 flex items-center justify-between shadow-sm">
+                   <div class="flex items-center gap-3 w-full">
+                       <div class="${statusConfig.iconBg} w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0"><i class="fas ${statusConfig.icon}"></i></div>
+                       <div class="flex-1">
+                           <p class="${statusConfig.titleColor} font-bold text-sm mb-0.5 truncate pr-2">${r.title}</p>
+                           <p class="text-[10px] text-slate-500">สถานะ: <span class="font-bold">${statusConfig.statusText}</span> | ชำระ: ฿${p.paidAmt || 0}</p>
+                       </div>
+                       ${btnAction}
+                   </div>
+               </div>`;
+           }).join('');
+
+           historyCardHtml = `
+           <div class="bg-slate-50/50 rounded-3xl border border-slate-200 shadow-sm p-6 mb-6 mt-4">
+               <h3 class="font-bold text-slate-700 mb-4 flex items-center text-sm"><i class="fas fa-history text-slate-400 mr-2 text-lg"></i> ประวัติบิลที่ชำระเงินแล้ว</h3>
+               <div class="max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                   ${historyItemsHtml}
+               </div>
+           </div>`;
+       }
+           
+       let initialLetters = getInitials(s.name);
+       let topGreenBar = `
+       <div class="bg-[#059669] rounded-xl p-4 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+           <h2 class="text-lg font-bold text-white"><i class="far fa-address-card mr-2"></i> โปรไฟล์ส่วนตัว</h2>
+           <div class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold tracking-wider w-full md:w-auto text-center shadow-inner">${s.id}</div>
+       </div>`;
+
+       let depAmt = s.dep || 0;
+       let depositUi = `
+       <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-5 border border-emerald-100 mt-8 flex items-center justify-between shadow-sm">
+           <div class="text-left flex items-center gap-4">
+               <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-emerald-500 shadow-sm text-xl shrink-0"><i class="fas fa-piggy-bank"></i></div>
+               <div>
+                   <p class="text-sm font-bold text-emerald-700 mb-0.5">ยอดเงินฝากคงเหลือ</p>
+                   <p class="text-[10px] text-emerald-600/80 font-bold">ระบบจะหักจ่ายบิลใหม่อัตโนมัติ</p>
+               </div>
+           </div>
+           <div class="text-right">
+               <p class="text-2xl font-black text-emerald-600 tracking-tight">฿${depAmt.toFixed(2)}</p>
+           </div>
+       </div>`;
+
+       grid.innerHTML = `
+       ${topGreenBar}
+       <!-- การ์ดโปรไฟล์หลัก -->
+       <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center mb-6 relative overflow-hidden">
+           <div class="w-24 h-24 bg-[#111827] text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4 tracking-widest shadow-lg">${initialLetters}</div>
+           <h2 class="text-2xl font-bold text-slate-900 mb-2">${s.name}</h2>
+           <span class="bg-slate-100 text-slate-600 text-xs px-4 py-1.5 rounded-full font-bold">สถานะ: นักศึกษาปัจจุบัน</span>
+           <hr class="my-6 border-slate-100">
+           <div class="text-left grid grid-cols-1 md:grid-cols-2 gap-6 pl-4 md:pl-8">
+               <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-building mr-1"></i> ห้องเรียน</p><p class="font-bold text-sm text-slate-700">${s.room}</p></div>
+               <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-id-badge mr-1"></i> รหัสประจำตัว</p><p class="font-bold text-sm text-slate-700">${s.id}</p></div>
+           </div>
+           
+           <!-- นำยอดเงินฝากมาแสดงในการ์ดโปรไฟล์ -->
+           ${depositUi}
+       </div>
+       
+       <!-- ยอดค้างชำระ -->
+       ${notificationCard}
+       
+       <!-- 🌟 ประวัติบิลที่ชำระแล้ว -->
+       ${historyCardHtml}
+       
+       <!-- 🌟 Footer ของหน้าโปรไฟล์ -->
+       <div id="footer-credit-main" class="w-full text-center pointer-events-none mt-8 mb-4">
+            <p class="text-xs text-slate-400 font-medium tracking-wider">
+                © 2026 ระบบบริการนักศึกษา SSSFN <br class="sm:hidden">
+                <span class="hidden sm:inline"> | </span> 
+                Powered by <span class="font-bold text-slate-500">supaqz</span>
+            </p>
+       </div>
+       `;
     } 
     else {
         // 🌟 คืนค่าหน้าตากลับมาให้แอดมิน (กรณีเพิ่งล็อกอินเข้ามา)
         let asideEl = document.querySelector('aside');
         let headerEl = document.querySelector('header');
-        let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0'); // ดึงมือถือกลับมา
+        let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0');
         
         if(asideEl) asideEl.classList.remove('hidden');
         if(headerEl) headerEl.classList.remove('hidden');
@@ -1811,15 +1877,19 @@ function renderHomeDirectory() {
         let mainEl = document.querySelector('main');
         if(mainEl) mainEl.classList.add('pt-16', 'md:pt-0'); 
         
-        document.body.className = "flex h-screen overflow-hidden bg-[#f0fdf4] text-slate-800"; // คืนสีพื้นหลังปกติ
+        document.body.className = "flex h-screen overflow-hidden bg-[#f0fdf4] text-slate-800"; 
 
-        // 🌟 โหมดแอดมิน (โชว์ปกติ)
+        // ควบคุม Footer
+        document.getElementById('footer-credit-login')?.classList.add('hidden');
+        document.getElementById('footer-credit-main')?.classList.remove('hidden');
+
+        // โหมดแอดมิน (โชว์ปกติ)
         if(titleContainer) titleContainer.style.display = 'flex';
         grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 w-full"; 
         empty.classList.add('hidden');
         const roomF = roomFilterEl.value; const search = searchEl.value.toLowerCase().trim();
     
-        // 🌟 สูตรคำนวณเงินกองกลาง
+        // สูตรคำนวณเงินกองกลาง
         let roomFundTotal = 0;
         
         fundPayments.forEach(p => { 
@@ -1865,14 +1935,13 @@ function renderHomeDirectory() {
                 else { fundBgClass = 'bg-emerald-50 border-emerald-200'; fundTextClass = 'text-emerald-600'; fundStatusLabel = 'จ่ายครบเรียบร้อย'; iconHtml = '<i class="fas fa-check-circle text-emerald-500 text-lg"></i>'; }
             }
             
-            // 🌟 แก้ไข: การ์ดนักศึกษา (Playful Style Responsive)
             let badgeStyle = 'bg-slate-100 text-slate-500 border-slate-200';
             if (fundBgClass.includes('rose')) badgeStyle = 'bg-rose-100 text-rose-600 border-rose-200';
             else if (fundBgClass.includes('blue')) badgeStyle = 'bg-blue-100 text-blue-600 border-blue-200';
             else if (fundBgClass.includes('emerald')) badgeStyle = 'bg-emerald-100 text-emerald-600 border-emerald-200';
             
             gridHtml += `
-<div onclick="openStudentProfileModal('${s.id}')" class="playful-card p-4 md:p-5 flex flex-col h-full cursor-pointer w-full overflow-hidden hover:ring-2 hover:ring-emerald-400 transition-all hover:shadow-lg">
+            <div onclick="openStudentProfileModal('${s.id}')" class="playful-card p-4 md:p-5 flex flex-col h-full cursor-pointer w-full overflow-hidden hover:ring-2 hover:ring-emerald-400 transition-all hover:shadow-lg">
                 <div class="flex items-center gap-3 md:gap-4 mb-4">
                     <div class="w-12 h-12 md:w-14 md:h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center font-black text-lg md:text-xl border-2 border-slate-700 border-b-[4px] shrink-0">
                         ${getInitials(s.name)}
@@ -1893,6 +1962,19 @@ function renderHomeDirectory() {
                 </div>
             </div>`;
         });
+        
+        // 🌟 เติม Footer สำหรับแอดมินตอนเลื่อนลงสุด
+        gridHtml += `
+        <div class="col-span-full mt-4">
+            <div id="footer-credit-main" class="w-full text-center pointer-events-none mt-8 mb-4">
+                <p class="text-xs text-slate-400 font-medium tracking-wider">
+                    © 2026 ระบบบริการนักศึกษา SSSFN <br class="sm:hidden">
+                    <span class="hidden sm:inline"> | </span> 
+                    Powered by <span class="font-bold text-slate-500">supaqz</span>
+                </p>
+            </div>
+        </div>`;
+        
         grid.innerHTML = gridHtml;
     }
 }
@@ -5594,7 +5676,5 @@ window.openStudentProfileModal = function(studentId) {
     </div>
 </div>
 <!-- ================= End Modal E-Receipt ================= --> 
-<p class="text-center text-sm text-gray-500 mt-8 mb-4">
-    © 2026 ระบบบริการนักศึกษา SSSFN Powered by supaqz</p>
 </body>
 </html>
