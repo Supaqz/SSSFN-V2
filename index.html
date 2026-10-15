@@ -1197,7 +1197,6 @@ function switchPage(pageId) {
     refreshAll(); 
 }
 function linkLineAccount() {
-    // ดึงรหัสนักศึกษาจากตัวแปรที่ระบบใช้งานจริง
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
     
     if (!stuId) {
@@ -1208,12 +1207,9 @@ function linkLineAccount() {
         return;
     }
 
-    // ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมีเครื่องหมาย @ นำหน้า)
     const LINE_OA_ID = "@ใส่ไอดีบอทของคุณตรงนี้"; 
 
-    // ทำความสะอาดรหัสนักศึกษา (ลบขีดออก)
     let cleanId = String(stuId).replace(/-/g, '').trim();
-    
     let message = "ผูกบัญชี " + cleanId;
     let encodedMessage = encodeURIComponent(message);
     let lineUrl = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodedMessage}`;
