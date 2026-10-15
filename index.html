@@ -115,6 +115,21 @@
             </div>
         </div>
 
+        <!-- เมนูแอดมิน -->
+            <div id="menu-group-admin" class="hidden pt-4 mt-4 border-t border-slate-200">
+                <!-- (โค้ดเมนูแอดมินเดิมของคุณ) ... -->
+            </div>
+
+            <!-- 🌟 ปุ่มผูก LINE แทรกไว้ตรงนี้ 🌟 -->
+            <div id="nav-line-link" class="pt-2">
+                <button onclick="linkLineAccount()" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-white bg-[#00B900] hover:bg-[#009900] shadow-md hover:shadow-lg transition flex items-center gap-3 transform hover:-translate-y-0.5">
+                    <i class="fab fa-line text-xl w-5 text-center"></i> เชื่อมต่อ LINE แจ้งเตือน
+                </button>
+            </div>
+            <!-- 🌟 สิ้นสุดปุ่มผูก LINE 🌟 -->
+
+        </div>
+
         <!-- 🌟 โฉมใหม่: โปรไฟล์ด้านล่าง (กดเพื่อออกจากระบบได้ทั้งแอดมินและนักศึกษา) -->
        <div onclick="handleProfileClick()" class="p-4 border-t border-slate-200 flex items-center justify-between hover:bg-slate-100 cursor-pointer transition group" title="คลิกเพื่อจัดการบัญชี">
             <div class="flex items-center gap-3">
@@ -1181,7 +1196,34 @@ function switchPage(pageId) {
     
     refreshAll(); 
 }
+// ================= ฟังก์ชันเชื่อมต่อ LINE =================
+function linkLineAccount() {
+    // 1. เช็คว่ามีนักศึกษาล็อกอินอยู่หรือไม่
+    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    if (!stuId || currentUserRole !== 'guest') {
+        Swal.fire({
+            toast: true, position: 'top', icon: 'warning', 
+            title: 'กรุณาเข้าสู่ระบบนักศึกษาก่อน', showConfirmButton: false, timer: 2000
+        });
+        return;
+    }
 
+    // 🌟 2. ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมี @ นำหน้า)
+    const LINE_OA_ID = "@ใส่ไอดีบอทของคุณตรงนี้"; 
+
+    // ทำความสะอาดรหัสนักศึกษา (ลบขีดออก)
+    let cleanId = String(stuId).replace(/-/g, '').trim();
+    
+    // สร้างข้อความที่ต้องการให้พิมพ์เตรียมไว้
+    let message = "ผูกบัญชี " + cleanId;
+    let encodedMessage = encodeURIComponent(message);
+    
+    // สร้างลิงก์สำหรับเปิด LINE อัตโนมัติ (URL Scheme)
+    let lineUrl = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodedMessage}`;
+    
+    // เปิดหน้าต่างใหม่ไปที่แอป LINE
+    window.open(lineUrl, '_blank');
+}
         function toggleSetting() { 
             appSettings.showPublicAttendance = document.getElementById('toggle-att').checked; 
             appSettings.showLeaderboard = document.getElementById('toggle-leaderboard').checked; // 🌟 รับค่าปุ่มปิด-เปิด Leaderboard
@@ -1837,37 +1879,48 @@ function renderHomeDirectory() {
        </div>`;
 
        grid.innerHTML = `
-       ${topGreenBar}
-       <!-- การ์ดโปรไฟล์หลัก -->
-       <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center mb-6 relative overflow-hidden">
-           <div class="w-24 h-24 bg-[#111827] text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4 tracking-widest shadow-lg">${initialLetters}</div>
-           <h2 class="text-2xl font-bold text-slate-900 mb-2">${s.name}</h2>
-           <span class="bg-slate-100 text-slate-600 text-xs px-4 py-1.5 rounded-full font-bold">สถานะ: นักศึกษาปัจจุบัน</span>
-           <hr class="my-6 border-slate-100">
-           <div class="text-left grid grid-cols-1 md:grid-cols-2 gap-6 pl-4 md:pl-8">
-               <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-building mr-1"></i> ห้องเรียน</p><p class="font-bold text-sm text-slate-700">${s.room}</p></div>
-               <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-id-badge mr-1"></i> รหัสประจำตัว</p><p class="font-bold text-sm text-slate-700">${s.id}</p></div>
-           </div>
-           
-           <!-- นำยอดเงินฝากมาแสดงในการ์ดโปรไฟล์ -->
-           ${depositUi}
-       </div>
-       
-       <!-- ยอดค้างชำระ -->
-       ${notificationCard}
-       
-       <!-- 🌟 ประวัติบิลที่ชำระแล้ว -->
-       ${historyCardHtml}
-       
-       <!-- 🌟 Footer ของหน้าโปรไฟล์ -->
-       <div id="footer-credit-main" class="w-full text-center pointer-events-none mt-8 mb-4">
-            <p class="text-xs text-slate-400 font-medium tracking-wider">
-                © 2026 ระบบบริการนักศึกษา SSSFN <br class="sm:hidden">
-                <span class="hidden sm:inline"> | </span> 
-                Powered by <span class="font-bold text-slate-500">supaqz</span>
-            </p>
-       </div>
-       `;
+        ${topGreenBar}
+        <!-- การ์ดโปรไฟล์หลัก -->
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center mb-6 relative overflow-hidden">
+            <div class="w-24 h-24 bg-[#111827] text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-4 tracking-widest shadow-lg">${initialLetters}</div>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">${s.name}</h2>
+            <span class="bg-slate-100 text-slate-600 text-xs px-4 py-1.5 rounded-full font-bold">สถานะ: นักศึกษาปัจจุบัน</span>
+            
+            <hr class="my-6 border-slate-100">
+            
+            <div class="text-left grid grid-cols-1 md:grid-cols-2 gap-6 pl-4 md:pl-8 mb-6">
+                <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-building mr-1"></i> ห้องเรียน</p><p class="font-bold text-sm text-slate-700">${s.room}</p></div>
+                <div><p class="text-xs text-slate-400 mb-1"><i class="far fa-id-badge mr-1"></i> รหัสประจำตัว</p><p class="font-bold text-sm text-slate-700">${s.id}</p></div>
+            </div>
+
+            <!-- 🌟 ปุ่มผูกบัญชี LINE 🌟 -->
+            <div class="mb-6 px-4 md:px-8">
+                <button onclick="linkLineAccount()" class="w-full bg-[#00B900] hover:bg-[#009900] text-white text-sm font-bold py-3.5 px-6 rounded-2xl shadow-md transition duration-300 flex justify-center items-center gap-3 group relative overflow-hidden">
+                    <div class="absolute inset-0 w-full h-full bg-white/20 group-hover:bg-transparent transition-colors duration-300"></div>
+                    <i class="fab fa-line text-2xl relative z-10"></i>
+                    <span class="relative z-10">เชื่อมต่อ LINE เพื่อรับการแจ้งเตือนส่วนตัว</span>
+                </button>
+            </div>
+            
+            <!-- นำยอดเงินฝากมาแสดงในการ์ดโปรไฟล์ -->
+            ${depositUi}
+        </div>
+        
+        <!-- ยอดค้างชำระ -->
+        ${notificationCard}
+        
+        <!-- 🌟 ประวัติบิลที่ชำระแล้ว -->
+        ${historyCardHtml}
+        
+        <!-- 🌟 Footer ของหน้าโปรไฟล์ -->
+        <div id="footer-credit-main" class="w-full text-center pointer-events-none mt-8 mb-4">
+             <p class="text-xs text-slate-400 font-medium tracking-wider">
+                 © 2026 ระบบบริการนักศึกษา SSSFN <br class="sm:hidden">
+                 <span class="hidden sm:inline"> | </span> 
+                 Powered by <span class="font-bold text-slate-500">supaqz</span>
+             </p>
+        </div>
+        `;
     } 
     else {
         // 🌟 คืนค่าหน้าตากลับมาให้แอดมิน (กรณีเพิ่งล็อกอินเข้ามา)
@@ -5607,6 +5660,35 @@ window.openStudentProfileModal = function(studentId) {
         }
     });
 }
+
+    // ฟังก์ชันกดผูกบัญชี LINE
+function linkLineAccount() {
+    // ตรวจสอบว่ามีข้อมูลนักศึกษาที่กำลังล็อกอินอยู่หรือไม่
+    // (สมมติว่าคุณเก็บข้อมูลคนที่ล็อกอินไว้ในตัวแปร currentStudent)
+    if (!currentStudent || !currentStudent.id) {
+        Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลรหัสนักศึกษา กรุณาเข้าสู่ระบบใหม่', 'error');
+        return;
+    }
+
+    // 🌟 1. ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมี @ นำหน้าเสมอ เช่น @123abcde)
+    const LINE_OA_ID = "@772ynpea"; 
+
+    // ทำความสะอาดรหัสนักศึกษา (ลบขีดออก)
+    let cleanId = String(currentStudent.id).replace(/-/g, '').trim();
+    
+    // สร้างข้อความที่ต้องการให้พิมพ์เตรียมไว้
+    let message = "ผูกบัญชี " + cleanId;
+    
+    // แปลงข้อความเป็นรูปแบบ URL
+    let encodedMessage = encodeURIComponent(message);
+    
+    // สร้างลิงก์สำหรับเปิด LINE อัตโนมัติ (URL Scheme)
+    let lineUrl = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodedMessage}`;
+    
+    // เปิดหน้าต่างใหม่ไปที่แอป LINE
+    window.open(lineUrl, '_blank');
+}
+        
     </script>
 
    <!-- ================= Modal E-Receipt (Minimalist Glow Style) ================= -->
