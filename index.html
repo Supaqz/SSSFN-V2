@@ -1198,18 +1198,20 @@ function switchPage(pageId) {
 }
 // ================= ฟังก์ชันเชื่อมต่อ LINE =================
 function linkLineAccount() {
-    // 1. เช็คว่ามีนักศึกษาล็อกอินอยู่หรือไม่
+    // 1. ดึงรหัสนักศึกษาที่กำลังล็อกอินอยู่ในระบบ SSSFN
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    
+    // เช็คว่าล็อกอินอยู่ไหม และต้องเป็นนักศึกษา (guest) เท่านั้น
     if (!stuId || currentUserRole !== 'guest') {
         Swal.fire({
             toast: true, position: 'top', icon: 'warning', 
-            title: 'กรุณาเข้าสู่ระบบนักศึกษาก่อน', showConfirmButton: false, timer: 2000
+            title: 'กรุณาเข้าสู่ระบบนักศึกษาก่อนกดผูกบัญชี', showConfirmButton: false, timer: 2500
         });
         return;
     }
 
     // 🌟 2. ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมี @ นำหน้า)
-    const LINE_OA_ID = "@ใส่ไอดีบอทของคุณตรงนี้"; 
+    const LINE_OA_ID = "@ใส่ไอดีของบอทตรงนี้"; // 👈 อย่าลืมแก้ตรงนี้เป็นไอดีบอทของคุณนะครับ
 
     // ทำความสะอาดรหัสนักศึกษา (ลบขีดออก)
     let cleanId = String(stuId).replace(/-/g, '').trim();
