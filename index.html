@@ -1196,12 +1196,10 @@ function switchPage(pageId) {
     
     refreshAll(); 
 }
-// ================= ฟังก์ชันเชื่อมต่อ LINE =================
 function linkLineAccount() {
-    // 1. ดึงรหัสนักศึกษาที่กำลังล็อกอินอยู่จริงจากระบบ
+    // ดึงรหัสนักศึกษาจากตัวแปรที่ระบบใช้งานจริง
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
     
-    // เช็คว่าเข้าสู่ระบบหรือยัง
     if (!stuId) {
         Swal.fire({
             toast: true, position: 'top', icon: 'warning', 
@@ -1210,20 +1208,16 @@ function linkLineAccount() {
         return;
     }
 
-    // 🌟 2. ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมี @ นำหน้าเสมอ)
-    const LINE_OA_ID = "@772ynpea"; 
+    // ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมีเครื่องหมาย @ นำหน้า)
+    const LINE_OA_ID = "@ใส่ไอดีบอทของคุณตรงนี้"; 
 
     // ทำความสะอาดรหัสนักศึกษา (ลบขีดออก)
     let cleanId = String(stuId).replace(/-/g, '').trim();
     
-    // สร้างข้อความอัตโนมัติ
     let message = "ผูกบัญชี " + cleanId;
     let encodedMessage = encodeURIComponent(message);
-    
-    // สร้างลิงก์เปิดแอป LINE
     let lineUrl = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodedMessage}`;
     
-    // เปิดหน้าต่างใหม่ไปที่แอป LINE
     window.open(lineUrl, '_blank');
 }
         function toggleSetting() { 
