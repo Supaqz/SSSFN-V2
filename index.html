@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="logo-2.png">
 
     <meta name="apple-mobile-web-app-title" content="SSSFN">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -1001,9 +1001,8 @@ function openPublicSlipModal(targetRoundId = null) {
                     let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
                     let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); 
                     
-                    // 🌟 1. เปลี่ยนคำสั่งเป็น enqueueSlip เพื่อบอกให้หลังบ้านเอาไปฝากคิว
                     let result = await callBackend({
-                        action: 'enqueueSlip', 
+                        action: 'uploadSlip',
                         studentId: res.value.studentId,
                         roundId: res.value.roundId,
                         base64Data: compressedBase64,
@@ -1012,33 +1011,44 @@ function openPublicSlipModal(targetRoundId = null) {
                         room: res.value.room,
                         studentName: res.value.studentName,
                         expectedAmount: res.value.expectedAmount,
-                        userRole: currentUserRole,
-                        isLumpSum: res.value.isLumpSum
+                        userRole: currentUserRole
                     });
 
                     if (result.status === 'success') { 
-                        // 🌟 2. แจ้งเตือนเด็กทันทีว่ารับเรื่องแล้ว โดยไม่ต้องรอ AI ตรวจ
-                        Swal.fire({
-                            title: 'ส่งคำขอสำเร็จ!', 
-                            html: 'ระบบได้รับสลิปของคุณแล้ว กำลังจัดคิวตรวจสอบ<br><span class="text-sm text-slate-500">กรุณารอประมาณ 1-2 นาที สถานะถึงจะอัปเดตนะครับ</span>', 
-                            icon: 'success'
-                        }).then(() => {
-                            if(typeof renderActivities === 'function') renderActivities();
-                            switchPage('home'); // เด้งกลับหน้าแรก
-                        });
-                        
-                        // 🌟 3. ยิงแจ้งเตือนแอดมินเข้า LINE 
+                        // ยิงแจ้งเตือนเข้า LINE/Facebook ทันที
                         let notiRoundTitle = res.value.isLumpSum ? "เหมาจ่ายหลายรายการ" : res.value.roundTitle;
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
                             studentId: res.value.studentId,
-                            roundTitle: notiRoundTitle + " (เข้าคิวรอตรวจสอบ)"
+                            roundTitle: notiRoundTitle
                         });
 
+                        // 🌟 ดึงข้อมูลล่าสุดจาก Google Sheets กลับมาโชว์ทันที
+                        await silentPullFromGS();
+                        
+                        // อัปเดตตัวเลขแจ้งเตือนให้แอดมิน
+                        if(typeof updateSidebarBadges === 'function') {
+                            updateSidebarBadges();
+                        }
+                        let pendingBadge = document.querySelector('#nav-fin-fund .pending-badge');
+                        if(pendingBadge) {
+                            let currentCount = parseInt(pendingBadge.innerText) || 0;
+                            pendingBadge.innerText = currentCount + 1;
+                            pendingBadge.style.display = 'flex';
+                        }
+                        
+                        // แสดงกล่องแจ้งเตือน
+                        if(result.isMatch === false && result.detectedAmount !== -1) { 
+                            Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
+                        } else { 
+                            Swal.fire('ส่งสลิปสำเร็จ!', result.ocrMsg || 'ระบบบันทึกหลักฐานเรียบร้อย รอเหรัญญิกตรวจสอบครับ', 'success');
+                        }
+
                     } else { 
-                        Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถรับข้อมูลสลิปได้', 'error');
-                    }
+                        Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถอัปโหลดสลิปได้', 'error');
+                    } 
+                }; 
                 img.src = e.target.result; 
             }; 
             reader.readAsDataURL(res.value.file); 
