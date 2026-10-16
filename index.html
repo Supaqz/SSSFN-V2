@@ -5653,31 +5653,25 @@ window.openStudentProfileModal = function(studentId) {
     });
 }
 
-    // ฟังก์ชันกดผูกบัญชี LINE
 function linkLineAccount() {
-    // ตรวจสอบว่ามีข้อมูลนักศึกษาที่กำลังล็อกอินอยู่หรือไม่
-    // (สมมติว่าคุณเก็บข้อมูลคนที่ล็อกอินไว้ในตัวแปร currentStudent)
-    if (!currentStudent || !currentStudent.id) {
-        Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลรหัสนักศึกษา กรุณาเข้าสู่ระบบใหม่', 'error');
+    // ใช้ window.currentGuestStuId ตามระบบของคุณ
+    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    
+    if (!stuId) {
+        Swal.fire({
+            toast: true, position: 'top', icon: 'warning', 
+            title: 'กรุณาเข้าสู่ระบบนักศึกษาก่อนกดผูกบัญชี', showConfirmButton: false, timer: 2500
+        });
         return;
     }
 
-    // 🌟 1. ใส่ LINE OA ID ของห้องคุณตรงนี้ (ต้องมี @ นำหน้าเสมอ เช่น @123abcde)
-    const LINE_OA_ID = "@772ynpea"; 
+    const LINE_OA_ID = "@772ynpea"; // อย่าลืมเปลี่ยนตรงนี้นะครับ
 
-    // ทำความสะอาดรหัสนักศึกษา (ลบขีดออก)
-    let cleanId = String(currentStudent.id).replace(/-/g, '').trim();
-    
-    // สร้างข้อความที่ต้องการให้พิมพ์เตรียมไว้
+    let cleanId = String(stuId).replace(/-/g, '').trim();
     let message = "ผูกบัญชี " + cleanId;
-    
-    // แปลงข้อความเป็นรูปแบบ URL
     let encodedMessage = encodeURIComponent(message);
-    
-    // สร้างลิงก์สำหรับเปิด LINE อัตโนมัติ (URL Scheme)
     let lineUrl = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodedMessage}`;
     
-    // เปิดหน้าต่างใหม่ไปที่แอป LINE
     window.open(lineUrl, '_blank');
 }
         
