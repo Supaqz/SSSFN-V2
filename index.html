@@ -654,9 +654,9 @@ function saveToLocal(triggerSync = true) {
     let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
     localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
     
-    if(triggerSync) { 
-        // เพิ่มเงื่อนไขเช็คว่ากำลัง sync อยู่ไหม และเพิ่มเวลาจาก 1500 เป็น 3000ms 
-        // เพื่อรวมการส่งข้อมูลหลายๆ ครั้งเข้าด้วยกัน (Debouncing)
+    // 🌟 แก้ไข: ให้ระบบ Auto Sync ทำงาน "เฉพาะตอนที่เป็นแอดมิน" เท่านั้น!
+    // ถ้านักศึกษา (guest) กดทำรายการ ระบบจะไม่เซฟทับข้อมูลทั้งก้อนไปที่ Sheets
+    if(triggerSync && currentUserRole !== 'guest') { 
         clearTimeout(syncTimeout); 
         syncTimeout = setTimeout(() => {
             if(!isSyncing) autoSyncToGS();
