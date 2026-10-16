@@ -1001,8 +1001,9 @@ function openPublicSlipModal(targetRoundId = null) {
                     let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
                     let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); 
                     
+                    // 🌟 1. เปลี่ยนคำสั่งเป็น enqueueSlip เพื่อบอกให้หลังบ้านเอาไปฝากคิว
                     let result = await callBackend({
-                        action: 'uploadSlip',
+                        action: 'enqueueSlip', 
                         studentId: res.value.studentId,
                         roundId: res.value.roundId,
                         base64Data: compressedBase64,
@@ -1011,75 +1012,39 @@ function openPublicSlipModal(targetRoundId = null) {
                         room: res.value.room,
                         studentName: res.value.studentName,
                         expectedAmount: res.value.expectedAmount,
-                        userRole: currentUserRole
+                        userRole: currentUserRole,
+                        isLumpSum: res.value.isLumpSum
                     });
 
                     if (result.status === 'success') { 
-                        // 🌟 ระบบกระจายสลิปให้ทุกบิล (ถ้านักศึกษากดเหมาจ่าย)
-                        let amountToDistribute = result.detectedAmount !== -1 ? result.detectedAmount : res.value.expectedAmount;
-                        let notiRoundTitle = res.value.roundTitle;
-
-                        if (res.value.isLumpSum) {
-                            let distCount = 0;
-                            window.currentUnpaidRounds.forEach(ur => {
-                                if (amountToDistribute > 0) {
-                                    let payment = fundPayments.find(p => p.roundId === ur.id && p.studentId === res.value.studentId);
-                                    if (payment) {
-                                        payment.status = 'รอตรวจสอบ';
-                                        payment.slipUrl = result.slipUrl;
-                                        payment.qrPayload = res.value.qrPayload;
-                                        amountToDistribute -= ur.remain; // หักเงินออกจากก้อนเหมา
-                                        distCount++;
-                                    }
-                                }
-                            });
-                            notiRoundTitle = `เหมาจ่ายเคลียร์ ${distCount} บิล`;
-                        } else {
-                            // 🌟 ระบบปกติ: อัปเดตแค่บิลเดียว
-                            let payment = fundPayments.find(p => p.roundId === res.value.roundId && p.studentId === res.value.studentId);
-                            if (payment) { 
-                                payment.status = 'รอตรวจสอบ';
-                                payment.slipUrl = result.slipUrl; 
-                                payment.qrPayload = res.value.qrPayload;
-                            }
-                        }
-
-                        // ยิงแจ้งเตือนเข้า LINE/Facebook
+                        // 🌟 2. แจ้งเตือนเด็กทันทีว่ารับเรื่องแล้ว โดยไม่ต้องรอ AI ตรวจ
+                        Swal.fire({
+                            title: 'ส่งคำขอสำเร็จ!', 
+                            html: 'ระบบได้รับสลิปของคุณแล้ว กำลังจัดคิวตรวจสอบ<br><span class="text-sm text-slate-500">กรุณารอประมาณ 1-2 นาที สถานะถึงจะอัปเดตนะครับ</span>', 
+                            icon: 'success'
+                        }).then(() => {
+                            if(typeof renderActivities === 'function') renderActivities();
+                            switchPage('home'); // เด้งกลับหน้าแรก
+                        });
+                        
+                        // 🌟 3. ยิงแจ้งเตือนแอดมินเข้า LINE 
+                        let notiRoundTitle = res.value.isLumpSum ? "เหมาจ่ายหลายรายการ" : res.value.roundTitle;
                         callBackend({
                             action: 'notifySlipSubmit',
                             studentName: res.value.studentName,
                             studentId: res.value.studentId,
-                            roundTitle: notiRoundTitle
+                            roundTitle: notiRoundTitle + " (เข้าคิวรอตรวจสอบ)"
                         });
 
-                        saveToLocal(); refreshAll(); 
-                        // 🌟 เพิ่มคำสั่งตรงนี้เพื่อให้ตัวเลขแจ้งเตือนอัปเดตทันทีแบบเรียลไทม์
-                            if(typeof updateSidebarBadges === 'function') {
-                                updateSidebarBadges();
-                            }
-                            // สำหรับหน้าแอดมิน ให้สั่งคำนวณตัวเลขปุ่มจัดการการเงินใหม่ทันที
-                            let pendingBadge = document.querySelector('#nav-fin-fund .pending-badge');
-                            if(pendingBadge) {
-                                let currentCount = parseInt(pendingBadge.innerText) || 0;
-                                pendingBadge.innerText = currentCount + 1;
-                                pendingBadge.style.display = 'flex';
-                            }
-                        if(result.isMatch === false && result.detectedAmount !== -1) { 
-                            Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
-                        } else { 
-                            Swal.fire('ส่งสลิปสำเร็จ!', result.ocrMsg || 'รอเหรัญญิกตรวจสอบครับ', 'success');
-                        }
                     } else { 
-                        Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถอัปโหลดสลิปได้', 'error');
-                    } 
-                }; 
+                        Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถรับข้อมูลสลิปได้', 'error');
+                    }
                 img.src = e.target.result; 
             }; 
             reader.readAsDataURL(res.value.file); 
         } 
     });
 }
-
         document.addEventListener('DOMContentLoaded', () => { 
     loadFromLocal(); 
     document.getElementById('checkDate').valueAsDate = new Date(); 
