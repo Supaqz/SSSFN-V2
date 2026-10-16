@@ -546,7 +546,7 @@ async function callBackend(payload) {
 
         let syncTimeout; let html5QrcodeScanner = null; let autoRefreshInterval; 
         let quickTargetId = ''; let quickScanner = null;
-        let isSyncing = false; let randomPool = []; let currentDetailActivityTitle = '';
+        let isSyncing = false; let syncQueued = false; let randomPool = []; let currentDetailActivityTitle = '';
 
         function openQuickScan(targetId) { quickTargetId = targetId; document.getElementById('quick-scan-modal').classList.remove('hidden'); quickScanner = new Html5QrcodeScanner("quick-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false); quickScanner.render((decodedText) => { let el = document.getElementById(quickTargetId); if(el) { el.value = formatIdSearch(decodedText); el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('keyup')); } closeQuickScan(); }, (err) => {}); }
         function closeQuickScan() { document.getElementById('quick-scan-modal').classList.add('hidden'); if(quickScanner) { quickScanner.clear().catch(e => console.log(e)); quickScanner = null; } }
@@ -573,77 +573,174 @@ async function callBackend(payload) {
     }); 
 }
 
-       async function autoSyncToGS() { 
-    if(students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
-    isSyncing = true; 
-    let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-    
-    // 🌟 สั่งอัปเดตแบบเบื้องหลัง (ไม่ล็อกหน้าจอ)
-    callBackend({ action: 'saveAll', data: dbData }).then(r => {
-        isSyncing = false;
-        // เซฟเสร็จเงียบๆ ไม่ต้องโชว์อะไร
-    }).catch(e => {
-        isSyncing = false;
-        console.error("Sync Error:", e);
-    });
-}
+       async function autoSyncToGS() {
+    if (students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
 
-async function pushToGS() { 
-    // กดปุ่มบันทึกแบบแมนนวล ค่อยโชว์โหลด (เผื่อแอดมินอยากชัวร์)
-    isSyncing = true; Swal.fire({title: 'กำลังบันทึก...', didOpen:()=>{Swal.showLoading()}});
-    let dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs };
-    let r = await callBackend({ action: 'saveAll', data: dbData });
-    isSyncing = false;
-    if(r.status === 'success') {
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อัปเดตฐานข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500});
-        if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
+    // If a save is already running, request one more pass with the latest state.
+    if (isSyncing) {
+        syncQueued = true;
+        return;
     }
-} 
 
-async function silentPullFromGS() { 
-    if(isSyncing) return;
-    let r = await callBackend({ action: 'loadAll' });
-    if(r.status === 'success' && !isSyncing) applyLoadedData(r.data);
-}
+    isSyncing = true;
+    try {
+        const dbData = {
+            appSettings, users, rooms, students, txHistory,
+            fundRounds, fundPayments, expenses, activityLogs
+        };
+        const result = await callBackend({ action: 'saveAll', data: dbData });
 
-async function pullFromGS() { 
-    Swal.fire({title: 'กำลังดึงข้อมูลอัปเดต...', didOpen:()=>{Swal.showLoading()}});
-    let r = await callBackend({ action: 'loadAll' });
-    if(r.status === 'success') { 
-        applyLoadedData(r.data); Swal.fire({icon: 'success', title: 'อัปเดตข้อมูลตรงกับชีตแล้ว!', timer: 1500, showConfirmButton: false}); 
+        if (!result || result.status !== 'success') {
+            console.error('บันทึกข้อมูลไม่สำเร็จ:', result && result.message);
+            return;
+        }
+
+        // Notify other open clients only after Apps Script confirms persistence.
+        if (typeof notifyFirebaseUpdate === 'function') {
+            try { await notifyFirebaseUpdate(); }
+            catch (signalError) { console.error('Firebase signal error:', signalError); }
+        }
+    } catch (error) {
+        console.error('Sync Error:', error);
+    } finally {
+        isSyncing = false;
+        if (syncQueued) {
+            syncQueued = false;
+            setTimeout(() => autoSyncToGS(), 250);
+        }
     }
 }
 
-        function applyLoadedData(d) { 
-            appSettings = d.appSettings || appSettings;
-            if(!appSettings.activities) appSettings.activities = []; 
-            users = d.users || users; rooms = d.rooms || rooms; students = d.students || students;
-            txHistory = d.txHistory || txHistory; fundRounds = d.fundRounds || fundRounds; 
+async function pushToGS() {
+    if (isSyncing) {
+        syncQueued = true;
+        Swal.fire({
+            icon: 'info',
+            title: 'กำลังบันทึกข้อมูลอยู่',
+            text: 'ระบบจะบันทึกการแก้ไขล่าสุดต่อให้อัตโนมัติ',
+            timer: 1800,
+            showConfirmButton: false
+        });
+        return;
+    }
+
+    isSyncing = true;
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const dbData = {
+            appSettings, users, rooms, students, txHistory,
+            fundRounds, fundPayments, expenses, activityLogs
+        };
+        const result = await callBackend({ action: 'saveAll', data: dbData });
+
+        if (!result || result.status !== 'success') {
+            Swal.fire('บันทึกไม่สำเร็จ', (result && result.message) || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+            return;
+        }
+
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500 });
+        if (typeof notifyFirebaseUpdate === 'function') {
+            try { await notifyFirebaseUpdate(); }
+            catch (signalError) { console.error('Firebase signal error:', signalError); }
+        }
+    } catch (error) {
+        Swal.fire('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+    } finally {
+        isSyncing = false;
+        if (syncQueued) {
+            syncQueued = false;
+            setTimeout(() => autoSyncToGS(), 250);
+        }
+    }
+}
+async function silentPullFromGS() {
+    if (isSyncing) return;
+    try {
+        const result = await callBackend({ action: 'loadAll' });
+        if (result && result.status === 'success' && !isSyncing) {
+            applyLoadedData(result.data);
+        } else {
+            console.error('ดึงข้อมูลจากหลังบ้านไม่สำเร็จ:', result && result.message);
+        }
+    } catch (error) {
+        console.error('Load Error:', error);
+    }
+}
+
+async function pullFromGS() {
+    Swal.fire({ title: 'กำลังดึงข้อมูลอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const result = await callBackend({ action: 'loadAll' });
+        if (result && result.status === 'success') {
+            applyLoadedData(result.data);
+            Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลจากหลังบ้านแล้ว', timer: 1500, showConfirmButton: false });
+        } else {
+            Swal.fire('ดึงข้อมูลไม่สำเร็จ', (result && result.message) || 'ตรวจสอบการเชื่อมต่อหรือเวอร์ชัน Apps Script', 'error');
+        }
+    } catch (error) {
+        Swal.fire('ดึงข้อมูลไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อ', 'error');
+    }
+}
+
+function normalizeRoundIdFrontend(value) {
+    const raw = String(value == null ? "" : value).trim();
+    if (!raw) return "";
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : raw;
+}
+
+function normalizeStudentIdKeyFrontend(value) {
+    return String(value == null ? "" : value).replace(/-/g, "").trim();
+}
+
+function applyLoadedData(d) {
+    appSettings = d.appSettings || appSettings;
+    if (!appSettings.activities) appSettings.activities = [];
+    users = d.users || users;
+    rooms = d.rooms || rooms;
+    students = Array.isArray(d.students) ? d.students.map(s => ({
+        ...s,
+        id: String(s.id == null ? "" : s.id).trim()
+    })) : students;
+    txHistory = d.txHistory || txHistory;
+    fundRounds = Array.isArray(d.fundRounds) ? d.fundRounds.map(r => ({
+        ...r,
+        id: normalizeRoundIdFrontend(r.id),
+        amt: Number(r.amt) || 0
+    })) : fundRounds;
             
             // 🌟 ป้องกันยอดเงินหายตอนดึงข้อมูลจากชีต!
             if (d.fundPayments) {
                 let newPayments = [];
                 d.fundPayments.forEach(serverP => {
-                    let localP = fundPayments.find(lp => lp.roundId === serverP.roundId && lp.studentId === serverP.studentId);
-                    let round = fundRounds.find(r => r.id === serverP.roundId);
-                    let rAmt = round ? round.amt : 0;
-                    
+                    const roundKey = normalizeRoundIdFrontend(serverP.roundId);
+                    const studentKey = normalizeStudentIdKeyFrontend(serverP.studentId);
+                    const localP = fundPayments.find(lp =>
+                        normalizeRoundIdFrontend(lp.roundId) === roundKey &&
+                        normalizeStudentIdKeyFrontend(lp.studentId) === studentKey
+                    );
+                    const round = fundRounds.find(r => normalizeRoundIdFrontend(r.id) === roundKey);
+                    const rAmt = round ? (Number(round.amt) || 0) : 0;
+                    const status = String(serverP.status || 'ยังไม่ชำระ');
+
                     let finalPaidAmt = 0;
-                    // ถ้ายอดเงินจากเซิร์ฟเวอร์มีมาให้ ก็ใช้ของเซิร์ฟเวอร์
-                    if (serverP.paidAmt !== undefined && !isNaN(serverP.paidAmt)) {
-                        finalPaidAmt = serverP.paidAmt;
-                    } 
-                    // ถ้าเซิร์ฟเวอร์ไม่มีตัวเลขให้ ให้วิเคราะห์จากสถานะใหม่ที่ดึงมา
-                    else if (serverP.status.includes('จ่ายแล้ว')) {
+                    if (serverP.paidAmt !== undefined && serverP.paidAmt !== null && Number.isFinite(Number(serverP.paidAmt))) {
+                        finalPaidAmt = Number(serverP.paidAmt);
+                    } else if (status.includes('จ่ายแล้ว')) {
                         finalPaidAmt = rAmt;
-                    } 
-                    // ถ้านอกเหนือจากนั้น ให้ดึงยอดจ่ายเดิมที่จำไว้ในเครื่องมาใช้ (รักษายอดผ่อนชำระ)
-                    else if (localP) {
-                        finalPaidAmt = (serverP.status === 'ยังไม่ชำระ' || serverP.status === 'ตีกลับ') ? 0 : (localP.paidAmt || 0);
+                    } else if (localP) {
+                        finalPaidAmt = (status === 'ยังไม่ชำระ' || status === 'ตีกลับ') ? 0 : (Number(localP.paidAmt) || 0);
                     }
-                    
+                    if (status.includes('จ่ายแล้ว') && finalPaidAmt <= 0) finalPaidAmt = rAmt;
+
+                    const canonicalStudent = students.find(s =>
+                        normalizeStudentIdKeyFrontend(s.id) === studentKey
+                    );
                     newPayments.push({
                         ...serverP,
+                        roundId: roundKey,
+                        studentId: canonicalStudent ? canonicalStudent.id : String(serverP.studentId == null ? '' : serverP.studentId).trim(),
+                        status,
                         paidAmt: finalPaidAmt,
                         qrUnlocked: localP ? localP.qrUnlocked : false
                     });
@@ -671,7 +768,60 @@ function saveToLocal(triggerSync = true) {
         }, 3000); 
     } 
 }
-        function loadFromLocal() { let data = localStorage.getItem('SSSfnDB'); if(data) { let p = JSON.parse(data); appSettings = p.appSettings || appSettings; if(!appSettings.activities) appSettings.activities = []; users = p.users || users; rooms = p.rooms || rooms; students = p.students || students; txHistory = p.txHistory || txHistory; fundRounds = p.fundRounds || fundRounds; fundPayments = p.fundPayments || fundPayments; expenses = p.expenses || []; activityLogs = p.activityLogs || []; timeLogs = p.timeLogs || []; } let sess = localStorage.getItem('sssfn_session'); if(sess) { try { let s = JSON.parse(sess); currentUserRole = s.role; currentUsername = s.user; } catch(e){} } }
+        function loadFromLocal() {
+    try {
+        const data = localStorage.getItem('SSSfnDB');
+        if (data) {
+            const p = JSON.parse(data);
+            appSettings = p.appSettings || appSettings;
+            if (!appSettings.activities) appSettings.activities = [];
+            users = p.users || users;
+            rooms = p.rooms || rooms;
+            students = Array.isArray(p.students) ? p.students.map(s => ({
+                ...s,
+                id: String(s.id == null ? '' : s.id).trim()
+            })) : students;
+            txHistory = p.txHistory || txHistory;
+            fundRounds = Array.isArray(p.fundRounds) ? p.fundRounds.map(r => ({
+                ...r,
+                id: normalizeRoundIdFrontend(r.id),
+                amt: Number(r.amt) || 0
+            })) : fundRounds;
+            fundPayments = Array.isArray(p.fundPayments) ? p.fundPayments.map(payment => {
+                const roundId = normalizeRoundIdFrontend(payment.roundId);
+                const studentKey = normalizeStudentIdKeyFrontend(payment.studentId);
+                const stu = students.find(s => normalizeStudentIdKeyFrontend(s.id) === studentKey);
+                const round = fundRounds.find(r => normalizeRoundIdFrontend(r.id) === roundId);
+                const status = String(payment.status || 'ยังไม่ชำระ');
+                let paidAmt = Number(payment.paidAmt) || 0;
+                if (status.includes('จ่ายแล้ว') && paidAmt <= 0 && round) paidAmt = Number(round.amt) || 0;
+                return {
+                    ...payment,
+                    roundId,
+                    studentId: stu ? stu.id : String(payment.studentId == null ? '' : payment.studentId).trim(),
+                    status,
+                    paidAmt
+                };
+            }) : fundPayments;
+            expenses = p.expenses || [];
+            activityLogs = p.activityLogs || [];
+            timeLogs = p.timeLogs || [];
+        }
+    } catch (error) {
+        console.error('อ่านข้อมูลที่เก็บไว้ในเครื่องไม่สำเร็จ:', error);
+    }
+
+    const sess = localStorage.getItem('sssfn_session');
+    if (sess) {
+        try {
+            const session = JSON.parse(sess);
+            currentUserRole = session.role || 'guest';
+            currentUsername = session.user || '';
+        } catch (error) {
+            console.error('อ่าน session ไม่สำเร็จ:', error);
+        }
+    }
+}
 
         function formatIdSearch(val) { let clean = val.replace(/-/g, ''); if(/^\d+$/.test(clean) && clean.length > 11) return clean.slice(0,11) + '-' + clean.slice(11,12); return val; }
         function formatStudentID(val) { let num = val.replace(/\D/g, ''); if(num.length > 11) return num.slice(0,11) + '-' + num.slice(11,12); return num; }
@@ -1016,6 +1166,11 @@ function openPublicSlipModal(targetRoundId = null) {
                             roundTitle: notiRoundTitle
                         });
 
+                        // Notify other open clients only after the backend has saved the slip row.
+                        if (typeof notifyFirebaseUpdate === "function") {
+                            try { await notifyFirebaseUpdate(); }
+                            catch (signalError) { console.error("Firebase signal error:", signalError); }
+                        }
                         // 🌟 ดึงข้อมูลล่าสุดจาก Google Sheets กลับมาโชว์ทันที
                         await silentPullFromGS();
                         
@@ -3076,7 +3231,6 @@ window.addEditRoundRow = function() {
                 // 🌟 อัปเกรด: อัปเดตหน้าจอและกดกริ่งทันที แล้วปล่อยเซฟทำงานเบื้องหลัง
                 saveToLocal(false); 
                 refreshAll(); 
-                if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate();
                 autoSyncToGS(); 
                 
                 Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อนุมัติกิจกรรมสำเร็จ', showConfirmButton: false, timer: 1500}); 
@@ -3752,7 +3906,7 @@ function editFundRound() {
 }
         function deleteFundRound() { 
             let roundSelectEl = document.getElementById('fund-round-select'); if(!roundSelectEl) return; const roundId = parseInt(roundSelectEl.value); if(isNaN(roundId)) return; let roundInfo = fundRounds.find(r => r.id === roundId);
-            Swal.fire({ title: 'ลบรายการนี้?', html: `<p class="text-rose-600 font-bold mb-2">⚠️ คำเตือน: แท็บชีท "${roundInfo.title}" จะถูกลบออกจาก Google Sheets ทันที!</p>`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', cancelButtonColor: '#94a3b8', confirmButtonText: '<i class="fas fa-trash"></i> ใช่, ลบทิ้งเลย', cancelButtonText: 'ยกเลิก' }).then(r => { if(r.isConfirmed) { fundRounds = fundRounds.filter(rd => rd.id !== roundId); fundPayments = fundPayments.filter(p => p.roundId !== roundId); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบรายการเรียบร้อยแล้ว', 'success'); } }); 
+            Swal.fire({ title: 'ลบรายการนี้?', html: `<p class="text-rose-600 font-bold mb-2">⚠️ คำเตือน: แท็บชีท "${roundInfo.title}" จะถูกลบออกจาก Google Sheets ทันที!</p>`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', cancelButtonColor: '#94a3b8', confirmButtonText: '<i class="fas fa-trash"></i> ใช่, ลบทิ้งเลย', cancelButtonText: 'ยกเลิก' }).then(r => { if(r.isConfirmed) { fundRounds = fundRounds.filter(rd => normalizeRoundIdFrontend(rd.id) !== normalizeRoundIdFrontend(roundId)); fundPayments = fundPayments.filter(p => normalizeRoundIdFrontend(p.roundId) !== normalizeRoundIdFrontend(roundId)); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบรายการเรียบร้อยแล้ว', 'success'); } }); 
         }
         // ฟังก์ชันอัปเดตสีและข้อความของปุ่มตามสถานะปัจจุบัน
 function updateQuickToggleBtn() {
@@ -4177,8 +4331,7 @@ function viewSlipPopup(url) {
                     renderFundTable(); // รีเฟรชตารางให้เป็นสีเขียวทันที
                     renderHomeDirectory();
                     
-                    if (typeof notifyFirebaseUpdate === "function") notifyFirebaseUpdate(); // กริ่งดังให้เครื่องอื่นอัปเดต
-                    autoSyncToGS(); // แอบส่งไป Sheets ขนานกับเวลาที่แอดมินทำงานต่อ
+                    autoSyncToGS(); // แจ้งเครื่องอื่นหลังบันทึก Sheets สำเร็จ
                     
                     Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกรับเงินสำเร็จ!', showConfirmButton:false, timer:1500});
                 }
