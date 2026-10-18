@@ -443,6 +443,11 @@
             </div>
         </div>
         <!-- 🌟 จบ: ตั้งค่าคะแนนอัตโนมัติ -->
+        <!-- 🌟 เริ่ม: ตั้งค่าร้านค้า Point Shop -->
+        <h4 class="font-bold text-indigo-600 mt-6 mb-3 border-b pb-2"><i class="fas fa-store"></i> จัดการสินค้าในร้านค้า (Point Shop)</h4>
+        <button onclick="addNewShopItem()" class="mb-3 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg shadow text-sm font-bold transition">+ สร้างสินค้าใหม่</button>
+        <div id="admin-shop-list" class="grid grid-cols-1 gap-3 mb-4 max-h-64 overflow-y-auto"></div>
+        <!-- 🌟 จบ: ตั้งค่าร้านค้า Point Shop -->
     </div>
                 <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">จัดการสิทธิ์ (Login)</h3><button onclick="addUserAlert()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow">+ สร้าง User</button></div>
@@ -5049,7 +5054,7 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             let btnCreateAct = document.getElementById('btn-create-act'); if(btnCreateAct) btnCreateAct.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
             let adminRemind = document.getElementById('admin-reminder-tools'); if(adminRemind) adminRemind.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
 
-            renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();renderLeaderboard();
+            renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();renderLeaderboard();renderShopAdmin();
             if(randomPool.length === 0 && students.length > 0) initRandomizer();
             
             let adminStudents = cAdmRm === 'all' ? students : students.filter(s => s.room === cAdmRm);
@@ -6197,13 +6202,43 @@ function renderLeaderboard() {
     list.innerHTML = lhtml;
 }
 
-// 🛒 ฟังก์ชันเปิดหน้าร้านค้า Point Shop
+// 🛒 โหลดหน้าต่างร้านค้าให้นักศึกษา
 function openPointShop(studentId) {
     let stu = students.find(s => s.id === studentId);
     if(!stu) return;
     if(!stu.inventory) stu.inventory = {};
 
-    let shieldCount = stu.inventory.shield || 0;
+    // ถ้าแอดมินยังไม่เคยสร้างสินค้าเลย ให้มีสินค้าตั้งต้น 2 อย่าง
+    if(!appSettings.shopItems || appSettings.shopItems.length === 0) {
+        appSettings.shopItems = [
+            { id: 'deposit', name: 'แลกเงินฝาก', price: 500, type: 'deposit', value: 20, icon: 'fa-coins', color: 'emerald', desc: 'ระบบจะทบเข้ายอดฝากทันที (มูลค่า 20 บาท)' },
+            { id: 'shield', name: 'โล่ป้องกันสุ่ม', price: 100, type: 'shield', value: 1, icon: 'fa-shield-alt', color: 'indigo', desc: 'ป้องกันการโดนสุ่มชื่อ 1 ครั้ง' }
+        ];
+    }
+
+    let itemsHtml = '';
+    appSettings.shopItems.forEach((itm, idx) => {
+        // จัดการสีให้สวยงาม
+        let th = { bg:'bg-blue-50', border:'border-blue-200', text:'text-blue-700', sub:'text-blue-600', badge:'bg-blue-600 text-white' };
+        if(itm.color==='emerald') th = { bg:'bg-emerald-50', border:'border-emerald-200', text:'text-emerald-700', sub:'text-emerald-600', badge:'bg-emerald-600 text-white' };
+        else if(itm.color==='indigo') th = { bg:'bg-indigo-50', border:'border-indigo-200', text:'text-indigo-700', sub:'text-indigo-600', badge:'bg-indigo-600 text-white' };
+
+        // โชว์จำนวนที่มีอยู่ในกระเป๋า
+        let badgeInfo = '';
+        if(itm.type === 'shield') badgeInfo = `<span class="${th.badge} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${stu.inventory.shield || 0} อัน</span>`;
+        else if(itm.type === 'custom') badgeInfo = `<span class="${th.badge} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${stu.inventory[itm.name] || 0} อัน</span>`;
+
+        itemsHtml += `
+        <div class="border ${th.border} ${th.bg} p-3 rounded-xl flex justify-between items-center cursor-pointer hover:opacity-80 transition shadow-sm mb-2" onclick="buyShopItem('${studentId}', ${idx})">
+            <div>
+                <p class="font-bold ${th.text} mb-0.5"><i class="fas ${itm.icon} text-lg mr-2"></i>${itm.name} ${badgeInfo}</p>
+                <p class="text-[10px] ${th.sub} leading-tight">${itm.desc}</p>
+            </div>
+            <div class="bg-white px-3 py-1.5 rounded-lg border ${th.border} shadow-sm font-black ${th.text} text-sm shrink-0">
+                ${itm.price} ✨
+            </div>
+        </div>`;
+    });
 
     Swal.fire({
         title: '🛒 ร้านค้าสิทธิพิเศษ (Point Shop)',
@@ -6212,49 +6247,118 @@ function openPointShop(studentId) {
             <p class="text-sm font-bold text-slate-600">คะแนนสะสมของคุณ</p>
             <p class="text-4xl font-black text-amber-600 mt-1">${stu.points || 0} <span class="text-lg">✨</span></p>
         </div>
-        <div class="grid grid-cols-1 gap-3 text-left">
-            <!-- ไอเทม 1: แลกเงินฝาก -->
-            <div class="border border-emerald-200 bg-emerald-50 p-3 rounded-xl flex justify-between items-center cursor-pointer hover:bg-emerald-100 transition shadow-sm" onclick="Swal.clickConfirm(); window.shopAction='deposit'">
-                <div>
-                    <p class="font-bold text-emerald-700 mb-0.5"><i class="fas fa-coins text-lg mr-2"></i>แลกเงินฝาก 20 บาท</p>
-                    <p class="text-[10px] text-emerald-600 leading-tight">ระบบจะทบเข้ายอดฝากทันที<br>สามารถนำไปใช้จ่ายบิลรอบหน้าได้</p>
-                </div>
-                <div class="bg-white px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm font-black text-emerald-600 text-sm shrink-0">
-                    500 ✨
-                </div>
-            </div>
-            <!-- ไอเทม 2: โล่ป้องกัน -->
-            <div class="border border-indigo-200 bg-indigo-50 p-3 rounded-xl flex justify-between items-center cursor-pointer hover:bg-indigo-100 transition shadow-sm" onclick="Swal.clickConfirm(); window.shopAction='shield'">
-                <div>
-                    <p class="font-bold text-indigo-700 mb-0.5"><i class="fas fa-shield-alt text-lg mr-2"></i>โล่ป้องกันสุ่ม <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded-md ml-1">มี ${shieldCount} อัน</span></p>
-                    <p class="text-[10px] text-indigo-600 leading-tight">ใช้ 1 อันอัตโนมัติ เพื่อข้ามชื่อคุณ<br>เมื่อโดนระบบ Lucky Draw สุ่มเจอ</p>
-                </div>
-                <div class="bg-white px-3 py-1.5 rounded-lg border border-indigo-200 shadow-sm font-black text-indigo-600 text-sm shrink-0">
-                    100 ✨
-                </div>
-            </div>
+        <div class="grid grid-cols-1 text-left max-h-[300px] overflow-y-auto pr-1">
+            ${itemsHtml}
         </div>
         `,
         showConfirmButton: false, showCloseButton: true,
-    }).then((res) => {
-        if(res.isDismissed) return;
-        
-        // ประมวลผลการซื้อ
-        if(window.shopAction === 'deposit') {
-            if((stu.points || 0) < 500) return Swal.fire('แต้มไม่พอ', 'คุณต้องมีอย่างน้อย 500 แต้ม', 'error').then(()=>openPointShop(studentId));
-            stu.points -= 500;
-            stu.dep = (stu.dep || 0) + 20;
-            txHistory.unshift({ date: getNow(), name: `แลกแต้ม 500 ✨ เป็นเงินฝาก 20 บาท`, type: 'ฝาก', amt: 20, user: stu.name });
+    });
+}
+
+// 🛍️ ระบบตัดคะแนนเมื่อกดซื้อสินค้า
+function buyShopItem(studentId, itemIdx) {
+    let stu = students.find(s => s.id === studentId);
+    let itm = appSettings.shopItems[itemIdx];
+    if(!stu || !itm) return;
+
+    if((stu.points || 0) < itm.price) return Swal.fire('แต้มไม่พอ', `คุณต้องมีอย่างน้อย ${itm.price} แต้ม`, 'error').then(()=>openPointShop(studentId));
+
+    Swal.fire({
+        title: `ยืนยันการแลก "${itm.name}"?`,
+        text: `ใช้ ${itm.price} แต้มในการแลกเปลี่ยน`,
+        icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยันแลก', confirmButtonColor: '#10b981'
+    }).then(res => {
+        if(res.isConfirmed) {
+            stu.points -= itm.price;
+            
+            if(itm.type === 'deposit') {
+                stu.dep = (stu.dep || 0) + itm.value;
+                txHistory.unshift({ date: getNow(), name: `แลกแต้มซื้อ "${itm.name}" (เพิ่มเงินฝาก ${itm.value}฿)`, type: 'ฝาก', amt: itm.value, user: stu.name });
+            } 
+            else if (itm.type === 'shield') {
+                stu.inventory.shield = (stu.inventory.shield || 0) + itm.value;
+                txHistory.unshift({ date: getNow(), name: `แลกแต้มซื้อ "${itm.name}"`, type: 'ระบบ', amt: 0, user: stu.name });
+            }
+            else {
+                stu.inventory[itm.name] = (stu.inventory[itm.name] || 0) + itm.value;
+                txHistory.unshift({ date: getNow(), name: `แลกแต้มซื้อไอเทม "${itm.name}"`, type: 'ระบบ', amt: 0, user: stu.name });
+            }
+            
             saveToLocal(true); refreshAll();
-            Swal.fire({icon:'success', title:'สำเร็จ!', text:'เงินฝากเพิ่มขึ้น 20 บาทแล้ว', confirmButtonColor:'#059669'});
-        } else if (window.shopAction === 'shield') {
-            if((stu.points || 0) < 100) return Swal.fire('แต้มไม่พอ', 'คุณต้องมีอย่างน้อย 100 แต้ม', 'error').then(()=>openPointShop(studentId));
-            stu.points -= 100;
-            stu.inventory.shield = (stu.inventory.shield || 0) + 1;
-            txHistory.unshift({ date: getNow(), name: `แลกแต้ม 100 ✨ ซื้อโล่ป้องกันสุ่ม`, type: 'ระบบ', amt: 0, user: stu.name });
-            saveToLocal(true); refreshAll();
-            Swal.fire({icon:'success', title:'สำเร็จ!', text:'คุณได้รับ โล่ป้องกันสุ่ม 1 อัน 🛡️', confirmButtonColor:'#4f46e5'});
+            Swal.fire({icon:'success', title:'สำเร็จ!', text:`ได้รับ ${itm.name} เรียบร้อยแล้ว`, timer: 1500, showConfirmButton: false}).then(()=> openPointShop(studentId));
         }
+    });
+}
+
+// ================= จัดการร้านค้า (ADMIN) =================
+function renderShopAdmin() {
+    let container = document.getElementById('admin-shop-list');
+    if(!container) return;
+    if(!appSettings.shopItems) appSettings.shopItems = [];
+    
+    let html = '';
+    appSettings.shopItems.forEach((itm, idx) => {
+        let typeText = itm.type === 'deposit' ? 'เงินฝาก' : (itm.type === 'shield' ? 'โล่ป้องกัน' : 'ไอเทมทั่วไป');
+        let colorClass = itm.type === 'deposit' ? 'emerald' : (itm.type === 'shield' ? 'indigo' : 'blue');
+        
+        html += `
+        <div class="border p-3 rounded-xl bg-white shadow-sm flex justify-between items-center border-l-4 border-l-${colorClass}-500">
+            <div>
+                <p class="font-bold text-slate-700 leading-tight">${itm.name}</p>
+                <p class="text-[10px] text-slate-500 mt-1"><b class="text-amber-500">${itm.price} ✨</b> | ${typeText}</p>
+            </div>
+            <button onclick="deleteShopItem(${idx})" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full transition shadow-sm border border-slate-100"><i class="fas fa-trash"></i></button>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function addNewShopItem() {
+    Swal.fire({
+        title: '📦 สร้างสินค้าใหม่',
+        html: `
+            <div class="text-left space-y-3 mt-3">
+                <div><label class="text-xs font-bold text-slate-500">ชื่อสินค้า / สิทธิพิเศษ</label><input id="swal-shop-name" class="modern-input mb-0" placeholder="เช่น บัตรลางาน, บัตรกันสาย"></div>
+                <div><label class="text-xs font-bold text-slate-500">ราคา (แต้ม ✨)</label><input type="number" id="swal-shop-price" class="modern-input mb-0" placeholder="เช่น 150"></div>
+                <div><label class="text-xs font-bold text-slate-500">คำอธิบายสั้นๆ</label><input id="swal-shop-desc" class="modern-input mb-0" placeholder="เช่น ใช้แสดงเพื่อลบประวัติมาสาย 1 ครั้ง"></div>
+                <div><label class="text-xs font-bold text-slate-500">ประเภทไอเทม</label>
+                <select id="swal-shop-type" class="modern-input mb-0 font-bold text-slate-600">
+                    <option value="custom">ไอเทมทั่วไป (เก็บเข้ากระเป๋า นำไปใช้โชว์ได้)</option>
+                    <option value="deposit">เงินฝาก (ทบเงินกองกลางอัตโนมัติ)</option>
+                    <option value="shield">โล่ป้องกัน (ข้ามชื่อระบบ Lucky Draw)</option>
+                </select></div>
+                <div><label class="text-xs font-bold text-slate-500">มูลค่าที่ได้รับ</label><input type="number" id="swal-shop-val" class="modern-input mb-0" value="1" placeholder="ได้ของกี่ชิ้น หรือได้เงินกี่บาท"></div>
+            </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#4f46e5',
+        preConfirm: () => {
+            let name = document.getElementById('swal-shop-name').value.trim();
+            let price = parseInt(document.getElementById('swal-shop-price').value);
+            if(!name || isNaN(price)) return Swal.showValidationMessage('กรุณากรอกชื่อและราคาให้ครบถ้วน');
+            return {
+                id: 'item_' + Date.now(),
+                name: name, price: price,
+                desc: document.getElementById('swal-shop-desc').value.trim() || 'สินค้าสิทธิพิเศษ',
+                type: document.getElementById('swal-shop-type').value,
+                value: parseInt(document.getElementById('swal-shop-val').value) || 1
+            }
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            let itm = res.value;
+            itm.icon = itm.type === 'deposit' ? 'fa-coins' : (itm.type === 'shield' ? 'fa-shield-alt' : 'fa-box-open');
+            itm.color = itm.type === 'deposit' ? 'emerald' : (itm.type === 'shield' ? 'indigo' : 'blue');
+            if(!appSettings.shopItems) appSettings.shopItems = [];
+            appSettings.shopItems.push(itm);
+            saveToLocal(true); renderShopAdmin();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มสินค้าแล้ว', showConfirmButton:false, timer:1500});
+        }
+    });
+}
+
+function deleteShopItem(idx) {
+    Swal.fire({title: 'ลบสินค้านี้?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบทิ้ง', confirmButtonColor: '#ef4444'}).then(res => {
+        if(res.isConfirmed) { appSettings.shopItems.splice(idx, 1); saveToLocal(true); renderShopAdmin(); }
     });
 }
     </script>
