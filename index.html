@@ -6209,9 +6209,8 @@ function openPointShop(studentId) {
     if(!stu.inventory) stu.inventory = {};
 
     // ถ้าแอดมินยังไม่เคยสร้างสินค้าเลย ให้มีสินค้าตั้งต้น 2 อย่าง
-    if(!appSettings.shopItems || appSettings.shopItems.length === 0) {
+    if(!appSettings.shopItems){
         appSettings.shopItems = [
-            { id: 'deposit', name: 'แลกเงินฝาก', price: 500, type: 'deposit', value: 20, icon: 'fa-coins', color: 'emerald', desc: 'ระบบจะทบเข้ายอดฝากทันที (มูลค่า 20 บาท)' },
             { id: 'shield', name: 'โล่ป้องกันสุ่ม', price: 100, type: 'shield', value: 1, icon: 'fa-shield-alt', color: 'indigo', desc: 'ป้องกันการโดนสุ่มชื่อ 1 ครั้ง' }
         ];
     }
@@ -6301,13 +6300,17 @@ function renderShopAdmin() {
         let typeText = itm.type === 'deposit' ? 'เงินฝาก' : (itm.type === 'shield' ? 'โล่ป้องกัน' : 'ไอเทมทั่วไป');
         let colorClass = itm.type === 'deposit' ? 'emerald' : (itm.type === 'shield' ? 'indigo' : 'blue');
         
+        // (แก้ในฟังก์ชัน renderShopAdmin)
         html += `
         <div class="border p-3 rounded-xl bg-white shadow-sm flex justify-between items-center border-l-4 border-l-${colorClass}-500">
             <div>
                 <p class="font-bold text-slate-700 leading-tight">${itm.name}</p>
                 <p class="text-[10px] text-slate-500 mt-1"><b class="text-amber-500">${itm.price} ✨</b> | ${typeText}</p>
             </div>
-            <button onclick="deleteShopItem(${idx})" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full transition shadow-sm border border-slate-100"><i class="fas fa-trash"></i></button>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="editShopItem(${idx})" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 w-8 h-8 rounded-full transition shadow-sm border border-slate-100 flex items-center justify-center"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteShopItem(${idx})" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full transition shadow-sm border border-slate-100 flex items-center justify-center"><i class="fas fa-trash"></i></button>
+            </div>
         </div>`;
     });
     container.innerHTML = html;
@@ -6359,6 +6362,48 @@ function addNewShopItem() {
 function deleteShopItem(idx) {
     Swal.fire({title: 'ลบสินค้านี้?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบทิ้ง', confirmButtonColor: '#ef4444'}).then(res => {
         if(res.isConfirmed) { appSettings.shopItems.splice(idx, 1); saveToLocal(true); renderShopAdmin(); }
+    });
+}
+// ✏️ ฟังก์ชันแก้ไขสินค้าเดิม
+function editShopItem(idx) {
+    let itm = appSettings.shopItems[idx];
+    if(!itm) return;
+
+    Swal.fire({
+        title: '✏️ แก้ไขข้อมูลสินค้า',
+        html: `
+            <div class="text-left space-y-3 mt-3">
+                <div><label class="text-xs font-bold text-slate-500">ชื่อสินค้า / สิทธิพิเศษ</label>
+                <input id="edit-shop-name" class="modern-input mb-0" value="${itm.name}"></div>
+                
+                <div><label class="text-xs font-bold text-slate-500">ราคา (แต้ม ✨)</label>
+                <input type="number" id="edit-shop-price" class="modern-input mb-0" value="${itm.price}"></div>
+                
+                <div><label class="text-xs font-bold text-slate-500">คำอธิบายสั้นๆ</label>
+                <input id="edit-shop-desc" class="modern-input mb-0" value="${itm.desc || ''}"></div>
+                
+                <div class="p-2 bg-slate-50 border rounded-lg mt-2 text-xs text-slate-500 text-center">
+                    <i class="fas fa-info-circle mr-1"></i> (ไม่สามารถเปลี่ยนประเภทไอเทมได้ หากต้องการเปลี่ยนกรุณาลบแล้วสร้างใหม่)
+                </div>
+            </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'บันทึกการแก้ไข', confirmButtonColor: '#3b82f6',
+        preConfirm: () => {
+            let name = document.getElementById('edit-shop-name').value.trim();
+            let price = parseInt(document.getElementById('edit-shop-price').value);
+            if(!name || isNaN(price)) return Swal.showValidationMessage('กรุณากรอกชื่อและราคาให้ครบถ้วน');
+            return { name: name, price: price, desc: document.getElementById('edit-shop-desc').value.trim() };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            // อัปเดตข้อมูลทับของเดิม
+            appSettings.shopItems[idx].name = res.value.name;
+            appSettings.shopItems[idx].price = res.value.price;
+            appSettings.shopItems[idx].desc = res.value.desc;
+            
+            saveToLocal(true); renderShopAdmin(); // เซฟและโหลดหน้าใหม่
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขแล้ว', showConfirmButton:false, timer:1500});
+        }
     });
 }
     </script>
