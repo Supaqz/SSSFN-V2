@@ -123,7 +123,7 @@
             </div>
 
             <!-- 🌟 ปุ่มผูก LINE แทรกไว้ตรงนี้ 🌟 -->
-            <div id="nav-line-link" class="pt-2">
+            <div id="nav-line-link" class="hidden pt-2">
                 <button onclick="linkLineAccount()" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-white bg-[#00B900] hover:bg-[#009900] shadow-md hover:shadow-lg transition flex items-center gap-3 transform hover:-translate-y-0.5">
                     <i class="fab fa-line text-xl w-5 text-center"></i> เชื่อมต่อ LINE แจ้งเตือน
                 </button>
@@ -4331,11 +4331,11 @@ function viewSlipPopup(url) {
         
         // 🌟 6. แก้ไขคอลัมน์ชื่อ เพื่อแสดง Popup ข้อมูลการเงินรายบุคคล และป้ายบอกยอดเงินฝาก
         let nameColHtml = `
-            <div class="flex flex-col">
-                <span class="font-bold text-slate-700 text-sm cursor-pointer hover:text-indigo-600 transition" onclick="viewStudentFinance('${s.id}')">
-                    ${s.name} <i class="fas fa-search text-[10px] text-slate-400 ml-1"></i>
-                </span>
-                <span class="text-[10px] text-slate-400 font-mono mt-0.5">${s.id}</span>`;
+    <div class="flex flex-col">
+        <span class="font-bold text-slate-700 text-sm">
+            ${s.name}
+        </span>
+        <span class="text-[10px] text-slate-400 font-mono mt-0.5">${s.id}</span>`;
                 
         if (s.dep > 0) {
             nameColHtml += `<div class="mt-1"><span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block"><i class="fas fa-wallet mr-1"></i>เงินฝาก ฿${(s.dep).toFixed(2)}</span></div>`;
