@@ -313,36 +313,83 @@
                 </div>
             </div>
 
-            <div id="page-fin-fund" class="page-view hidden max-w-5xl mx-auto">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div><h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-piggy-bank text-pink-600"></i> จัดการการเงิน</h2></div>
-                    <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                        <button onclick="openAdminDepositUpload()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition mb-4"><i class="fas fa-file-invoice-dollar mr-2"></i> อัปโหลดสลิปยอดฝาก (เงินเกิน)</button>
-                        <button onclick="openBulkSlipModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 transition"><i class="fas fa-magic"></i> โยนสลิป Auto-Match</button>
-                        <button onclick="openDriveSyncModal()" class="bg-sky-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-sky-700 transition"><i class="fab fa-google-drive"></i> ดึงสลิปจากโฟลเดอร์ Drive</button>
-                        <button onclick="createFundRoundAlert()" class="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-pink-700 transition">+ สร้างรายการใหม่</button>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-xl border border-slate-200 mb-4 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-3">
-                    <label class="font-bold text-sm text-slate-700">เลือกรายการ:</label>
-                    <div class="flex gap-2 w-full md:flex-1">
-    <select id="fund-round-select" onchange="renderFundTable(); updateQuickToggleBtn();" class="flex-1 p-2 border rounded-lg font-bold text-pink-700 outline-none"></select>
+<!-- ================= หน้าจัดการการเงิน (ปรับปรุงใหม่) ================= -->
+<div id="page-fin-fund" class="page-view hidden px-4 py-6 max-w-5xl mx-auto">
     
-    <!-- เพิ่มปุ่มสวิตช์เปิด-ปิดด่วนตรงนี้ -->
-    <button onclick="toggleQuickRoundStatus()" id="btn-toggle-round" class="hidden px-3 rounded-lg text-sm font-bold shadow-sm transition" title="เปิด/ปิดรอบบิลนี้"></button>
-    
-    <button onclick="editFundRound()" id="btn-edit-round" class="hidden bg-emerald-100 text-emerald-600 px-3 rounded-lg hover:bg-emerald-200 transition" title="แก้ไขรายการ"><i class="fas fa-edit"></i></button>
-    <button onclick="deleteFundRound()" id="btn-del-round" class="hidden bg-rose-100 text-rose-600 px-3 rounded-lg hover:bg-rose-200 transition" title="ลบรายการ"><i class="fas fa-trash"></i></button>
-</div>
+    <!-- 🌟 1. ส่วนหัวหน้าเพจ -->
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-black text-slate-800 tracking-tight">
+            <i class="fas fa-piggy-bank text-rose-500 mr-2"></i> จัดการการเงิน
+        </h2>
+    </div>
+
+    <!-- 🌟 2. จัดกลุ่มเครื่องมือเป็น 2 คอลัมน์ (ลดความอึดอัดของปุ่ม) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        
+        <!-- กล่องที่ 1: จัดการบิลเรียกเก็บเงิน -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-700 mb-3 border-b border-slate-100 pb-2">
+                    <i class="fas fa-file-invoice-dollar text-pink-500 mr-1"></i> จัดการรายการเก็บบิล
+                </h3>
+                <button onclick="createFundRoundAlert()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition mb-4 text-sm flex items-center justify-center">
+                    <i class="fas fa-plus-circle mr-2"></i> สร้างรายการใหม่
+                </button>
+            </div>
+            
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <label class="text-xs font-bold text-slate-500 mb-1.5 block">เลือกบิลที่ต้องการจัดการ:</label>
+                <div class="flex gap-2 items-center">
+                    <select id="fund-round-select" onchange="renderFundTable(); updateQuickToggleBtn();" class="modern-input mb-0 flex-1 font-bold text-pink-700 text-sm outline-none bg-white"></select>
+                    
+                    <!-- ปุ่มจัดการบิลย่อย (ไอคอน) -->
+                    <button onclick="toggleQuickRoundStatus()" id="btn-toggle-round" class="hidden bg-emerald-100 hover:bg-emerald-200 text-emerald-700 w-10 h-10 rounded-lg flex items-center justify-center transition shrink-0" title="เปิด/ปิดรอบบิลนี้"></button>
+                    <button onclick="editFundRound()" id="btn-edit-round" class="hidden bg-blue-100 hover:bg-blue-200 text-blue-700 w-10 h-10 rounded-lg flex items-center justify-center transition shrink-0" title="แก้ไขรายการ"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteFundRound()" id="btn-del-round" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 w-10 h-10 rounded-lg flex items-center justify-center transition shrink-0" title="ลบรายการ"><i class="fas fa-trash"></i></button>
                 </div>
-                <div id="admin-reminder-tools" class="bg-rose-50 p-4 rounded-xl border border-rose-200 mb-4 shadow-sm flex flex-col md:flex-row items-center gap-3 hidden">
-                    <h4 class="font-bold text-rose-800 text-sm whitespace-nowrap"><i class="fas fa-bullhorn"></i> สั่งการระบบทวงเงิน:</h4>
-                    <div class="flex gap-2 w-full">
-                        <button onclick="triggerEmailAlert()" class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow hover:bg-blue-700 transition"><i class="fas fa-envelope text-lg align-middle"></i> ส่งอีเมลทวงส่วนตัว</button>
-                        <button onclick="triggerDueDateEmail()" class="flex-1 bg-amber-500 text-white px-3 py-2 rounded-lg text-xs font-bold shadow hover:bg-amber-600 transition"><i class="fas fa-clock text-lg align-middle"></i> เตือนบิลครบกำหนดวันนี้</button>
-                    </div>
-                </div>
-                <div class="bg-white rounded-2xl border shadow-sm">
+            </div>
+        </div>
+
+        <!-- กล่องที่ 2: จัดการสลิปและเงินฝาก -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-700 mb-3 border-b border-slate-100 pb-2">
+                <i class="fas fa-receipt text-emerald-500 mr-1"></i> เครื่องมือจัดการสลิป
+            </h3>
+            <div class="flex flex-col gap-2.5">
+                <button onclick="openAdminDepositUpload()" class="bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 font-bold py-2.5 px-4 rounded-xl transition text-sm text-left flex items-center justify-between group shadow-sm">
+                    <span><i class="fas fa-file-upload w-5 text-center mr-1"></i> อัปโหลดสลิปยอดฝาก (เงินเกิน)</span>
+                    <i class="fas fa-chevron-right text-xs opacity-40 group-hover:opacity-100 transition"></i>
+                </button>
+                
+                <button onclick="openBulkSlipModal()" class="bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold py-2.5 px-4 rounded-xl transition text-sm text-left flex items-center justify-between group shadow-sm">
+                    <span><i class="fas fa-magic w-5 text-center mr-1"></i> โยนสลิป Auto-Match</span>
+                    <i class="fas fa-chevron-right text-xs opacity-40 group-hover:opacity-100 transition"></i>
+                </button>
+                
+                <button onclick="openDriveSyncModal()" class="bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 font-bold py-2.5 px-4 rounded-xl transition text-sm text-left flex items-center justify-between group shadow-sm">
+                    <span><i class="fab fa-google-drive w-5 text-center mr-1"></i> ดึงสลิปจากโฟลเดอร์ Drive</span>
+                    <i class="fas fa-chevron-right text-xs opacity-40 group-hover:opacity-100 transition"></i>
+                </button>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- 🌟 3. แถบระบบทวงเงิน -->
+    <div id="admin-reminder-tools" class="hidden bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200 p-5 rounded-2xl mb-6 shadow-sm">
+        <h3 class="text-sm font-bold text-rose-700 mb-3 text-center"><i class="fas fa-bullhorn mr-1"></i> สั่งการระบบทวงเงิน</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button onclick="triggerEmailAlert()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl shadow-sm text-sm transition flex items-center justify-center transform hover:scale-[1.02]">
+                <i class="fas fa-envelope text-lg mr-2"></i> ส่งอีเมลทวงส่วนตัว
+            </button>
+            <button onclick="triggerDueDateEmail()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl shadow-sm text-sm transition flex items-center justify-center transform hover:scale-[1.02]">
+                <i class="fas fa-clock text-lg mr-2"></i> เตือนบิลครบกำหนดวันนี้
+            </button>
+        </div>
+    </div>
+
+    <!-- ส่วนกล่องตารางจัดการสลิปด้านล่าง (รักษากล่องเดิมไว้) -->
+    <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-2">
     <h3 class="font-bold text-slate-800">สถานะการชำระเงิน</h3>
     <div class="flex gap-2">
