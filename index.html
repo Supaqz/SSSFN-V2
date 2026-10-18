@@ -1253,10 +1253,19 @@ function openPublicSlipModal(targetRoundId = null) {
             reader.onload = function(e) { 
                 let img = new Image(); 
                 img.onload = async function() { 
-                    let canvas = document.createElement('canvas'); let MAX_WIDTH = 400; let scaleSize = MAX_WIDTH / img.width; let w = img.width; let h = img.height; 
-                    if (scaleSize < 1) { w *= scaleSize; h *= scaleSize; } canvas.width = w; canvas.height = h; 
-                    let ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h); 
-                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.4); 
+                    // 🌟 ปรับเพิ่มความละเอียดภาพเพื่อให้ระบบ OCR อ่านชื่อออก
+                    let canvas = document.createElement('canvas'); 
+                    let MAX_WIDTH = 1200; // เพิ่มขนาดจาก 400 เป็น 1200
+                    let scaleSize = MAX_WIDTH / img.width; 
+                    let w = img.width; let h = img.height; 
+                    if (scaleSize < 1) { w *= scaleSize; h *= scaleSize; } 
+                    canvas.width = w; canvas.height = h; 
+                    
+                    let ctx = canvas.getContext('2d'); 
+                    ctx.drawImage(img, 0, 0, w, h); 
+                    
+                    // 🌟 ปรับคุณภาพ JPEG เป็น 0.8 และคงนามสกุลไฟล์เดิมไว้
+                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.8); 
                     
                     let result = await callBackend({
                         action: 'uploadSlip',
@@ -1268,8 +1277,10 @@ function openPublicSlipModal(targetRoundId = null) {
                         room: res.value.room,
                         studentName: res.value.studentName,
                         expectedAmount: res.value.expectedAmount,
-                        userRole: currentUserRole
+                        userRole: currentUserRole,
+                        isLumpSum: res.value.isLumpSum // 🌟 เพิ่มค่าเหมาจ่ายเข้าไปใน Payload
                     });
+                    //... โค้ดส่วนที่เหลือเหมือนเดิม
 
                     if (result.status === 'success') { 
                         // ยิงแจ้งเตือนเข้า LINE/Facebook ทันที
@@ -4499,23 +4510,28 @@ function viewSlipPopup(url) {
                     });
                             
                     // 3. ทบยอดฝาก และเปลี่ยนชื่อสลิป
-            if (depositAdd > 0) {
-                stu.dep = (stu.dep || 0) + depositAdd;
-                
-                // 🌟 เพิ่มบรรทัดนี้: ให้ระบบจำลิงก์สลิปที่โอนเกินไว้
-                if(currentPayment && currentPayment.slipUrl) stu.lastDepositSlip = currentPayment.slipUrl;
-                txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${stu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
+                    if (depositAdd > 0) {
+                        stu.dep = (stu.dep || 0) + depositAdd;
                         
-                // 🌟 ส่งคำสั่งไปเปลี่ยนชื่อสลิปที่หลังบ้าน (Google Drive)
+                        if(currentPayment && currentPayment.slipUrl) stu.lastDepositSlip = currentPayment.slipUrl;
+                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${stu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
+                                
+                        // 🌟 แก้ไข: เปลี่ยนไปใช้ callBackend เพื่อไม่ให้หน้าเว็บแครช
                         if (!isCash && currentPayment && currentPayment.slipUrl) {
-                            google.script.run.renameOverpaidSlip(currentPayment.slipUrl, stu.id, stu.name);
+                            // สั่งให้ Backend ไปเปลี่ยนชื่อไฟล์เงียบๆ โดยไม่รอผลลัพธ์
+                            callBackend({
+                                action: 'renameOverpaidSlipAPI', // ต้องเพิ่มเคสนี้ใน doPost ทีหลัง
+                                slipUrl: currentPayment.slipUrl, 
+                                studentId: stu.id, 
+                                studentName: stu.name
+                            }).catch(e => console.log("Rename slip failed", e));
                         }
                     }
 
-                    // 🌟 อัปเกรด: ให้อัปเดตหน้าจอทันที + กดกริ่งทันที + ส่งเซฟหลังบ้านแบบเบื้องหลัง
+                    // อัปเดตหน้าจอทันที + กดกริ่งทันที
                     saveToLocal(false); // เซฟลงเครื่อง
                     recalculateDebts(); 
-                    renderFundTable(); // รีเฟรชตารางให้เป็นสีเขียวทันที
+                    renderFundTable(); // รีเฟรชตาราง
                     renderHomeDirectory();
                     
                     autoSyncToGS(); // แจ้งเครื่องอื่นหลังบันทึก Sheets สำเร็จ
