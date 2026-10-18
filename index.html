@@ -317,6 +317,7 @@
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div><h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-piggy-bank text-pink-600"></i> จัดการการเงิน</h2></div>
                     <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                        <button onclick="openAdminDepositUpload()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition mb-4"><i class="fas fa-file-invoice-dollar mr-2"></i> อัปโหลดสลิปยอดฝาก (เงินเกิน)</button>
                         <button onclick="openBulkSlipModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 transition"><i class="fas fa-magic"></i> โยนสลิป Auto-Match</button>
                         <button onclick="openDriveSyncModal()" class="bg-sky-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-sky-700 transition"><i class="fab fa-google-drive"></i> ดึงสลิปจากโฟลเดอร์ Drive</button>
                         <button onclick="createFundRoundAlert()" class="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-pink-700 transition">+ สร้างรายการใหม่</button>
@@ -4258,118 +4259,118 @@ function viewSlipPopup(url) {
 }
 
         function approveFundPayment(roundId, studentId, maxRemain, isCash = false) {
-            let stu = students.find(s => s.id == studentId);
-            let round = fundRounds.find(rd => rd.id == roundId);
+    let stu = students.find(s => s.id == studentId);
+    let round = fundRounds.find(rd => rd.id == roundId);
+    let currentPayment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
             
-            // 1. ค้นหาหนี้เก่าที่ค้างอยู่ (บิลอื่นๆ ที่ไม่ใช่บิลนี้)
-            let otherUnpaidRounds = [];
-            let totalOtherDebt = 0;
+    // 1. ค้นหาหนี้เก่าที่ค้างอยู่ (บิลอื่นๆ ที่ไม่ใช่บิลนี้)
+    let otherUnpaidRounds = [];
+    let totalOtherDebt = 0;
             
-            fundPayments.forEach(p => {
-                //🌟 เพิ่มการดึงบิลที่ขึ้น 'รอตรวจสอบ' หรือ 'รอดำเนินการ' มารวมด้วย เผื่อกรณีที่เพื่อนเหมาจ่ายมา
-                if (p.studentId === studentId && p.roundId != roundId && 
-                   (p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ' || p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ')) {
-                    let r = fundRounds.find(rd => rd.id === p.roundId);
-                    if (r && r.isOpen !== false) {
-                        let remain = r.amt - (p.paidAmt || 0);
-                        if (remain > 0) {
-                            otherUnpaidRounds.push({ payment: p, round: r, remain: remain });
-                            totalOtherDebt += remain;
-                        }
-                    }
+    fundPayments.forEach(p => {
+        //🌟 เพิ่มการดึงบิลที่ขึ้น 'รอตรวจสอบ' หรือ 'รอดำเนินการ' มารวมด้วย เผื่อกรณีที่เพื่อนเหมาจ่ายมา
+        if (p.studentId === studentId && p.roundId != roundId && 
+           (p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ' || p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ')) {
+            let r = fundRounds.find(rd => rd.id === p.roundId);
+            if (r && r.isOpen !== false) {
+                let remain = r.amt - (p.paidAmt || 0);
+                if (remain > 0) {
+                    otherUnpaidRounds.push({ payment: p, round: r, remain: remain });
+                    totalOtherDebt += remain;
                 }
-            });
-
-            // เรียงลำดับหนี้จากเก่าไปใหม่ (อิงจากวันที่สร้างบิล)
-            otherUnpaidRounds.sort((a, b) => new Date(a.round.dueDate || '9999-12-31') - new Date(b.round.dueDate || '9999-12-31'));
-
-            // 2. สร้างกล่องแจ้งเตือนถ้ามีหนี้เก่า
-            let debtAlertHtml = '';
-            if (totalOtherDebt > 0) {
-                debtAlertHtml = `<div class="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs text-left shadow-inner">
-                    <p class="font-bold text-sm mb-1"><i class="fas fa-exclamation-circle"></i> แจ้งเตือน: มียอดค้างชำระบิลอื่น!</p>
-                    <p>เพื่อนคนนี้มียอดค้างบิลเก่ารวม <b>฿${totalOtherDebt.toFixed(2)}</b><br>
-                    <span class="text-rose-500">*ถ้าระบุเงินเกินบิลนี้ ระบบจะนำเงินส่วนเกินไปหักหนี้เก่าให้อัตโนมัติ หากมีเงินทอนเหลือจะเก็บเข้ายอดฝาก</span></p>
-                </div>`;
             }
+        }
+    });
 
-            let cashTitle = isCash ? '(รับเงินสด)' : '(รับเงินโอน)';
+    // เรียงลำดับหนี้จากเก่าไปใหม่ (อิงจากวันที่สร้างบิล)
+    otherUnpaidRounds.sort((a, b) => new Date(a.round.dueDate || '9999-12-31') - new Date(b.round.dueDate || '9999-12-31'));
+
+    // 2. สร้างกล่องแจ้งเตือนถ้ามีหนี้เก่า
+    let debtAlertHtml = '';
+    if (totalOtherDebt > 0) {
+        debtAlertHtml = `<div class="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs text-left shadow-inner">
+            <p class="font-bold text-sm mb-1"><i class="fas fa-exclamation-circle"></i> แจ้งเตือน: มียอดค้างชำระบิลอื่น!</p>
+            <p>เพื่อนคนนี้มียอดค้างบิลเก่ารวม <b>฿${totalOtherDebt.toFixed(2)}</b><br>
+            <span class="text-rose-500">*ถ้าระบุเงินเกินบิลนี้ ระบบจะนำเงินส่วนเกินไปหักหนี้เก่าให้อัตโนมัติ หากมีเงินทอนเหลือจะเก็บเข้ายอดฝาก</span></p>
+        </div>`;
+    }
+
+    let cashTitle = isCash ? '(รับเงินสด)' : '(รับเงินโอน)';
             
-            Swal.fire({ 
-                title: `บันทึกรับเงิน ${cashTitle}`, 
-                html: `<div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200">
-                           <div class="flex justify-between items-center border-b pb-2 mb-3 text-sm">
-                               <span class="font-bold text-slate-600">ยอดบิลนี้ (${round.title})</span>
-                               <span class="font-bold text-blue-600">฿${maxRemain.toFixed(2)}</span>
-                           </div>
-                           <label class="text-xs font-bold text-slate-500 mb-2 block">ระบุยอดเงินที่ได้รับมาจริงทั้งหมด (บาท)</label>
-                           <input type="number" id="pay-amt-input" class="modern-input text-3xl font-bold text-emerald-600 text-center py-4" value="${maxRemain}" min="1">
-                           ${debtAlertHtml}
-                       </div>`, 
-                showCancelButton: true, confirmButtonText: 'ถัดไป <i class="fas fa-arrow-right"></i>', confirmButtonColor: '#10b981', cancelButtonText: 'ยกเลิก', 
-                preConfirm: () => { 
-                    let amt = parseFloat(document.getElementById('pay-amt-input').value); 
-                    if(!amt || amt <= 0) return Swal.showValidationMessage('กรุณาระบุจำนวนเงินที่ถูกต้อง'); 
-                    return amt; 
-                } 
-            }).then(r => {
-                if(r.isConfirmed) {
-                    let totalReceived = r.value;
-                    let currentBillPay = Math.min(totalReceived, maxRemain);
-                    let excess = totalReceived - currentBillPay;
+    Swal.fire({ 
+        title: `บันทึกรับเงิน ${cashTitle}`, 
+        html: `<div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200">
+                   <div class="flex justify-between items-center border-b pb-2 mb-3 text-sm">
+                       <span class="font-bold text-slate-600">ยอดบิลนี้ (${round.title})</span>
+                       <span class="font-bold text-blue-600">฿${maxRemain.toFixed(2)}</span>
+                   </div>
+                   <label class="text-xs font-bold text-slate-500 mb-2 block">ระบุยอดเงินที่ได้รับมาจริงทั้งหมด (บาท)</label>
+                   <input type="number" id="pay-amt-input" class="modern-input text-3xl font-bold text-emerald-600 text-center py-4" value="${maxRemain}" min="1">
+                   ${debtAlertHtml}
+               </div>`, 
+        showCancelButton: true, confirmButtonText: 'ถัดไป <i class="fas fa-arrow-right"></i>', confirmButtonColor: '#10b981', cancelButtonText: 'ยกเลิก', 
+        preConfirm: () => { 
+            let amt = parseFloat(document.getElementById('pay-amt-input').value); 
+            if(!amt || amt <= 0) return Swal.showValidationMessage('กรุณาระบุจำนวนเงินที่ถูกต้อง'); 
+            return amt; 
+        } 
+    }).then(r => {
+        if(r.isConfirmed) {
+            let totalReceived = r.value;
+            let currentBillPay = Math.min(totalReceived, maxRemain);
+            let excess = totalReceived - currentBillPay;
                     
-                    let summaryHtml = `<div class="text-left text-sm space-y-3">
-                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between">
-                            <span>จ่ายบิลนี้ (${round.title})</span>
-                            <span class="font-bold text-blue-700">฿${currentBillPay.toFixed(2)}</span>
-                        </div>`;
+            let summaryHtml = `<div class="text-left text-sm space-y-3">
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between">
+                    <span>จ่ายบิลนี้ (${round.title})</span>
+                    <span class="font-bold text-blue-700">฿${currentBillPay.toFixed(2)}</span>
+                </div>`;
                     
-                    let remainingExcess = excess;
-                    let otherPaymentsToUpdate = [];
+            let remainingExcess = excess;
+            let otherPaymentsToUpdate = [];
                     
-                    // กระจายเงินส่วนเกินไปโปะหนี้เก่า
-                    if (remainingExcess > 0 && otherUnpaidRounds.length > 0) {
-                        summaryHtml += `<div class="bg-rose-50 p-3 rounded-lg border border-rose-100">
+            // กระจายเงินส่วนเกินไปโปะหนี้เก่า
+            if (remainingExcess > 0 && otherUnpaidRounds.length > 0) {
+                summaryHtml += `<div class="bg-rose-50 p-3 rounded-lg border border-rose-100">
                                             <p class="font-bold text-rose-600 border-b border-rose-200 pb-1 mb-2">นำส่วนเกินหักหนี้เก่า:</p>`;
                         
-                        otherUnpaidRounds.forEach(item => {
-                            if (remainingExcess > 0) {
-                                let payThisDebt = Math.min(remainingExcess, item.remain);
-                                remainingExcess -= payThisDebt;
-                                otherPaymentsToUpdate.push({ payment: item.payment, round: item.round, payAmt: payThisDebt });
-                                summaryHtml += `<div class="flex justify-between text-xs mb-1 pl-2">
-                                                    <span class="text-rose-700">- ${item.round.title}</span>
-                                                    <span class="font-bold text-rose-600">฿${payThisDebt.toFixed(2)}</span>
-                                                </div>`;
-                            }
-                        });
-                        summaryHtml += `</div>`;
+                otherUnpaidRounds.forEach(item => {
+                    if (remainingExcess > 0) {
+                        let payThisDebt = Math.min(remainingExcess, item.remain);
+                        remainingExcess -= payThisDebt;
+                        otherPaymentsToUpdate.push({ payment: item.payment, round: item.round, payAmt: payThisDebt });
+                        summaryHtml += `<div class="flex justify-between text-xs mb-1 pl-2">
+                                                            <span class="text-rose-700">- ${item.round.title}</span>
+                                                            <span class="font-bold text-rose-600">฿${payThisDebt.toFixed(2)}</span>
+                                                        </div>`;
                     }
+                });
+                summaryHtml += `</div>`;
+            }
                     
-                    // เงินที่เหลือไปยอดฝาก
-                    let depositAdd = remainingExcess;
-                    if (depositAdd > 0) {
-                        summaryHtml += `<div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex justify-between">
+            // เงินที่เหลือไปยอดฝาก
+            let depositAdd = remainingExcess;
+            if (depositAdd > 0) {
+                summaryHtml += `<div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex justify-between">
                                             <span class="text-emerald-700">เงินทอนเก็บเข้า "ยอดฝาก"</span>
                                             <span class="font-bold text-emerald-600">+ ฿${depositAdd.toFixed(2)}</span>
                                         </div>`;
-                    }
+            }
 
-                    summaryHtml += `</div>`;
+            summaryHtml += `</div>`;
 
-                    // เด้งหน้าต่างสรุปผลให้เหรัญญิกกดยืนยัน
-                    Swal.fire({
-                        title: 'สรุปการจัดสรรเงิน',
-                        html: summaryHtml,
-                        showCancelButton: true,
-                        confirmButtonText: '✅ ยืนยันตามนี้',
-                        confirmButtonColor: '#059669',
-                        cancelButtonText: 'ยกเลิก'
-                    }).then(confirmRes => {
-                        if (confirmRes.isConfirmed) {
+            // เด้งหน้าต่างสรุปผลให้เหรัญญิกกดยืนยัน
+            Swal.fire({
+                title: 'สรุปการจัดสรรเงิน',
+                html: summaryHtml,
+                showCancelButton: true,
+                confirmButtonText: '✅ ยืนยันตามนี้',
+                confirmButtonColor: '#059669',
+                cancelButtonText: 'ยกเลิก'
+            }).then(confirmRes => {
+                if (confirmRes.isConfirmed) {
                             
-                            // 1. ตัดบิลปัจจุบัน
-                    let currentPayment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+                    // 1. ตัดบิลปัจจุบัน
                     if(currentPayment) {
                         let wasPaid = currentPayment.status.includes('จ่ายแล้ว');
                         currentPayment.paidAmt = (currentPayment.paidAmt || 0) + currentBillPay;
@@ -4400,17 +4401,22 @@ function viewSlipPopup(url) {
                         });
                     }
                             
-                            // 2. ตัดบิลค้างเก่า
-                            otherPaymentsToUpdate.forEach(upd => {
-                                upd.payment.paidAmt = (upd.payment.paidAmt || 0) + upd.payAmt;
-                                upd.payment.status = (upd.payment.paidAmt >= upd.round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
-                                txHistory.unshift({ date: getNow(), name: `ตัดหนี้ค้างออโต้ (${upd.round.title}): ${stu.name}`, type: 'ระบบ', amt: upd.payAmt, user: currentUsername });
-                            });
+                    // 2. ตัดบิลค้างเก่า
+                    otherPaymentsToUpdate.forEach(upd => {
+                        upd.payment.paidAmt = (upd.payment.paidAmt || 0) + upd.payAmt;
+                        upd.payment.status = (upd.payment.paidAmt >= upd.round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
+                        txHistory.unshift({ date: getNow(), name: `ตัดหนี้ค้างออโต้ (${upd.round.title}): ${stu.name}`, type: 'ระบบ', amt: upd.payAmt, user: currentUsername });
+                    });
                             
-                            // 3. ทบยอดฝาก
+                    // 3. ทบยอดฝาก และเปลี่ยนชื่อสลิป
                     if (depositAdd > 0) {
                         stu.dep = (stu.dep || 0) + depositAdd;
-                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า: ${stu.name}`, type: 'ระบบ', amt: depositAdd, user: currentUsername });
+                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${stu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
+                        
+                        // 🌟 ส่งคำสั่งไปเปลี่ยนชื่อสลิปที่หลังบ้าน (Google Drive)
+                        if (!isCash && currentPayment && currentPayment.slipUrl) {
+                            google.script.run.renameOverpaidSlip(currentPayment.slipUrl, stu.id, stu.name);
+                        }
                     }
 
                     // 🌟 อัปเกรด: ให้อัปเดตหน้าจอทันที + กดกริ่งทันที + ส่งเซฟหลังบ้านแบบเบื้องหลัง
@@ -6403,6 +6409,65 @@ function editShopItem(idx) {
             
             saveToLocal(true); renderShopAdmin(); // เซฟและโหลดหน้าใหม่
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขแล้ว', showConfirmButton:false, timer:1500});
+        }
+    });
+}
+
+// ================= อัปโหลดสลิปยอดฝากโดยแอดมิน =================
+function openAdminDepositUpload() {
+    let stuOptions = students.map(s => `<option value="${s.id}">${s.id} - ${s.name} (ห้อง ${s.room})</option>`).join('');
+    
+    Swal.fire({
+        title: '📥 บันทึกยอดฝาก (อัปโหลดสลิป)',
+        html: `
+            <div class="text-left space-y-3">
+                <div><label class="text-xs font-bold text-slate-500">เลือกนักศึกษา</label>
+                <select id="dep-stu" class="modern-input mb-0 font-bold text-slate-700">${stuOptions}</select></div>
+                
+                <div><label class="text-xs font-bold text-slate-500">จำนวนเงินที่ฝาก (บาท)</label>
+                <input type="number" id="dep-amt" class="modern-input mb-0 text-xl font-black text-emerald-600" placeholder="เช่น 50"></div>
+                
+                <div><label class="text-xs font-bold text-slate-500">แนบสลิป</label>
+                <input type="file" id="dep-file" class="modern-input mb-0 py-2" accept="image/*"></div>
+            </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'อัปโหลดและบันทึก', confirmButtonColor: '#10b981',
+        preConfirm: () => {
+            let stuId = document.getElementById('dep-stu').value;
+            let amt = parseFloat(document.getElementById('dep-amt').value);
+            let fileInput = document.getElementById('dep-file');
+            
+            if(!stuId || isNaN(amt) || amt <= 0 || fileInput.files.length === 0) {
+                return Swal.showValidationMessage('กรุณากรอกข้อมูลและแนบสลิปให้ครบถ้วน');
+            }
+            return { stuId, amt, file: fileInput.files[0] };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            let data = res.value;
+            let stu = students.find(s => s.id === data.stuId);
+            
+            Swal.fire({title: 'กำลังอัปโหลดสลิป...', html: 'กรุณารอสักครู่ ระบบกำลังนำสลิปเข้าโฟลเดอร์', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let payload = {
+                    studentId: stu.id, studentName: stu.name, room: stu.room,
+                    base64: e.target.result, mimeType: data.file.type, fileName: data.file.name
+                };
+                
+                google.script.run.withSuccessHandler(response => {
+                    if(response.success) {
+                        stu.dep = (stu.dep || 0) + data.amt; // บวกเงินเข้ายอดฝาก
+                        txHistory.unshift({ date: getNow(), name: `ฝากเงินเข้ากองกลาง (แนบสลิปโดยแอดมิน)`, type: 'ฝาก', amt: data.amt, user: currentUsername });
+                        saveToLocal(true); refreshAll();
+                        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: `เพิ่มเงินฝากให้ ${stu.name} เรียบร้อยแล้ว สลิปถูกเปลี่ยนชื่อเป็น (ยอดฝาก)`});
+                    } else {
+                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดได้: ' + response.error, 'error');
+                    }
+                }).adminSaveDepositSlip(payload);
+            };
+            reader.readAsDataURL(data.file);
         }
     });
 }
