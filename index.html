@@ -2096,7 +2096,10 @@ function renderHomeDirectory() {
             
             <!-- 🌟 นำคะแนนมาแสดงต่อท้ายยอดเงินฝาก -->
             ${pointUi}
-
+            <!-- 🌟 ปุ่มกดเข้าร้านค้า Point Shop -->
+            <button onclick="openPointShop('${s.id}')" class="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition transform hover:scale-[1.02]">
+                <i class="fas fa-store mr-2"></i> เข้าสู่ร้านค้า (Point Shop)
+            </button>
         </div>
 
         
@@ -4642,14 +4645,205 @@ function editRoom(roomName) {
         function deleteTxHistory(index) { Swal.fire({title: 'ลบประวัตินี้?', showCancelButton: true, confirmButtonColor: '#e3342f'}).then(r=>{if(r.isConfirmed){txHistory.splice(index,1); saveToLocal(); refreshAll();}}); }
         function renderFinHistory() { const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); const list = document.getElementById('fin-hist-list'); if(!list) return; if(txHistory.length === 0) { list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ไม่มีประวัติ</td></tr>'; return; } let hHtml = ''; txHistory.forEach((t, i) => { let btn = isAdmin ? `<button onclick="deleteTxHistory(${i})" class="text-rose-500"><i class="fas fa-trash"></i></button>` : '-'; hHtml += `<tr class="border-b"><td class="p-3 text-xs text-slate-500">${formatDisplayDate(t.date)}</td><td class="p-3"><b>${t.name}</b><br><span class="text-[10px] bg-slate-100 px-1 rounded text-slate-500">${t.user || 'ระบบ'}</span></td><td class="p-3 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold bg-slate-100">${t.type}</span></td><td class="p-3 text-right">฿${t.amt}</td><td class="p-3 text-center">${btn}</td></tr>`; }); list.innerHTML = hHtml; }
 
-        // ================= สุ่มตัวแทน (LUCKY DRAW) =================
-        function initRandomizer() { let roomEl = document.getElementById('random-room-filter'); if(!roomEl) return; let roomF = roomEl.value; let filtered = students.filter(s => roomF === 'all' || s.room === roomF); randomPool = filtered.map(s => ({ id: s.id, name: s.name, included: true, room: s.room })); renderRandomPills(); }
-        function renderRandomPills() { let container = document.getElementById('random-pills-container'); let countEl = document.getElementById('random-pool-count'); if(!container || !countEl) return; let includedCount = randomPool.filter(x => x.included).length; countEl.innerText = includedCount + ' คน'; if(randomPool.length === 0) { container.innerHTML = '<p class="text-slate-400 text-sm p-4 w-full text-center">ไม่มีข้อมูลนักศึกษาในห้องที่เลือก</p>'; return; } let pillsHtml = ''; randomPool.forEach(p => { if(p.included) { pillsHtml += `<button onclick="toggleRandomPill('${p.id}')" class="px-3 py-1.5 bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-sm rounded-full shadow-sm hover:bg-emerald-200 transition"><i class="fas fa-check-circle mr-1"></i> ${p.name}</button>`; } else { pillsHtml += `<button onclick="toggleRandomPill('${p.id}')" class="px-3 py-1.5 bg-slate-200 border border-slate-300 text-slate-500 font-bold text-sm rounded-full shadow-sm hover:bg-slate-300 transition line-through opacity-60"><i class="fas fa-times-circle mr-1"></i> ${p.name}</button>`; } }); container.innerHTML = pillsHtml; }
-        function toggleRandomPill(id) { let p = randomPool.find(x => x.id === id); if(p) { p.included = !p.included; renderRandomPills(); } }
-        function randomExcludeAdmins() { let excludedCount = 0; randomPool.forEach(p => { let isUser = users.find(u => u.refId === p.id); if(isUser && p.included) { p.included = false; excludedCount++; } }); Swal.fire({toast:true, position:'top-end', icon:'info', title:`ยกเว้นแอดมิน (ที่ผูกบัญชีไว้) ${excludedCount} คน`, showConfirmButton:false, timer:2000}); renderRandomPills(); }
-        function randomExcludeAbsent() { let todayStr = new Date().toLocaleDateString('th-TH'); let excludedCount = 0; randomPool.forEach(p => { let hasCheckedIn = timeLogs.find(l => l.date.includes(todayStr) && l.id === p.id && l.checkIn && l.checkIn !== '-'); if(!hasCheckedIn) { p.included = false; excludedCount++; } }); Swal.fire({toast:true, position:'top-end', icon:'info', title:`ยกเว้นไป ${excludedCount} คนที่ขาดเรียน`, showConfirmButton:false, timer:1500}); renderRandomPills(); }
-        function startLuckyDraw() { let candidates = randomPool.filter(x => x.included); let countInput = parseInt(document.getElementById('random-count').value) || 1; if(candidates.length === 0) return Swal.fire('คำเตือน', 'ไม่มีรายชื่อให้สุ่ม! (โดนยกเว้นหมดแล้ว)', 'warning'); if(countInput > candidates.length) return Swal.fire('คำเตือน', 'จำนวนคนที่ต้องการสุ่ม มากกว่ารายชื่อที่มีอยู่ครับ', 'warning'); let timerInterval; Swal.fire({ title: '🎰 กำลังสุ่มตัวแทน...', html: '<div id="swal-random-name" class="text-3xl md:text-4xl font-bold text-purple-600 mt-4 mb-4 h-20 flex items-center justify-center bg-purple-50 rounded-xl border-4 border-purple-200 shadow-inner animate-slot">เตรียมพร้อม...</div>', showConfirmButton: false, allowOutsideClick: false, didOpen: () => { let swalName = document.getElementById('swal-random-name'); let ticks = 0; timerInterval = setInterval(() => { let randIndex = Math.floor(Math.random() * candidates.length); swalName.innerText = candidates[randIndex].name; ticks++; if(ticks > 30) { clearInterval(timerInterval); finishLuckyDraw(candidates, countInput); } }, 100); }, willClose: () => { clearInterval(timerInterval); } }); }
-        function finishLuckyDraw(candidates, count) { let winners = []; let tempCandidates = [...candidates]; for(let i=0; i<count; i++) { let randIndex = Math.floor(Math.random() * tempCandidates.length); winners.push(tempCandidates[randIndex]); tempCandidates.splice(randIndex, 1); } let winnersHtml = ''; winners.forEach(w => { winnersHtml += `<div class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-3 rounded-xl shadow-md font-bold text-lg mb-2 transform hover:scale-105 transition"><i class="fas fa-star text-yellow-300 mr-2"></i> ${w.name} <span class="text-xs font-normal text-emerald-100">(ห้อง ${w.room})</span></div>`; }); Swal.fire({ title: '🎉 โฉมหน้าผู้โชคดี! 🎉', html: `<div class="mt-4 text-left">${winnersHtml}</div>`, icon: 'success', confirmButtonText: '💾 บันทึกประวัติ', confirmButtonColor: '#8b5cf6', showCancelButton: true, cancelButtonText: 'ปิด (ไม่บันทึก)', cancelButtonColor: '#94a3b8' }).then((res) => { if(res.isConfirmed) { Swal.fire({ title: 'บันทึกประวัติการสุ่ม', input: 'text', inputLabel: 'ชื่องาน / กิจกรรมที่สุ่มได้ (เช่น เป็นเวร, พรีเซนต์งาน)', inputPlaceholder: 'กรอกชื่องานที่นี่...', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#10b981', preConfirm: (taskName) => { if (!taskName) Swal.showValidationMessage('กรุณากรอกชื่องานด้วยครับ'); return taskName; } }).then((taskRes) => { if(taskRes.isConfirmed) { let wNames = winners.map(w => w.name).join(', '); txHistory.unshift({ date: getNow(), name: `🎲 ตัวแทนงาน [${taskRes.value}]: ${wNames}`, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('บันทึกสำเร็จ!', 'เก็บประวัติผู้โชคดีลงระบบเรียบร้อย', 'success'); winners.forEach(w => toggleRandomPill(w.id)); } }); } }); }
+       // ================= สุ่มตัวแทน (LUCKY DRAW) =================
+        function initRandomizer() { 
+            let roomEl = document.getElementById('random-room-filter'); 
+            if(!roomEl) return; 
+            let roomF = roomEl.value; 
+            let filtered = students.filter(s => roomF === 'all' || s.room === roomF); 
+            randomPool = filtered.map(s => ({ id: s.id, name: s.name, included: true, room: s.room })); 
+            renderRandomPills(); 
+        }
+
+        function renderRandomPills() { 
+            let container = document.getElementById('random-pills-container'); 
+            let countEl = document.getElementById('random-pool-count'); 
+            if(!container || !countEl) return; 
+            
+            let includedCount = randomPool.filter(x => x.included).length; 
+            countEl.innerText = includedCount + ' คน'; 
+            
+            if(randomPool.length === 0) { 
+                container.innerHTML = '<p class="text-slate-400 text-sm p-4 w-full text-center">ไม่มีข้อมูลนักศึกษาในห้องที่เลือก</p>'; 
+                return; 
+            } 
+            
+            let pillsHtml = ''; 
+            randomPool.forEach(p => { 
+                if(p.included) { 
+                    pillsHtml += `<button onclick="toggleRandomPill('${p.id}')" class="px-3 py-1.5 bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-sm rounded-full shadow-sm hover:bg-emerald-200 transition"><i class="fas fa-check-circle mr-1"></i> ${p.name}</button>`; 
+                } else { 
+                    pillsHtml += `<button onclick="toggleRandomPill('${p.id}')" class="px-3 py-1.5 bg-slate-200 border border-slate-300 text-slate-500 font-bold text-sm rounded-full shadow-sm hover:bg-slate-300 transition line-through opacity-60"><i class="fas fa-times-circle mr-1"></i> ${p.name}</button>`; 
+                } 
+            }); 
+            container.innerHTML = pillsHtml; 
+        }
+
+        function toggleRandomPill(id) { 
+            let p = randomPool.find(x => x.id === id); 
+            if(p) { 
+                p.included = !p.included; 
+                renderRandomPills(); 
+            } 
+        }
+
+        function randomExcludeAdmins() { 
+            let excludedCount = 0; 
+            randomPool.forEach(p => { 
+                let isUser = users.find(u => u.refId === p.id); 
+                if(isUser && p.included) { 
+                    p.included = false; 
+                    excludedCount++; 
+                } 
+            }); 
+            Swal.fire({toast:true, position:'top-end', icon:'info', title:`ยกเว้นแอดมิน (ที่ผูกบัญชีไว้) ${excludedCount} คน`, showConfirmButton:false, timer:2000}); 
+            renderRandomPills(); 
+        }
+
+        function randomExcludeAbsent() { 
+            let todayStr = new Date().toLocaleDateString('th-TH'); 
+            let excludedCount = 0; 
+            randomPool.forEach(p => { 
+                let hasCheckedIn = timeLogs.find(l => l.date.includes(todayStr) && l.id === p.id && l.checkIn && l.checkIn !== '-'); 
+                if(!hasCheckedIn) { 
+                    p.included = false; 
+                    excludedCount++; 
+                } 
+            }); 
+            Swal.fire({toast:true, position:'top-end', icon:'info', title:`ยกเว้นไป ${excludedCount} คนที่ขาดเรียน`, showConfirmButton:false, timer:1500}); 
+            renderRandomPills(); 
+        }
+
+        function startLuckyDraw() { 
+            let candidates = randomPool.filter(x => x.included); 
+            let countInput = parseInt(document.getElementById('random-count').value) || 1; 
+            
+            if(candidates.length === 0) return Swal.fire('คำเตือน', 'ไม่มีรายชื่อให้สุ่ม! (โดนยกเว้นหมดแล้ว)', 'warning'); 
+            if(countInput > candidates.length) return Swal.fire('คำเตือน', 'จำนวนคนที่ต้องการสุ่ม มากกว่ารายชื่อที่มีอยู่ครับ', 'warning'); 
+            
+            let timerInterval; 
+            Swal.fire({ 
+                title: '🎰 กำลังสุ่มตัวแทน...', 
+                html: '<div id="swal-random-name" class="text-3xl md:text-4xl font-bold text-purple-600 mt-4 mb-4 h-20 flex items-center justify-center bg-purple-50 rounded-xl border-4 border-purple-200 shadow-inner animate-slot">เตรียมพร้อม...</div>', 
+                showConfirmButton: false, 
+                allowOutsideClick: false, 
+                didOpen: () => { 
+                    let swalName = document.getElementById('swal-random-name'); 
+                    let ticks = 0; 
+                    timerInterval = setInterval(() => { 
+                        let randIndex = Math.floor(Math.random() * candidates.length); 
+                        swalName.innerText = candidates[randIndex].name; 
+                        ticks++; 
+                        if(ticks > 30) { 
+                            clearInterval(timerInterval); 
+                            finishLuckyDraw(candidates, countInput); 
+                        } 
+                    }, 100); 
+                }, 
+                willClose: () => { clearInterval(timerInterval); } 
+            }); 
+        }
+
+        function finishLuckyDraw(candidates, count) { 
+            let winners = []; 
+            let tempCandidates = [...candidates]; 
+            
+            // สุ่มรายชื่อตามจำนวนที่แอดมินเลือก (เช่น สุ่มทีละ 1 หรือสุ่มทีละ 3)
+            for(let i=0; i<count; i++) { 
+                let randIndex = Math.floor(Math.random() * tempCandidates.length); 
+                winners.push(tempCandidates[randIndex]); 
+                tempCandidates.splice(randIndex, 1); 
+            } 
+
+            // 🌟 เช็คว่ามีใครในกลุ่มผู้ชนะที่ "มีโล่ป้องกัน" หรือไม่
+            let shieldedWinners = [];
+            let validWinners = [];
+
+            winners.forEach(w => {
+                let stuData = students.find(s => s.id === w.id);
+                if (stuData && stuData.inventory && stuData.inventory.shield > 0) {
+                    // คนนี้มีโล่! หักโล่ทิ้ง 1 อัน แล้วแยกไว้กลุ่มรอดตัว
+                    stuData.inventory.shield -= 1;
+                    shieldedWinners.push(stuData);
+                    txHistory.unshift({ date: getNow(), name: `🛡️ โล่ป้องกันสุ่มทำงาน! ป้องกัน: ${stuData.name}`, type: 'ระบบ', amt: 0, user: 'ระบบ Lucky Draw' });
+                } else {
+                    // คนนี้ไม่มีโล่ โดนจับเป็นผู้โชคดี
+                    validWinners.push(w);
+                }
+            });
+
+            // ถ้ามีคนใช้โล่ เซฟประวัติการหักโล่ทันที
+            if (shieldedWinners.length > 0) saveToLocal(true);
+
+            // กรณีที่ 1: ทุกคนที่สุ่มได้ ดันมีโล่หมดเลย! (รอดทุกคน)
+            if (validWinners.length === 0 && shieldedWinners.length > 0) {
+                let shieldNames = shieldedWinners.map(s => s.name).join('<br>');
+                Swal.fire({
+                    icon: 'info',
+                    title: '🛡️ โล่ป้องกันทำงาน!',
+                    html: `นักศึกษาเหล่านี้ถูกสุ่มเจอ แต่ใช้สิทธิโล่ป้องกันสุ่ม!<br><br><b class="text-indigo-600">${shieldNames}</b><br><br><span class="text-sm text-slate-500">กรุณากดสุ่มใหม่อีกครั้งครับ</span>`,
+                    confirmButtonText: 'รับทราบ',
+                    confirmButtonColor: '#4f46e5'
+                }).then(() => {
+                    // เตะคนที่มีโล่ออกจากตะกร้าสุ่มในรอบนี้ เพื่อสุ่มใหม่จะได้ไม่โดนซ้ำ
+                    shieldedWinners.forEach(sw => toggleRandomPill(sw.id));
+                });
+                return;
+            }
+
+            // กรณีที่ 2: มีคนโดนโล่เด้ง และมีคนที่โดนหวยตก (โชคร้ายไม่มีโล่)
+            if (shieldedWinners.length > 0 && validWinners.length > 0) {
+                let shieldNames = shieldedWinners.map(s => s.name).join(', ');
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'info',
+                    title: `โล่ป้องกันทำงาน: ${shieldNames} รอดตัวไป!`,
+                    showConfirmButton: false, timer: 3000
+                });
+            }
+
+            // ประกาศผลคนผู้โชคดี (คนที่ไม่มีโล่)
+            let winnersHtml = ''; 
+            validWinners.forEach(w => { 
+                winnersHtml += `<div class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-3 rounded-xl shadow-md font-bold text-lg mb-2 transform hover:scale-105 transition"><i class="fas fa-star text-yellow-300 mr-2"></i> ${w.name} <span class="text-xs font-normal text-emerald-100">(ห้อง ${w.room})</span></div>`; 
+            }); 
+            
+            Swal.fire({ 
+                title: '🎉 โฉมหน้าผู้โชคดี! 🎉', 
+                html: `<div class="mt-4 text-left">${winnersHtml}</div>`, 
+                icon: 'success', 
+                confirmButtonText: '💾 บันทึกประวัติ', 
+                confirmButtonColor: '#8b5cf6', 
+                showCancelButton: true, 
+                cancelButtonText: 'ปิด (ไม่บันทึก)', 
+                cancelButtonColor: '#94a3b8' 
+            }).then((res) => { 
+                if(res.isConfirmed) { 
+                    Swal.fire({ 
+                        title: 'บันทึกประวัติการสุ่ม', 
+                        input: 'text', 
+                        inputLabel: 'ชื่องาน / กิจกรรมที่สุ่มได้ (เช่น เป็นเวร, พรีเซนต์งาน)', 
+                        inputPlaceholder: 'กรอกชื่องานที่นี่...', 
+                        showCancelButton: true, 
+                        confirmButtonText: 'บันทึก', 
+                        confirmButtonColor: '#10b981', 
+                        preConfirm: (taskName) => { 
+                            if (!taskName) Swal.showValidationMessage('กรุณากรอกชื่องานด้วยครับ'); 
+                            return taskName; 
+                        } 
+                    }).then((taskRes) => { 
+                        if(taskRes.isConfirmed) { 
+                            let wNames = validWinners.map(w => w.name).join(', '); 
+                            txHistory.unshift({ date: getNow(), name: `🎲 ตัวแทนงาน [${taskRes.value}]: ${wNames}`, type: 'ระบบ', amt: 0, user: currentUsername }); 
+                            saveToLocal(); 
+                            refreshAll(); 
+                            Swal.fire('บันทึกสำเร็จ!', 'เก็บประวัติผู้โชคดีลงระบบเรียบร้อย', 'success'); 
+                            validWinners.forEach(w => toggleRandomPill(w.id)); 
+                            shieldedWinners.forEach(w => toggleRandomPill(w.id)); // ปิดรายชื่อคนที่เสียโล่ไปด้วย
+                        } 
+                    }); 
+                } 
+            }); 
+        }
         // ================= ระบบกระดานโหวต (STUDENT VOICE) =================
 function renderPolls() {
     if (!appSettings.polls) appSettings.polls = [];
@@ -5943,6 +6137,125 @@ function updatePointSettings() {
     appSettings.ptsConfig.pay = parseInt(document.getElementById('setting-pts-pay').value) || 0;
     appSettings.ptsConfig.late = parseInt(document.getElementById('setting-pts-late').value) || 0;
     saveToLocal(true);
+}
+
+// 🏆 ฟังก์ชันจัดอันดับ Leaderboard (Top 10)
+function renderLeaderboard() {
+    let podium = document.getElementById('leaderboard-podium');
+    let list = document.getElementById('leaderboard-list');
+    if(!podium || !list) return;
+
+    // ดึงเด็กที่มีแต้ม > 0 เรียงจากมากไปน้อย
+    let sorted = [...students].filter(s => (s.points || 0) > 0).sort((a, b) => b.points - a.points).slice(0, 10);
+    
+    if(sorted.length === 0) {
+        podium.innerHTML = '<p class="text-white w-full text-center">ยังไม่มีข้อมูลคะแนนในระบบ</p>';
+        list.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-slate-400">ยังไม่มีผู้ติดอันดับ</td></tr>';
+        return;
+    }
+
+    // วาดแท่นรับรางวัล Top 3 (สลับตำแหน่ง 2-1-3 ให้สวยงาม)
+    let phtml = '';
+    let top3 = [sorted[1], sorted[0], sorted[2]]; // [อันดับ 2, อันดับ 1, อันดับ 3]
+    let colors = ['bg-slate-200', 'bg-yellow-300', 'bg-orange-200'];
+    let heights = ['h-32', 'h-40', 'h-24'];
+    let borders = ['border-slate-300', 'border-yellow-400', 'border-orange-300'];
+    let ranks = [2, 1, 3];
+
+    top3.forEach((stu, idx) => {
+        if(stu) {
+            phtml += `
+            <div class="flex flex-col items-center justify-end w-1/3 max-w-[100px]">
+                <div class="text-center mb-2 z-10">
+                    <div class="w-12 h-12 md:w-16 md:h-16 rounded-full border-4 ${borders[idx]} bg-white mx-auto flex items-center justify-center font-bold text-slate-700 shadow-md">${getInitials(stu.name)}</div>
+                    <p class="text-white font-bold text-xs mt-1 truncate w-20 md:w-24 drop-shadow-md">${stu.name.split(' ')[0]}</p>
+                    <p class="text-yellow-200 text-[10px] font-bold drop-shadow-md">${stu.points} ✨</p>
+                </div>
+                <div class="w-full ${colors[idx]} ${heights[idx]} rounded-t-xl border-x border-t ${borders[idx]} shadow-inner flex items-start justify-center pt-2 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-white opacity-20"></div>
+                    <span class="font-black text-2xl opacity-50 relative z-10">${ranks[idx]}</span>
+                </div>
+            </div>`;
+        } else {
+            phtml += `<div class="w-1/3 max-w-[100px]"></div>`;
+        }
+    });
+    podium.innerHTML = phtml;
+
+    // วาดรายชื่ออันดับ 4-10
+    let lhtml = '';
+    for(let i = 3; i < sorted.length; i++) {
+        let stu = sorted[i];
+        lhtml += `
+        <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="p-3 text-center font-bold text-slate-400">#${i+1}</td>
+            <td class="p-3 font-bold text-slate-700">${stu.name}</td>
+            <td class="p-3 text-center text-xs text-slate-500">${stu.room || '-'}</td>
+            <td class="p-3 text-right font-bold text-amber-600">${stu.points} ✨</td>
+        </tr>`;
+    }
+    list.innerHTML = lhtml;
+}
+
+// 🛒 ฟังก์ชันเปิดหน้าร้านค้า Point Shop
+function openPointShop(studentId) {
+    let stu = students.find(s => s.id === studentId);
+    if(!stu) return;
+    if(!stu.inventory) stu.inventory = {};
+
+    let shieldCount = stu.inventory.shield || 0;
+
+    Swal.fire({
+        title: '🛒 ร้านค้าสิทธิพิเศษ (Point Shop)',
+        html: `
+        <div class="mb-4 bg-amber-50 rounded-xl p-4 text-center border border-amber-200 shadow-inner">
+            <p class="text-sm font-bold text-slate-600">คะแนนสะสมของคุณ</p>
+            <p class="text-4xl font-black text-amber-600 mt-1">${stu.points || 0} <span class="text-lg">✨</span></p>
+        </div>
+        <div class="grid grid-cols-1 gap-3 text-left">
+            <!-- ไอเทม 1: แลกเงินฝาก -->
+            <div class="border border-emerald-200 bg-emerald-50 p-3 rounded-xl flex justify-between items-center cursor-pointer hover:bg-emerald-100 transition shadow-sm" onclick="Swal.clickConfirm(); window.shopAction='deposit'">
+                <div>
+                    <p class="font-bold text-emerald-700 mb-0.5"><i class="fas fa-coins text-lg mr-2"></i>แลกเงินฝาก 20 บาท</p>
+                    <p class="text-[10px] text-emerald-600 leading-tight">ระบบจะทบเข้ายอดฝากทันที<br>สามารถนำไปใช้จ่ายบิลรอบหน้าได้</p>
+                </div>
+                <div class="bg-white px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm font-black text-emerald-600 text-sm shrink-0">
+                    500 ✨
+                </div>
+            </div>
+            <!-- ไอเทม 2: โล่ป้องกัน -->
+            <div class="border border-indigo-200 bg-indigo-50 p-3 rounded-xl flex justify-between items-center cursor-pointer hover:bg-indigo-100 transition shadow-sm" onclick="Swal.clickConfirm(); window.shopAction='shield'">
+                <div>
+                    <p class="font-bold text-indigo-700 mb-0.5"><i class="fas fa-shield-alt text-lg mr-2"></i>โล่ป้องกันสุ่ม <span class="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded-md ml-1">มี ${shieldCount} อัน</span></p>
+                    <p class="text-[10px] text-indigo-600 leading-tight">ใช้ 1 อันอัตโนมัติ เพื่อข้ามชื่อคุณ<br>เมื่อโดนระบบ Lucky Draw สุ่มเจอ</p>
+                </div>
+                <div class="bg-white px-3 py-1.5 rounded-lg border border-indigo-200 shadow-sm font-black text-indigo-600 text-sm shrink-0">
+                    100 ✨
+                </div>
+            </div>
+        </div>
+        `,
+        showConfirmButton: false, showCloseButton: true,
+    }).then((res) => {
+        if(res.isDismissed) return;
+        
+        // ประมวลผลการซื้อ
+        if(window.shopAction === 'deposit') {
+            if((stu.points || 0) < 500) return Swal.fire('แต้มไม่พอ', 'คุณต้องมีอย่างน้อย 500 แต้ม', 'error').then(()=>openPointShop(studentId));
+            stu.points -= 500;
+            stu.dep = (stu.dep || 0) + 20;
+            txHistory.unshift({ date: getNow(), name: `แลกแต้ม 500 ✨ เป็นเงินฝาก 20 บาท`, type: 'ฝาก', amt: 20, user: stu.name });
+            saveToLocal(true); refreshAll();
+            Swal.fire({icon:'success', title:'สำเร็จ!', text:'เงินฝากเพิ่มขึ้น 20 บาทแล้ว', confirmButtonColor:'#059669'});
+        } else if (window.shopAction === 'shield') {
+            if((stu.points || 0) < 100) return Swal.fire('แต้มไม่พอ', 'คุณต้องมีอย่างน้อย 100 แต้ม', 'error').then(()=>openPointShop(studentId));
+            stu.points -= 100;
+            stu.inventory.shield = (stu.inventory.shield || 0) + 1;
+            txHistory.unshift({ date: getNow(), name: `แลกแต้ม 100 ✨ ซื้อโล่ป้องกันสุ่ม`, type: 'ระบบ', amt: 0, user: stu.name });
+            saveToLocal(true); refreshAll();
+            Swal.fire({icon:'success', title:'สำเร็จ!', text:'คุณได้รับ โล่ป้องกันสุ่ม 1 อัน 🛡️', confirmButtonColor:'#4f46e5'});
+        }
+    });
 }
     </script>
 
