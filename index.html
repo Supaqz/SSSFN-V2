@@ -6506,9 +6506,8 @@ function editShopItem(idx) {
     });
 }
 
-// ================= อัปโหลดสลิปยอดฝากโดยแอดมิน (ค้นหาได้ + ปุ่มไฟล์แบบกำหนดเอง) =================
+// ================= อัปโหลดสลิปยอดฝากโดยแอดมิน (แก้ไขให้ใช้ callBackend แทน google.script.run) =================
 function openAdminDepositUpload() {
-    // สร้าง Option สำหรับ datalist (รวมรหัสและชื่อไว้ด้วยกันให้ค้นหาง่าย)
     let stuOptions = students.map(s => `<option value="${s.id} - ${s.name} (ห้อง ${s.room})"></option>`).join('');
     
     Swal.fire({
@@ -6516,15 +6515,12 @@ function openAdminDepositUpload() {
         showConfirmButton: false,
         html: `
             <div class="text-left px-2 py-4 font-sans">
-                
                 <div class="flex items-center justify-center mb-6">
                     <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mr-3 shadow-inner"><i class="fas fa-file-invoice-dollar text-xl"></i></div>
                     <h2 class="text-2xl font-bold text-slate-700 tracking-tight">บันทึกยอดฝาก (อัปโหลดสลิป)</h2>
                 </div>
 
                 <div class="space-y-4">
-                    
-                    <!-- 1. ค้นหานักศึกษา (พิมพ์ได้/เลือกได้) -->
                     <div>
                         <label class="text-sm font-bold text-slate-500 mb-1.5 block">เลือกนักศึกษา (พิมพ์ชื่อ หรือ รหัส)</label>
                         <input list="dep-stu-list" id="dep-stu-input" class="w-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-base py-3 px-4 rounded-xl focus:outline-none focus:border-indigo-400 transition-all shadow-sm placeholder-slate-400" placeholder="-- ค้นหาหรือเลือกนักศึกษา --">
@@ -6533,20 +6529,15 @@ function openAdminDepositUpload() {
                         </datalist>
                     </div>
                     
-                    <!-- 2. จำนวนเงิน -->
                     <div>
                         <label class="text-sm font-bold text-slate-500 mb-1.5 block">จำนวนเงินที่ฝาก (บาท)</label>
                         <input type="number" id="dep-amt" class="w-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-base py-3 px-4 rounded-xl focus:outline-none focus:border-indigo-400 transition-all shadow-sm placeholder-slate-400" placeholder="เช่น 50">
                     </div>
                     
-                    <!-- 3. แนบสลิป (ปุ่ม Custom สวยงาม) -->
                     <div>
                         <label class="text-sm font-bold text-slate-500 mb-1.5 block">แนบสลิป</label>
                         <div class="relative w-full">
-                            <!-- ซ่อนปุ่ม input ของเบราว์เซอร์ทิ้งไป -->
                             <input type="file" id="dep-file" class="hidden" accept="image/*">
-                            
-                            <!-- สร้างหน้าตาปุ่มขึ้นมาใหม่แทน -->
                             <label for="dep-file" class="flex items-center w-full bg-white border-2 border-slate-200 rounded-xl px-2 py-1.5 shadow-sm transition-all cursor-pointer hover:border-indigo-300">
                                 <span class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm px-4 py-2 rounded-lg mr-3 transition-colors">เลือกไฟล์</span>
                                 <span id="dep-file-text" class="text-slate-500 text-sm truncate">ไม่ได้เลือกไฟล์ใด</span>
@@ -6555,7 +6546,6 @@ function openAdminDepositUpload() {
                     </div>
                 </div>
 
-                <!-- กลุ่มปุ่ม Submit -->
                 <div class="flex justify-center gap-3 mt-8">
                     <button id="btn-upload-submit" class="bg-[#10b981] hover:bg-[#059669] text-white font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all text-base min-w-[140px]">
                         อัปโหลดและบันทึก
@@ -6567,7 +6557,6 @@ function openAdminDepositUpload() {
             </div>
         `,
         didOpen: () => {
-            // โลจิกเปลี่ยนชื่อไฟล์ตอนกดเลือกรูปภาพ
             document.getElementById('dep-file').addEventListener('change', function() {
                 let textSpan = document.getElementById('dep-file-text');
                 if(this.files && this.files.length > 0) {
@@ -6579,13 +6568,11 @@ function openAdminDepositUpload() {
                 }
             });
 
-            // โลจิกปุ่มอัปโหลด
-            document.getElementById('btn-upload-submit').addEventListener('click', () => {
+            document.getElementById('btn-upload-submit').addEventListener('click', async () => {
                 let stuInputVal = document.getElementById('dep-stu-input').value;
                 let amt = parseFloat(document.getElementById('dep-amt').value);
                 let fileInput = document.getElementById('dep-file');
                 
-                // ดึงรหัสนักศึกษาออกมาจากข้อความที่พิมพ์ (ตัดคำว่า " - ")
                 let stuId = stuInputVal.split(' - ')[0]; 
                 let stu = students.find(s => s.id === stuId);
 
@@ -6599,28 +6586,33 @@ function openAdminDepositUpload() {
                 }
                 
                 let file = fileInput.files[0];
-                
                 Swal.fire({title: 'กำลังอัปโหลดสลิป...', html: 'กรุณารอสักครู่ ระบบกำลังนำสลิปเข้าโฟลเดอร์', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
                 
                 let reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     let payload = {
-                        studentId: stu.id, studentName: stu.name, room: stu.room,
-                        base64: e.target.result, mimeType: file.type, fileName: file.name
+                        action: 'adminSaveDepositSlip', // 🌟 ระบุ action ให้ตรงกับฝั่ง Apps Script
+                        studentId: stu.id, 
+                        studentName: stu.name, 
+                        room: stu.room,
+                        base64: e.target.result, 
+                        mimeType: file.type, 
+                        fileName: file.name,
+                        amount: amt
                     };
                     
-                    google.script.run.withSuccessHandler(response => {
-                        if(response.success) {
-                            stu.dep = (stu.dep || 0) + amt;
-                            // 🌟 เพิ่มบรรทัดนี้: ให้ระบบจำลิงก์สลิปที่เพิ่งอัปโหลด
-                            stu.lastDepositSlip = response.url;
-                            txHistory.unshift({ date: getNow(), name: `ฝากเงินเข้ากองกลาง (แนบสลิปโดยแอดมิน)`, type: 'ฝาก', amt: amt, user: currentUsername });
-                            saveToLocal(true); refreshAll();
-                            Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: `เพิ่มเงินฝากให้ ${stu.name} เรียบร้อยแล้ว สลิปถูกเปลี่ยนชื่อเป็น (ยอดฝาก)`});
-                        } else {
-                            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดได้: ' + response.error, 'error');
-                        }
-                    }).adminSaveDepositSlip(payload);
+                    // 🌟 ใช้ callBackend แทน google.script.run เพื่อแก้ปัญหา Uncaught TypeError
+                    let response = await callBackend(payload);
+                    
+                    if(response && response.success) {
+                        stu.dep = (stu.dep || 0) + amt; 
+                        stu.lastDepositSlip = response.url; 
+                        txHistory.unshift({ date: getNow(), name: `ฝากเงินเข้ากองกลาง (แนบสลิปโดยแอดมิน)`, type: 'ฝาก', amt: amt, user: currentUsername });
+                        saveToLocal(true); refreshAll();
+                        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: `เพิ่มเงินฝากให้ ${stu.name} เรียบร้อยแล้ว สลิปถูกเปลี่ยนชื่อเป็น (ยอดฝาก)`});
+                    } else {
+                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดได้: ' + (response ? response.error : 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'), 'error');
+                    }
                 };
                 reader.readAsDataURL(file);
             });
