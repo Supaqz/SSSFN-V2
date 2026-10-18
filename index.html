@@ -829,11 +829,14 @@ function saveToLocal(triggerSync = true) {
         function checkSlipDebtFront(val) {
     let alertDiv = document.getElementById('slip-debt-alert');
     let selectRound = document.getElementById('slip-round');
+    let infoDiv = document.getElementById('slip-student-info'); // 🌟 กล่องโชว์ชื่อ
+    
     if(!alertDiv || !selectRound) return;
     document.getElementById('slip-qr-container').innerHTML = '';
     
     if(!val || val.length < 11) { 
         alertDiv.classList.add('hidden');
+        if(infoDiv) infoDiv.classList.add('hidden'); // ซ่อนชื่อถ้ารหัสไม่ครบ
         selectRound.innerHTML = '<option value="">-- กรุณากรอกรหัสนักศึกษาก่อน --</option>'; 
         return; 
     }
@@ -845,10 +848,19 @@ function saveToLocal(triggerSync = true) {
         alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-slate-100 text-slate-500';
         alertDiv.innerText = 'กำลังค้นหาข้อมูลนักศึกษา...';
         alertDiv.classList.remove('hidden');
+        if(infoDiv) infoDiv.classList.add('hidden'); // ซ่อนชื่อถ้าหาไม่เจอ
         selectRound.innerHTML = '<option value="">-- ไม่พบรหัสนักศึกษาในระบบ --</option>';
         return;
     }
     
+    // 🌟 แสดงกล่องชื่อนักศึกษาเมื่อค้นหาเจอ
+    if(infoDiv) {
+        infoDiv.classList.remove('hidden');
+        document.getElementById('slip-stu-avatar').innerText = getInitials(stu.name);
+        document.getElementById('slip-stu-name').innerText = stu.name;
+        document.getElementById('slip-stu-room').innerText = 'ห้อง ' + (stu.room || 'ไม่ระบุ');
+    }
+
     window.currentStudentRoom = stu.room;
     
     let unpaidRounds = [];
@@ -856,10 +868,9 @@ function saveToLocal(triggerSync = true) {
         if (p.studentId === stu.id) {
             let r = fundRounds.find(rd => rd.id === p.roundId);
             
-            // 🌟 เงื่อนไขที่ปรับปรุงใหม่:
             // 1. ต้องเป็นบิลที่เปิดรับชำระ (isOpen !== false)
             // 2. ต้องมียอดค้าง (r.amt - paid > 0)
-            // 3. **ต้องไม่ใช่บิลที่ส่งสลิปไปแล้วและรอแอดมินยืนยัน**
+            // 3. ต้องไม่ใช่บิลที่ส่งสลิปไปแล้วและรอแอดมินยืนยัน
             if(r && r.isOpen !== false) {
                 let paid = p.paidAmt || 0;
                 let isPending = (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ');
@@ -1038,6 +1049,17 @@ function openPublicSlipModal(targetRoundId = null) {
             <input id="slip-st-id" class="modern-input mb-2 font-bold text-center tracking-wider" placeholder="เช่น 68152110001-2" oninput="this.value = formatIdSearch(this.value); checkSlipDebtFront(this.value)">
             <button onclick="openQuickScan('slip-st-id')" id="btn-scan-id" class="absolute right-2 top-3 text-slate-400 hover:text-emerald-600"><i class="fas fa-camera text-lg"></i></button>
         </div>
+        
+        <!-- 🌟 เริ่ม: กล่องแสดงชื่อนักศึกษา (จะโผล่มาตอนค้นหาเจอ) -->
+        <div id="slip-student-info" class="hidden mb-2 bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-center gap-3 shadow-inner">
+            <div id="slip-stu-avatar" class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-sm"></div>
+            <div>
+                <p id="slip-stu-name" class="font-bold text-indigo-900 text-sm leading-tight"></p>
+                <p id="slip-stu-room" class="text-[10px] text-indigo-600 font-bold bg-white px-2 py-0.5 rounded-md border border-indigo-100 mt-1 inline-block"></p>
+            </div>
+        </div>
+        <!-- 🌟 จบ: กล่องแสดงชื่อนักศึกษา -->
+
         <div id="slip-debt-alert" class="hidden mb-2 p-2 rounded-lg text-xs font-bold text-center"></div>
         
         <label class="text-xs font-bold text-slate-500">รายการที่ต้องชำระ (ล็อกบิลเก่าสุด)</label>
