@@ -313,38 +313,13 @@
                 </div>
             </div>
 
-<!-- ================= หน้าจัดการการเงิน (เรียงปุ่มสร้างบิลไว้บนสุด) ================= -->
-<div id="page-fin-fund" class="page-view hidden px-4 md:px-6 py-4 md:py-6 max-w-6xl mx-auto bg-slate-50/50 min-h-screen">
+<!-- ================= หน้าจัดการการเงิน (ลบส่วนหัว + ย้ายปุ่มสร้างบิลลงกล่อง) ================= -->
+<div id="page-fin-fund" class="page-view hidden px-4 md:px-6 py-4 max-w-6xl mx-auto">
     
-    <!-- 🌟 1. ส่วนหัวหน้าเพจ และ กลุ่มปุ่มเครื่องมือมุมขวาบน -->
-    <div class="flex justify-between items-center mb-6 md:mb-8 border-b border-slate-200/60 pb-4">
-        <h2 class="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight flex items-center">
-            <i class="fas fa-piggy-bank text-rose-500 mr-2 md:mr-3 text-2xl"></i> จัดการการเงิน
-        </h2>
-        
-        <!-- กลุ่มปุ่มมุมขวาบน -->
-        <div class="flex items-center gap-2">
-            <!-- 🌟 ปุ่มสร้างบิลใหม่ (แสดงเฉพาะในหน้านี้) -->
-            <button onclick="createFundRoundAlert()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-1.5 text-xs md:text-sm">
-                <i class="fas fa-plus-circle"></i> <span class="hidden sm:inline">สร้างบิลใหม่</span>
-            </button>
-            
-            <!-- ปุ่มรีเฟรช -->
-            <button onclick="refreshAll()" class="bg-emerald-500 hover:bg-emerald-600 text-white w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center transition shadow-sm" title="รีเฟรช">
-                <i class="fas fa-sync-alt text-xs md:text-sm"></i>
-            </button>
-            
-            <!-- ปุ่มซิงค์ข้อมูล -->
-            <button onclick="forceSync()" class="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center transition shadow-sm" title="ซิงค์ข้อมูล">
-                <i class="fas fa-cloud-upload-alt text-xs md:text-sm"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- 🌟 2. เลย์เอาต์หลัก (ลดช่องว่าง) -->
+    <!-- 🌟 เลย์เอาต์หลัก (ลดช่องว่างรอบๆ ให้กระชับขึ้น) -->
     <div class="flex flex-col gap-4 mb-2">
         
-        <!-- 🟢 กล่องที่ 1 (บนสุด): ระบบจัดการสลิป + ทวงเงิน (รวมกันแล้ว) -->
+        <!-- 🟢 กล่องที่ 1 (บนสุด): ระบบจัดการสลิป + ทวงเงิน -->
         <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <h3 class="text-[11px] font-black text-slate-400 mb-3 uppercase tracking-widest border-b border-slate-100/80 pb-2"><i class="fas fa-layer-group mr-1.5"></i> ระบบจัดการสลิป และ แจ้งเตือน</h3>
             
@@ -364,7 +339,7 @@
                 </button>
             </div>
 
-            <!-- แถวที่ 2: ระบบแจ้งเตือน (ซ่อนไว้ก่อนตามระบบเดิม) -->
+            <!-- แถวที่ 2: ระบบแจ้งเตือน (ซ่อนไว้ก่อน) -->
             <div id="admin-reminder-tools" class="hidden grid grid-cols-2 gap-3 pt-2 border-t border-slate-50">
                 <button onclick="triggerEmailAlert()" class="bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold py-3 rounded-2xl flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all">
                     <div class="w-7 h-7 bg-white rounded-full flex items-center justify-center text-blue-500 shadow-sm"><i class="fas fa-envelope text-[10px]"></i></div> ทวงส่วนตัว
@@ -384,10 +359,15 @@
                     <div class="w-8 h-8 bg-rose-100 text-rose-500 rounded-lg flex items-center justify-center mr-2 shadow-inner"><i class="fas fa-file-invoice"></i></div>
                     เลือกบิลที่ต้องการจัดการ
                 </label>
+                
+                <!-- 🌟 ย้ายปุ่มสร้างบิลมาไว้ตรงนี้ (ตามวงสีม่วง) -->
+                <button onclick="createFundRoundAlert()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-1.5 text-xs md:text-sm">
+                    <i class="fas fa-plus-circle"></i> <span class="hidden sm:inline">สร้างบิลใหม่</span>
+                </button>
             </div>
             
             <div class="flex flex-col sm:flex-row gap-3 items-center bg-slate-50/80 p-3 rounded-2xl border border-slate-200/60 relative z-10">
-                <!-- Select กล่องมนๆ ขอบหนาๆ คล้ายภาพ -->
+                <!-- Select -->
                 <div class="relative w-full sm:flex-1">
                     <select id="fund-round-select" onchange="renderFundTable(); updateQuickToggleBtn();" class="w-full appearance-none bg-white border-2 border-slate-200 text-slate-700 font-bold text-base py-3 px-4 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all shadow-sm cursor-pointer pr-10"></select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
@@ -406,7 +386,7 @@
 
     </div>
 </div>
-<!-- ส่วนกล่องตารางสรุปความคืบหน้าด้านล่าง (รักษากล่องเดิมไว้) -->
+<!-- ส่วนกล่องตารางสรุปความคืบหน้าด้านล่างจะต่อขึ้นมาแนบชิด (รักษากล่องเดิมไว้) -->
     <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-2">
     <h3 class="font-bold text-slate-800">สถานะการชำระเงิน</h3>
