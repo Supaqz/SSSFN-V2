@@ -4187,7 +4187,7 @@ function viewSlipPopup(url) {
     }
     const roundInfo = fundRounds.find(r => r.id === roundId); 
 
-    // 🌟 1. คัดกรองห้องแบบเข้มงวด (ถ้าชื่อบิลคือ A ห้อง B จะหายไปทันที)
+    // 🌟 1. คัดกรองห้องแบบเข้มงวด
     let allRooms = [...new Set(students.map(s => s.room || 'ไม่ระบุห้อง'))];
     let targetRooms = [];
     
@@ -4195,7 +4195,6 @@ function viewSlipPopup(url) {
     if (selectedRoom && selectedRoom !== 'all' && selectedRoom !== 'ทุกห้อง') {
         targetRooms = allRooms.filter(r => selectedRoom.includes(r));
     } else {
-        // ใช้ AI ดึงเฉพาะตัวอักษรของห้อง (เช่น เอาแค่ "a" มาเทียบกับชื่อบิล)
         targetRooms = allRooms.filter(r => {
             let roomCode = r.toLowerCase().replace(/fn|ปวส|ปวช|สค|ห้อง|\s/ig, ''); 
             let titleStr = roundInfo.title.toLowerCase().replace(/\s/g, ''); 
@@ -4236,7 +4235,6 @@ function viewSlipPopup(url) {
         summaryHtml += `
         <div class="bg-white p-4 rounded-xl border ${isComplete ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200'} shadow-sm flex flex-col md:flex-row items-center gap-4 mb-3 transition-all hover:shadow-md">
             
-            <!-- ไอคอน และ ชื่อห้อง -->
             <div class="flex-shrink-0 w-full md:w-40 flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold ${isComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}">
                     <i class="fas ${isComplete ? 'fa-check' : 'fa-users'}"></i>
@@ -4247,7 +4245,6 @@ function viewSlipPopup(url) {
                 </div>
             </div>
             
-            <!-- หลอดความคืบหน้าแบบยาว -->
             <div class="flex-grow w-full">
                 <div class="flex justify-between text-xs mb-1.5">
                     <span class="font-bold ${isComplete ? 'text-emerald-600' : 'text-blue-600'}">ยอดจัดเก็บ ฿${stat.current.toLocaleString('th-TH')}</span>
@@ -4258,21 +4255,19 @@ function viewSlipPopup(url) {
                 </div>
             </div>
             
-            <!-- ตัวเลขเปอร์เซ็นต์ด้านขวาสุด -->
             <div class="flex-shrink-0 w-full md:w-16 text-right md:text-center mt-2 md:mt-0">
                 <span class="font-bold text-lg ${isComplete ? 'text-emerald-600' : 'text-slate-700'}">${pct}%</span>
             </div>
         </div>`;
     }
 
-    // อัปเดตกล่องสรุป
     summaryDiv.innerHTML = `
     <div class="mb-2 px-1">
         <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><i class="fas fa-chart-bar text-blue-500"></i> สรุปความคืบหน้า: ${roundInfo.title}</h3>
         ${summaryHtml}
     </div>`;
 
-    // 🌟 4. โหลดรายชื่อเด็กลงตาราง (โดยตัด `<tr>` สรุปของเก่าออกแล้ว)
+    // 🌟 4. โหลดรายชื่อเด็กลงตาราง
     let filteredStudents = targetStudents.filter(s => {
         let matchName = s.name.toLowerCase().includes(search) || s.room.toLowerCase().includes(search);
         if (!matchName) return false;
@@ -4308,10 +4303,30 @@ function viewSlipPopup(url) {
             let lockBtn = ''; if (!isFull) { let isUn = payment.qrUnlocked; lockBtn = `<button onclick="toggleQrLock(${roundId}, '${s.id}')" class="${isUn ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'} px-2 py-1.5 rounded text-[10px] font-bold hover:bg-slate-200 transition shadow-sm" title="${isUn ? 'ปลดล็อกให้แล้ว' : 'ล็อกยอดเป๊ะอยู่'}"><i class="fas fa-${isUn ? 'unlock' : 'lock'}"></i></button>`; }
             
             let btnEdit = `<button onclick="editPaymentStatus(${roundId}, '${s.id}')" class="bg-slate-100 text-slate-500 px-2 py-1.5 rounded text-xs font-bold hover:bg-slate-200 transition shadow-sm" title="แก้ไขสถานะ/ยอดเงิน"><i class="fas fa-cog"></i></button>`;
-            actionHtml = `<div class="flex flex-wrap gap-1 justify-center items-center min-w-[140px]">${btnView}${btnApprove}${btnReceipt}${lockBtn}${btnEdit}</div>`;
+            
+            // 🌟 5. เพิ่มปุ่ม "หักฝาก" เข้าไปในกลุ่ม actionHtml
+            let btnPayWithDeposit = '';
+            if (!isFull && s.dep > 0) {
+                btnPayWithDeposit = `<button onclick="payWithDeposit('${s.id}', ${roundId})" class="bg-[#10b981] hover:bg-[#059669] text-white px-2 py-1.5 rounded text-[10px] font-bold shadow-sm transition" title="หักยอดฝากจ่ายบิลนี้"><i class="fas fa-wallet mr-1"></i>หักฝาก</button>`;
+            }
+
+            actionHtml = `<div class="flex flex-wrap gap-1 justify-center items-center min-w-[140px]">${btnView}${btnApprove}${btnPayWithDeposit}${btnReceipt}${lockBtn}${btnEdit}</div>`;
         }
         
-        fHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 whitespace-nowrap min-w-[150px]"><b>${s.name}</b><br><span class="text-[10px] text-slate-400 font-mono">${s.id}</span></td><td class="p-3 text-center w-32 min-w-[120px]"><span class="${badgeClass} px-2 py-1 rounded text-[10px] font-bold inline-block">${displayStatus}</span>${progHtml}</td><td class="p-3 text-right font-bold min-w-[80px] ${remain>0?'text-rose-500':'text-slate-300'}">฿${remain.toFixed(2)}</td><td class="p-3 text-center">${actionHtml}</td></tr>`;
+        // 🌟 6. แก้ไขคอลัมน์ชื่อ เพื่อแสดง Popup ข้อมูลการเงินรายบุคคล และป้ายบอกยอดเงินฝาก
+        let nameColHtml = `
+            <div class="flex flex-col">
+                <span class="font-bold text-slate-700 text-sm cursor-pointer hover:text-indigo-600 transition" onclick="viewStudentFinance('${s.id}')">
+                    ${s.name} <i class="fas fa-search text-[10px] text-slate-400 ml-1"></i>
+                </span>
+                <span class="text-[10px] text-slate-400 font-mono mt-0.5">${s.id}</span>`;
+                
+        if (s.dep > 0) {
+            nameColHtml += `<div class="mt-1"><span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 inline-block"><i class="fas fa-wallet mr-1"></i>เงินฝาก ฿${(s.dep).toFixed(2)}</span></div>`;
+        }
+        nameColHtml += `</div>`;
+
+        fHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 whitespace-nowrap min-w-[150px]">${nameColHtml}</td><td class="p-3 text-center w-32 min-w-[120px]"><span class="${badgeClass} px-2 py-1 rounded text-[10px] font-bold inline-block">${displayStatus}</span>${progHtml}</td><td class="p-3 text-right font-bold min-w-[80px] ${remain>0?'text-rose-500':'text-slate-300'}">฿${remain.toFixed(2)}</td><td class="p-3 text-center">${actionHtml}</td></tr>`;
     });
     
     listEl.innerHTML = fHtml;
@@ -4468,11 +4483,14 @@ function viewSlipPopup(url) {
                     });
                             
                     // 3. ทบยอดฝาก และเปลี่ยนชื่อสลิป
-                    if (depositAdd > 0) {
-                        stu.dep = (stu.dep || 0) + depositAdd;
-                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${stu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
+            if (depositAdd > 0) {
+                stu.dep = (stu.dep || 0) + depositAdd;
+                
+                // 🌟 เพิ่มบรรทัดนี้: ให้ระบบจำลิงก์สลิปที่โอนเกินไว้
+                if(currentPayment && currentPayment.slipUrl) stu.lastDepositSlip = currentPayment.slipUrl;
+                txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${stu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
                         
-                        // 🌟 ส่งคำสั่งไปเปลี่ยนชื่อสลิปที่หลังบ้าน (Google Drive)
+                // 🌟 ส่งคำสั่งไปเปลี่ยนชื่อสลิปที่หลังบ้าน (Google Drive)
                         if (!isCash && currentPayment && currentPayment.slipUrl) {
                             google.script.run.renameOverpaidSlip(currentPayment.slipUrl, stu.id, stu.name);
                         }
@@ -6472,61 +6490,247 @@ function editShopItem(idx) {
     });
 }
 
-// ================= อัปโหลดสลิปยอดฝากโดยแอดมิน =================
+// ================= อัปโหลดสลิปยอดฝากโดยแอดมิน (ค้นหาได้ + ปุ่มไฟล์แบบกำหนดเอง) =================
 function openAdminDepositUpload() {
-    let stuOptions = students.map(s => `<option value="${s.id}">${s.id} - ${s.name} (ห้อง ${s.room})</option>`).join('');
+    // สร้าง Option สำหรับ datalist (รวมรหัสและชื่อไว้ด้วยกันให้ค้นหาง่าย)
+    let stuOptions = students.map(s => `<option value="${s.id} - ${s.name} (ห้อง ${s.room})"></option>`).join('');
     
     Swal.fire({
-        title: '📥 บันทึกยอดฝาก (อัปโหลดสลิป)',
+        showCloseButton: true,
+        showConfirmButton: false,
         html: `
-            <div class="text-left space-y-3">
-                <div><label class="text-xs font-bold text-slate-500">เลือกนักศึกษา</label>
-                <select id="dep-stu" class="modern-input mb-0 font-bold text-slate-700">${stuOptions}</select></div>
+            <div class="text-left px-2 py-4 font-sans">
                 
-                <div><label class="text-xs font-bold text-slate-500">จำนวนเงินที่ฝาก (บาท)</label>
-                <input type="number" id="dep-amt" class="modern-input mb-0 text-xl font-black text-emerald-600" placeholder="เช่น 50"></div>
-                
-                <div><label class="text-xs font-bold text-slate-500">แนบสลิป</label>
-                <input type="file" id="dep-file" class="modern-input mb-0 py-2" accept="image/*"></div>
+                <div class="flex items-center justify-center mb-6">
+                    <img src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f4e5/512.webp" class="w-8 h-8 mr-2 drop-shadow-sm" alt="inbox">
+                    <h2 class="text-2xl font-bold text-slate-700 tracking-tight">บันทึกยอดฝาก (อัปโหลดสลิป)</h2>
+                </div>
+
+                <div class="space-y-4">
+                    
+                    <!-- 1. ค้นหานักศึกษา (พิมพ์ได้/เลือกได้) -->
+                    <div>
+                        <label class="text-sm font-bold text-slate-500 mb-1.5 block">เลือกนักศึกษา (พิมพ์ชื่อ หรือ รหัส)</label>
+                        <input list="dep-stu-list" id="dep-stu-input" class="w-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-base py-3 px-4 rounded-xl focus:outline-none focus:border-indigo-400 transition-all shadow-sm placeholder-slate-400" placeholder="-- ค้นหาหรือเลือกนักศึกษา --">
+                        <datalist id="dep-stu-list">
+                            ${stuOptions}
+                        </datalist>
+                    </div>
+                    
+                    <!-- 2. จำนวนเงิน -->
+                    <div>
+                        <label class="text-sm font-bold text-slate-500 mb-1.5 block">จำนวนเงินที่ฝาก (บาท)</label>
+                        <input type="number" id="dep-amt" class="w-full bg-white border-2 border-slate-200 text-slate-700 font-bold text-base py-3 px-4 rounded-xl focus:outline-none focus:border-indigo-400 transition-all shadow-sm placeholder-slate-400" placeholder="เช่น 50">
+                    </div>
+                    
+                    <!-- 3. แนบสลิป (ปุ่ม Custom สวยงาม) -->
+                    <div>
+                        <label class="text-sm font-bold text-slate-500 mb-1.5 block">แนบสลิป</label>
+                        <div class="relative w-full">
+                            <!-- ซ่อนปุ่ม input ของเบราว์เซอร์ทิ้งไป -->
+                            <input type="file" id="dep-file" class="hidden" accept="image/*">
+                            
+                            <!-- สร้างหน้าตาปุ่มขึ้นมาใหม่แทน -->
+                            <label for="dep-file" class="flex items-center w-full bg-white border-2 border-slate-200 rounded-xl px-2 py-1.5 shadow-sm transition-all cursor-pointer hover:border-indigo-300">
+                                <span class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-sm px-4 py-2 rounded-lg mr-3 transition-colors">เลือกไฟล์</span>
+                                <span id="dep-file-text" class="text-slate-500 text-sm truncate">ไม่ได้เลือกไฟล์ใด</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- กลุ่มปุ่ม Submit -->
+                <div class="flex justify-center gap-3 mt-8">
+                    <button id="btn-upload-submit" class="bg-[#10b981] hover:bg-[#059669] text-white font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all text-base min-w-[140px]">
+                        อัปโหลดและบันทึก
+                    </button>
+                    <button onclick="Swal.close()" class="bg-[#71717a] hover:bg-[#52525b] text-white font-bold py-2.5 px-6 rounded-lg shadow-sm transition-all text-base min-w-[100px]">
+                        Cancel
+                    </button>
+                </div>
             </div>
         `,
-        showCancelButton: true, confirmButtonText: 'อัปโหลดและบันทึก', confirmButtonColor: '#10b981',
-        preConfirm: () => {
-            let stuId = document.getElementById('dep-stu').value;
-            let amt = parseFloat(document.getElementById('dep-amt').value);
-            let fileInput = document.getElementById('dep-file');
-            
-            if(!stuId || isNaN(amt) || amt <= 0 || fileInput.files.length === 0) {
-                return Swal.showValidationMessage('กรุณากรอกข้อมูลและแนบสลิปให้ครบถ้วน');
-            }
-            return { stuId, amt, file: fileInput.files[0] };
+        didOpen: () => {
+            // โลจิกเปลี่ยนชื่อไฟล์ตอนกดเลือกรูปภาพ
+            document.getElementById('dep-file').addEventListener('change', function() {
+                let textSpan = document.getElementById('dep-file-text');
+                if(this.files && this.files.length > 0) {
+                    textSpan.innerText = this.files[0].name;
+                    textSpan.classList.replace('text-slate-500', 'text-slate-800');
+                } else {
+                    textSpan.innerText = 'ไม่ได้เลือกไฟล์ใด';
+                    textSpan.classList.replace('text-slate-800', 'text-slate-500');
+                }
+            });
+
+            // โลจิกปุ่มอัปโหลด
+            document.getElementById('btn-upload-submit').addEventListener('click', () => {
+                let stuInputVal = document.getElementById('dep-stu-input').value;
+                let amt = parseFloat(document.getElementById('dep-amt').value);
+                let fileInput = document.getElementById('dep-file');
+                
+                // ดึงรหัสนักศึกษาออกมาจากข้อความที่พิมพ์ (ตัดคำว่า " - ")
+                let stuId = stuInputVal.split(' - ')[0]; 
+                let stu = students.find(s => s.id === stuId);
+
+                if(!stu) {
+                    Swal.showValidationMessage('ไม่พบข้อมูลนักศึกษา กรุณาพิมพ์หรือเลือกจากรายชื่อให้ถูกต้อง');
+                    return;
+                }
+                if(isNaN(amt) || amt <= 0 || fileInput.files.length === 0) {
+                    Swal.showValidationMessage('กรุณากรอกจำนวนเงินและแนบสลิปให้ครบถ้วน');
+                    return;
+                }
+                
+                let file = fileInput.files[0];
+                
+                Swal.fire({title: 'กำลังอัปโหลดสลิป...', html: 'กรุณารอสักครู่ ระบบกำลังนำสลิปเข้าโฟลเดอร์', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+                
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    let payload = {
+                        studentId: stu.id, studentName: stu.name, room: stu.room,
+                        base64: e.target.result, mimeType: file.type, fileName: file.name
+                    };
+                    
+                    google.script.run.withSuccessHandler(response => {
+                        if(response.success) {
+                            stu.dep = (stu.dep || 0) + amt;
+                            // 🌟 เพิ่มบรรทัดนี้: ให้ระบบจำลิงก์สลิปที่เพิ่งอัปโหลด
+                            stu.lastDepositSlip = response.url;
+                            txHistory.unshift({ date: getNow(), name: `ฝากเงินเข้ากองกลาง (แนบสลิปโดยแอดมิน)`, type: 'ฝาก', amt: amt, user: currentUsername });
+                            saveToLocal(true); refreshAll();
+                            Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: `เพิ่มเงินฝากให้ ${stu.name} เรียบร้อยแล้ว สลิปถูกเปลี่ยนชื่อเป็น (ยอดฝาก)`});
+                        } else {
+                            Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดได้: ' + response.error, 'error');
+                        }
+                    }).adminSaveDepositSlip(payload);
+                };
+                reader.readAsDataURL(file);
+            });
         }
+    });
+}
+
+// ================= หน้าต่างสรุปการเงินรายบุคคล (สำหรับแอดมิน) =================
+function viewStudentFinance(studentId) {
+    let stu = students.find(s => s.id === studentId);
+    if(!stu) return;
+
+    // 1. ดึงประวัติบิลทั้งหมดของนักศึกษาคนนี้
+    let billHtml = '';
+    
+    // เรียงบิลจากใหม่ไปเก่า
+    let sortedRounds = [...fundRounds].sort((a, b) => new Date(b.dueDate || 0) - new Date(a.dueDate || 0));
+    
+    sortedRounds.forEach(r => {
+        let p = fundPayments.find(x => x.roundId === r.id && x.studentId === studentId);
+        if(p) {
+            let isPaid = p.status.includes('จ่ายแล้ว');
+            let statusColor = isPaid ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-rose-700 bg-rose-50 border-rose-200';
+            let icon = isPaid ? '<i class="fas fa-check-circle text-emerald-500 mr-1"></i>' : '<i class="fas fa-times-circle text-rose-500 mr-1"></i>';
+            let remainText = isPaid ? 'ครบ' : `ค้าง ฿${(r.amt - (p.paidAmt || 0)).toFixed(2)}`;
+            
+            billHtml += `
+            <div class="flex justify-between items-center p-2.5 border-b ${statusColor} rounded-xl mb-2 border shadow-sm">
+                <div class="flex flex-col text-left">
+                    <span class="font-bold text-sm">${icon} ${r.title}</span>
+                    <span class="text-[10px] opacity-70 ml-5">สถานะ: ${p.status}</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs font-black">${remainText}</span>
+                    <div class="text-[10px] opacity-70">(จ่ายแล้ว ฿${p.paidAmt || 0})</div>
+                </div>
+            </div>`;
+        }
+    });
+
+    if(!billHtml) billHtml = '<p class="text-slate-400 text-sm text-center py-4">ยังไม่มีรายการบิลเรียกเก็บ</p>';
+
+    // 2. เด้งหน้าต่างสรุปข้อมูล
+    Swal.fire({
+        showCloseButton: true,
+        showConfirmButton: false,
+        html: `
+            <div class="text-left font-sans px-2 py-4">
+                <div class="flex items-center gap-3 border-b pb-3 mb-4">
+                    <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xl shadow-inner">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-lg text-slate-800 leading-tight">${stu.name}</h3>
+                        <p class="text-xs font-bold text-slate-500">รหัส: ${stu.id} | ห้อง ${stu.room}</p>
+                    </div>
+                </div>
+
+                <!-- กระเป๋าเงิน / แต้ม -->
+                <div class="flex gap-2 mb-5">
+                    <div class="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 p-3 rounded-2xl text-center shadow-sm">
+                        <p class="text-[10px] font-bold text-emerald-600 mb-1 uppercase tracking-wide">เงินฝากกองกลาง</p>
+                        <p class="text-2xl font-black text-emerald-500">฿${(stu.dep || 0).toFixed(2)}</p>
+                    </div>
+                    <div class="flex-1 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 p-3 rounded-2xl text-center shadow-sm">
+                        <p class="text-[10px] font-bold text-amber-600 mb-1 uppercase tracking-wide">คะแนนสะสม</p>
+                        <p class="text-2xl font-black text-amber-500">${stu.points || 0} <span class="text-sm">✨</span></p>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-sm text-slate-700 mb-3 flex items-center"><i class="fas fa-history text-indigo-400 mr-2"></i> ประวัติบิลทั้งหมดของนักศึกษา</h4>
+                <div class="max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                    ${billHtml}
+                </div>
+            </div>
+        `
+    });
+}
+
+// ================= ฟังก์ชันนำเงินฝากมาตัดจ่ายบิลใหม่ =================
+function payWithDeposit(studentId, roundId) {
+    let stu = students.find(s => s.id == studentId);
+    let round = fundRounds.find(r => r.id == roundId);
+    let p = fundPayments.find(x => x.roundId == roundId && x.studentId == studentId);
+    
+    if(!stu || !round || !p || !stu.dep || stu.dep <= 0) return;
+    
+    let remain = round.amt - (p.paidAmt || 0);
+    
+    Swal.fire({
+        title: 'ใช้เงินฝากจ่ายบิลนี้?',
+        html: `
+            <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <p class="text-sm mb-2 text-slate-600">เงินฝากที่มี: <b class="text-emerald-600">฿${stu.dep}</b></p>
+                <p class="text-sm mb-2 text-slate-600">บิลนี้เรียกเก็บ: <b class="text-rose-600">฿${remain}</b></p>
+                <hr class="my-2 border-slate-200">
+                <p class="text-[10px] text-amber-600">* ระบบจะดึงสลิปเงินฝากเดิมมาแนบเป็นหลักฐานในบิลนี้ให้อัตโนมัติ</p>
+            </div>
+        `,
+        icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยันหักเงินฝาก', confirmButtonColor: '#10b981'
     }).then(res => {
         if(res.isConfirmed) {
-            let data = res.value;
-            let stu = students.find(s => s.id === data.stuId);
+            let useAmt = Math.min(stu.dep, remain);
+            stu.dep -= useAmt; // หักเงินออกจากยอดฝาก
             
-            Swal.fire({title: 'กำลังอัปโหลดสลิป...', html: 'กรุณารอสักครู่ ระบบกำลังนำสลิปเข้าโฟลเดอร์', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            p.paidAmt = (p.paidAmt || 0) + useAmt;
+            p.status = p.paidAmt >= round.amt ? 'จ่ายแล้ว (หักเงินฝาก)' : 'ค้างชำระ (หักเงินฝาก)';
+            p.paidDate = getNow();
+            p.paidBy = currentUsername || 'ระบบ (ตัดเงินฝาก)';
             
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                let payload = {
-                    studentId: stu.id, studentName: stu.name, room: stu.room,
-                    base64: e.target.result, mimeType: data.file.type, fileName: data.file.name
-                };
-                
-                google.script.run.withSuccessHandler(response => {
-                    if(response.success) {
-                        stu.dep = (stu.dep || 0) + data.amt; // บวกเงินเข้ายอดฝาก
-                        txHistory.unshift({ date: getNow(), name: `ฝากเงินเข้ากองกลาง (แนบสลิปโดยแอดมิน)`, type: 'ฝาก', amt: data.amt, user: currentUsername });
-                        saveToLocal(true); refreshAll();
-                        Swal.fire({icon: 'success', title: 'บันทึกสำเร็จ!', text: `เพิ่มเงินฝากให้ ${stu.name} เรียบร้อยแล้ว สลิปถูกเปลี่ยนชื่อเป็น (ยอดฝาก)`});
-                    } else {
-                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถอัปโหลดได้: ' + response.error, 'error');
-                    }
-                }).adminSaveDepositSlip(payload);
-            };
-            reader.readAsDataURL(data.file);
+            // 🌟 พระเอกอยู่ตรงนี้: ดึงสลิปเงินฝากเดิมมาใส่ในบิลนี้!
+            if(stu.lastDepositSlip) {
+                p.slipUrl = stu.lastDepositSlip;
+            }
+            
+            // แจกแต้ม
+            let payPoints = (appSettings.ptsConfig && appSettings.ptsConfig.pay !== undefined) ? parseInt(appSettings.ptsConfig.pay) : 10;
+            if(p.status.includes('จ่ายแล้ว') && payPoints > 0) {
+                stu.points = (stu.points || 0) + payPoints;
+                txHistory.unshift({ date: getNow(), name: `+${payPoints} แต้ม (ชำระเงินครบ)`, type: 'ระบบ', amt: 0, user: 'ระบบ' });
+            }
+            
+            txHistory.unshift({ date: getNow(), name: `นำเงินฝากจ่ายบิล "${round.title}"`, type: 'ระบบ', amt: useAmt, user: currentUsername });
+            
+            saveToLocal(true); renderFundTable();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'ตัดเงินฝากเรียบร้อย!', showConfirmButton:false, timer:1500});
         }
     });
 }
