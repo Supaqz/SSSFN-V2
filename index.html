@@ -430,6 +430,19 @@
                 <label for="toggle-leaderboard" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label>
             </div>
         </div>
+        <!-- 🌟 เริ่ม: ตั้งค่าคะแนนอัตโนมัติ (แทรกตรงนี้เลย) -->
+        <h4 class="font-bold text-amber-600 mt-6 mb-3 border-b pb-2"><i class="fas fa-star"></i> ตั้งค่าระบบคะแนนอัตโนมัติ (จุดละกี่คะแนน)</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                <label class="text-xs font-bold text-slate-600 mb-1 block">บวกแต้ม: จ่ายเงินกองกลางตรงเวลา (+)</label>
+                <input type="number" id="setting-pts-pay" onchange="updatePointSettings()" class="modern-input mb-0 font-bold text-amber-700" placeholder="เช่น 10">
+            </div>
+            <div class="bg-rose-50 p-3 rounded-xl border border-rose-200">
+                <label class="text-xs font-bold text-slate-600 mb-1 block">หักแต้ม: ค้างชำระเลยกำหนดเวลา (-)</label>
+                <input type="number" id="setting-pts-late" onchange="updatePointSettings()" class="modern-input mb-0 font-bold text-rose-700" placeholder="เช่น 2">
+            </div>
+        </div>
+        <!-- 🌟 จบ: ตั้งค่าคะแนนอัตโนมัติ -->
     </div>
                 <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">จัดการสิทธิ์ (Login)</h3><button onclick="addUserAlert()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow">+ สร้าง User</button></div>
@@ -2041,6 +2054,27 @@ function renderHomeDirectory() {
            
            if(navLineLink) navLineLink.classList.remove('hidden'); // แสดงปุ่มที่เมนูซ้าย
        }
+        // 🌟 1. เพิ่มกล่องโชว์คะแนนสะสม และเหรียญตรา (วางก่อน grid.innerHTML)
+       let pointStr = s.points || 0;
+       let badgeHtml = '';
+       if (pointStr >= 500) badgeHtml = '👑 ระดับ: ราชา (VVIP)';
+       else if (pointStr >= 200) badgeHtml = '🥇 ระดับ: ทอง';
+       else if (pointStr >= 50) badgeHtml = '🥈 ระดับ: เงิน';
+       else badgeHtml = '🥉 ระดับ: ผู้เริ่มต้น';
+
+       let pointUi = `
+       <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200 mt-4 flex items-center justify-between shadow-sm">
+           <div class="text-left flex items-center gap-4">
+               <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm text-xl shrink-0"><i class="fas fa-star"></i></div>
+               <div>
+                   <p class="text-sm font-bold text-amber-700 mb-0.5">คะแนนสะสม (Points)</p>
+                   <p class="text-[10px] text-amber-600 font-bold">${badgeHtml}</p>
+               </div>
+           </div>
+           <div class="text-right">
+               <p class="text-3xl font-black text-amber-600 tracking-tight">${pointStr}</p>
+           </div>
+       </div>`;
        grid.innerHTML = `
         ${topGreenBar}
         <!-- การ์ดโปรไฟล์หลัก -->
@@ -2059,6 +2093,10 @@ function renderHomeDirectory() {
             
             <!-- นำยอดเงินฝากมาแสดงในการ์ดโปรไฟล์ -->
             ${depositUi}
+            
+            <!-- 🌟 นำคะแนนมาแสดงต่อท้ายยอดเงินฝาก -->
+            ${pointUi}
+
         </div>
 
         
@@ -3494,12 +3532,20 @@ window.confirmScan = function(stuId, title) {
     // 🌟 ถ้านักศึกษาเคยจองรอบไหนมา ให้ใช้รอบนั้นเลย ถ้าไม่เคยจอง (Walk-in) ให้ยัดเข้ารอบแรกอัตโนมัติ
     let roundName = (existingLog && existingLog.roundName) ? existingLog.roundName : defaultRound;
     
+    let actPoints = act ? (parseInt(act.points) || 0) : 0; 
+    
     if (mode === 'in') { // สแกนเข้า
         if (existingLog) {
+            if (existingLog.timeIn === 'จองสิทธิ์ล่วงหน้า' || existingLog.timeIn === '-') {
+                stu.points = (stu.points || 0) + actPoints;
+                if (actPoints > 0) txHistory.unshift({ date: timeStr, name: `+${actPoints} แต้ม (เข้าร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
+            }
             existingLog.timeIn = timeStr;
             existingLog.roundName = roundName; 
         } else {
             activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null });
+            stu.points = (stu.points || 0) + actPoints;
+            if (actPoints > 0) txHistory.unshift({ date: timeStr, name: `+${actPoints} แต้ม (เข้าร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
         }
     } else { // สแกนออก
         if (existingLog) {
@@ -3568,7 +3614,11 @@ function keepInputFocused(e) {
             let act = appSettings.activities.find(a => a.title === title); let participants = activityLogs.filter(l => l.activityTitle === title);
             if (act && act.maxParticipants > 0 && participants.length >= act.maxParticipants) return Swal.fire('คิวเต็ม!', `กิจกรรมนี้รับครบ ${act.maxParticipants} คนแล้วครับ`, 'error');
             let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === title); if(existing) return Swal.fire('ซ้ำ', 'นักศึกษาคนนี้ลงทะเบียนไปแล้วครับ', 'warning');
-            activityLogs.unshift({ studentId: stu.id, activityTitle: title, timeIn: getNow(), timeOut: null }); txHistory.unshift({ date: getNow(), name: 'เพิ่มชื่อด้วยมือ (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
+            let actPoints = act ? (parseInt(act.points) || 0) : 0;
+            activityLogs.unshift({ studentId: stu.id, activityTitle: title, timeIn: getNow(), timeOut: null }); 
+            stu.points = (stu.points || 0) + actPoints;
+            if (actPoints > 0) txHistory.unshift({ date: getNow(), name: `+${actPoints} แต้ม (เข้าร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
+            txHistory.unshift({ date: getNow(), name: 'เพิ่มชื่อด้วยมือ (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
             saveToLocal(); inputEl.value = ''; openActivityDashboard(title); Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'เพิ่มรายชื่อสำเร็จ', showConfirmButton: false, timer: 1500});
         }
 
@@ -4313,10 +4363,18 @@ function viewSlipPopup(url) {
                             // 1. ตัดบิลปัจจุบัน
                     let currentPayment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
                     if(currentPayment) {
+                        let wasPaid = currentPayment.status.includes('จ่ายแล้ว');
                         currentPayment.paidAmt = (currentPayment.paidAmt || 0) + currentBillPay;
                         currentPayment.status = (currentPayment.paidAmt >= round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
                         
-                        // บันทึกข้อมูลสำหรับล็อกใบเสร็จ (กำหนดค่าครั้งเดียวให้ครบถ้วน)
+                        // 🌟 ดึงคะแนนจากที่แอดมินตั้งค่าไว้และบวกแต้ม
+                        let payPoints = (appSettings.ptsConfig && appSettings.ptsConfig.pay !== undefined) ? parseInt(appSettings.ptsConfig.pay) : 10;
+                        if (!wasPaid && currentPayment.status.includes('จ่ายแล้ว') && payPoints > 0) {
+                            stu.points = (stu.points || 0) + payPoints;
+                            txHistory.unshift({ date: getNow(), name: `+${payPoints} แต้ม (ชำระเงิน "${round.title}" ครบถ้วน)`, type: 'ระบบ', amt: 0, user: currentUsername });
+                        }
+                        
+                        // บันทึกข้อมูลสำหรับล็อกใบเสร็จ
                         currentPayment.paidDate = getNow(); 
                         currentPayment.paidBy = currentUsername || 'ผู้ดูแลระบบ';
                         
@@ -4533,8 +4591,9 @@ function editRoom(roomName) {
                 name: nm, 
                 number: parseInt(no), 
                 email: document.getElementById('a-email').value.trim(),
-                // 🌟 ดึงข้อมูลชื่ออังกฤษ พร้อมบังคับแปลงเป็นพิมพ์ใหญ่ทั้งหมด (Uppercase) ทันที
-                nameEn: document.getElementById('a-nmen').value.trim().toUpperCase() 
+                nameEn: document.getElementById('a-nmen').value.trim().toUpperCase(),
+                points: 0,        // 🌟 ตั้งแต้มเริ่มต้น
+                inventory: {}     // 🌟 ตั้งกระเป๋าว่างเปล่า
             };
         } 
     }).then(r => { 
@@ -4736,6 +4795,11 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
 
         // ================= REFRESH ALL =================
         function refreshAll() {
+            // 🌟 โหลดค่าตั้งค่าคะแนน
+            let elPtsPay = document.getElementById('setting-pts-pay');
+            let elPtsLate = document.getElementById('setting-pts-late');
+            if(elPtsPay) elPtsPay.value = (appSettings.ptsConfig && appSettings.ptsConfig.pay !== undefined) ? appSettings.ptsConfig.pay : 10;
+            if(elPtsLate) elPtsLate.value = (appSettings.ptsConfig && appSettings.ptsConfig.late !== undefined) ? appSettings.ptsConfig.late : 2;
             recalculateDebts();
             let elHomeRm = document.getElementById('home-room-filter'); let cHomeRm = elHomeRm ? elHomeRm.value : 'all'; 
             let elChkRm = document.getElementById('roomSelect'); let cChkRm = elChkRm ? elChkRm.value : 'all'; 
@@ -4795,7 +4859,7 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             if(randomPool.length === 0 && students.length > 0) initRandomizer();
             
             let adminStudents = cAdmRm === 'all' ? students : students.filter(s => s.room === cAdmRm);
-            let elAdmDbList = document.getElementById('admin-db-list'); if(elAdmDbList) elAdmDbList.innerHTML = adminStudents.map(s => `<tr class="border-b"><td class="p-3 text-center font-bold text-emerald-600">${s.number}</td><td class="p-3"><b>${s.name}</b> <br><span class="text-xs text-slate-400 font-mono">${s.id}</span></td><td class="p-3 text-center">${currentUserRole==='leader'||currentUserRole==='vice' ? `<button onclick="editStudent('${s.id}')" class="text-blue-500 mx-1"><i class="fas fa-edit"></i></button><button onclick="deleteStudent('${s.id}')" class="text-rose-500 mx-1"><i class="fas fa-trash"></i></button>` : `-`}</td></tr>`).join('');
+            let elAdmDbList = document.getElementById('admin-db-list'); if(elAdmDbList) elAdmDbList.innerHTML = adminStudents.map(s => `<tr class="border-b"><td class="p-3 text-center font-bold text-emerald-600">${s.number}</td><td class="p-3"><b>${s.name}</b> <br><span class="text-xs text-slate-400 font-mono">${s.id}</span></td><td class="p-3 text-center">${currentUserRole==='leader'||currentUserRole==='vice' ? `<button onclick="adjustStudentPoints('${s.id}')" class="text-amber-500 mx-1" title="จัดการคะแนน"><i class="fas fa-star"></i></button><button onclick="editStudent('${s.id}')" class="text-blue-500 mx-1"><i class="fas fa-edit"></i></button><button onclick="deleteStudent('${s.id}')" class="text-rose-500 mx-1"><i class="fas fa-trash"></i></button>` : `-`}</td></tr>`).join('');
             
             const rn = { leader: 'หัวหน้า', vice: 'รองหัวหน้า', treasurer: 'เหรัญญิก' };
             let elUserList = document.getElementById('user-list'); if(elUserList) { let uHtml = ''; users.filter(u=>u.user!=='admin').forEach(u => { let uBtn = (currentUserRole==='leader'||currentUserRole==='vice') ? `<button onclick="editUserAction('${u.user}')" class="text-blue-500 mx-1"><i class="fas fa-edit"></i></button><button onclick="deleteUserAction('${u.user}')" class="text-rose-500 mx-1"><i class="fas fa-trash"></i></button>` : '-'; let linkedStu = students.find(s => s.id === u.refId); let linkedName = linkedStu ? `<br><span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md"><i class="fas fa-link"></i> ${linkedStu.name}</span>` : ''; uHtml += `<tr class="border-b"><td class="p-4 text-sm"><b>${u.user}</b>${linkedName}</td><td class="p-4 text-sm">${rn[u.role]}</td><td class="p-4 text-center">${uBtn}</td></tr>`; }); elUserList.innerHTML = uHtml; }
@@ -5836,7 +5900,50 @@ function linkLineAccount() {
     
     window.open(lineUrl, '_blank');
 }
-        
+
+// 🌟 ฟังก์ชันจัดการแต้มโดยแอดมิน (Manual)
+function adjustStudentPoints(studentId) {
+    let stu = students.find(s => s.id === studentId);
+    if(!stu) return;
+
+    Swal.fire({
+        title: `จัดการคะแนน: ${stu.name}`,
+        html: `
+        <div class="text-left">
+            <p class="text-sm font-bold text-slate-600 mb-4 bg-amber-50 p-3 rounded-lg border border-amber-200 text-center">คะแนนปัจจุบัน: <span class="text-amber-600 text-xl">${stu.points || 0}</span> แต้ม</p>
+            <label class="text-xs font-bold text-slate-500">จำนวนคะแนน (ใส่ติดลบเพื่อหักแต้ม)</label>
+            <input type="number" id="adj-pt-amt" class="modern-input" placeholder="เช่น 10 หรือ -5">
+            <label class="text-xs font-bold text-slate-500 mt-2">หมายเหตุ / สาเหตุที่ให้คะแนน</label>
+            <input type="text" id="adj-pt-note" class="modern-input" placeholder="เช่น ช่วยงานอาจารย์, มาสาย">
+        </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'บันทึกคะแนน', confirmButtonColor: '#d97706',
+        preConfirm: () => {
+            let amt = parseInt(document.getElementById('adj-pt-amt').value);
+            let note = document.getElementById('adj-pt-note').value.trim();
+            if (isNaN(amt)) return Swal.showValidationMessage('กรุณาใส่ตัวเลขคะแนน');
+            return { amt, note };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            stu.points = (stu.points || 0) + res.value.amt;
+            let actionText = res.value.amt > 0 ? `+${res.value.amt} แต้ม` : `${res.value.amt} แต้ม`;
+            txHistory.unshift({ date: getNow(), name: `ปรับคะแนน (${actionText}): ${stu.name} [สาเหตุ: ${res.value.note || '-'}]`, type: 'ระบบ', amt: 0, user: currentUsername });
+            
+            saveToLocal(true);
+            refreshAll();
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อัปเดตคะแนนสำเร็จ', showConfirmButton: false, timer: 1500});
+        }
+    });
+}
+
+// 🌟 ฟังก์ชันบันทึกการตั้งค่าแต้ม
+function updatePointSettings() {
+    if (!appSettings.ptsConfig) appSettings.ptsConfig = { pay: 10, late: 2 };
+    appSettings.ptsConfig.pay = parseInt(document.getElementById('setting-pts-pay').value) || 0;
+    appSettings.ptsConfig.late = parseInt(document.getElementById('setting-pts-late').value) || 0;
+    saveToLocal(true);
+}
     </script>
 
    <!-- ================= Modal E-Receipt (Minimalist Glow Style) ================= -->
