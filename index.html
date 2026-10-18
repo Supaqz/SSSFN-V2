@@ -313,31 +313,43 @@
                 </div>
             </div>
 
-<!-- ================= หน้าจัดการการเงิน (สลับกล่อง + ปุ่มสร้างบิลบนสุด) ================= -->
+<!-- ================= หน้าจัดการการเงิน (เรียงปุ่มสร้างบิลไว้บนสุด) ================= -->
 <div id="page-fin-fund" class="page-view hidden px-4 md:px-6 py-4 md:py-6 max-w-6xl mx-auto bg-slate-50/50 min-h-screen">
     
-    <!-- 🌟 1. ส่วนหัว และ ปุ่มสร้างบิล (จัดชิดขวา) -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight flex items-center drop-shadow-sm">
-            <div class="w-12 h-12 bg-white rounded-2xl shadow-md border border-rose-100 flex items-center justify-center mr-3 md:mr-4 transform -rotate-3">
-                <i class="fas fa-piggy-bank text-rose-500 text-2xl"></i>
-            </div>
-            จัดการการเงิน
+    <!-- 🌟 1. ส่วนหัวหน้าเพจ และ กลุ่มปุ่มเครื่องมือมุมขวาบน -->
+    <div class="flex justify-between items-center mb-6 md:mb-8 border-b border-slate-200/60 pb-4">
+        <h2 class="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight flex items-center">
+            <i class="fas fa-piggy-bank text-rose-500 mr-2 md:mr-3 text-2xl"></i> จัดการการเงิน
         </h2>
         
-        <!-- ย้ายปุ่มสร้างบิลมาไว้ตรงนี้ จะแสดงเฉพาะในหน้านี้ -->
-        <button onclick="createFundRoundAlert()" class="bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-md shadow-rose-200 hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
-            <i class="fas fa-plus-circle"></i> สร้างบิลใหม่
-        </button>
+        <!-- กลุ่มปุ่มมุมขวาบน -->
+        <div class="flex items-center gap-2">
+            <!-- 🌟 ปุ่มสร้างบิลใหม่ (แสดงเฉพาะในหน้านี้) -->
+            <button onclick="createFundRoundAlert()" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg font-bold shadow-sm transition flex items-center gap-1.5 text-xs md:text-sm">
+                <i class="fas fa-plus-circle"></i> <span class="hidden sm:inline">สร้างบิลใหม่</span>
+            </button>
+            
+            <!-- ปุ่มรีเฟรช -->
+            <button onclick="refreshAll()" class="bg-emerald-500 hover:bg-emerald-600 text-white w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center transition shadow-sm" title="รีเฟรช">
+                <i class="fas fa-sync-alt text-xs md:text-sm"></i>
+            </button>
+            
+            <!-- ปุ่มซิงค์ข้อมูล -->
+            <button onclick="forceSync()" class="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center transition shadow-sm" title="ซิงค์ข้อมูล">
+                <i class="fas fa-cloud-upload-alt text-xs md:text-sm"></i>
+            </button>
+        </div>
     </div>
 
-    <!-- 🌟 2. เลย์เอาต์หลัก (สลับตำแหน่งกล่อง) -->
-    <div class="flex flex-col gap-6 mb-8">
+    <!-- 🌟 2. เลย์เอาต์หลัก (ลดช่องว่าง) -->
+    <div class="flex flex-col gap-4 mb-2">
         
-        <!-- 🟢 กล่องที่ 1 (สลับมาอยู่บน): ระบบจัดการสลิป -->
+        <!-- 🟢 กล่องที่ 1 (บนสุด): ระบบจัดการสลิป + ทวงเงิน (รวมกันแล้ว) -->
         <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <h3 class="text-[11px] font-black text-slate-400 mb-3 uppercase tracking-widest border-b border-slate-100/80 pb-2"><i class="fas fa-layer-group mr-1.5"></i> ระบบจัดการสลิป</h3>
-            <div class="grid grid-cols-3 gap-3">
+            <h3 class="text-[11px] font-black text-slate-400 mb-3 uppercase tracking-widest border-b border-slate-100/80 pb-2"><i class="fas fa-layer-group mr-1.5"></i> ระบบจัดการสลิป และ แจ้งเตือน</h3>
+            
+            <!-- แถวที่ 1: สลิป -->
+            <div class="grid grid-cols-3 gap-3 mb-3">
                 <button onclick="openAdminDepositUpload()" class="bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] md:text-xs font-bold py-3 md:py-4 rounded-2xl flex flex-col items-center justify-center gap-1.5 shadow-sm hover:shadow transition-all group">
                     <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm text-emerald-500 group-hover:scale-110 transition-transform"><i class="fas fa-file-upload text-sm"></i></div>
                     อัปเงินฝาก
@@ -351,11 +363,20 @@
                     ดึงจาก Drive
                 </button>
             </div>
+
+            <!-- แถวที่ 2: ระบบแจ้งเตือน (ซ่อนไว้ก่อนตามระบบเดิม) -->
+            <div id="admin-reminder-tools" class="hidden grid grid-cols-2 gap-3 pt-2 border-t border-slate-50">
+                <button onclick="triggerEmailAlert()" class="bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold py-3 rounded-2xl flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all">
+                    <div class="w-7 h-7 bg-white rounded-full flex items-center justify-center text-blue-500 shadow-sm"><i class="fas fa-envelope text-[10px]"></i></div> ทวงส่วนตัว
+                </button>
+                <button onclick="triggerDueDateEmail()" class="bg-amber-50/50 hover:bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold py-3 rounded-2xl flex items-center justify-center gap-2 shadow-sm hover:shadow transition-all">
+                    <div class="w-7 h-7 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm"><i class="fas fa-clock text-[10px]"></i></div> เตือนวันนี้
+                </button>
+            </div>
         </div>
 
-        <!-- 🟢 กล่องที่ 2 (สลับมาอยู่ล่าง): เลือกบิลที่ต้องการจัดการ -->
-        <div class="bg-white p-5 md:p-7 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <!-- ตกแต่งฉากหลังนิดหน่อย -->
+        <!-- 🟢 กล่องที่ 2 (ล่างสุด): เลือกบิลที่ต้องการจัดการ -->
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div class="absolute -right-10 -top-10 w-40 h-40 bg-rose-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
 
             <div class="flex justify-between items-center mb-4 relative z-10">
@@ -383,22 +404,9 @@
             </div>
         </div>
 
-        <!-- กล่องที่ 3: ระบบแจ้งเตือน -->
-        <div id="admin-reminder-tools" class="hidden bg-gradient-to-br from-orange-50 to-rose-50 p-4 md:p-5 rounded-3xl border border-orange-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
-            <i class="fas fa-bell absolute -right-4 -bottom-4 text-6xl text-orange-500/10 -rotate-12"></i>
-            <div class="grid grid-cols-2 gap-3 relative z-10">
-                <button onclick="triggerEmailAlert()" class="bg-white/80 backdrop-blur-sm border border-blue-200 text-blue-700 text-xs font-bold py-3 md:py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-sm hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all">
-                    <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600"><i class="fas fa-envelope text-[10px]"></i></div> ทวงส่วนตัว
-                </button>
-                <button onclick="triggerDueDateEmail()" class="bg-white/80 backdrop-blur-sm border border-amber-200 text-amber-700 text-xs font-bold py-3 md:py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-sm hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all">
-                    <div class="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center text-amber-600"><i class="fas fa-clock text-[10px]"></i></div> เตือนวันนี้
-                </button>
-            </div>
-        </div>
-
     </div>
 </div>
-<!-- ส่วนกล่องตารางจัดการสลิปด้านล่าง (รักษากล่องเดิมไว้) -->
+<!-- ส่วนกล่องตารางสรุปความคืบหน้าด้านล่าง (รักษากล่องเดิมไว้) -->
     <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-2">
     <h3 class="font-bold text-slate-800">สถานะการชำระเงิน</h3>
