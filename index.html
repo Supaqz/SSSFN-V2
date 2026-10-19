@@ -6959,7 +6959,7 @@ window.confirmPointUpdate = function(stu, pts, noteStr) {
     Swal.fire({toast:true, position:'top-end', icon:'success', title:`${sign}${pts} แต้มเรียบร้อย`, showConfirmButton:false, timer:1500});
 };
 
-// ================= ฟังก์ชันแจกแต้มยกห้อง (Bulk Points) =================
+// ================= ฟังก์ชันแจกแต้มยกห้อง (Bulk Points) พร้อม Popup ใส่เหตุผล =================
 window.givePointsToRoom = function(pts) {
     let roomFilter = document.getElementById('admin-filter-room')?.value;
     
@@ -6988,23 +6988,46 @@ window.givePointsToRoom = function(pts) {
     let actionWord = finalPts > 0 ? 'แจก' : 'หัก';
     let colorClass = finalPts > 0 ? 'text-emerald-600' : 'text-rose-600';
     
-    // 🌟 แสดงหน้าต่างยืนยัน และให้พิมพ์หมายเหตุได้
+    // 🌟 ป๊อปอัปให้ใส่เหตุผลหลังจากกดติ๊กถูก หรือกดปุ่มลัด
     Swal.fire({
-        title: `ยืนยัน${actionWord}แต้มทั้งห้อง?`,
+        title: `<h2 class="text-2xl font-bold text-slate-700 mt-2 mb-4">ยืนยัน${actionWord}แต้มทั้งห้อง</h2>`,
         html: `
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 text-left">
-                <p class="text-sm text-slate-600 mb-2">เป้าหมาย: <b class="text-slate-800">ห้อง ${roomFilter}</b> (${targetStudents.length} คน)</p>
-                <p class="text-sm text-slate-600 mb-4">คะแนน: <b class="${colorClass} text-xl">${sign}${finalPts}</b> แต้ม/คน</p>
+            <div class="text-left font-sans bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
                 
-                <label class="block text-xs font-bold text-slate-700 mb-2">หมายเหตุ / เหตุผล</label>
-                <input type="text" id="bulk-pts-note" class="modern-input text-sm mb-0" placeholder="เช่น ชนะกิจกรรมห้อง, มาสายยกห้อง">
+                <!-- ส่วนสรุปห้องและจำนวนคน -->
+                <div class="flex items-center gap-4 mb-4 border-b border-slate-100 pb-4">
+                    <div class="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center text-xl shadow-sm shrink-0">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-base">เป้าหมาย: ห้อง ${roomFilter}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">นักศึกษาทั้งหมด: <strong class="text-indigo-500">${targetStudents.length}</strong> คน</p>
+                    </div>
+                </div>
+                
+                <!-- ส่วนแสดงตัวเลขคะแนน -->
+                <div class="mb-5 text-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p class="text-xs font-bold text-slate-500 mb-1">คะแนนที่จะ${actionWord} (ต่อคน)</p>
+                    <p class="text-4xl font-black ${colorClass}">${sign}${finalPts}</p>
+                </div>
+
+                <!-- ช่องกรอกหมายเหตุ -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">หมายเหตุ / เหตุผล</label>
+                    <input type="text" id="bulk-pts-note" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:border-amber-400 transition" placeholder="เช่น ชนะกิจกรรมห้อง, มาสายยกห้อง">
+                </div>
             </div>
         `,
-        icon: 'question',
         showCancelButton: true,
-        confirmButtonText: `ยืนยัน${actionWord}แต้ม`,
+        confirmButtonText: 'บันทึก',
+        cancelButtonText: 'Cancel',
         confirmButtonColor: '#f59e0b',
-        cancelButtonText: 'ยกเลิก',
+        cancelButtonColor: '#64748b',
+        customClass: {
+            popup: 'rounded-[2rem] p-2 max-w-md w-full',
+            confirmButton: 'rounded-xl px-8 py-2.5 font-bold text-lg shadow-md',
+            cancelButton: 'rounded-xl px-6 py-2.5 font-bold text-lg'
+        },
         preConfirm: () => {
             return document.getElementById('bulk-pts-note').value.trim() || `แอดมิน${actionWord}คะแนนยกห้อง`;
         }
@@ -7016,11 +7039,12 @@ window.givePointsToRoom = function(pts) {
             targetStudents.forEach(stu => {
                 stu.points = (stu.points || 0) + finalPts;
                 
-                // อัปเดต UI บนตารางทันที
+                // อัปเดต UI บนตารางทันที (เปลี่ยนสีป้ายและตัวเลข)
                 let disp = document.getElementById('pts-disp-' + stu.id);
                 if (disp) {
                     let currentPts = stu.points;
                     disp.innerHTML = `${currentPts} <i class="fas fa-star ml-1 text-[10px]"></i>`;
+                    
                     disp.classList.remove('bg-amber-100', 'text-amber-600', 'border-amber-200', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-rose-100', 'text-rose-600', 'border-rose-200');
                     if (currentPts > 0) disp.classList.add('bg-amber-100', 'text-amber-600', 'border-amber-200');
                     else if (currentPts < 0) disp.classList.add('bg-rose-100', 'text-rose-600', 'border-rose-200');
@@ -7031,6 +7055,7 @@ window.givePointsToRoom = function(pts) {
                 }
             });
             
+            // บันทึกประวัติ
             txHistory.unshift({ date: getNow(), name: `${actionWord}คะแนนยกห้อง (${roomFilter}) ${sign}${finalPts} แต้ม: ${noteStr}`, type: 'ระบบ', amt: 0, user: currentUsername });
             saveToLocal(true);
             
