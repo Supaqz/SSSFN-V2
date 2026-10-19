@@ -6103,7 +6103,7 @@ function printReceipt(roundId, studentId) {
 }
 
 // =========================================================================
-// 🌟 ฟังก์ชันเปิดหน้าต่างดูข้อมูลโปรไฟล์นักศึกษา (Ultra-Modern Style)
+// 🌟 ฟังก์ชันเปิดหน้าต่างดูข้อมูลโปรไฟล์นักศึกษา (อัปเดตเพิ่ม: กล่องประวัติคะแนน)
 // =========================================================================
 window.openStudentProfileModal = function(studentId) {
     let stu = students.find(s => s.id === studentId);
@@ -6118,6 +6118,7 @@ window.openStudentProfileModal = function(studentId) {
     let attCount = stu.att_m || 0; 
     let totalPoints = actsPoints + (attCount * 10);
 
+    // 🌟 1. ดึงข้อมูลประวัติการเงิน
     let myPayments = fundPayments.filter(p => p.studentId === stu.id);
     let financeHtml = '';
     if (myPayments.length === 0) {
@@ -6145,6 +6146,7 @@ window.openStudentProfileModal = function(studentId) {
         });
     }
 
+    // 🌟 2. ดึงข้อมูลกิจกรรมที่เข้าร่วม
     let actHtml = '';
     if (myActs.length === 0) {
         actHtml = '<div class="text-center py-6 bg-slate-50 rounded-2xl"><i class="fas fa-calendar-times text-slate-300 text-2xl mb-2"></i><p class="text-xs text-slate-400 font-bold">ยังไม่เคยเข้าร่วมกิจกรรม</p></div>';
@@ -6162,6 +6164,41 @@ window.openStudentProfileModal = function(studentId) {
                     <p class="text-sm font-bold text-slate-800 truncate" title="${log.activityTitle}">${log.activityTitle}</p>
                     <p class="text-[10px] text-slate-400">${isCheckedIn ? 'ผ่านกิจกรรมแล้ว' : 'รอยืนยันการเข้าร่วม'}</p>
                 </div>
+            </div>`;
+        });
+    }
+
+    // 🌟 3. ใหม่! ดึงข้อมูล "ประวัติคะแนน" จาก txHistory
+    let pointHistoryHtml = '';
+    // กรองหาประวัติที่มีชื่อเด็กคนนี้ และมีคำว่า "แต้ม" หรือ "คะแนน"
+    let myPointLogs = txHistory.filter(tx => tx.name.includes(stu.name) && (tx.name.includes('แต้ม') || tx.name.includes('คะแนน')));
+
+    if (myPointLogs.length === 0) {
+        pointHistoryHtml = '<div class="text-center py-6 bg-slate-50 rounded-2xl"><i class="fas fa-star-half-alt text-slate-300 text-2xl mb-2"></i><p class="text-xs text-slate-400 font-bold">ยังไม่มีประวัติรับ/หักคะแนน</p></div>';
+    } else {
+        myPointLogs.forEach(tx => {
+            let isPositive = tx.name.includes('+');
+            let isNegative = tx.name.includes('-');
+            let badgeHtml = '';
+            
+            if (isPositive) {
+                badgeHtml = '<span class="bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md text-[10px] font-bold border border-emerald-200 shadow-sm"><i class="fas fa-arrow-up mr-1"></i> ได้รับ</span>';
+            } else if (isNegative) {
+                badgeHtml = '<span class="bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-[10px] font-bold border border-rose-200 shadow-sm"><i class="fas fa-arrow-down mr-1"></i> ถูกหัก</span>';
+            } else {
+                badgeHtml = '<span class="bg-blue-100 text-blue-600 px-2 py-1 rounded-md text-[10px] font-bold border border-blue-200 shadow-sm"><i class="fas fa-exchange-alt mr-1"></i> อัปเดต</span>';
+            }
+
+            // ตัดชื่อเด็กออกจากข้อความ เพื่อให้ดูสะอาดตาเวลาอ่านในโปรไฟล์
+            let cleanDesc = tx.name.replace(stu.name, '').replace(':', '').trim();
+
+            pointHistoryHtml += `
+            <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1">
+                <div class="flex-1 min-w-0 pr-3">
+                    <p class="text-sm font-bold text-slate-800 truncate" title="${cleanDesc}">${cleanDesc}</p>
+                    <p class="text-[10px] text-slate-400 font-mono mt-0.5"><i class="far fa-clock"></i> ${tx.date} | ${tx.user || 'ระบบ'}</p>
+                </div>
+                <div class="shrink-0">${badgeHtml}</div>
             </div>`;
         });
     }
@@ -6217,6 +6254,17 @@ window.openStudentProfileModal = function(studentId) {
                     </h3>
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${financeHtml}</div>
+            </div>
+
+            <!-- 🌟 NEW: Point History Section -->
+            <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
+                        ประวัติคะแนนสะสม
+                    </h3>
+                </div>
+                <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
 
             <!-- Activity Section -->
