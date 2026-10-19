@@ -695,84 +695,104 @@ async function callBackend(payload) {
     }); 
 }
 
-       async function autoSyncToGS() {
+       // ================= เปลี่ยนการอัปเดตอัตโนมัติให้ส่งเข้า Firebase Queue ก่อน (เร็วปรี๊ด 0.1 วิ) =================
+async function autoSyncToGS() {
     if (students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
 
-    // If a save is already running, request one more pass with the latest state.
-    if (isSyncing) {
-        syncQueued = true;
-        return;
-    }
-
     isSyncing = true;
     try {
         const dbData = {
             appSettings, users, rooms, students, txHistory,
-            fundRounds, fundPayments, expenses, activityLogs
+            fundRounds, fundPayments, expenses, activityLogs, timeLogs
         };
-        const result = await callBackend({ action: 'saveAll', data: dbData });
 
-        if (!result || result.status !== 'success') {
-            console.error('บันทึกข้อมูลไม่สำเร็จ:', result && result.message);
-            return;
-        }
+        // 🌟 บันทึกก้อนข้อมูลล่าสุดลง Firebase ฝากไว้ในคิว (ทำงานเสร็จในเสี้ยววินาที)
+        await db.collection('syncQueue').doc('latest').set({
+            payload: JSON.stringify(dbData),
+            status: 'PENDING', // กำหนดสถานะว่ารอส่งไป Sheet
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log("🔥 ฝากข้อมูลลง Firebase Queue สำเร็จ! (รอหุ่นยนต์ส่งไป Sheet)");
 
-        // Notify other open clients only after Apps Script confirms persistence.
-        if (typeof notifyFirebaseUpdate === 'function') {
-            try { await notifyFirebaseUpdate(); }
-            catch (signalError) { console.error('Firebase signal error:', signalError); }
-        }
+        // เคาะระฆังบอกเครื่องอื่นว่ามีอัปเดต
+        if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
+
     } catch (error) {
-        console.error('Sync Error:', error);
+        console.error("Firebase Queue Error:", error);
+        // แผนสำรอง: ถ้า Firebase พังหรือข้อมูลใหญ่เกิน 1MB ให้ส่งตรงเข้า Sheet แทน
+        callBackend({ action: 'saveAll', data: dbData });
     } finally {
         isSyncing = false;
-        if (syncQueued) {
-            syncQueued = false;
-            setTimeout(() => autoSyncToGS(), 250);
-        }
     }
 }
+// ================= หุ่นยนต์หลังบ้าน: คอยดึงข้อมูลจาก Firebase ไปส่ง Google Sheets =================
+let isProcessingQueue = false;
 
+function startBackgroundSyncWorker() {
+    // ให้หุ่นยนต์ทำงานเฉพาะบัญชีแอดมินเท่านั้น
+    if (currentUserRole === 'guest') return;
+
+    // ตั้งเวลาให้หุ่นยนต์ตื่นมาเช็คคิวทุกๆ 8 วินาที
+    setInterval(async () => {
+        if (isProcessingQueue) return;
+
+        try {
+            // เช็คว่ามีคิว PENDING ค้างอยู่ไหม
+            let doc = await db.collection('syncQueue').doc('latest').get();
+            
+            if (doc.exists && doc.data().status === 'PENDING') {
+                isProcessingQueue = true;
+                console.log("⚙️ หุ่นยนต์พบข้อมูลในคิว! กำลังนำไปบันทึกลง Google Sheets...");
+                
+                // เปลี่ยนสถานะเป็น PROCESSING เพื่อกันไม่ให้แอดมินเครื่องอื่นดึงข้อมูลก้อนนี้ไปทำซ้ำ
+                await db.collection('syncQueue').doc('latest').update({ status: 'PROCESSING' });
+
+                let dbData = JSON.parse(doc.data().payload);
+                
+                // ส่งข้อมูลจริงไปบันทึกที่ Google Sheets (กระบวนการนี้กินเวลา 2-5 วิ แต่ผู้ใช้จะไม่รู้สึกกระตุกแล้ว)
+                let result = await callBackend({ action: 'saveAll', data: dbData });
+
+                if (result && result.status === 'success') {
+                    // ถ้ายัดลง Sheet สำเร็จ ให้ลบคิวนี้ทิ้งจาก Firebase
+                    await db.collection('syncQueue').doc('latest').delete();
+                    console.log("✅ หุ่นยนต์บันทึกลง Google Sheets สำเร็จแล้ว!");
+                } else {
+                    // ถ้าบันทึกไม่สำเร็จ ให้คืนสถานะเป็น PENDING ไว้รอส่งใหม่รอบถัดไป
+                    await db.collection('syncQueue').doc('latest').update({ status: 'PENDING' });
+                }
+            }
+        } catch (error) {
+            console.error("Background Sync Error:", error);
+            isProcessingQueue = false;
+        } finally {
+            isProcessingQueue = false;
+        }
+    }, 8000); // 8000 มิลลิวินาที = 8 วินาที
+}
+// ================= บันทึกข้อมูลบังคับแบบ Manual =================
 async function pushToGS() {
-    if (isSyncing) {
-        syncQueued = true;
-        Swal.fire({
-            icon: 'info',
-            title: 'กำลังบันทึกข้อมูลอยู่',
-            text: 'ระบบจะบันทึกการแก้ไขล่าสุดต่อให้อัตโนมัติ',
-            timer: 1800,
-            showConfirmButton: false
-        });
-        return;
-    }
-
+    if (isSyncing) return Swal.fire({icon: 'info', title: 'ระบบกำลังทำงานอยู่', timer: 1800, showConfirmButton: false});
+    
     isSyncing = true;
-    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังบันทึกลง Sheet...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-        const dbData = {
-            appSettings, users, rooms, students, txHistory,
-            fundRounds, fundPayments, expenses, activityLogs
-        };
+        const dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs };
         const result = await callBackend({ action: 'saveAll', data: dbData });
 
-        if (!result || result.status !== 'success') {
-            Swal.fire('บันทึกไม่สำเร็จ', (result && result.message) || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
-            return;
-        }
-
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500 });
-        if (typeof notifyFirebaseUpdate === 'function') {
-            try { await notifyFirebaseUpdate(); }
-            catch (signalError) { console.error('Firebase signal error:', signalError); }
+        if (result && result.status === 'success') {
+            // เคลียร์คิวใน Firebase ทิ้งด้วยเพราะเซฟเข้า Sheet ปัจจุบันสุดแล้ว
+            await db.collection('syncQueue').doc('latest').delete().catch(e=>{}); 
+            
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500 });
+            if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
+        } else {
+            Swal.fire('บันทึกไม่สำเร็จ', result.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
         }
     } catch (error) {
-        Swal.fire('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+        Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
     } finally {
         isSyncing = false;
-        if (syncQueued) {
-            syncQueued = false;
-            setTimeout(() => autoSyncToGS(), 250);
-        }
     }
 }
 async function silentPullFromGS() {
@@ -1363,6 +1383,9 @@ function openPublicSlipModal(targetRoundId = null) {
     refreshAll(); 
     applyRoleUI(); 
     silentPullFromGS(); 
+    
+    // 🌟 เริ่มการทำงานของหุ่นยนต์ส่งข้อมูลหลังบ้าน (หน่วง 5 วิก่อนเริ่ม เพื่อให้เว็บโหลดเสร็จก่อน)
+    setTimeout(startBackgroundSyncWorker, 5000);
 });
         // 🌟 ฟังก์ชันเปิด-ปิดแถบเมนูด้านซ้าย (รองรับทั้งมือถือและคอมพิวเตอร์)
 window.toggleSidebar = function() { 
