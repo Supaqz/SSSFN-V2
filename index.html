@@ -416,7 +416,7 @@
         </h2>
     </div>
 
-    <!-- 🌟 แถบค้นหา & แผงควบคุมแจกแต้มด่วน -->
+    <!-- 🌟 แถบค้นหา & แผงควบคุมแจกแต้มยกห้อง -->
     <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6 flex flex-col xl:flex-row gap-4 items-center justify-between">
         
         <!-- 1. ค้นหา & กรองห้อง (ฝั่งซ้าย) -->
@@ -430,17 +430,20 @@
             </select>
         </div>
 
-        <!-- 2. ส่วนแจกแต้มด่วน (Quick Points) (ฝั่งขวา) -->
+        <!-- 2. ส่วนแจกแต้มทั้งห้อง (Bulk Points) (ฝั่งขวา) -->
         <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-full xl:w-auto justify-center shadow-inner overflow-x-auto">
-            <button onclick="quickGivePoints(1)" class="w-10 h-10 shrink-0 bg-white border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">+1</button>
-            <button onclick="quickGivePoints(5)" class="w-10 h-10 shrink-0 bg-white border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">+5</button>
+            <span class="text-xs font-bold text-slate-500 ml-2 hidden lg:block whitespace-nowrap"><i class="fas fa-users text-amber-500"></i> ให้คะแนนทั้งห้อง:</span>
             
-            <div class="relative w-40 md:w-56 mx-1 shrink-0">
-                <input type="text" id="quick-point-id" placeholder="สแกนรหัสแจกแต้ม..." class="w-full text-center py-2 px-3 border border-slate-300 rounded-lg text-xs md:text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 shadow-sm transition-all" onkeypress="if(event.key==='Enter') { quickGivePoints(1); }">
+            <button onclick="givePointsToRoom(1)" class="w-10 h-10 shrink-0 bg-white border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">+1</button>
+            <button onclick="givePointsToRoom(5)" class="w-10 h-10 shrink-0 bg-white border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">+5</button>
+            
+            <div class="relative w-36 md:w-48 mx-1 shrink-0 flex">
+                <input type="number" id="bulk-point-val" placeholder="ระบุคะแนน..." class="w-full text-center py-2 px-2 border border-slate-300 border-r-0 rounded-l-lg text-xs md:text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 shadow-sm transition-all" onkeypress="if(event.key==='Enter') { givePointsToRoom('custom'); }">
+                <button onclick="givePointsToRoom('custom')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-r-lg font-bold shadow-sm transition" title="แจกคะแนน"><i class="fas fa-check"></i></button>
             </div>
             
-            <button onclick="quickGivePoints(-5)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-5</button>
-            <button onclick="quickGivePoints(-1)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-1</button>
+            <button onclick="givePointsToRoom(-5)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-5</button>
+            <button onclick="givePointsToRoom(-1)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-1</button>
         </div>
     </div>
 
@@ -6956,33 +6959,87 @@ window.confirmPointUpdate = function(stu, pts, noteStr) {
     Swal.fire({toast:true, position:'top-end', icon:'success', title:`${sign}${pts} แต้มเรียบร้อย`, showConfirmButton:false, timer:1500});
 };
 
-// ================= ฟังก์ชันแจกแต้มด่วน (แก้ปัญหาเคอร์เซอร์หาย & สแกนรัวๆ ไม่ทัน) =================
-window.quickGivePoints = function(pts) {
-    let inputEl = document.getElementById('quick-point-id');
-    let rawId = inputEl.value.trim();
+// ================= ฟังก์ชันแจกแต้มยกห้อง (Bulk Points) =================
+window.givePointsToRoom = function(pts) {
+    let roomFilter = document.getElementById('admin-filter-room')?.value;
     
-    if(!rawId) return; // ถ้าช่องว่างให้ข้ามไปเลย ไม่ต้องแจ้งเตือนเพื่อความรวดเร็ว
-    
-    let cleanId = formatIdSearch(rawId);
-    let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === cleanId.replace(/-/g,''));
-    
-    if(!stu) {
-        // หากไม่พบรหัส: แจ้งเตือนสีแดง + ส่งเสียง + ดูดเคอร์เซอร์กลับทันที
-        if(typeof playBeep === 'function') playBeep('error');
-        Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัส: ' + rawId, showConfirmButton:false, timer:1500, returnFocus: false});
-        inputEl.value = '';
-        setTimeout(() => inputEl.focus(), 50); 
-        return;
+    // 🌟 บังคับให้แอดมินต้องเลือกห้องเรียนก่อนทำการแจก
+    if (!roomFilter || roomFilter === 'all') {
+        return Swal.fire({toast:true, position:'top', icon:'warning', title:'กรุณาเลือกห้องเรียนจากเมนูด้านซ้ายก่อนครับ', showConfirmButton:false, timer:2500});
     }
+
+    let finalPts = 0;
+    if (pts === 'custom') {
+        let val = parseInt(document.getElementById('bulk-point-val').value);
+        if (isNaN(val) || val === 0) {
+            return Swal.fire({toast:true, position:'top', icon:'warning', title:'กรุณาระบุคะแนนที่ต้องการแจก', showConfirmButton:false, timer:2000});
+        }
+        finalPts = val;
+    } else {
+        finalPts = parseInt(pts);
+    }
+
+    let targetStudents = students.filter(s => s.room === roomFilter);
+    if (targetStudents.length === 0) {
+        return Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบนักศึกษาในห้องนี้', showConfirmButton:false, timer:2000});
+    }
+
+    let sign = finalPts > 0 ? '+' : '';
+    let actionWord = finalPts > 0 ? 'แจก' : 'หัก';
+    let colorClass = finalPts > 0 ? 'text-emerald-600' : 'text-rose-600';
     
-    if(typeof playBeep === 'function') playBeep('success');
-    
-    // เรียกใช้ฟังก์ชันอัปเดตคะแนน
-    confirmPointUpdate(stu, pts, 'ให้แต้มด่วนผ่านการสแกน');
-    
-    // เคลียร์ช่อง และบังคับดูดเคอร์เซอร์กลับมาเตรียมพร้อมสแกนคนต่อไปในเสี้ยววินาที
-    inputEl.value = ''; 
-    setTimeout(() => inputEl.focus(), 10); 
+    // 🌟 แสดงหน้าต่างยืนยัน และให้พิมพ์หมายเหตุได้
+    Swal.fire({
+        title: `ยืนยัน${actionWord}แต้มทั้งห้อง?`,
+        html: `
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 text-left">
+                <p class="text-sm text-slate-600 mb-2">เป้าหมาย: <b class="text-slate-800">ห้อง ${roomFilter}</b> (${targetStudents.length} คน)</p>
+                <p class="text-sm text-slate-600 mb-4">คะแนน: <b class="${colorClass} text-xl">${sign}${finalPts}</b> แต้ม/คน</p>
+                
+                <label class="block text-xs font-bold text-slate-700 mb-2">หมายเหตุ / เหตุผล</label>
+                <input type="text" id="bulk-pts-note" class="modern-input text-sm mb-0" placeholder="เช่น ชนะกิจกรรมห้อง, มาสายยกห้อง">
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: `ยืนยัน${actionWord}แต้ม`,
+        confirmButtonColor: '#f59e0b',
+        cancelButtonText: 'ยกเลิก',
+        preConfirm: () => {
+            return document.getElementById('bulk-pts-note').value.trim() || `แอดมิน${actionWord}คะแนนยกห้อง`;
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            let noteStr = res.value;
+            
+            // วนลูปบวกคะแนนให้เด็กทุกคนในห้องที่เลือก
+            targetStudents.forEach(stu => {
+                stu.points = (stu.points || 0) + finalPts;
+                
+                // อัปเดต UI บนตารางทันที
+                let disp = document.getElementById('pts-disp-' + stu.id);
+                if (disp) {
+                    let currentPts = stu.points;
+                    disp.innerHTML = `${currentPts} <i class="fas fa-star ml-1 text-[10px]"></i>`;
+                    disp.classList.remove('bg-amber-100', 'text-amber-600', 'border-amber-200', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-rose-100', 'text-rose-600', 'border-rose-200');
+                    if (currentPts > 0) disp.classList.add('bg-amber-100', 'text-amber-600', 'border-amber-200');
+                    else if (currentPts < 0) disp.classList.add('bg-rose-100', 'text-rose-600', 'border-rose-200');
+                    else disp.classList.add('bg-slate-100', 'text-slate-500', 'border-slate-200');
+                    
+                    disp.classList.add('scale-125'); 
+                    setTimeout(() => disp.classList.remove('scale-125'), 300);
+                }
+            });
+            
+            txHistory.unshift({ date: getNow(), name: `${actionWord}คะแนนยกห้อง (${roomFilter}) ${sign}${finalPts} แต้ม: ${noteStr}`, type: 'ระบบ', amt: 0, user: currentUsername });
+            saveToLocal(true);
+            
+            document.getElementById('bulk-point-val').value = ''; // เคลียร์ช่องตัวเลข
+            
+            if(typeof playBeep === 'function') playBeep('success');
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:`อัปเดตคะแนนให้ห้อง ${roomFilter} เรียบร้อย!`, showConfirmButton:false, timer:2500});
+        }
+    });
 };
 
 // ================= ระบบจัดการคะแนน (Popup แบบพิมพ์+ปุ่มกด) =================
