@@ -405,34 +405,63 @@
                 </div>
             </div>
 <!-- ================= หน้าจัดการรายชื่อและคะแนนนักศึกษา (Admin) ================= -->
-            <div id="page-admin-students" class="page-view hidden max-w-6xl mx-auto">
-                <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm mb-6 flex flex-col md:flex-row gap-3">
-                    <div class="relative flex-1">
-                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="admin-search-stu" placeholder="ค้นหาชื่อ หรือ รหัสนักศึกษา..." class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 transition-colors font-bold text-slate-700" onkeyup="renderAdminStudentList()">
-                    </div>
-                    <select id="admin-filter-room" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-400 transition-colors cursor-pointer" onchange="renderAdminStudentList()">
-                        <option value="all">แสดงทุกห้อง</option>
-                    </select>
-                </div>
-
-                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-widest border-b border-slate-100">
-                                    <th class="p-4 font-black">รหัส - ชื่อสกุล</th>
-                                    <th class="p-4 font-black text-center whitespace-nowrap">ห้อง</th>
-                                    <th class="p-4 font-black text-right whitespace-nowrap">ยอดฝาก</th>
-                                    <th class="p-4 font-black text-center whitespace-nowrap">แต้มสะสม</th>
-                                    <th class="p-4 font-black text-center whitespace-nowrap">จัดการคะแนน</th>
-                                </tr>
-                            </thead>
-                            <tbody id="admin-student-list-body"></tbody>
-                        </table>
-                    </div>
-                </div>
+<div id="page-admin-students" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-6xl mx-auto bg-slate-50/50 min-h-screen">
+    
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-200/60 pb-4 gap-4">
+        <h2 class="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight flex items-center">
+            <div class="w-12 h-12 bg-white rounded-2xl shadow-md border border-indigo-100 flex items-center justify-center mr-3 md:mr-4 transform rotate-3">
+                <i class="fas fa-user-graduate text-indigo-500 text-2xl"></i>
             </div>
+            จัดการรายชื่อ & คะแนนสะสม
+        </h2>
+    </div>
+
+    <!-- 🌟 แถบค้นหา & แผงควบคุมแจกแต้มด่วน -->
+    <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        
+        <!-- 1. ค้นหา & กรองห้อง (ฝั่งซ้าย) -->
+        <div class="flex w-full xl:w-auto flex-1 gap-3">
+            <div class="relative flex-1">
+                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="admin-search-stu" placeholder="ค้นหาชื่อ หรือ รหัสนักศึกษา..." class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 transition-colors font-bold text-slate-700" onkeyup="renderAdminStudentList()">
+            </div>
+            <select id="admin-filter-room" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-400 transition-colors cursor-pointer" onchange="renderAdminStudentList()">
+                <option value="all">แสดงทุกห้อง</option>
+            </select>
+        </div>
+
+        <!-- 2. ส่วนแจกแต้มด่วน (Quick Points) (ฝั่งขวา) -->
+        <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-full xl:w-auto justify-center shadow-inner overflow-x-auto">
+            <button onclick="quickGivePoints(1)" class="w-10 h-10 shrink-0 bg-white border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">+1</button>
+            <button onclick="quickGivePoints(5)" class="w-10 h-10 shrink-0 bg-white border border-emerald-200 text-emerald-600 font-black rounded-lg hover:bg-emerald-50 hover:-translate-y-0.5 transition shadow-sm">+5</button>
+            
+            <div class="relative w-40 md:w-56 mx-1 shrink-0">
+                <input type="text" id="quick-point-id" placeholder="สแกนรหัสแจกแต้ม..." class="w-full text-center py-2 px-3 border border-slate-300 rounded-lg text-xs md:text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 shadow-sm transition-all" onkeypress="if(event.key==='Enter') { quickGivePoints(1); }">
+            </div>
+            
+            <button onclick="quickGivePoints(-5)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-5</button>
+            <button onclick="quickGivePoints(-1)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-1</button>
+        </div>
+    </div>
+
+    <!-- ตารางรายชื่อนักศึกษา -->
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase tracking-widest border-b border-slate-100">
+                        <th class="p-4 font-black">รหัส - ชื่อสกุล</th>
+                        <th class="p-4 font-black text-center whitespace-nowrap">ห้อง</th>
+                        <th class="p-4 font-black text-right whitespace-nowrap">ยอดฝาก</th>
+                        <th class="p-4 font-black text-center whitespace-nowrap">แต้มสะสม</th>
+                        <th class="p-4 font-black text-center whitespace-nowrap">จัดการคะแนน</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-student-list-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
            <div id="page-fin-expense" class="page-view hidden max-w-5xl mx-auto">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center mb-6 max-w-md">
                     <div><p class="text-xs text-slate-400 font-bold mb-1">งบประมาณส่วนกลาง (Central Fund)</p><h3 id="bal-pool-fund" class="text-2xl font-bold text-emerald-700">฿ 0.00</h3></div>
@@ -6810,45 +6839,110 @@ window.renderAdminStudentList = function() {
     tbody.innerHTML = html;
 }
 
-// ================= ระบบจัดการคะแนน (เพิ่ม/ลดแต้ม) =================
+// ================= ฟังก์ชันแจกแต้มด่วนผ่านการพิมพ์/สแกนรหัสที่แถบเครื่องมือ =================
+window.quickGivePoints = function(pts) {
+    let inputEl = document.getElementById('quick-point-id');
+    let rawId = inputEl.value.trim();
+    
+    if(!rawId) {
+        Swal.fire({toast:true, position:'top', icon:'warning', title:'กรุณาสแกนหรือพิมพ์รหัสนักศึกษาก่อนกดให้แต้ม', showConfirmButton:false, timer:2500});
+        return inputEl.focus();
+    }
+    
+    let cleanId = formatIdSearch(rawId);
+    let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === cleanId.replace(/-/g,''));
+    
+    if(!stu) {
+        Swal.fire({toast:true, position:'top', icon:'error', title:'ไม่พบรหัสนักศึกษานี้ในระบบ', showConfirmButton:false, timer:2000});
+        inputEl.value = '';
+        return inputEl.focus();
+    }
+    
+    stu.points = (stu.points || 0) + pts;
+    let sign = pts > 0 ? '+' : '';
+    txHistory.unshift({ date: getNow(), name: `ปรับคะแนนด่วน ${sign}${pts} แต้ม: ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+    
+    saveToLocal(true); 
+    if(typeof renderAdminStudentList === 'function') renderAdminStudentList();
+    
+    // แจ้งเตือนสั้นๆ แถวมุมจอ ไม่กวนสายตา
+    Swal.fire({toast:true, position:'top-end', icon:'success', title:`${sign}${pts} แต้ม ให้ ${stu.name.split(' ')[0]} เรียบร้อย!`, showConfirmButton:false, timer:1500});
+    
+    inputEl.value = ''; // เคลียร์ช่องพร้อมสแกนคนต่อไป
+    inputEl.focus(); 
+};
+
+// ================= ระบบจัดการคะแนน (Popup ดีไซน์ใหม่ + มีปุ่มกดตัวเลข) =================
 window.manageStudentPoints = function(studentId) {
     let stu = students.find(s => s.id === studentId);
     if(!stu) return;
 
     Swal.fire({
-        title: 'จัดการคะแนนสะสม',
+        title: '<h2 class="text-2xl font-bold text-slate-700 mt-2 mb-4">จัดการคะแนนสะสม</h2>',
         html: `
-            <div class="text-left font-sans bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div class="flex items-center gap-3 mb-4 border-b border-slate-200 pb-3">
-                    <div class="w-10 h-10 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-lg shadow-inner"><i class="fas fa-star"></i></div>
+            <div class="text-left font-sans bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                
+                <!-- ส่วนหัวโปรไฟล์ (ตรงตามรูปเป๊ะๆ) -->
+                <div class="flex items-center gap-4 mb-5 border-b border-slate-100 pb-4">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-xl shadow-sm shrink-0">
+                        <i class="fas fa-star"></i>
+                    </div>
                     <div>
-                        <p class="font-bold text-slate-800 text-sm">${stu.name}</p>
-                        <p class="text-xs text-slate-500">แต้มปัจจุบัน: <strong class="text-amber-500">${stu.points || 0}</strong> แต้ม</p>
+                        <p class="font-bold text-slate-800 text-base">${stu.name}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">แต้มปัจจุบัน: <strong class="text-amber-500">${stu.points || 0}</strong> แต้ม</p>
                     </div>
                 </div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">คะแนน (ใส่ติดลบเพื่อหัก)</label>
-                <input type="number" id="pts-val" class="modern-input text-center text-amber-600 text-lg" placeholder="เช่น 10">
-                <label class="block text-xs font-bold text-slate-700 mb-1.5 mt-2">หมายเหตุ</label>
-                <input type="text" id="pts-note" class="modern-input text-sm" placeholder="เช่น ช่วยงานครู">
+                
+                <!-- แผงปุ่มกดให้คะแนนไว -->
+                <div class="grid grid-cols-4 gap-2 mb-4">
+                    <button type="button" onclick="document.getElementById('pts-val').value = 1" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+1</button>
+                    <button type="button" onclick="document.getElementById('pts-val').value = 5" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+5</button>
+                    <button type="button" onclick="document.getElementById('pts-val').value = -1" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-1</button>
+                    <button type="button" onclick="document.getElementById('pts-val').value = -5" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-5</button>
+                </div>
+
+                <!-- ช่องกรอกคะแนน -->
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-2">คะแนน (ใส่ติดลบเพื่อหัก)</label>
+                    <input type="number" id="pts-val" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-slate-700 font-bold text-base focus:outline-none focus:border-amber-400 transition text-center" placeholder="เช่น 10">
+                </div>
+                
+                <!-- ช่องกรอกหมายเหตุ -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">หมายเหตุ</label>
+                    <input type="text" id="pts-note" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:border-amber-400 transition" placeholder="เช่น ช่วยงานครู">
+                </div>
             </div>
         `,
-        showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#f59e0b',
+        showCancelButton: true, 
+        confirmButtonText: 'บันทึก', 
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#f59e0b', 
+        cancelButtonColor: '#64748b',
+        customClass: {
+            popup: 'rounded-[2rem] p-2 max-w-md w-full',
+            confirmButton: 'rounded-xl px-8 py-2.5 font-bold text-lg',
+            cancelButton: 'rounded-xl px-6 py-2.5 font-bold text-lg'
+        },
         preConfirm: () => {
             let pts = parseInt(document.getElementById('pts-val').value);
-            let note = document.getElementById('pts-note').value || 'แอดมินมอบคะแนนพิเศษ';
-            if(isNaN(pts) || pts === 0) return Swal.showValidationMessage('กรุณาระบุคะแนน');
+            let note = document.getElementById('pts-note').value.trim() || 'แอดมินปรับปรุงคะแนน';
+            if(isNaN(pts) || pts === 0) return Swal.showValidationMessage('กรุณาระบุคะแนน หรือกดปุ่มลัด');
             return { pts, note };
         }
     }).then(res => {
         if(res.isConfirmed) {
             let { pts, note } = res.value;
             stu.points = (stu.points || 0) + pts;
-            txHistory.unshift({ date: getNow(), name: `${pts>0?'+':''}${pts} แต้ม (${note})`, type: 'ระบบ', amt: 0, user: currentUsername });
-            saveToLocal(true); renderAdminStudentList();
+            let sign = pts > 0 ? '+' : '';
+            txHistory.unshift({ date: getNow(), name: `ปรับคะแนน ${sign}${pts} แต้ม: ${stu.name} (${note})`, type: 'ระบบ', amt: 0, user: currentUsername });
+            
+            saveToLocal(true); 
+            if(typeof renderAdminStudentList === 'function') renderAdminStudentList();
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'อัปเดตคะแนนเรียบร้อย', showConfirmButton:false, timer:1500});
         }
     });
-}
+};
     </script>
 
    <!-- ================= Modal E-Receipt (Minimalist Glow Style) ================= -->
