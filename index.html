@@ -510,10 +510,12 @@
                     <div id="admin-room-list" class="flex flex-wrap gap-2"></div>
                 </div>
                 <div class="bg-white rounded-2xl border p-4 mb-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                    <h3 class="font-bold text-slate-800 text-lg"><i class="fas fa-users text-emerald-600"></i> ฐานข้อมูลนักศึกษา</h3>
-                    <div class="flex gap-2 w-full md:w-auto">
-                        <select id="admin-db-room-filter" onchange="refreshAll()" class="p-2 border rounded-lg font-bold text-slate-700 w-full md:w-auto outline-none"></select>
-                        <button onclick="addStudentAlert()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow whitespace-nowrap">+ เพิ่มนักศึกษา</button>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center"><i class="fas fa-users text-emerald-600 mr-2"></i> ฐานข้อมูลนักศึกษา</h3>
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                        <select id="admin-db-room-filter" onchange="refreshAll()" class="p-2 border rounded-lg font-bold text-slate-700 outline-none w-full md:w-auto"></select>
+                        <!-- 🌟 ปุ่มเวทมนตร์สำหรับรีเซ็ตเลขที่ -->
+                        <button onclick="reorderRoomNumbers()" class="bg-indigo-50 border border-indigo-200 text-indigo-600 px-3 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-100 transition whitespace-nowrap"><i class="fas fa-sort-numeric-down mr-1"></i> จัดเรียงเลขที่ใหม่</button>
+                        <button onclick="addStudentAlert()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow whitespace-nowrap hover:bg-slate-900 transition"><i class="fas fa-plus"></i> เพิ่มนักศึกษา</button>
                     </div>
                 </div>
                 <div class="bg-white rounded-2xl border shadow-sm">
@@ -4724,11 +4726,51 @@ function editRoom(roomName) {
                 } 
             }); 
         }
-        function addStudentAlert() { 
-    let rOpts = '';
-    rooms.forEach(r => { rOpts += `<option value="${r}">${r}</option>`; });
+        // ================= กลไกจัดเรียงเลขที่อัตโนมัติ (Auto-Renumbering) =================
+function shiftNumbersOnInsert(room, targetNumber, excludeId = null) {
+    let roomStudents = students.filter(s => s.room === room && s.id !== excludeId);
+    let collision = roomStudents.find(s => s.number === targetNumber);
+    if (collision) {
+        // ดันคนที่มีเลขที่ >= เป้าหมาย ลงไป 1 สเตป
+        students.forEach(s => {
+            if (s.room === room && s.number >= targetNumber && s.id !== excludeId) s.number += 1;
+        });
+    }
+}
+
+function shiftNumbersOnDelete(room, deletedNumber) {
+    // เลื่อนคนที่อยู่ใต้คนที่ลบ ให้ขยับขึ้นมาอุดรอยรั่ว
+    students.forEach(s => {
+        if (s.room === room && s.number > deletedNumber) s.number -= 1;
+    });
+}
+
+window.reorderRoomNumbers = function() {
+    let roomSelect = document.getElementById('admin-db-room-filter');
+    let room = roomSelect ? roomSelect.value : 'all';
     
-    // 🌟 จัดเรียงหน้าต่างใหม่ และเพิ่มช่องกรอกชื่อภาษาอังกฤษ (a-nmen)
+    if (room === 'all') return Swal.fire('เตือน', 'กรุณาเลือกห้องเรียนจาก Dropdown ก่อนกดจัดเรียงครับ', 'warning');
+    
+    Swal.fire({
+        title: `จัดเรียงเลขที่ห้อง ${room}?`,
+        html: `ระบบจะทำการไล่เลขที่ <b>1, 2, 3...</b> ใหม่ทั้งหมด โดยอิงตามลำดับเลขที่ในปัจจุบัน เพื่อปิดช่องโหว่ที่หายไป`,
+        icon: 'question', showCancelButton: true, confirmButtonText: 'ตกลง จัดเรียงเลย', confirmButtonColor: '#4f46e5'
+    }).then(res => {
+        if (res.isConfirmed) {
+            let roomStudents = students.filter(s => s.room === room).sort((a, b) => a.number - b.number);
+            roomStudents.forEach((s, idx) => { s.number = idx + 1; });
+            
+            txHistory.unshift({ date: getNow(), name: `จัดเรียงเลขที่ใหม่: ห้อง ${room}`, type: 'ระบบ', amt: 0, user: currentUsername });
+            saveToLocal(true); refreshAll();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'จัดเรียงเลขที่ใหม่สมบูรณ์แบบ', showConfirmButton:false, timer:1500});
+        }
+    });
+}
+
+// ================= ฟังก์ชันเพิ่มนักศึกษา (ฉบับเลื่อนเลขที่อัตโนมัติ) =================
+window.addStudentAlert = function() { 
+    let rOpts = ''; rooms.forEach(r => { rOpts += `<option value="${r}">${r}</option>`; });
+    
     let formHtml = `
         <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">ห้องเรียน</label>
         <select id="a-r" class="modern-input mb-3">${rOpts}</select>
@@ -4739,7 +4781,7 @@ function editRoom(roomName) {
             <button onclick="openQuickScan('a-id')" class="absolute right-2 top-3 text-emerald-600"><i class="fas fa-camera"></i></button>
         </div>
         
-        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">เลขที่</label>
+        <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">เลขที่ (หากระบุซ้ำ ระบบจะดันคนอื่นหลีกทางให้)</label>
         <input id="a-no" type="number" class="modern-input mb-3" placeholder="เช่น 1">
         
         <label class="text-[10px] font-bold text-slate-500 mb-1 block text-left">ชื่อ-นามสกุล (TH)</label>
@@ -4753,52 +4795,97 @@ function editRoom(roomName) {
     `;
     
     Swal.fire({ 
-        title: 'เพิ่มนักศึกษา', 
-        html: formHtml, 
-        confirmButtonColor: '#059669', 
+        title: 'เพิ่มนักศึกษา', html: formHtml, confirmButtonColor: '#059669', 
         preConfirm: () => {
             let id = document.getElementById('a-id').value.trim();
             let nm = document.getElementById('a-nm').value.trim();
-            let no = document.getElementById('a-no').value;
+            let no = parseInt(document.getElementById('a-no').value);
             
-            if(!id || !nm || !no) return Swal.showValidationMessage('กรุณากรอกรหัส, เลขที่ และชื่อภาษาไทยให้ครบถ้วน');
+            if(!id || !nm || isNaN(no)) return Swal.showValidationMessage('กรุณากรอกรหัส, เลขที่ และชื่อภาษาไทยให้ครบถ้วน');
+            if(students.find(s => s.id === id)) return Swal.showValidationMessage('รหัสนักศึกษานี้มีในระบบแล้ว');
             
             return {
-                id: id, 
-                room: document.getElementById('a-r').value, 
-                name: nm, 
-                number: parseInt(no), 
+                id: id, room: document.getElementById('a-r').value, name: nm, number: no, 
                 email: document.getElementById('a-email').value.trim(),
                 nameEn: document.getElementById('a-nmen').value.trim().toUpperCase(),
-                points: 0,        // 🌟 ตั้งแต้มเริ่มต้น
-                inventory: {}     // 🌟 ตั้งกระเป๋าว่างเปล่า
+                points: 0, inventory: {}
             };
         } 
     }).then(r => { 
         if(r.isConfirmed) { 
-            students.push(r.value); 
-            // เซฟข้อมูลไปที่หลังบ้าน (ระบบหลังบ้านจะดึงค่าไปลงตารางให้เอง)
-            saveToLocal(true); 
-            refreshAll(); 
-            Swal.fire({icon: 'success', title: 'เพิ่มข้อมูลเรียบร้อย!', showConfirmButton: false, timer: 1500});
+            let newStu = r.value;
+            shiftNumbersOnInsert(newStu.room, newStu.number); // 🌟 สั่งดันเลขที่ก่อนเพิ่มคนใหม่
+            students.push(newStu); 
+            txHistory.unshift({ date: getNow(), name: `เพิ่มนักศึกษา: ${newStu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+            
+            saveToLocal(true); refreshAll(); 
+            Swal.fire({icon: 'success', title: 'เพิ่มข้อมูลเรียบร้อย!', text: 'ระบบจัดเรียงเลขที่ให้อัตโนมัติแล้ว', showConfirmButton: false, timer: 2000});
         } 
     });
 }
 
-        function editStudent(id) { 
-            let stu = students.find(s=>s.id===id);
-            // 🌟 เพิ่มช่องให้อัปเดตอีเมลได้
-            Swal.fire({title:'แก้ไขข้อมูล นศ.', html:`
-                <label class="block text-left text-xs font-bold text-slate-500 mb-1">ชื่อ-สกุล</label>
-                <input id="e-nm" class="modern-input" value="${stu.name}">
-                <label class="block text-left text-xs font-bold text-slate-500 mb-1 mt-2">อีเมลสำหรับแจ้งเตือน</label>
-                <input id="e-email" class="modern-input" value="${stu.email || ''}" placeholder="example@email.com">
-            `, confirmButtonColor: '#059669', preConfirm:()=>{
-                stu.name=document.getElementById('e-nm').value; 
-                stu.email=document.getElementById('e-email').value.trim();
-                saveToLocal(); refreshAll();
-            } });
+window.deleteStudent = function(id) {
+    let stu = students.find(s => s.id === id);
+    if(!stu) return;
+
+    Swal.fire({
+        title: `ลบรายชื่อนักศึกษา?`,
+        html: `<p>คุณต้องการลบ <b>${stu.name}</b> (เลขที่ ${stu.number}) ออกจากระบบใช่หรือไม่?</p><p class="text-xs text-rose-500 mt-2">* ระบบจะเลื่อนเลขที่คนต่อๆ ไปขึ้นมาอุดรอยรั่วให้อัตโนมัติ</p>`,
+        icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบทิ้ง', cancelButtonText: 'ยกเลิก'
+    }).then(res => {
+        if (res.isConfirmed) {
+            let room = stu.room; let num = stu.number;
+            students = students.filter(s => s.id !== id);
+            shiftNumbersOnDelete(room, num); // 🌟 สั่งดึงเลขที่ขึ้นมาอุดรอยรั่ว
+            
+            txHistory.unshift({ date: getNow(), name: `ลบนักศึกษา: ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+            saveToLocal(true); refreshAll();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'ลบและจัดเรียงเลขที่ใหม่แล้ว', showConfirmButton:false, timer:1500});
         }
+    });
+}
+
+window.editStudent = function(id) { 
+    let stu = students.find(s=>s.id===id);
+    if(!stu) return;
+
+    let oldNumber = stu.number; let oldRoom = stu.room;
+    let rOpts = ''; rooms.forEach(r => { let sel = (r === stu.room) ? 'selected' : ''; rOpts += `<option value="${r}" ${sel}>${r}</option>`; });
+
+    Swal.fire({title:'แก้ไขข้อมูล นศ.', html:`
+        <label class="block text-left text-xs font-bold text-slate-500 mb-1">ห้องเรียน</label>
+        <select id="e-r" class="modern-input mb-2">${rOpts}</select>
+
+        <label class="block text-left text-xs font-bold text-slate-500 mb-1">เลขที่ (หากแก้ไข ระบบจะดันคิวให้อัตโนมัติ)</label>
+        <input id="e-no" type="number" class="modern-input mb-2" value="${stu.number}">
+
+        <label class="block text-left text-xs font-bold text-slate-500 mb-1">ชื่อ-สกุล</label>
+        <input id="e-nm" class="modern-input mb-2" value="${stu.name}">
+        
+        <label class="block text-left text-xs font-bold text-slate-500 mb-1 mt-2">อีเมลสำหรับแจ้งเตือน</label>
+        <input id="e-email" class="modern-input" value="${stu.email || ''}" placeholder="example@email.com">
+    `, confirmButtonColor: '#059669', preConfirm:()=>{
+        let newNm = document.getElementById('e-nm').value.trim();
+        let newNo = parseInt(document.getElementById('e-no').value);
+        let newRm = document.getElementById('e-r').value;
+        if(!newNm || isNaN(newNo)) return Swal.showValidationMessage('กรุณากรอกชื่อและเลขที่ให้ครบ');
+        return { name: newNm, email: document.getElementById('e-email').value.trim(), number: newNo, room: newRm };
+    } }).then(r => {
+        if(r.isConfirmed) {
+            let v = r.value;
+            // 🌟 ถ้าย้ายห้อง หรือ เปลี่ยนเลขที่ ต้องจัดการดันคิวใหม่
+            if (oldRoom !== v.room || oldNumber !== v.number) {
+                shiftNumbersOnDelete(oldRoom, oldNumber); // 1. ดึงคิวห้องเก่ามาอุด
+                shiftNumbersOnInsert(v.room, v.number, stu.id); // 2. ดันคิวห้องใหม่หลีกทางให้
+            }
+            stu.name = v.name; stu.email = v.email; stu.number = v.number; stu.room = v.room;
+            txHistory.unshift({ date: getNow(), name: `แก้ไขข้อมูลนักศึกษา: ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+            
+            saveToLocal(true); refreshAll();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกข้อมูลเรียบร้อย', showConfirmButton:false, timer:1500});
+        } 
+    });
+}
 
         // ================= ADMIN USERS =================
         function addUserAlert() { 
@@ -5227,8 +5314,15 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();renderLeaderboard();renderShopAdmin();
             if(randomPool.length === 0 && students.length > 0) initRandomizer();
             
+            // จัดเรียงตาม ห้อง และ เลขที่ ให้สวยงามเสมอ
             let adminStudents = cAdmRm === 'all' ? students : students.filter(s => s.room === cAdmRm);
-            let elAdmDbList = document.getElementById('admin-db-list'); if(elAdmDbList) elAdmDbList.innerHTML = adminStudents.map(s => `<tr class="border-b"><td class="p-3 text-center font-bold text-emerald-600">${s.number}</td><td class="p-3"><b>${s.name}</b> <br><span class="text-xs text-slate-400 font-mono">${s.id}</span></td><td class="p-3 text-center">${currentUserRole==='leader'||currentUserRole==='vice' ? `<button onclick="adjustStudentPoints('${s.id}')" class="text-amber-500 mx-1" title="จัดการคะแนน"><i class="fas fa-star"></i></button><button onclick="editStudent('${s.id}')" class="text-blue-500 mx-1"><i class="fas fa-edit"></i></button><button onclick="deleteStudent('${s.id}')" class="text-rose-500 mx-1"><i class="fas fa-trash"></i></button>` : `-`}</td></tr>`).join('');
+            adminStudents.sort((a, b) => {
+                if (a.room === b.room) return (a.number || 0) - (b.number || 0);
+                return String(a.room || '').localeCompare(String(b.room || ''));
+            });
+
+            let elAdmDbList = document.getElementById('admin-db-list'); 
+            if(elAdmDbList) elAdmDbList.innerHTML = adminStudents.map(s => `<tr class="border-b hover:bg-slate-50"><td class="p-3 text-center font-bold text-emerald-600">${s.number}</td><td class="p-3"><b>${s.name}</b> <br><span class="text-xs text-slate-400 font-mono">${s.id}</span></td><td class="p-3 text-center">${currentUserRole==='leader'||currentUserRole==='vice' ? `<button onclick="adjustStudentPoints('${s.id}')" class="text-amber-500 mx-1" title="จัดการคะแนน"><i class="fas fa-star"></i></button><button onclick="editStudent('${s.id}')" class="text-blue-500 mx-1" title="แก้ไขข้อมูล"><i class="fas fa-edit"></i></button><button onclick="deleteStudent('${s.id}')" class="text-rose-500 mx-1" title="ลบรายชื่อ"><i class="fas fa-trash"></i></button>` : `-`}</td></tr>`).join('');
             
             const rn = { leader: 'หัวหน้า', vice: 'รองหัวหน้า', treasurer: 'เหรัญญิก' };
             let elUserList = document.getElementById('user-list'); if(elUserList) { let uHtml = ''; users.filter(u=>u.user!=='admin').forEach(u => { let uBtn = (currentUserRole==='leader'||currentUserRole==='vice') ? `<button onclick="editUserAction('${u.user}')" class="text-blue-500 mx-1"><i class="fas fa-edit"></i></button><button onclick="deleteUserAction('${u.user}')" class="text-rose-500 mx-1"><i class="fas fa-trash"></i></button>` : '-'; let linkedStu = students.find(s => s.id === u.refId); let linkedName = linkedStu ? `<br><span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md"><i class="fas fa-link"></i> ${linkedStu.name}</span>` : ''; uHtml += `<tr class="border-b"><td class="p-4 text-sm"><b>${u.user}</b>${linkedName}</td><td class="p-4 text-sm">${rn[u.role]}</td><td class="p-4 text-center">${uBtn}</td></tr>`; }); elUserList.innerHTML = uHtml; }
