@@ -508,253 +508,383 @@
                     <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 border-b"><tr><th class="p-3 text-center w-16">เลขที่</th><th class="p-3">ชื่อ-นามสกุล</th><th class="p-3 text-center w-32">จัดการ</th></tr></thead><tbody id="admin-db-list"></tbody></table></div>
                 </div>
             </div>
-    <!-- 🌟 หน้ากิจกรรม และ ศูนย์จัดการกิจกรรม (Activity Center) แบบรวมหน้าตามภาพ -->
-<div id="page-activity" class="page-view hidden max-w-6xl mx-auto pb-20">
-    
-    <!-- 1. ส่วนค้นหาและแสดงกิจกรรม (อิงตามรูปเป๊ะ) -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-calendar-alt text-emerald-600 mr-2"></i>ระบบกิจกรรมและคำขอ</h2>
-        <button onclick="createActivityModal()" id="btn-create-act" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-emerald-700 transition hidden"><i class="fas fa-plus-circle mr-1"></i> สร้างกิจกรรมใหม่</button>
-    </div>
-    
-    <div class="bg-white p-4 rounded-2xl border border-slate-200 mb-6 shadow-sm">
-        <input type="text" id="act-search" onkeyup="renderActivities()" placeholder="ค้นหาชื่อกิจกรรม, ปี หรือเทอม..." class="w-full p-2.5 border border-slate-200 rounded-xl outline-none text-sm font-bold focus:border-emerald-500 text-slate-700 transition">
-    </div>
-    
-    <!-- ตารางการ์ดกิจกรรม หรือ สถานะว่างเปล่า -->
-    <div id="activity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
 
-    <!-- ================================================================= -->
-    <!-- 2. ศูนย์จัดการกิจกรรม (Activity Center) ตามภาพ (แสดงเฉพาะแอดมิน) -->
-    <!-- ================================================================= -->
-    <div id="admin-activity-master-card" class="bg-white p-6 md:p-8 rounded-3xl shadow-md border border-slate-200 mt-8 hidden">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div class="flex items-start gap-4">
-                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-inner">
-                    <i class="fas fa-check-square"></i>
-                </div>
-                <div>
-                    <h2 class="text-xl font-black text-slate-800">ศูนย์จัดการกิจกรรม (Activity Center)</h2>
-                    <p class="text-xs font-bold text-slate-500 mt-1">จัดการผู้เข้าร่วม โควตา QR Code และประเมินผล (A/C/P/U)</p>
+    <!-- ======================================================================= -->
+<!-- 🌟 ระบบจัดการกิจกรรมนักศึกษาใหม่ล่าสุด (RMUTI Style 100%) -->
+<!-- ======================================================================= -->
+<div id="page-activity" class="page-view hidden animate-fade-in pb-20 bg-[#f0f4f8] min-h-screen w-full">
+    
+    <!-- 1. หน้าค้นหาและเลือกกิจกรรม (แดชบอร์ดหลักของหน้ากิจกรรม) -->
+    <div id="activity-main-dashboard" class="max-w-7xl mx-auto p-4 md:p-6 block">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-calendar-alt text-blue-600 mr-2"></i>ระบบกิจกรรมและคำขอ</h2>
+            <button onclick="createActivityModal()" id="btn-create-act" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 transition hidden"><i class="fas fa-plus-circle mr-1"></i> สร้างกิจกรรมใหม่</button>
+        </div>
+        
+        <div class="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm">
+            <input type="text" id="act-search" onkeyup="renderActivities()" placeholder="ค้นหาชื่อกิจกรรม, ปี หรือเทอม..." class="w-full p-3 border border-slate-200 rounded-lg outline-none text-sm font-medium focus:border-blue-500 transition">
+        </div>
+        
+        <div id="activity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
+    </div>
+
+    <!-- 2. ศูนย์จัดการกิจกรรม (Activity Center) -->
+    <div id="admin-activity-master-card" class="max-w-[1400px] mx-auto p-4 hidden">
+        
+        <!-- Header: ข้อมูลกิจกรรมที่เลือก -->
+        <div class="bg-[#0f172a] rounded-t-xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-700 relative overflow-hidden shadow-lg">
+            <div class="absolute right-0 top-0 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/4 pointer-events-none"></div>
+            <div class="flex items-center gap-4 relative z-10 w-full md:w-auto">
+                <div class="w-12 h-12 bg-blue-600 text-white rounded-lg flex items-center justify-center text-xl font-bold shrink-0 shadow-lg">#</div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-3 mb-1">
+                        <h2 id="master-header-title" class="text-lg md:text-2xl font-bold text-white tracking-wide truncate max-w-lg md:max-w-xl">ชื่อกิจกรรม</h2>
+                        <span id="master-header-ref" class="bg-slate-800 text-slate-300 text-[10px] px-2 py-1 rounded border border-slate-600 font-mono hidden sm:inline-block">REF-000</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium flex items-center gap-2 truncate">
+                        <i class="far fa-calendar-alt"></i> ปี <span id="master-header-term">0/0000</span> <span class="mx-1 text-slate-600">•</span>
+                        กิจกรรมเลือกเข้าร่วม - พัฒนาทักษะ
+                    </p>
                 </div>
             </div>
-            <select id="master-act-selector" class="w-full md:w-80 p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-emerald-700 font-bold outline-none focus:border-emerald-500 shadow-sm cursor-pointer transition" onchange="loadActivityMasterData()">
-                <option value="">-- กรุณาเลือกกิจกรรม --</option>
-            </select>
+            <div class="flex gap-2 relative z-10 shrink-0 w-full md:w-auto justify-end mt-4 md:mt-0">
+                <button onclick="closeActivityMaster()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 w-full md:w-auto justify-center"><i class="fas fa-times"></i> ปิด</button>
+            </div>
         </div>
 
-        <!-- พื้นที่แสดงผลการจัดการ 6 หมวด (จะโผล่มาเมื่อเลือกกิจกรรม) -->
-        <div id="act-master-content" class="hidden mt-8 pt-8 border-t border-slate-100">
-            
-            <!-- 🌟 เมนูนำทาง (Tabs) ตามสไตล์ RMUTI -->
-            <div class="flex overflow-x-auto gap-2 mb-6 pb-2 custom-scrollbar bg-[#111827] p-2 rounded-xl">
-                <button onclick="switchMasterTab('dashboard')" id="mtab-dashboard" class="mtab-btn px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>ภาพรวม</button>
-                <button onclick="switchMasterTab('checkin')" id="mtab-checkin" class="mtab-btn px-4 py-2 bg-transparent text-slate-300 hover:text-white rounded text-xs font-bold whitespace-nowrap"><i class="fas fa-qrcode mr-2"></i>Scan นักศึกษา</button>
-                <button onclick="switchMasterTab('qrcode')" id="mtab-qrcode" class="mtab-btn px-4 py-2 bg-transparent text-slate-300 hover:text-white rounded text-xs font-bold whitespace-nowrap"><i class="fas fa-cog mr-2"></i>ตั้งค่า QRCODE</button>
-                <button onclick="switchMasterTab('rounds')" id="mtab-rounds" class="mtab-btn px-4 py-2 bg-transparent text-slate-300 hover:text-white rounded text-xs font-bold whitespace-nowrap"><i class="fas fa-layer-group mr-2"></i>รอบลงทะเบียน</button>
-                <button onclick="switchMasterTab('settings')" id="mtab-settings" class="mtab-btn px-4 py-2 bg-transparent text-slate-300 hover:text-white rounded text-xs font-bold whitespace-nowrap"><i class="fas fa-sliders-h mr-2"></i>ตั้งค่ากิจกรรม</button>
-                <button onclick="switchMasterTab('import')" id="mtab-import" class="mtab-btn px-4 py-2 bg-transparent text-slate-300 hover:text-white rounded text-xs font-bold whitespace-nowrap"><i class="fas fa-file-import mr-2"></i>นำเข้า นศ.</button>
-            </div>
+        <!-- 🌟 เมนูนำทาง (Tabs) 10 แท็บ ตามรูปแบบใหม่ 100% -->
+        <div class="bg-[#1e293b] flex overflow-x-auto gap-1 p-2 rounded-b-xl custom-scrollbar shadow-md">
+            <button onclick="switchMasterTab('dashboard')" id="mtab-dashboard" class="mtab-btn px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2 shadow-inner"><i class="fas fa-chart-pie opacity-70"></i>ภาพรวม</button>
+            <button onclick="switchMasterTab('checkin')" id="mtab-checkin" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-qrcode opacity-70"></i>Scan นักศึกษา</button>
+            <button onclick="switchMasterTab('qrsetting')" id="mtab-qrsetting" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-sliders-h opacity-70"></i>ตั้งค่า QRCODE</button>
+            <button onclick="switchMasterTab('qractivity')" id="mtab-qractivity" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-qrcode opacity-70"></i>QRCODE กิจกรรม</button>
+            <button onclick="switchMasterTab('geofence')" id="mtab-geofence" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-map-marker-alt opacity-70"></i>พื้นที่เช็คอิน</button>
+            <button onclick="switchMasterTab('rounds')" id="mtab-rounds" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-layer-group opacity-70"></i>รอบลงทะเบียน</button>
+            <button onclick="switchMasterTab('conditions')" id="mtab-conditions" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-shield-alt opacity-70"></i>เงื่อนไขการเข้าร่วม</button>
+            <button onclick="switchMasterTab('import_s')" id="mtab-import_s" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-user-plus opacity-70"></i>นำเข้า นศ. (รายคน)</button>
+            <button onclick="switchMasterTab('import_b')" id="mtab-import_b" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-users opacity-70"></i>นำเข้า นศ. (กลุ่ม)</button>
+            <button onclick="switchMasterTab('admins')" id="mtab-admins" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-user-shield opacity-70"></i>ผู้ดูแลกิจกรรม</button>
+            <button onclick="editActivityModal(currentMasterActivity.title)" id="mtab-edit" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2 ml-auto"><i class="fas fa-cog opacity-70"></i>แก้ไขกิจกรรม</button>
+        </div>
 
-            <!-- Tab A: ภาพรวมและประเมินผล -->
-            <div id="mtab-content-dashboard" class="mtab-content block">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100"><p class="text-xs font-bold text-blue-600 mb-1">ยอดผู้สมัคร / โควตารวม</p><h3 class="text-2xl font-black text-blue-800" id="m-stat-total">0 / 0</h3></div>
-                    <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100"><p class="text-xs font-bold text-emerald-600 mb-1">สแกนเข้าร่วมจริง</p><h3 class="text-2xl font-black text-emerald-800" id="m-stat-in">0</h3></div>
-                    <div class="bg-amber-50 p-4 rounded-xl border border-amber-100"><p class="text-xs font-bold text-amber-600 mb-1">ยังไม่มา / รอพิจารณา</p><h3 class="text-2xl font-black text-amber-800" id="m-stat-pending">0</h3></div>
+        <!-- เนื้อหา (Content Area) -->
+        <div class="mt-6">
+
+            <!-- ========================================== -->
+            <!-- 1. แท็บ: ภาพรวม (Dashboard) -->
+            <!-- ========================================== -->
+            <div id="mtab-content-dashboard" class="mtab-content block space-y-6">
+                
+                <!-- กล่องสรุป 4 กล่อง -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between mb-4">
+                     <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2"><i class="far fa-check-circle text-blue-500"></i> สรุปจำนวนผู้เข้าร่วม</h3>
                 </div>
 
-                <div class="bg-slate-50 p-3 rounded-t-xl border border-slate-200 flex flex-wrap gap-2 justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-500 mr-2">Batch Actions:</span>
-                        <button onclick="executeBatchAction('C')" class="px-3 py-1.5 bg-emerald-500 text-white rounded text-xs font-bold hover:bg-emerald-600 shadow-sm">✅ ผ่าน (C)</button>
-                        <button onclick="executeBatchAction('A')" class="px-3 py-1.5 bg-blue-500 text-white rounded text-xs font-bold hover:bg-blue-600 shadow-sm">🌟 ผ่านพิเศษ (A)</button>
-                        <button onclick="executeBatchAction('P')" class="px-3 py-1.5 bg-amber-500 text-white rounded text-xs font-bold hover:bg-amber-600 shadow-sm">⏳ รอพินิจ (P)</button>
-                        <button onclick="executeBatchAction('U')" class="px-3 py-1.5 bg-rose-500 text-white rounded text-xs font-bold hover:bg-rose-600 shadow-sm">❌ ไม่ผ่าน (U)</button>
-                        <button onclick="executeBatchAction('REMOVE')" class="px-3 py-1.5 bg-slate-400 text-white rounded text-xs font-bold hover:bg-slate-500 shadow-sm ml-2"><i class="fas fa-trash"></i> นำออก</button>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">จำนวนนักศึกษาทั้งหมด</p><div class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center"><i class="fas fa-users"></i></div></div>
+                        <h3 class="text-3xl font-black text-slate-800" id="m-stat-all">0</h3>
+                        <p class="text-[10px] text-slate-400 mt-2">* นับรวมทุกช่องทาง</p>
                     </div>
-                    <input type="text" id="m-table-search" onkeyup="filterMasterTable()" placeholder="ค้นหารหัส/ชื่อ..." class="p-1.5 text-xs border border-slate-300 rounded outline-none focus:border-emerald-500">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ลงทะเบียนผ่านเว็บ</p><div class="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center"><i class="fas fa-globe"></i></div></div>
+                        <div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-emerald-600 leading-none" id="m-stat-web">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max1">0</span></span></div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-emerald-500 h-1.5 rounded-full" id="m-bar-web" style="width: 0%"></div></div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ลงทะเบียนหน้างาน (สแกน)</p><div class="w-8 h-8 bg-orange-50 text-orange-500 rounded-lg flex items-center justify-center"><i class="fas fa-layer-group"></i></div></div>
+                        <div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-slate-800 leading-none" id="m-stat-scan">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max2">0</span></span></div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-orange-500 h-1.5 rounded-full" id="m-bar-scan" style="width: 0%"></div></div>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                        <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ไม่ผ่าน / รอพิจารณา</p><div class="w-8 h-8 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center"><i class="fas fa-times-circle"></i></div></div>
+                        <div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-slate-800 leading-none" id="m-stat-fail">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max3">0</span></span></div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-rose-500 h-1.5 rounded-full" id="m-bar-fail" style="width: 0%"></div></div>
+                    </div>
                 </div>
-                <div class="overflow-x-auto border-x border-b border-slate-200 rounded-b-xl max-h-96">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="bg-white sticky top-0 shadow-sm">
+
+                <!-- ตารางรายชื่อนักศึกษา -->
+                <h3 class="font-bold text-slate-800 text-sm mt-4 mb-2">รายชื่อและประวัติการลงทะเบียน</h3>
+                <div class="bg-white border border-slate-200 rounded-t-xl p-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-sm">
+                    <div class="relative w-full md:max-w-xs">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" id="m-table-search" onkeyup="filterMasterTable()" placeholder="ค้นหาชื่อ หรือ รหัสนักศึกษา..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-slate-700">
+                    </div>
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                        <button onclick="executeBatchAction('C')" class="flex-1 md:flex-none bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-bold transition">✅ ให้ผ่าน (C)</button>
+                        <button onclick="executeBatchAction('P')" class="flex-1 md:flex-none bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 px-3 py-1.5 rounded-lg text-xs font-bold transition">⏳ รอพินิจ (P)</button>
+                        <button onclick="executeBatchAction('U')" class="flex-1 md:flex-none bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition">❌ ไม่ผ่าน (U)</button>
+                        <button onclick="exportActivityToCSV()" class="w-full md:w-auto text-emerald-600 border border-emerald-500 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 mt-2 md:mt-0"><i class="fas fa-file-excel"></i> Export Excel</button>
+                    </div>
+                </div>
+                <div class="bg-white border-x border-b border-slate-200 rounded-b-xl overflow-x-auto shadow-sm max-h-[500px]">
+                    <table class="w-full text-left whitespace-nowrap text-sm">
+                        <thead class="bg-[#f8fafc] text-slate-600 text-[11px] font-bold border-b border-slate-200 sticky top-0 z-10">
                             <tr>
-                                <th class="p-3 text-center"><input type="checkbox" id="m-check-all" onclick="toggleAllMasterChecks(this)"></th>
-                                <th class="p-3 text-slate-500 font-bold text-xs">ข้อมูลนักศึกษา</th>
-                                <th class="p-3 text-slate-500 font-bold text-xs text-center">เวลาเข้า</th>
-                                <th class="p-3 text-slate-500 font-bold text-xs text-center">เวลาออก</th>
-                                <th class="p-3 text-slate-500 font-bold text-xs text-center">สถานะผล</th>
+                                <th class="p-4 text-center w-10"><input type="checkbox" onclick="toggleAllMasterChecks(this)" class="rounded text-blue-600 border-slate-300"></th>
+                                <th class="p-4 text-left">ข้อมูลนักศึกษา</th>
+                                <th class="p-4 text-center">หลักเกณฑ์</th>
+                                <th class="p-4 text-center">ลงทะเบียนเว็บ</th>
+                                <th class="p-4 text-center">ลงทะเบียนหน้างาน</th>
+                                <th class="p-4 text-center">สถานะ</th>
                             </tr>
                         </thead>
-                        <tbody id="m-participant-list" class="divide-y divide-slate-100 bg-white"></tbody>
+                        <tbody id="m-participant-list" class="divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Tab B: สแกนนักศึกษา (อิงจาก Screenshot 2026-10-21 023714.png) -->
+            <!-- ========================================== -->
+            <!-- 2. แท็บ: Scan นักศึกษา -->
+            <!-- ========================================== -->
             <div id="mtab-content-checkin" class="mtab-content hidden">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-lg mb-1">บันทึกการเข้าร่วมกิจกรรม</h3>
-                        <div class="bg-amber-50 text-amber-700 p-3 rounded-lg border border-amber-200 text-xs mt-3 flex items-start gap-2">
-                            <i class="fas fa-exclamation-circle mt-0.5"></i>
-                            <p>หากสถานะกิจกรรมยังไม่เปิดใช้งาน จะไม่สามารถเลือกรอบลงทะเบียนได้ กรุณาเปิดใช้งานกิจกรรมเพื่อเลือกรอบลงทะเบียน</p>
-                        </div>
-                    </div>
+                <div class="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
                     
                     <div>
-                        <h4 class="font-bold text-slate-700 mb-2">เลือกรอบลงทะเบียน</h4>
-                        <select id="m-checkin-round" class="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none font-bold text-slate-700 bg-white shadow-sm focus:border-blue-500 transition"></select>
+                        <h3 class="font-bold text-slate-800 text-lg mb-2">บันทึกการเข้าร่วมกิจกรรม</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <h4 class="font-bold text-slate-800 mb-2">เลือกรอบลงทะเบียน</h4>
+                                <select id="m-checkin-round" class="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none font-bold text-slate-700 bg-white focus:border-blue-500 transition shadow-sm appearance-none"></select>
+                            </div>
+                            <div class="bg-amber-50 text-amber-700 p-3.5 rounded-lg border border-amber-200 text-xs flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full border border-amber-500 text-amber-600 flex items-center justify-center font-bold shrink-0">!</div>
+                                <p>หากสถานะกิจกรรมยังไม่เปิดใช้งาน จะไม่สามารถเลือกรอบลงทะเบียนได้ กรุณาเปิดใช้งานกิจกรรมเพื่อเลือกรอบลงทะเบียน</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h4 class="font-bold text-slate-700 mb-3 text-sm">ตัวเลือกการแสดงผล</h4>
-                        <div class="space-y-3">
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                        <h4 class="font-bold text-slate-800 mb-4">ตัวเลือกการแสดงผล</h4>
+                        <div class="space-y-4 ml-2">
                             <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" id="hw-show-info" checked class="w-4 h-4 text-blue-600 rounded">
-                                <span class="text-sm font-bold text-slate-600">แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ</span>
+                                <input type="checkbox" id="hw-show-info" checked class="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                                <span class="text-sm font-bold text-slate-700">แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ</span>
                             </label>
-                            <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" id="hw-show-avatar" class="w-4 h-4 text-blue-600 rounded">
-                                <span class="text-sm font-bold text-slate-400">แสดงรูปโปรไฟล์ของนักศึกษา (ต้องเข้าสู่ระบบด้วย SSO RMUTI)</span>
+                            <label class="flex items-center gap-3 cursor-pointer opacity-50 cursor-not-allowed">
+                                <input type="checkbox" id="hw-show-avatar" class="w-5 h-5 text-slate-400 border-slate-300 rounded" disabled>
+                                <span class="text-sm font-bold text-slate-500">แสดงรูปโปรไฟล์ของนักศึกษา <span class="text-slate-400 font-normal">(ต้องเข้าสู่ระบบด้วย SSO RMUTI)</span></span>
                             </label>
                         </div>
                     </div>
 
+                    <hr class="border-slate-200">
+
                     <div>
-                        <h4 class="font-bold text-slate-700 mb-3">นำเข้าข้อมูลนักศึกษา</h4>
-                        <div class="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 mb-4">
-                            <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1">
-                                <i class="fas fa-expand text-lg"></i> กรอก / สแกน <span class="text-[10px] font-normal text-slate-400">Barcode reader</span>
+                        <h4 class="font-bold text-slate-800 text-lg mb-4">นำเข้าข้อมูลนักศึกษา</h4>
+                        
+                        <div class="flex flex-col md:flex-row gap-4 mb-6">
+                            <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-4 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm">
+                                <i class="fas fa-expand text-2xl"></i> 
+                                <div>กรอก / สแกน<br><span class="text-[10px] font-normal opacity-70">Barcode reader</span></div>
                             </button>
-                            <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1">
-                                <i class="fas fa-camera text-lg"></i> กล้อง <span class="text-[10px] font-normal text-slate-400">QR / Barcode</span>
+                            <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-600 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm">
+                                <i class="fas fa-camera text-2xl"></i> 
+                                <div>กล้อง<br><span class="text-[10px] font-normal opacity-70">QR / Barcode</span></div>
                             </button>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-3 mb-4">
-                            <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm hover:bg-blue-100">
+                        <div class="grid grid-cols-2 gap-3 mb-6">
+                            <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm">
                                 <input type="radio" name="scan-mode-hw" value="in" checked class="hidden" onchange="updateScanModeUI(this)"> <i class="fas fa-sign-in-alt mr-1"></i> สแกนเข้างาน
                             </label>
-                            <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200 transition shadow-sm hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300">
+                            <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-white text-slate-500 border-slate-200 transition hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300">
                                 <input type="radio" name="scan-mode-hw" value="out" class="hidden" onchange="updateScanModeUI(this)"> <i class="fas fa-sign-out-alt mr-1"></i> สแกนออกงาน
                             </label>
                         </div>
 
-                        <div id="manual-section" class="p-6 border-2 border-slate-200 rounded-xl text-center bg-slate-50/50">
-                            <input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition shadow-sm" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" onkeypress="if(event.key==='Enter') { manualAdminCheckIn(); }">
-                            <p class="text-[11px] text-slate-400 mt-3 font-bold">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
+                        <div id="manual-section" class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                            <input type="text" id="hw-input-focus" class="w-full p-5 text-sm font-bold border-none outline-none focus:bg-blue-50 transition text-center" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" onkeypress="if(event.key==='Enter') { manualAdminCheckIn(); }">
+                            <div class="bg-slate-50 p-3 border-t border-slate-200 text-center">
+                                <p class="text-[10px] text-slate-500 font-bold">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้</p>
+                            </div>
                         </div>
-                        <div id="camera-section" class="hidden w-full h-[350px] md:h-[450px] border-2 border-slate-200 rounded-xl overflow-hidden bg-black shadow-inner">
+                        
+                        <div id="camera-section" class="hidden w-full h-[350px] md:h-[450px] border-2 border-slate-200 rounded-xl overflow-hidden bg-black shadow-inner mt-2 relative">
                             <div id="hw-reader" class="w-full h-full"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab E: ตั้งค่า QRCODE (อิงจาก Screenshot 2026-10-21 023734.png) -->
-            <div id="mtab-content-qrcode" class="mtab-content hidden">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-                        <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 text-lg"><i class="fas fa-location-arrow"></i></div>
+            <!-- ========================================== -->
+            <!-- 3. แท็บ: ตั้งค่า QRCODE -->
+            <!-- ========================================== -->
+            <div id="mtab-content-qrsetting" class="mtab-content hidden">
+                <div class="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-start gap-4 mb-8">
+                        <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 text-lg shrink-0"><i class="far fa-paper-plane"></i></div>
                         <div>
-                            <h3 class="font-bold text-slate-800 text-lg">ตั้งค่าเงื่อนไขการสแกน QR Code <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-1 rounded ml-2">โหมดสร้างใหม่</span></h3>
-                            <p class="text-xs text-slate-500">กำหนดรอบลงทะเบียน พื้นที่เช็คอิน และตั้งค่าหมุดการสร้าง QR token ให้พร้อมใช้งานกับ Geofence</p>
+                            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">ตั้งค่าเงื่อนไขการสแกน QR Code <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-bold">โหมดสร้างใหม่</span></h3>
+                            <p class="text-xs text-slate-500 mt-1">กำหนดรอบลงทะเบียน พื้นที่เช็คอิน และตั้งค่าหมุดการสร้าง QR token ให้พร้อมใช้งานกับ Geofence</p>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         <div class="space-y-6">
-                            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                                <h4 class="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2"><i class="fas fa-expand text-slate-400"></i> ข้อมูลรอบลงทะเบียน</h4>
-                                <p class="text-[10px] text-slate-500 mb-3">เลือกรอบที่ต้องการผูกกับ Geofence นี้</p>
+                            <div class="border border-slate-200 rounded-xl p-5 bg-white relative">
+                                <div class="absolute -top-3 left-4 bg-white px-2 flex items-center gap-2">
+                                    <i class="fas fa-expand text-slate-400 text-xs"></i>
+                                    <span class="text-xs font-bold text-slate-700">ข้อมูลรอบลงทะเบียน</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mb-3 mt-2">เลือกรอบที่ต้องการผูกกับ Geofence นี้</p>
                                 <label class="block text-xs font-bold text-slate-700 mb-1">รอบลงทะเบียน *</label>
-                                <select id="m-qr-round-select" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none font-bold text-slate-700 bg-white shadow-sm"></select>
+                                <select id="m-qr-round-select" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none font-bold text-slate-700 bg-white shadow-sm focus:border-blue-500 transition appearance-none"></select>
                             </div>
 
-                            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                                <h4 class="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2"><i class="fas fa-clock text-blue-500"></i> ข้อกำหนด QR และ GPS</h4>
-                                <p class="text-[10px] text-slate-500 mb-4">กำหนดระยะสแกน ความถี่การเปลี่ยน token และความแม่นยำ GPS</p>
+                            <div class="border border-blue-200 rounded-xl p-5 bg-blue-50/30 relative">
+                                <div class="absolute -top-3 left-4 bg-blue-50 px-2 flex items-center gap-2 border border-blue-200 rounded-full">
+                                    <i class="far fa-clock text-blue-600 text-xs"></i>
+                                    <span class="text-xs font-bold text-blue-800">ข้อกำหนด QR และ GPS</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mb-4 mt-2">กำหนดระยะสแกน ความถี่การเปลี่ยน token และความแม่นยำ GPS</p>
                                 
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">รัศมีการสแกน *</label>
-                                        <div class="relative"><input type="number" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="เช่น 50"><span class="absolute right-3 top-2 text-xs text-slate-400">เมตร</span></div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1"><i class="fas fa-expand text-slate-400 text-[10px]"></i> รัศมีการสแกน *</label>
+                                        <div class="relative"><input type="number" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white outline-none focus:border-blue-500" placeholder="เช่น 50"><span class="absolute right-3 top-3 text-xs text-slate-400">เมตร</span></div>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">เวลาเปลี่ยน Token *</label>
-                                        <div class="relative"><input type="number" id="m-qr-interval" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white" value="15"><span class="absolute right-3 top-2 text-xs text-slate-400">วินาที</span></div>
-                                        <p class="text-[9px] text-slate-500 mt-1">ระยะเวลาเปลี่ยน QR token *ขั้นต่ำที่แนะนำ 12 วิ</p>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1"><i class="far fa-clock text-slate-400 text-[10px]"></i> เวลาเปลี่ยน Token *</label>
+                                        <div class="relative"><input type="number" id="m-qr-interval" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white outline-none focus:border-blue-500" value="12" min="10"><span class="absolute right-3 top-3 text-xs text-slate-400">วินาที</span></div>
+                                        <p class="text-[9px] text-slate-500 mt-1.5 leading-tight">ระยะเวลาเปลี่ยน QR token *ขั้นต่ำที่แนะนำ 12 วิ</p>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">ค่าความคลาดเคลื่อน GPS *</label>
-                                        <div class="relative"><input type="number" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white" placeholder="เช่น 20"><span class="absolute right-3 top-2 text-xs text-slate-400">เมตร</span></div>
-                                        <p class="text-[9px] text-slate-500 mt-1">ต้องน้อยกว่ารัศมีการสแกนอย่างน้อย 10 เมตร</p>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1"><i class="fas fa-crosshairs text-slate-400 text-[10px]"></i> ความคลาดเคลื่อน *</label>
+                                        <div class="relative"><input type="number" class="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white outline-none focus:border-blue-500" placeholder="เช่น 20"><span class="absolute right-3 top-3 text-xs text-slate-400">เมตร</span></div>
+                                        <p class="text-[9px] text-slate-500 mt-1.5 leading-tight">ความคลาดเคลื่อน GPS สูงสุดที่ยอมรับ</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                            <h4 class="text-sm font-bold text-slate-700 mb-1 flex items-center gap-2"><i class="fas fa-crosshairs text-emerald-500"></i> พื้นที่เช็คอิน</h4>
-                            <p class="text-[10px] text-slate-500 mb-3">กำหนดจุดศูนย์กลางและรัศมีสำหรับตรวจสอบตำแหน่งผู้ใช้งาน</p>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">ตำแหน่งศูนย์กลาง (Geofencing)</label>
-                            <button class="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-500 text-sm font-bold text-left shadow-sm flex items-center gap-2"><i class="fas fa-map-marker-alt"></i> ระบุตำแหน่งเช็คอิน</button>
+                        <div class="border border-emerald-200 rounded-xl p-5 bg-emerald-50/30 relative flex flex-col">
+                            <div class="absolute -top-3 left-4 bg-emerald-50 px-2 flex items-center gap-2 border border-emerald-200 rounded-full">
+                                <i class="fas fa-map-marker-alt text-emerald-600 text-xs"></i>
+                                <span class="text-xs font-bold text-emerald-800">พื้นที่เช็คอิน</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mb-4 mt-2">กำหนดจุดศูนย์กลางและรัศมีสำหรับตรวจสอบตำแหน่งผู้ใช้งาน</p>
                             
-                            <div class="mt-4 border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-white flex flex-col items-center justify-center h-40">
-                                <i class="fas fa-map-marker-alt text-3xl text-slate-300 mb-2"></i>
-                                <p class="text-sm font-bold text-slate-600">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
-                                <p class="text-[10px] text-slate-400 mt-1">เปิดแผนที่เพื่อเลือกจุดศูนย์กลางสำหรับการตรวจสอบตำแหน่งก่อนสแกน QR</p>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">ตำแหน่งศูนย์กลาง (Geofencing)</label>
+                            <button class="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-500 text-sm font-bold text-left shadow-sm flex items-center gap-2 mb-4 hover:bg-slate-50 transition"><i class="fas fa-map-marker-alt text-slate-400"></i> ระบุตำแหน่งเช็คอิน</button>
+                            
+                            <div class="flex-1 border border-dashed border-slate-300 rounded-xl p-4 text-center bg-white flex flex-col items-center justify-center">
+                                <i class="fas fa-map-marker-alt text-3xl text-slate-300 mb-3"></i>
+                                <p class="text-sm font-bold text-slate-600 mb-1">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
+                                <p class="text-[10px] text-slate-400 max-w-xs">เปิดแผนที่เพื่อเลือกจุดศูนย์กลางสำหรับการตรวจสอบตำแหน่งก่อนสแกน QR</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ส่วนแสดง QR Code สด (จำลองมาให้ใช้งานได้จริง) -->
-                    <div class="bg-blue-50/50 p-6 rounded-xl border border-blue-200 text-center mt-6">
-                        <h4 class="font-bold text-blue-800 mb-2">สร้าง QR Code พร้อมใช้งาน</h4>
-                        <div class="bg-white p-4 inline-block rounded-xl border-2 border-dashed border-blue-300 mb-4 mx-auto w-48 h-48 flex items-center justify-center relative overflow-hidden shadow-sm">
-                            <img id="m-dynamic-qr" src="" alt="QR Code" class="w-full h-full object-contain hidden absolute inset-0 z-10">
-                            <div id="m-qr-placeholder" class="text-slate-400 font-bold text-sm z-0">
-                                <i class="fas fa-qrcode text-4xl mb-2 block opacity-30"></i>รอกดสร้างรหัส
-                            </div>
-                        </div>
+                    <div class="border border-slate-200 rounded-xl p-5 bg-white flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                         <div>
-                            <button id="btn-toggle-qr" onclick="toggleDynamicQR()" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition"><i class="fas fa-play mr-2"></i> สร้างและเปิดใช้งาน QR Code</button>
+                            <h4 class="font-bold text-slate-800 text-sm mb-1">สรุปก่อนบันทึก</h4>
+                            <p class="text-xs text-slate-500">ระบบจะเปิดให้บันทึกเมื่อเงื่อนไขที่จำเป็นครบทั้งหมด</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs font-bold text-slate-500">ข้อมูลยังไม่ครบ</span>
+                            <button class="bg-slate-400 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm cursor-not-allowed flex items-center gap-2"><i class="fas fa-save"></i> สร้างข้อมูล</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab: รอบลงทะเบียน (ใหม่) -->
-            <div id="mtab-content-rounds" class="mtab-content hidden">
-                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 class="font-bold text-slate-800 text-lg mb-1">จัดการรอบลงทะเบียน</h3>
-                    <p class="text-xs text-slate-500 mb-4">สร้างรอบกิจกรรมเพื่อนำไปใช้ในหน้าสแกน QR Code และหน้าเช็คชื่อ</p>
-                    
-                    <div class="flex flex-wrap md:flex-nowrap gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 items-end">
-                        <div class="w-full md:w-auto flex-1">
-                            <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อรอบ *</label>
-                            <input type="text" id="new-round-name" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none focus:border-blue-500 font-bold text-sm" placeholder="เช่น รอบเช้า">
+            <!-- ========================================== -->
+            <!-- 4. แท็บ: QRCODE กิจกรรม -->
+            <!-- ========================================== -->
+            <div id="mtab-content-qractivity" class="mtab-content hidden">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-600"><i class="fas fa-qrcode"></i></div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">รายการ QRCODE ตามรอบลงทะเบียน</h4>
+                                <p class="text-[10px] text-slate-500">แสดงตำแหน่งพิกัด รัศมี และสถานะของ QRCODE ที่ผูกกับรอบลงทะเบียน</p>
+                            </div>
                         </div>
-                        <div class="w-full md:w-32">
-                            <label class="block text-xs font-bold text-slate-600 mb-1">เวลาเริ่ม</label>
-                            <input type="time" id="new-round-time" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-sm">
-                        </div>
-                        <div class="w-full md:w-32">
-                            <label class="block text-xs font-bold text-slate-600 mb-1">โควตา (คน)</label>
-                            <input type="number" id="new-round-max" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-sm" placeholder="0=ไม่จำกัด">
-                        </div>
-                        <button onclick="saveNewMasterRound()" class="w-full md:w-auto bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm h-[42px]"><i class="fas fa-plus mr-1"></i> เพิ่มรอบ</button>
+                        <span class="bg-white border border-slate-200 px-3 py-1 rounded-full text-xs font-bold text-slate-600">0 รายการ</span>
                     </div>
+                    
+                    <div id="m-qr-display-zone" class="p-16 text-center text-slate-400 flex flex-col items-center justify-center">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-300">
+                            <i class="fas fa-map-marker-alt text-2xl text-slate-400"></i>
+                        </div>
+                        <p class="font-bold text-slate-600 text-base mb-1">ยังไม่มีข้อมูล QRCODE</p>
+                        <p class="text-xs">เมื่อมีการตั้งค่าพิกัดและรัศมีแล้ว รายการจะแสดงในส่วนนี้</p>
 
-                    <div class="overflow-hidden border border-slate-200 rounded-xl">
+                        <!-- จำลองระบบสร้าง QR เผื่อทดสอบ -->
+                        <div class="mt-8 bg-blue-50/50 p-6 rounded-xl border border-blue-200 w-full max-w-sm hidden" id="m-qr-sim-zone">
+                            <div class="bg-white p-4 inline-block rounded-xl border-2 border-dashed border-blue-300 mb-4 mx-auto w-48 h-48 flex items-center justify-center relative overflow-hidden shadow-sm">
+                                <img id="m-dynamic-qr" src="" alt="QR Code" class="w-full h-full object-contain hidden absolute inset-0 z-10">
+                                <div id="m-qr-placeholder" class="text-slate-400 font-bold text-sm z-0">
+                                    <i class="fas fa-qrcode text-4xl mb-2 block opacity-30"></i>รอกดสร้างรหัส
+                                </div>
+                            </div>
+                            <button id="btn-toggle-qr" onclick="toggleDynamicQR()" class="w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition"><i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- 5. แท็บ: พื้นที่เช็คอิน -->
+            <!-- ========================================== -->
+            <div id="mtab-content-geofence" class="mtab-content hidden space-y-6">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600"><i class="fas fa-map-marker-alt"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">ตรวจสอบตำแหน่งเช็คอิน</h4>
+                            <p class="text-[10px] text-slate-500">เลือก QR Code เพื่อดูพื้นที่กิจกรรมและตำแหน่งนักศึกษา</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-full">0 QR Code</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-end gap-4">
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">เลือก QR CODE</label>
+                        <select class="w-full p-2.5 border border-slate-300 rounded-lg outline-none font-bold text-slate-700 bg-white appearance-none">
+                            <option value="">เลือก QR Code</option>
+                        </select>
+                    </div>
+                    <button class="w-full md:w-auto bg-slate-400 text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 cursor-not-allowed"><i class="fas fa-search"></i> ดูตำแหน่ง</button>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+                        <i class="fas fa-users text-slate-400"></i>
+                        <h4 class="font-bold text-slate-800 text-sm">แผนที่ตำแหน่งนักศึกษา</h4>
+                        <span class="text-[10px] text-slate-500 ml-2">วงกลมสีน้ำเงิน = รัศมีพื้นที่กิจกรรม · หมุดแสดงตำแหน่งเช็คอิน</span>
+                    </div>
+                    <div class="p-16 text-center text-slate-400 bg-slate-50 min-h-[400px] flex flex-col items-center justify-center">
+                        <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 border border-slate-200">
+                            <i class="fas fa-map-marked-alt text-2xl text-slate-300"></i>
+                        </div>
+                        <p class="font-bold text-slate-700 text-base mb-1">เลือก QR Code แล้วกด "ดูตำแหน่ง"</p>
+                        <p class="text-xs text-slate-500">แผนที่จะแสดงพื้นที่กิจกรรมพร้อมตำแหน่งเช็คอินของนักศึกษาแต่ละคน</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- 6. แท็บ: รอบลงทะเบียน -->
+            <!-- ========================================== -->
+            <div id="mtab-content-rounds" class="mtab-content hidden">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+                        <h3 class="font-bold text-slate-800 text-lg">จัดการรอบกิจกรรมการลงทะเบียน</h3>
+                        <button onclick="openAddRoundModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition flex items-center gap-2"><i class="fas fa-plus"></i> เพิ่มรอบใหม่</button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-slate-100 border-b border-slate-200">
+                            <thead class="bg-[#f8fafc] border-b border-slate-200 text-[11px] text-slate-600 font-bold">
                                 <tr>
-                                    <th class="p-3 text-slate-600 font-bold">ชื่อรอบลงทะเบียน</th>
-                                    <th class="p-3 text-slate-600 font-bold text-center">เวลาเริ่มกิจกรรม</th>
-                                    <th class="p-3 text-slate-600 font-bold text-center">จำกัดผู้เข้าร่วม</th>
-                                    <th class="p-3 text-slate-600 font-bold text-center w-24">จัดการ</th>
+                                    <th class="p-4 text-center">รอบลงทะเบียน</th>
+                                    <th class="p-4 text-center">หมายเหตุ</th>
+                                    <th class="p-4 text-center">สถานะการสแกน</th>
+                                    <th class="p-4 text-center w-24">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="master-rounds-list" class="divide-y divide-slate-100"></tbody>
@@ -763,31 +893,217 @@
                 </div>
             </div>
 
-            <!-- Tab C: ตั้งค่ากิจกรรม -->
-            <div id="mtab-content-settings" class="mtab-content hidden">
-                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 text-sm">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div><label class="block font-bold text-slate-600 mb-1">ชื่อกิจกรรม</label><input type="text" id="m-set-title" class="w-full p-2 border border-slate-300 rounded bg-white outline-none font-bold"></div>
-                        <div><label class="block font-bold text-slate-600 mb-1">สถานะระบบ</label><select id="m-set-status" class="w-full p-2 border border-slate-300 rounded bg-white outline-none font-bold"><option value="อนุมัติแล้ว">เปิดให้ลงทะเบียน</option><option value="ปิดรับสมัคร">ปิดรับสมัคร</option></select></div>
-                        <div><label class="block font-bold text-slate-600 mb-1">วันเริ่มกิจกรรม</label><input type="date" id="m-set-date" class="w-full p-2 border border-slate-300 rounded bg-white outline-none"></div>
+            <!-- ========================================== -->
+            <!-- 7. แท็บ: เงื่อนไขการเข้าร่วม -->
+            <!-- ========================================== -->
+            <div id="mtab-content-conditions" class="mtab-content hidden space-y-6">
+                <!-- เงื่อนไข 1: กิจกรรมขัดแย้ง -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row h-full">
+                    <div class="bg-white border-r border-slate-100 w-full md:w-48 p-4 shrink-0 flex flex-col items-center justify-center relative">
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-rose-500 rounded-r-lg"></div>
+                        <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-2"><i class="fas fa-ban"></i></div>
+                        <h4 class="font-bold text-slate-800 text-sm text-center">กิจกรรมที่ขัดแย้ง</h4>
                     </div>
-                    <button onclick="saveMasterActivitySettings()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-slate-900 transition"><i class="fas fa-save mr-1"></i> บันทึกการตั้งค่า</button>
+                    <div class="p-5 bg-white flex-1 flex flex-col justify-between">
+                        <div class="flex justify-between items-start mb-4">
+                            <p class="text-[10px] text-slate-500 max-w-sm">นักศึกษาที่มีกิจกรรมเหล่านี้ในประวัติจะไม่สามารถเข้าร่วมได้</p>
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-2"><i class="fas fa-plus"></i> เพิ่มเงื่อนไข</button>
+                        </div>
+                        <div class="p-8 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-slate-100">
+                            <i class="fas fa-shield-alt text-2xl mb-2 opacity-20"></i>
+                            <p class="font-bold text-slate-500 text-xs">ยังไม่มีเงื่อนไขที่กำหนด</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- เงื่อนไข 2: ระดับการศึกษา -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+                    <div class="bg-white border-r border-slate-100 w-full md:w-48 p-4 shrink-0 flex flex-col items-center justify-center relative">
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-purple-500 rounded-r-lg"></div>
+                        <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center mb-2"><i class="fas fa-graduation-cap"></i></div>
+                        <h4 class="font-bold text-slate-800 text-sm text-center leading-tight">ระดับการศึกษาที่<br>ระงับสิทธิ์</h4>
+                    </div>
+                    <div class="p-0 bg-white flex-1 flex flex-col justify-between">
+                        <div class="p-5 flex justify-between items-start border-b border-slate-100">
+                            <p class="text-[10px] text-slate-500 max-w-sm">เลือกหลักเกณฑ์หรือระดับการศึกษาที่ไม่ต้องการให้เข้าร่วมกิจกรรมนี้</p>
+                            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-sm transition flex items-center gap-2"><i class="fas fa-check"></i> บันทึกเงื่อนไข</button>
+                        </div>
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-[#f8fafc] border-b border-slate-200 text-[11px] text-slate-500 font-bold">
+                                <tr>
+                                    <th class="p-3 w-16 text-center">เลือก</th>
+                                    <th class="p-3">ชื่อหลักเกณฑ์ / ระดับการศึกษา</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50"><td class="p-3 text-center"><input type="checkbox" class="rounded text-blue-600 border-slate-300"></td><td class="p-3 font-bold text-slate-700 text-xs">ปวส.</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 text-center"><input type="checkbox" class="rounded text-blue-600 border-slate-300"></td><td class="p-3 font-bold text-slate-700 text-xs">ปริญญาตรี 2,3,3.5 ปี (ปกติ)</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 text-center"><input type="checkbox" class="rounded text-blue-600 border-slate-300"></td><td class="p-3 font-bold text-slate-700 text-xs">ปริญญาตรี 2,3,3.5,4 ปี (สมทบ)</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 text-center"><input type="checkbox" class="rounded text-blue-600 border-slate-300"></td><td class="p-3 font-bold text-slate-700 text-xs">ปริญญาตรี 4-5 ปี</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="p-2 bg-slate-50 text-[10px] text-slate-400 border-t border-slate-100 text-right pr-4">ทั้งหมด 4 รายการ</div>
+                    </div>
+                </div>
+
+                <!-- เงื่อนไข 3: รหัสหน้านักศึกษา -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+                    <div class="bg-white border-r border-slate-100 w-full md:w-48 p-4 shrink-0 flex flex-col items-center justify-center relative">
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-amber-500 rounded-r-lg"></div>
+                        <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mb-2 font-bold">#</div>
+                        <h4 class="font-bold text-slate-800 text-sm text-center leading-tight">รหัสหน้านักศึกษา<br>ที่ระงับสิทธิ์</h4>
+                    </div>
+                    <div class="p-5 bg-white flex-1 flex flex-col justify-between">
+                        <div class="flex flex-col sm:flex-row justify-between items-start mb-4 gap-4">
+                            <p class="text-[10px] text-slate-500 max-w-sm">นักศึกษาที่มีรหัสขึ้นต้นตามรายการนี้จะไม่สามารถเข้าร่วมกิจกรรมได้</p>
+                            <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 w-full sm:w-auto">
+                                <input type="number" class="w-full sm:w-32 p-1.5 border-none bg-transparent text-xs outline-none text-center font-bold text-slate-700" placeholder="เช่น 65">
+                                <button class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-md text-xs font-bold transition whitespace-nowrap"><i class="fas fa-plus"></i> เพิ่ม</button>
+                            </div>
+                        </div>
+                        <div class="p-8 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-slate-100">
+                            <i class="fas fa-times-hexagon text-2xl mb-2 opacity-20"></i>
+                            <p class="font-bold text-slate-500 text-xs">ยังไม่มีรหัสหน้าทีระงับสิทธิ์</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- เงื่อนไข 4: ห้ามเข้าถ้าไม่ลงเว็บ -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+                    <div class="bg-white border-r border-slate-100 w-full md:w-48 p-4 shrink-0 flex flex-col items-center justify-center relative">
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-rose-500 rounded-r-lg"></div>
+                        <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mb-2"><i class="fas fa-user-times"></i></div>
+                        <h4 class="font-bold text-slate-800 text-sm text-center leading-tight">นักศึกษาที่ยังไม่ลงเว็บ<br>ห้ามเข้ากิจกรรม</h4>
+                    </div>
+                    <div class="p-5 bg-white flex-1 flex flex-col justify-center">
+                        <p class="text-[10px] text-slate-500 mb-4">กำหนดสิทธิ์ของนักศึกษาที่ยังไม่ได้ลงทะเบียนผ่านเว็บไซต์ห้ามเข้าร่วมกิจกรรม</p>
+                        <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" class="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300">
+                                <div>
+                                    <p class="text-sm font-bold text-slate-700">ระงับสิทธิ์นักศึกษาที่ยังไม่ลงทะเบียนผ่านเว็บไซต์</p>
+                                    <p class="text-[10px] text-slate-500 mt-1">เมื่อเปิดใช้งาน นักศึกษาที่ไม่มีข้อมูลลงทะเบียนผ่านเว็บจะไม่สามารถสแกนเข้าร่วมกิจกรรมได้</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Tab F: นำเข้า / ส่งออก -->
-            <div id="mtab-content-import" class="mtab-content hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                        <h3 class="font-bold text-slate-800 mb-2"><i class="fas fa-file-excel text-emerald-600 mr-1"></i> ส่งออกรายงาน (Export CSV)</h3>
-                        <p class="text-xs text-slate-500 mb-4">ดาวน์โหลดรายชื่อผู้เข้าร่วม เวลาเข้าออก เพื่อนำไปเปิดใน Excel</p>
-                        <button onclick="exportActivityToCSV()" class="bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow hover:bg-emerald-700 transition w-full"><i class="fas fa-download mr-1"></i> โหลดไฟล์รายงาน</button>
+            <!-- ========================================== -->
+            <!-- 8. แท็บ: นำเข้า นศ. (รายคน) -->
+            <!-- ========================================== -->
+            <div id="mtab-content-import_s" class="mtab-content hidden">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2"><i class="fas fa-filter text-slate-400"></i> ค้นหารายชื่อนักศึกษา</h3>
+                        <p class="text-[10px] text-orange-500 font-bold flex items-center gap-1"><i class="fas fa-exclamation-circle"></i> กรุณาเลือกรอบลงทะเบียน</p>
                     </div>
-                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                        <h3 class="font-bold text-slate-800 mb-2"><i class="fas fa-file-import text-blue-600 mr-1"></i> นำเข้ารายชื่อ (Batch Import)</h3>
-                        <p class="text-xs text-slate-500 mb-2">วางรหัสนักศึกษาลงในช่องด้านล่าง (บรรทัดละ 1 รหัส)</p>
-                        <textarea id="m-import-text" rows="4" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-mono outline-none mb-3"></textarea>
-                        <button onclick="importMasterParticipants()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold text-sm shadow hover:bg-blue-700 transition w-full"><i class="fas fa-upload mr-1"></i> นำเข้าระบบทันที</button>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="block text-[10px] font-bold text-slate-500 mb-1"><i class="far fa-user"></i> รหัสนักศึกษา *</label><input type="text" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-xs" placeholder="เช่น 65000..."></div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 mb-1">ชื่อจริง</label><input type="text" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-xs" placeholder="ชื่อนักศึกษา..."></div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 mb-1">นามสกุล</label><input type="text" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-xs" placeholder="นามสกุลนักศึกษา..."></div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 mb-1"><i class="fas fa-book"></i> สาขาวิชา</label><select class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-xs appearance-none"><option>เลือกสาขาวิชา..</option></select></div>
+                        <div><label class="block text-[10px] font-bold text-rose-500 mb-1"><i class="far fa-calendar-check"></i> รอบลงทะเบียน *</label><select id="m-import-s-round" class="w-full p-2.5 border border-rose-300 bg-rose-50 rounded-lg outline-none text-xs font-bold text-rose-700 appearance-none"><option>เลือกรอบลงทะเบียน..</option></select></div>
+                        <div><label class="block text-[10px] font-bold text-slate-500 mb-1"><i class="fas fa-layer-group"></i> กลุ่มห้องเรียน</label><select class="w-full p-2.5 border border-slate-300 rounded-lg outline-none text-xs appearance-none"><option>เลือกกลุ่มห้องเรียน..</option></select></div>
+                    </div>
+                    <div class="flex items-center gap-2 mt-4">
+                        <button class="bg-slate-500 hover:bg-slate-600 text-white px-8 py-2.5 rounded-lg text-xs font-bold shadow-sm transition flex-1 md:flex-none flex items-center justify-center gap-2"><i class="fas fa-search"></i> ค้นหา</button>
+                        <button class="bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 w-10 h-10 rounded-lg text-xs font-bold shadow-sm transition flex items-center justify-center"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-slate-100">
+                        <h3 class="font-bold text-slate-800 text-base">รายชื่อนักศึกษา</h3>
+                    </div>
+                    <div class="p-16 text-center text-slate-400 bg-slate-50/50">
+                        <p class="font-bold text-sm">ไม่พบข้อมูลนักศึกษา</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- 9. แท็บ: นำเข้า นศ. (กลุ่ม) -->
+            <!-- ========================================== -->
+            <div id="mtab-content-import_b" class="mtab-content hidden">
+                <div class="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fas fa-users text-blue-500 bg-blue-50 p-2 rounded-full"></i> นำเข้านักศึกษาแบบกลุ่ม</h3>
+                        <button class="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-3 py-1.5 rounded-full font-bold flex items-center gap-1"><i class="fas fa-book-open"></i> คู่มือการใช้งาน <i class="fas fa-external-link-alt ml-1"></i></button>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-6">ขั้นตอนการนำเข้า: กรอกรหัสนักศึกษาที่คั่นด้วยลูกน้ำ ( , ) และเลือกรอบการลงทะเบียนที่ต้องการ</p>
+
+                    <div class="space-y-6">
+                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            <label class="block text-sm font-bold text-slate-700 mb-2"><i class="far fa-file-alt text-slate-400 mr-1"></i> 1. รายชื่อรหัสนักศึกษา <span class="text-rose-500">*</span></label>
+                            <textarea id="m-import-text" rows="6" class="w-full p-4 border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-blue-500 bg-white shadow-inner" placeholder="ตัวอย่าง: 58162110024-5, 58162110042-4..."></textarea>
+                        </div>
+
+                        <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            <label class="block text-sm font-bold text-slate-700 mb-2"><i class="far fa-calendar-check text-slate-400 mr-1"></i> 2. รอบลงทะเบียนกิจกรรม <span class="text-rose-500">*</span></label>
+                            <select id="m-import-b-round" class="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none font-bold text-slate-700 bg-white shadow-sm focus:border-blue-500 appearance-none"></select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 mt-8">
+                        <button onclick="importMasterParticipants()" class="flex-1 bg-slate-100 text-slate-400 px-6 py-3.5 rounded-xl font-bold text-sm transition" id="btn-import-b-submit"><i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูลนักศึกษา</button>
+                        <button class="bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 px-6 py-3.5 rounded-xl font-bold text-sm shadow-sm transition"><i class="fas fa-trash-alt mr-2"></i> ล้างฟอร์ม</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- 10. แท็บ: ผู้ดูแลกิจกรรม -->
+            <!-- ========================================== -->
+            <div id="mtab-content-admins" class="mtab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- คอลัมน์ซ้าย: ฟอร์มเพิ่ม -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm sticky top-4">
+                            <h3 class="font-bold text-blue-700 text-base mb-6 flex items-center gap-2"><i class="fas fa-user-plus"></i> เพิ่มผู้ดูแลกิจกรรม</h3>
+                            
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">Username ผู้ใช้งาน</label>
+                                    <div class="relative">
+                                        <i class="far fa-user absolute left-3 top-3 text-slate-400"></i>
+                                        <input type="text" id="admin-user-input" class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-blue-500" placeholder="ระบุ Username">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                                    <div class="relative">
+                                        <i class="fas fa-phone-alt absolute left-3 top-3 text-slate-400"></i>
+                                        <input type="text" id="admin-phone-input" class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:border-blue-500" placeholder="08X-XXXXXXX">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button onclick="addActivityAdmin(currentMasterActivity.title)" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition">ยืนยันเพิ่มผู้ดูแล</button>
+                        </div>
+                    </div>
+
+                    <!-- คอลัมน์ขวา: ตารางรายชื่อ -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="p-5 border-b border-slate-100 flex items-center gap-2 bg-emerald-50/30">
+                                <i class="fas fa-shield-check text-emerald-500"></i>
+                                <h3 class="font-bold text-emerald-800 text-sm">รายชื่อผู้ดูแลกิจกรรมทั้งหมด (<span id="admin-count">0</span>)</h3>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm whitespace-nowrap">
+                                    <thead class="bg-[#f8fafc] border-b border-slate-200 text-[11px] text-slate-500 font-bold">
+                                        <tr>
+                                            <th class="p-4">ผู้ดูแล</th>
+                                            <th class="p-4">ข้อมูลติดต่อ</th>
+                                            <th class="p-4 text-center w-24">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="act-admins-list" class="divide-y divide-slate-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -795,6 +1111,7 @@
         </div>
     </div>
 </div>
+            
             <div id="page-admin-users" class="page-view hidden max-w-3xl mx-auto">
     <div class="bg-white rounded-2xl border p-6 shadow-sm mb-6">
         <h3 class="font-bold text-slate-800 mb-4 border-b pb-2"><i class="fas fa-cogs text-emerald-600"></i> ตั้งค่าระบบและแจ้งเตือน</h3>
@@ -7536,30 +7853,39 @@ window.manageStudentPoints = function(studentId) {
 // =========================================================================
 // 🌟 สมองกล Activity Center (หมวด A - F) ไม่ทิพย์ ใช้ข้อมูลจริง 100%
 // =========================================================================
-
 let currentMasterActivity = null;
 let qrTokenInterval = null;
 
-// 1. ปรับฟังก์ชันแสดงกิจกรรม (ให้ซ่อน/แสดง Admin Center Card ตามสิทธิ์)
+// =========================================================================
+// 🌟 1. ฟังก์ชันแสดงการ์ดกิจกรรม (รวมฝั่งนักศึกษา และ ฝั่งแอดมิน)
+// =========================================================================
 function renderActivities() {
     let actSearchEl = document.getElementById('act-search'); if(!actSearchEl) return;
     const search = actSearchEl.value.toLowerCase(); const grid = document.getElementById('activity-grid'); if(!grid) return;
     
-    // โชว์/ซ่อน Card แอดมิน
+    // โชว์/ซ่อน Card แอดมินหลัก
     let adminCard = document.getElementById('admin-activity-master-card');
     let btnCreate = document.getElementById('btn-create-act');
     if (currentUserRole !== 'guest') {
-        if(adminCard) adminCard.classList.remove('hidden');
+        if(adminCard) adminCard.classList.add('hidden'); // เริ่มมาให้ซ่อนแผง 10 แท็บไว้ก่อน
         if(btnCreate) btnCreate.classList.remove('hidden');
-        populateMasterSelector(); // โหลดรายชื่อลง Dropdown แอดมิน
     } else {
         if(adminCard) adminCard.classList.add('hidden');
         if(btnCreate) btnCreate.classList.add('hidden');
     }
 
-    // กรองและวาดการ์ดกิจกรรม (โค้ดเดิมของคุณที่ปรับให้เข้ากับกริด)
-    let filtered = appSettings.activities.filter(a => a.title.toLowerCase().includes(search));
-    if (currentUserRole === 'guest') filtered = filtered.filter(a => a.status === 'อนุมัติแล้ว');
+    let filtered = appSettings.activities.filter(a => a.title.toLowerCase().includes(search) || String(a.year).includes(search));
+    
+    // กรองการมองเห็นของนักศึกษา (เห็นเฉพาะที่อนุมัติ + ยังไม่เลยกำหนดเวลา หรือที่ตัวเองเคยลงไปแล้ว)
+    if (currentUserRole === 'guest') {
+        filtered = filtered.filter(a => {
+            let hasRegistered = activityLogs.some(l => l.studentId === window.currentGuestStuId && l.activityTitle === a.title);
+            let eventDate = new Date(a.date); eventDate.setHours(23, 59, 59, 999);
+            let isOverdue = new Date() > eventDate;
+            if (hasRegistered) return a.status === 'อนุมัติแล้ว';
+            return a.status === 'อนุมัติแล้ว' && !isOverdue;
+        });
+    }
     
     if (filtered.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-16 text-slate-400 bg-white rounded-2xl border border-slate-200"><i class="fas fa-box-open text-5xl mb-4 opacity-40"></i><p class="font-bold">ไม่พบข้อมูลกิจกรรม</p></div>`;
@@ -7569,94 +7895,206 @@ function renderActivities() {
     let actHtml = '';
     filtered.forEach(act => {
         let count = activityLogs.filter(l => l.activityTitle === act.title).length;
+        let isOpen = act.isOpen !== false;
+        
+        let totalMax = 0; if(act.rounds) { act.rounds.forEach(r => totalMax += (parseInt(r.max) || 0)); }
+        let countDisplay = totalMax > 0 ? `${count} / ${totalMax}` : `${count} คน`;
+
+        let myLog = null;
+        if (currentUserRole === 'guest' && window.currentGuestStuId) {
+            myLog = activityLogs.find(l => l.studentId === window.currentGuestStuId && l.activityTitle === act.title);
+        }
+
+        let statusBadge = '';
+        if (act.status === 'รออนุมัติ') statusBadge = `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-3 py-1 rounded-full">รออนุมัติ</span>`;
+        else if (myLog) statusBadge = `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle mr-1"></i>ลงทะเบียนแล้ว</span>`;
+        else if (isOpen) statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-full">เปิดลงทะเบียน</span>`;
+        else statusBadge = `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-3 py-1 rounded-full">ปิดรับสมัคร</span>`;
+
+        let adminActionHtml = ''; let approveBtnHtml = '';
+        if (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer') {
+            adminActionHtml = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition px-2 py-1 z-10" title="ลบกิจกรรม"><i class="fas fa-trash"></i></button>`;
+            if (act.status === 'รออนุมัติ' && currentUserRole !== 'treasurer') {
+                approveBtnHtml = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">อนุมัติกิจกรรมนี้</button>`;
+            }
+        }
+
+        // การกดคลิกที่การ์ด ถ้าเป็นเด็กเปิดหน้าต่างลงทะเบียน ถ้าเป็นแอดมินเปิดระบบ 10 แท็บ
+        let clickAction = currentUserRole === 'guest' ? `openRegistrationModal('${act.title}')` : `loadActivityMasterData('${act.title}')`;
+        
+        let guestActionBtn = '';
+        if (currentUserRole === 'guest') {
+            if (myLog) guestActionBtn = `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">คุณลงทะเบียนสำเร็จแล้ว (รอบ: ${myLog.roundName}) &rarr;</div>`;
+            else guestActionBtn = `<div class="bg-slate-50 p-3 mt-4 text-center rounded-b-xl border-t border-slate-100 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition">คลิกเพื่อดูรายละเอียดและลงทะเบียน &rarr;</div>`;
+        }
+
         actHtml += `
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition p-5 cursor-pointer flex flex-col">
-            <h3 class="font-bold text-slate-800 text-lg leading-tight mb-2">${act.title}</h3>
-            <div class="mt-auto space-y-1 text-xs text-slate-500">
-                <p>วันที่: <span class="font-bold text-slate-700">${act.date || '-'}</span></p>
-                <p>ผู้สมัคร: <span class="font-bold text-emerald-600">${count}</span> คน</p>
-                <span class="inline-block bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md font-bold mt-2">${act.status}</span>
+        <div onclick="event.stopPropagation(); ${clickAction}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition flex flex-col h-full cursor-pointer relative overflow-hidden group">
+            ${adminActionHtml}
+            <div class="p-5 flex-1 flex flex-col">
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="font-bold text-slate-800 text-base leading-tight pr-6 group-hover:text-blue-600 transition">${act.title}</h3>
+                    <div class="shrink-0 ml-2">${statusBadge}</div>
+                </div>
+                <div class="inline-block bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded mb-4 w-max">กิจกรรม / เลือกเข้าร่วม</div>
+                
+                <div class="space-y-2 text-xs text-slate-600 mt-auto">
+                    <div class="flex justify-between">
+                        <span class="font-bold text-slate-400">ปี/เทอม:</span>
+                        <span class="font-bold">${act.year}/${act.term}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-bold text-slate-400">วันดำเนินกิจกรรม:</span>
+                        <span class="font-bold">${act.date}</span>
+                    </div>
+                    <div class="flex justify-between items-end mt-4 pt-3 border-t border-slate-100">
+                        <span class="font-bold text-slate-400 text-[10px]">จำนวนผู้เข้าร่วม</span>
+                        <span class="font-bold text-sm text-slate-800">${countDisplay}</span>
+                    </div>
+                </div>
+                ${approveBtnHtml}
             </div>
+            ${guestActionBtn}
         </div>`;
     });
     grid.innerHTML = actHtml;
 }
 
-// 2. โหลดรายชื่อกิจกรรมลง Dropdown แอดมิน
-function populateMasterSelector() {
-    let selector = document.getElementById('master-act-selector');
-    if (!selector) return;
-    let oldVal = selector.value;
-    let opts = '<option value="">-- กรุณาเลือกกิจกรรมเพื่อจัดการ --</option>';
-    appSettings.activities.forEach(a => { opts += `<option value="${a.title}">${a.title}</option>`; });
-    selector.innerHTML = opts;
-    if (oldVal && appSettings.activities.find(a=>a.title === oldVal)) selector.value = oldVal;
-}
-
-// 3. เมื่อแอดมินเลือกกิจกรรมจาก Dropdown (โหลด Tab A เป็นค่าเริ่มต้น)
-window.loadActivityMasterData = function() {
-    let title = document.getElementById('master-act-selector').value;
-    let contentBox = document.getElementById('act-master-content');
-    if (!title) { contentBox.classList.add('hidden'); return; }
+// =========================================================================
+// 🌟 2. ระบบ Master Center 10 แท็บ (ฝั่งแอดมิน)
+// =========================================================================
+window.loadActivityMasterData = function(titleToLoad = null) {
+    let title = titleToLoad; 
+    if (!title) return;
     
     currentMasterActivity = appSettings.activities.find(a => a.title === title);
-    contentBox.classList.remove('hidden');
-    switchMasterTab('dashboard'); // โหลดหน้าแดชบอร์ดทันที
+    if (!currentMasterActivity) return;
+
+    document.getElementById('activity-main-dashboard').classList.add('hidden');
+    document.getElementById('admin-activity-master-card').classList.remove('hidden');
+
+    document.getElementById('master-header-title').innerText = currentMasterActivity.title;
+    document.getElementById('master-header-term').innerText = `${currentMasterActivity.term}/${currentMasterActivity.year}`;
+    
+    let refStr = `691-A030-01-${Math.floor(Math.random() * 9)}-6-0${Math.floor(Math.random() * 9)}`;
+    let refEl = document.getElementById('master-header-ref');
+    if(refEl) { refEl.innerText = refStr; refEl.classList.remove('hidden'); }
+
+    switchMasterTab('dashboard'); // เริ่มที่แท็บแรกเสมอ
 }
 
-// 4. สลับแท็บและเปลี่ยนสีปุ่ม
+window.closeActivityMaster = function() {
+    currentMasterActivity = null;
+    document.getElementById('admin-activity-master-card').classList.add('hidden');
+    document.getElementById('activity-main-dashboard').classList.remove('hidden');
+    
+    // หยุดการทำงานของ QR Code ถ้าเปิดค้างไว้
+    if (qrTokenInterval) { clearInterval(qrTokenInterval); qrTokenInterval = null; }
+    
+    renderActivities();
+}
+
 window.switchMasterTab = function(tabId) {
     if (!currentMasterActivity) return;
-    document.querySelectorAll('.mtab-content').forEach(el => el.classList.remove('block'));
-    document.querySelectorAll('.mtab-content').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`mtab-content-${tabId}`).classList.remove('hidden');
-    document.getElementById(`mtab-content-${tabId}`).classList.add('block');
     
-    document.querySelectorAll('.mtab-btn').forEach(btn => {
-        btn.className = "mtab-btn px-5 py-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-bold whitespace-nowrap transition";
+    // ซ่อนเนื้อหาทั้งหมดและเคลียร์สีปุ่ม
+    document.querySelectorAll('.mtab-content').forEach(el => {
+        el.classList.remove('block');
+        el.classList.add('hidden');
     });
-    document.getElementById(`mtab-${tabId}`).className = "mtab-btn px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold shadow-sm whitespace-nowrap transition";
+    document.querySelectorAll('.mtab-btn').forEach(btn => {
+        btn.className = "mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2";
+        let icon = btn.querySelector('i');
+        if(icon) { icon.classList.remove('opacity-100'); icon.classList.add('opacity-70'); }
+    });
+
+    // เปิดเนื้อหาแท็บที่เลือก
+    let contentEl = document.getElementById(`mtab-content-${tabId}`);
+    if (contentEl) {
+        contentEl.classList.remove('hidden');
+        contentEl.classList.add('block');
+    }
     
+    let btnEl = document.getElementById(`mtab-${tabId}`);
+    if (btnEl) {
+        btnEl.className = "mtab-btn px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2 shadow-inner";
+        let icon = btnEl.querySelector('i');
+        if(icon) { icon.classList.remove('opacity-70'); icon.classList.add('opacity-100'); }
+    }
+    
+    // สั่งรันฟังก์ชันเมื่อเปิดแต่ละแท็บ
     if (tabId === 'dashboard') renderMasterDashboard();
-    if (tabId === 'checkin') renderMasterCheckin();
-    if (tabId === 'settings') renderMasterSettings();
+    if (tabId === 'rounds') renderMasterRoundsTab();
+    if (tabId === 'admins') { renderActivityAdmins(currentMasterActivity.title); document.getElementById('admin-count').innerText = (currentMasterActivity.admins || []).length; }
+    if (['checkin', 'qrsetting', 'qractivity', 'import_s', 'import_b'].includes(tabId)) {
+        renderMasterDropdowns();
+    }
 }
 
-// ================= หมวด A: Dashboard & Table (ประเมินผล A/C/P/U) =================
+// ---- ฟังก์ชันย่อยของแท็บต่างๆ ----
 function renderMasterDashboard() {
     let participants = activityLogs.filter(l => l.activityTitle === currentMasterActivity.title);
-    let totalMax = currentMasterActivity.rounds ? currentMasterActivity.rounds.reduce((sum, r) => sum + r.max, 0) : 0;
+    let totalMax = currentMasterActivity.rounds ? currentMasterActivity.rounds.reduce((sum, r) => sum + (parseInt(r.max)||0), 0) : 0;
     
     let scannedIn = participants.filter(p => p.timeIn && p.timeIn !== '-' && !p.timeIn.includes('จองสิทธิ์')).length;
-    let pendingCount = participants.length - scannedIn;
+    let registeredCount = participants.filter(p => p.timeIn && p.timeIn.includes('จองสิทธิ์')).length;
+    let failCount = participants.filter(p => p.status === 'U' || p.status === 'P').length;
 
-    document.getElementById('m-stat-total').innerText = `${participants.length} ${totalMax > 0 ? '/ ' + totalMax : ''}`;
-    document.getElementById('m-stat-in').innerText = scannedIn;
-    document.getElementById('m-stat-pending').innerText = pendingCount;
+    let scanPercent = totalMax > 0 ? ((scannedIn / totalMax) * 100).toFixed(0) : (participants.length > 0 ? ((scannedIn / participants.length) * 100).toFixed(0) : 0);
+    let regPercent = totalMax > 0 ? ((registeredCount / totalMax) * 100).toFixed(0) : 0;
+    let failPercent = participants.length > 0 ? ((failCount / participants.length) * 100).toFixed(0) : 0;
+
+    document.getElementById('m-stat-all').innerText = participants.length;
+    document.getElementById('m-stat-web').innerText = registeredCount;
+    document.getElementById('m-stat-max1').innerText = totalMax > 0 ? totalMax : participants.length;
+    document.getElementById('m-bar-web').style.width = `${regPercent}%`;
+
+    document.getElementById('m-stat-scan').innerText = scannedIn;
+    document.getElementById('m-stat-max2').innerText = totalMax > 0 ? totalMax : participants.length;
+    document.getElementById('m-bar-scan').style.width = `${scanPercent}%`;
+
+    document.getElementById('m-stat-fail').innerText = failCount;
+    document.getElementById('m-stat-max3').innerText = participants.length;
+    document.getElementById('m-bar-fail').style.width = `${failPercent}%`;
 
     let tbody = document.getElementById('m-participant-list');
     tbody.innerHTML = '';
     
     if (participants.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`; return;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-400 bg-slate-50/50 font-bold">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`; return;
     }
 
     participants.forEach(p => {
-        let stu = students.find(s => s.id === p.studentId) || { name: 'ไม่พบชื่อ' };
+        let stu = students.find(s => s.id === p.studentId) || { name: 'ไม่พบชื่อ', room: '-' };
         let statusBadge = '';
-        if (p.status === 'C') statusBadge = `<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-bold">ผ่าน (C)</span>`;
-        else if (p.status === 'A') statusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-bold">ผ่านพิเศษ (A)</span>`;
-        else if (p.status === 'P') statusBadge = `<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-bold">รอพิจารณา (P)</span>`;
-        else if (p.status === 'U') statusBadge = `<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-bold">ไม่ผ่าน (U)</span>`;
-        else statusBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[10px] font-bold">รอประเมินผล</span>`;
+        if (p.status === 'C') statusBadge = `<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">ผ่าน (C)</span>`;
+        else if (p.status === 'A') statusBadge = `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">ผ่านพิเศษ (A)</span>`;
+        else if (p.status === 'P') statusBadge = `<span class="bg-amber-100 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">รอพิจารณา (P)</span>`;
+        else if (p.status === 'U') statusBadge = `<span class="bg-rose-100 text-rose-700 border border-rose-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">ไม่ผ่าน (U)</span>`;
+        else statusBadge = `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">รอประเมินผล</span>`;
+
+        let isJustReg = p.timeIn && p.timeIn.includes('จองสิทธิ์');
+        let webRegDisplay = '<div class="text-emerald-500"><i class="fas fa-check-circle text-xl"></i></div>';
+        
+        // รูปแบบเวลา
+        let inTimeStr = (p.timeIn && p.timeIn.match(/\d{2}:\d{2}/)) ? p.timeIn.match(/\d{2}:\d{2}/)[0] : (p.timeIn || '-');
+        let outTimeStr = (p.timeOut && p.timeOut.match(/\d{2}:\d{2}/)) ? p.timeOut.match(/\d{2}:\d{2}/)[0] : (p.timeOut || '-');
+        
+        let scanInDisplay = isJustReg ? '<i class="far fa-times-circle text-slate-200 text-xl"></i>' : `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${inTimeStr}</span></div>`;
+        let scanOutDisplay = (!p.timeOut || p.timeOut === '-') ? '<i class="far fa-times-circle text-slate-200 text-xl"></i>' : `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${outTimeStr}</span></div>`;
 
         tbody.innerHTML += `
-        <tr class="hover:bg-slate-50 m-student-row">
-            <td class="p-3 text-center"><input type="checkbox" class="m-stu-check w-4 h-4 text-emerald-600 rounded" value="${p.studentId}"></td>
-            <td class="p-3"><p class="font-bold text-slate-800 text-sm mb-0.5 m-stu-name">${stu.name}</p><p class="text-[10px] font-mono text-slate-500 m-stu-id">${p.studentId} | รอบ: ${p.roundName || '-'}</p></td>
-            <td class="p-3 text-center font-bold text-xs text-emerald-600">${p.timeIn || '-'}</td>
-            <td class="p-3 text-center font-bold text-xs text-orange-500">${p.timeOut || '-'}</td>
-            <td class="p-3 text-center">${statusBadge}</td>
+        <tr class="hover:bg-slate-50 m-student-row transition-colors">
+            <td class="p-4 text-center"><input type="checkbox" class="m-stu-check w-4 h-4 text-blue-600 rounded border-slate-300" value="${p.studentId}"></td>
+            <td class="p-4">
+                <p class="font-bold text-slate-800 text-sm mb-0.5 m-stu-name">${stu.name} <span class="bg-emerald-100 text-emerald-600 text-[9px] px-1.5 py-0.5 rounded ml-1">ยืนยัน</span></p>
+                <p class="text-[10px] font-mono text-slate-500 m-stu-id">${p.studentId}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">ห้อง ${stu.room}</p>
+            </td>
+            <td class="p-4 text-center text-xs text-slate-600 font-bold">${p.roundName || '-'}</td>
+            <td class="p-4 text-center">${webRegDisplay}</td>
+            <td class="p-4 text-center">${scanInDisplay}</td>
+            <td class="p-4 text-center">${statusBadge}</td>
         </tr>`;
     });
 }
@@ -7695,97 +8133,132 @@ window.executeBatchAction = function(newStatus) {
     });
 }
 
-// ================= หมวด B & E: Check-in & Dynamic QR =================
-function renderMasterCheckin() {
-    let roundSelect = document.getElementById('m-checkin-round');
-    let opts = '';
-    if(currentMasterActivity.rounds) { currentMasterActivity.rounds.forEach(r => opts += `<option value="${r.name}">${r.name}</option>`); }
-    else { opts = '<option value="ทั่วไป">รอบทั่วไป</option>'; }
-    roundSelect.innerHTML = opts;
-}
-
 window.toggleDynamicQR = function() {
     let btn = document.getElementById('btn-toggle-qr');
     let img = document.getElementById('m-dynamic-qr');
     let placeholder = document.getElementById('m-qr-placeholder');
 
     if (qrTokenInterval) {
-        // ปิด QR
         clearInterval(qrTokenInterval); qrTokenInterval = null;
-        img.classList.add('hidden'); placeholder.classList.remove('hidden');
-        btn.innerText = "เปิดระบบ QR Code"; btn.className = "bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold text-sm shadow hover:bg-emerald-700 transition";
+        if(img) img.classList.add('hidden'); 
+        if(placeholder) placeholder.classList.remove('hidden');
+        if(btn) { btn.innerHTML = '<i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code'; btn.className = "w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md hover:bg-blue-700 transition"; }
     } else {
-        // เปิด QR
-        img.classList.remove('hidden'); placeholder.classList.add('hidden');
-        btn.innerText = "ปิดระบบ QR Code"; btn.className = "bg-rose-500 text-white px-6 py-2 rounded-lg font-bold text-sm shadow hover:bg-rose-600 transition";
+        if(img) img.classList.remove('hidden'); 
+        if(placeholder) placeholder.classList.add('hidden');
+        if(btn) { btn.innerHTML = '<i class="fas fa-stop mr-2"></i> ปิดระบบ QR Code'; btn.className = "w-full bg-rose-500 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md hover:bg-rose-600 transition"; }
         
+        let intervalSecs = parseInt(document.getElementById('m-qr-interval')?.value) || 15;
+        if(intervalSecs < 10) intervalSecs = 10;
+
         let generate = () => {
             let token = `ACT-${currentMasterActivity.title}-${Date.now()}`;
-            img.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(token)}`;
+            if(img) img.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(token)}`;
         };
         generate();
-        qrTokenInterval = setInterval(generate, 30000); // เปลี่ยนทุก 30 วินาที
+        qrTokenInterval = setInterval(generate, intervalSecs * 1000); 
     }
 }
 
-window.manualAdminCheckIn = function(mode = 'in') {
-    let idInput = document.getElementById('m-manual-id');
-    let rawId = idInput.value.trim();
-    if (!rawId) return Swal.fire('เตือน', 'กรุณากรอกรหัสนักศึกษา', 'warning');
+window.openAddRoundModal = function() {
+    let formHtml = `
+    <div class="text-left font-sans mt-2 space-y-4">
+        <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อรอบ (ภาษาไทย) *</label><input type="text" id="popup-round-name" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none focus:border-blue-500 font-bold text-sm"></div>
+        <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อรอบ (English)</label><input type="text" id="popup-round-name-en" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none focus:border-blue-500 text-sm"></div>
+        <div><label class="block text-xs font-bold text-slate-700 mb-1">หมายเหตุ</label><textarea id="popup-round-note" rows="3" class="w-full p-2.5 border border-slate-300 rounded-lg outline-none focus:border-blue-500 text-sm"></textarea></div>
+    </div>`;
 
-    let cleanId = formatIdSearch(rawId).replace(/-/g, '');
-    let stu = students.find(s => s.id.replace(/-/g, '') === cleanId);
-    if (!stu) return Swal.fire('ผิดพลาด', 'ไม่พบรหัสนักศึกษานี้ในระบบ', 'error');
+    Swal.fire({
+        title: '<div class="text-left text-slate-800 text-lg font-bold border-b pb-3">เพิ่มรอบกิจกรรมใหม่</div>',
+        html: formHtml, showCancelButton: true, confirmButtonText: 'ยืนยันเพิ่มรอบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#2563eb', width: '450px',
+        customClass: { cancelButton: '!text-slate-600 bg-white border border-slate-300 font-bold hover:bg-slate-50 rounded-lg px-6', confirmButton: 'rounded-lg px-6 font-bold w-full sm:w-auto', actions: 'w-full flex justify-between' },
+        preConfirm: () => {
+            let name = document.getElementById('popup-round-name').value.trim();
+            if (!name) return Swal.showValidationMessage('กรุณาระบุชื่อรอบ (ภาษาไทย)');
+            if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
+            if (currentMasterActivity.rounds.find(r => r.name === name)) return Swal.showValidationMessage('ชื่อรอบนี้มีอยู่แล้ว');
 
-    let roundName = document.getElementById('m-checkin-round').value;
-    let timeStr = getNow();
-    let existingLog = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
-
-    if (mode === 'in') {
-        if (existingLog) {
-            existingLog.timeIn = timeStr; existingLog.roundName = roundName;
-        } else {
-            activityLogs.unshift({ studentId: stu.id, activityTitle: currentMasterActivity.title, roundName: roundName, timeIn: timeStr, timeOut: null });
+            return { name: name, nameEn: document.getElementById('popup-round-name-en').value.trim(), note: document.getElementById('popup-round-note').value.trim(), max: 0 };
         }
-    } else {
-        if (existingLog) existingLog.timeOut = timeStr;
-        else activityLogs.unshift({ studentId: stu.id, activityTitle: currentMasterActivity.title, roundName: roundName, timeIn: '-', timeOut: timeStr });
+    }).then(res => {
+        if (res.isConfirmed) {
+            currentMasterActivity.rounds.push(res.value);
+            saveToLocal(true); renderMasterRoundsTab();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกรอบใหม่สำเร็จ', showConfirmButton:false, timer:1500});
+        }
+    });
+}
+
+function renderMasterRoundsTab() {
+    let tbody = document.getElementById('master-rounds-list');
+    if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
+    
+    if (currentMasterActivity.rounds.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center p-12 text-slate-400 bg-slate-50/50"><i class="fas fa-layer-group text-3xl mb-3 opacity-30"></i><br><span class="font-bold text-sm">ยังไม่มีข้อมูลรอบลงทะเบียน</span><br><span class="text-xs">คลิกปุ่ม "เพิ่มรอบใหม่" ด้านบนเพื่อสร้างข้อมูล</span></td></tr>';
+        return;
     }
 
-    saveToLocal(true);
-    idInput.value = '';
-    Swal.fire({toast:true, position:'top-end', icon:'success', title:`สแกน${mode==='in'?'เข้า':'ออก'}: ${stu.name}`, showConfirmButton:false, timer:1500});
+    let html = '';
+    currentMasterActivity.rounds.forEach((r, idx) => {
+        html += `<tr class="border-b hover:bg-slate-50 transition bg-white">
+            <td class="p-4"><p class="font-bold text-blue-700 text-sm">${r.name}</p>${r.nameEn ? `<p class="text-[10px] text-slate-400 font-mono mt-0.5">${r.nameEn}</p>` : ''}</td>
+            <td class="p-4 text-center text-xs text-slate-500">${r.note || '-'}</td>
+            <td class="p-4 text-center"><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">ใช้งานได้</span></td>
+            <td class="p-4 text-center"><button onclick="deleteMasterRound(${idx})" class="text-slate-400 hover:text-rose-500 hover:bg-rose-50 px-3 py-2 rounded-lg transition"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
 }
 
-// ================= หมวด C: ตั้งค่ากิจกรรม =================
-function renderMasterSettings() {
-    document.getElementById('m-set-title').value = currentMasterActivity.title;
-    document.getElementById('m-set-status').value = currentMasterActivity.status;
-    document.getElementById('m-set-date').value = currentMasterActivity.date || '';
-    document.getElementById('m-set-points').value = currentMasterActivity.points || 0;
+window.deleteMasterRound = function(idx) {
+    Swal.fire({title: 'ลบรอบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบทิ้ง', cancelButtonText: 'ยกเลิก'}).then(r => {
+        if (r.isConfirmed) {
+            currentMasterActivity.rounds.splice(idx, 1); saveToLocal(true); renderMasterRoundsTab();
+        }
+    });
 }
 
-window.saveMasterActivitySettings = function() {
-    let newTitle = document.getElementById('m-set-title').value.trim();
-    if (!newTitle) return Swal.fire('เตือน', 'ชื่อกิจกรรมห้ามว่าง', 'warning');
-    
-    // เปลี่ยนชื่อใน Log ด้วยถ้ามีการแก้ชื่อ
-    if (newTitle !== currentMasterActivity.title) {
-        activityLogs.forEach(l => { if (l.activityTitle === currentMasterActivity.title) l.activityTitle = newTitle; });
+function renderMasterDropdowns() {
+    let opts = '<option value="">กรุณาเลือกรอบการลงทะเบียน..</option>';
+    if (currentMasterActivity.rounds && currentMasterActivity.rounds.length > 0) {
+        currentMasterActivity.rounds.forEach(r => opts += `<option value="${r.name}">${r.name}</option>`);
     }
     
-    currentMasterActivity.title = newTitle;
-    currentMasterActivity.status = document.getElementById('m-set-status').value;
-    currentMasterActivity.date = document.getElementById('m-set-date').value;
-    currentMasterActivity.points = parseInt(document.getElementById('m-set-points').value) || 0;
-    
-    saveToLocal(true);
-    populateMasterSelector();
-    document.getElementById('master-act-selector').value = newTitle;
-    Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการตั้งค่าสำเร็จ', showConfirmButton:false, timer:1500});
+    let targetIds = ['m-checkin-round', 'm-qr-round-select', 'm-import-s-round', 'm-import-b-round'];
+    targetIds.forEach(id => {
+        let el = document.getElementById(id);
+        if (el) el.innerHTML = opts;
+    });
 }
 
-// ================= หมวด F: นำเข้า / ส่งออก =================
+window.importMasterParticipants = function() {
+    let rawInput = document.getElementById('m-import-text').value;
+    let roundName = document.getElementById('m-import-b-round').value;
+    
+    if (!roundName) return Swal.fire('เตือน', 'กรุณาเลือกรอบลงทะเบียน', 'warning');
+    
+    let rawIds = rawInput.split(/[\n,]+/).map(id => id.trim()).filter(id => id !== '');
+    if (rawIds.length === 0) return Swal.fire('เตือน', 'กรุณากรอกรหัสอย่างน้อย 1 คน', 'warning');
+    
+    let successCount = 0;
+    rawIds.forEach(rawId => {
+        let cleanId = formatIdSearch(rawId).replace(/-/g, '');
+        let stu = students.find(s => s.id.replace(/-/g,'') === cleanId);
+        if (stu) {
+            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
+            if (!existing) {
+                activityLogs.unshift({ studentId: stu.id, activityTitle: currentMasterActivity.title, roundName: roundName, timeIn: getNow()+'(นำเข้า)', timeOut: null });
+                successCount++;
+            }
+        }
+    });
+
+    if(successCount > 0) saveToLocal(true);
+    document.getElementById('m-import-text').value = '';
+    renderMasterDashboard(); 
+    Swal.fire('ผลการนำเข้า', `นำเข้าสำเร็จ ${successCount} คน จากทั้งหมด ${rawIds.length} รหัส`, 'info');
+}
+
 window.exportActivityToCSV = function() {
     let participants = activityLogs.filter(l => l.activityTitle === currentMasterActivity.title);
     if(participants.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กิจกรรมนี้ยังไม่มีผู้เข้าร่วม', 'info');
@@ -7803,116 +8276,401 @@ window.exportActivityToCSV = function() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-window.importMasterParticipants = function() {
-    let rawIds = document.getElementById('m-import-text').value.split(/[\n,]+/).map(id => id.trim()).filter(id => id !== '');
-    if (rawIds.length === 0) return Swal.fire('เตือน', 'กรุณากรอกรหัสอย่างน้อย 1 คน', 'warning');
+function addActivityAdmin(title) {
+    let act = appSettings.activities.find(a => a.title === title);
+    if (!act) return;
     
-    let successCount = 0;
-    rawIds.forEach(rawId => {
-        let cleanId = formatIdSearch(rawId).replace(/-/g, '');
-        let stu = students.find(s => s.id.replace(/-/g,'') === cleanId);
-        if (stu) {
-            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
-            if (!existing) {
-                activityLogs.unshift({ studentId: stu.id, activityTitle: currentMasterActivity.title, roundName: 'นำเข้า', timeIn: getNow()+'(นำเข้า)', timeOut: null });
-                successCount++;
-            }
+    let user = document.getElementById('admin-user-input').value.trim();
+    let phone = document.getElementById('admin-phone-input').value.trim();
+    if (!user) return Swal.fire({toast:true, position:'top', icon:'warning', title:'กรุณาระบุ Username', showConfirmButton:false, timer:2000});
+    
+    act.admins = act.admins || [];
+    act.admins.push({ user: user, phone: phone });
+    
+    saveToLocal(true);
+    document.getElementById('admin-user-input').value = '';
+    document.getElementById('admin-phone-input').value = '';
+    renderActivityAdmins(title);
+    document.getElementById('admin-count').innerText = act.admins.length;
+    Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มผู้ดูแลสำเร็จ', showConfirmButton:false, timer:1500});
+}
+
+function deleteActivityAdmin(title, index) {
+    let act = appSettings.activities.find(a => a.title === title);
+    if (!act || !act.admins) return;
+    
+    Swal.fire({ title: 'ลบผู้ดูแลนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then(r => {
+        if(r.isConfirmed) {
+            act.admins.splice(index, 1);
+            saveToLocal(true);
+            renderActivityAdmins(title);
+            document.getElementById('admin-count').innerText = act.admins.length;
         }
     });
-
-    if(successCount > 0) saveToLocal(true);
-    document.getElementById('m-import-text').value = '';
-    Swal.fire('ผลการนำเข้า', `สำเร็จ ${successCount} คน จากทั้งหมด ${rawIds.length} รหัส`, 'info');
 }
 
-// ฟังก์ชันอัปเดตปุ่มเมนูให้เป็นสีน้ำเงินแบบ RMUTI
-window.switchMasterTab = function(tabId) {
-    if (!currentMasterActivity) return;
-    document.querySelectorAll('.mtab-content').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`mtab-content-${tabId}`).classList.remove('hidden');
+function renderActivityAdmins(title) {
+    let act = appSettings.activities.find(a => a.title === title);
+    let listEl = document.getElementById('act-admins-list');
+    if (!act || !listEl) return;
     
-    document.querySelectorAll('.mtab-btn').forEach(btn => {
-        btn.className = "mtab-btn px-4 py-2 bg-transparent text-slate-300 hover:text-white rounded text-xs font-bold whitespace-nowrap transition";
-    });
-    document.getElementById(`mtab-${tabId}`).className = "mtab-btn px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold whitespace-nowrap transition shadow-sm";
-    
-    if (tabId === 'dashboard') renderMasterDashboard();
-    if (tabId === 'rounds') renderMasterRoundsTab();
-    if (tabId === 'checkin' || tabId === 'qrcode') renderMasterDropdowns();
-}
-
-// โหลดข้อมูลรอบทั้งหมดลงในตาราง
-function renderMasterRoundsTab() {
-    let tbody = document.getElementById('master-rounds-list');
-    if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
-    
-    if (currentMasterActivity.rounds.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-slate-400">ยังไม่มีการสร้างรอบลงทะเบียน กรุณาเพิ่มรอบด้านบน</td></tr>';
+    act.admins = act.admins || [];
+    if (act.admins.length === 0) {
+        listEl.innerHTML = '<tr><td colspan="3" class="text-center p-12 text-slate-400 bg-slate-50/50"><i class="fas fa-shield-alt text-3xl mb-3 opacity-30"></i><br><span class="font-bold text-sm">ยังไม่มีการเพิ่มผู้ดูแลกิจกรรม</span><br><span class="text-xs">แอดมินหลักของระบบมีสิทธิ์จัดการได้อัตโนมัติอยู่แล้ว</span></td></tr>';
         return;
     }
-
+    
     let html = '';
-    currentMasterActivity.rounds.forEach((r, idx) => {
-        html += `<tr class="border-b hover:bg-slate-50">
-            <td class="p-3 font-bold text-blue-700">${r.name}</td>
-            <td class="p-3 text-center text-slate-600">${r.time || '-'}</td>
-            <td class="p-3 text-center font-bold text-slate-700">${r.max > 0 ? r.max : 'ไม่จำกัด'}</td>
-            <td class="p-3 text-center">
-                <button onclick="deleteMasterRound(${idx})" class="text-rose-500 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition"><i class="fas fa-trash"></i></button>
+    act.admins.forEach((admin, i) => {
+        let initial = admin.user.charAt(0).toUpperCase();
+        html += `<tr class="border-b border-slate-100 hover:bg-slate-50 transition bg-white">
+            <td class="p-4 flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shadow-sm">${initial}</div>
+                <span class="font-bold text-slate-700">${admin.user}</span>
             </td>
+            <td class="p-4 text-slate-500 text-xs font-mono"><i class="fas fa-phone-alt mr-2 text-slate-300"></i> ${admin.phone || '-'}</td>
+            <td class="p-4 text-center"><button onclick="deleteActivityAdmin('${title}', ${i})" class="text-rose-500 bg-rose-50 hover:bg-rose-100 w-8 h-8 rounded-lg transition flex items-center justify-center mx-auto"><i class="fas fa-trash-alt"></i></button></td>
         </tr>`;
     });
-    tbody.innerHTML = html;
+    listEl.innerHTML = html;
 }
 
-// เซฟรอบใหม่ลงฐานข้อมูล
-window.saveNewMasterRound = function() {
-    let name = document.getElementById('new-round-name').value.trim();
-    let time = document.getElementById('new-round-time').value;
-    let max = parseInt(document.getElementById('new-round-max').value) || 0;
-
-    if (!name) return Swal.fire('เตือน', 'กรุณาระบุชื่อรอบ', 'warning');
-    if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
-    if (currentMasterActivity.rounds.find(r => r.name === name)) return Swal.fire('เตือน', 'ชื่อรอบซ้ำกับที่มีอยู่แล้ว', 'warning');
-
-    currentMasterActivity.rounds.push({ name, time, max });
-    saveToLocal(true);
+// =========================================================================
+// 🌟 3. ระบบหน้าต่างการจัดการกิจกรรม และฝั่งนักศึกษา
+// =========================================================================
+window.openRegistrationModal = function(title) {
+    let act = appSettings.activities.find(a => a.title === title);
+    if (!act) return;
     
-    document.getElementById('new-round-name').value = '';
-    document.getElementById('new-round-time').value = '';
-    document.getElementById('new-round-max').value = '';
-    
-    renderMasterRoundsTab();
-    Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มรอบสำเร็จ', showConfirmButton:false, timer:1500});
+    let today = new Date(); today.setHours(0, 0, 0, 0);
+    let regEndDate = act.regEnd ? new Date(act.regEnd) : new Date(act.date);
+    regEndDate.setHours(23, 59, 59, 999);
+    let isStillOpen = (act.isOpen !== false) && (today <= regEndDate);
+
+    let badgeClass = isStillOpen ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500' : 'bg-rose-500/20 text-rose-500 border-rose-500';
+    let badgeText = isStillOpen ? 'เปิดรับสมัคร' : 'ปิดรับสมัครแล้ว';
+    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+
+    let existingLog = null;
+    if (currentUserRole === 'guest' && stuId) {
+        existingLog = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+    }
+
+    let totalMax = 0; if(act.rounds) act.rounds.forEach(r => totalMax += (parseInt(r.max)||0));
+
+    let footerHtml = '';
+    if (currentUserRole !== 'guest' || !stuId) {
+        footerHtml = `<p class="text-sm text-slate-500 font-bold">กรุณาเข้าสู่ระบบนักศึกษาก่อนทำการลงทะเบียน</p>`;
+    } else if (existingLog) {
+        footerHtml = `
+            <div class="bg-emerald-100 text-emerald-600 font-bold py-3.5 rounded-xl mb-3 flex items-center justify-center gap-2 border border-emerald-200"><i class="far fa-check-circle text-lg"></i> คุณลงทะเบียนสำเร็จแล้ว (รอบ: ${existingLog.roundName})</div>
+            <button type="button" onclick="promptCancelReg('${act.title}')" class="w-full bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-sm"><i class="far fa-user-minus text-lg"></i> ยกเลิกการเข้าร่วมกิจกรรม</button>
+        `;
+    } else if (!isStillOpen) {
+        footerHtml = `<button type="button" disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3.5 rounded-xl cursor-not-allowed">ปิดรับสมัครแล้ว</button>`;
+    } else {
+        footerHtml = `<button type="button" onclick="promptConfirmReg('${act.title}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition">ลงทะเบียนเข้าร่วมกิจกรรม</button>`;
+    }
+
+    let htmlForm = `
+    <div class="text-left font-sans">
+        <div class="bg-[#1e293b] text-white p-8 relative rounded-t-3xl">
+            <button type="button" onclick="Swal.close()" class="absolute top-4 right-5 text-slate-400 hover:text-white transition"><i class="fas fa-times text-2xl"></i></button>
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <span class="${badgeClass} text-xs font-bold px-3 py-1 rounded-full border"><i class="fas fa-circle text-[8px] mr-1 mb-0.5"></i> ${badgeText}</span>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-bold mb-4 pr-12 leading-tight">${act.title}</h2>
+            <div class="absolute bottom-6 right-6 hidden md:flex gap-3">
+                <div class="bg-white/10 rounded-xl p-2 text-center w-20 backdrop-blur-sm border border-white/10"><p class="text-[10px] text-slate-300 mb-1">หน่วยกิต/ชม.</p><p class="font-bold text-xl leading-none text-white">${act.hours || 0}</p></div>
+                <div class="bg-white/10 rounded-xl p-2 text-center w-20 backdrop-blur-sm border border-white/10"><p class="text-[10px] text-slate-300 mb-1">ปีการศึกษา</p><p class="font-bold text-xl leading-none text-white">${act.year || '-'}</p></div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 md:p-8 flex flex-col lg:flex-row gap-8">
+             <div class="flex-1">
+                 <h3 class="font-bold text-slate-700 mb-4 flex items-center"><i class="fas fa-book-open text-blue-500 mr-2 text-lg"></i> รายละเอียดกิจกรรม</h3>
+                 <p class="text-slate-600 text-sm leading-relaxed mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">${act.desc || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div class="bg-blue-50 border border-blue-100 p-5 rounded-2xl">
+                         <h4 class="font-bold text-blue-800 text-sm mb-3 flex items-center"><i class="far fa-star text-blue-500 mr-2"></i> ช่วงวันลงทะเบียน</h4>
+                         <p class="text-xs text-blue-700 mb-1">เริ่ม: <span class="font-bold">${act.regStart || 'ไม่ระบุ'}</span></p>
+                         <p class="text-xs text-blue-700">สิ้นสุด: <span class="font-bold">${act.regEnd || 'ไม่ระบุ'}</span></p>
+                     </div>
+                     <div class="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                         <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center"><i class="far fa-calendar-alt text-slate-500 mr-2"></i> วันจัดกิจกรรม</h4>
+                         <p class="text-xs text-slate-600 mb-1">เริ่ม: <span class="font-bold">${act.date || 'ไม่ระบุ'}</span></p>
+                         <p class="text-xs text-slate-600">สิ้นสุด: <span class="font-bold">${act.actEnd || 'ไม่ระบุ'}</span></p>
+                     </div>
+                 </div>
+             </div>
+             <div class="w-full lg:w-1/3 bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6 self-start">
+                 <h3 class="font-bold text-slate-700 text-sm border-b border-slate-200 pb-2">ข้อมูลเพิ่มเติม</h3>
+                 <div class="flex gap-4 items-start"><div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-blue-500 shrink-0 shadow-sm"><i class="fas fa-users"></i></div><div><p class="text-[10px] font-bold text-slate-400">เปิดรับ</p><p class="text-sm font-bold text-slate-800 mt-0.5">${totalMax > 0 ? totalMax + ' ที่นั่ง' : 'ไม่จำกัด'}</p></div></div>
+                 <div class="flex gap-4 items-start"><div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-purple-500 shrink-0 shadow-sm"><i class="fas fa-hashtag"></i></div><div><p class="text-[10px] font-bold text-slate-400">เทอมที่จัด</p><p class="text-sm font-bold text-slate-800 mt-0.5">ปี ${act.year} | เทอม ${act.term}</p></div></div>
+             </div>
+        </div>
+        <div class="p-6 bg-white border-t border-slate-100 text-center rounded-b-3xl">
+            ${footerHtml}
+        </div>
+    </div>`;
+
+    Swal.fire({
+        html: htmlForm, width: '900px', padding: 0, showConfirmButton: false,
+        customClass: { popup: 'rounded-3xl overflow-hidden shadow-2xl' }
+    });
 }
 
-// ลบรอบ
-window.deleteMasterRound = function(idx) {
-    Swal.fire({title: 'ลบรอบนี้?', text: 'ข้อมูลการลงทะเบียนในรอบนี้ของนักศึกษาจะไม่ถูกลบ แต่รอบจะหายไปจากตัวเลือก', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48'}).then(r => {
-        if (r.isConfirmed) {
-            currentMasterActivity.rounds.splice(idx, 1);
-            saveToLocal(true);
-            renderMasterRoundsTab();
+window.promptConfirmReg = function(title) {
+    let act = appSettings.activities.find(a => a.title === title);
+    let roundsHtml = '';
+    
+    if(act.rounds && act.rounds.length > 0) {
+        roundsHtml = '<div class="mt-5 text-left"><label class="block text-sm font-bold text-slate-700 mb-2">โปรดเลือกรอบที่ต้องการเข้าร่วม *</label><div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">';
+        act.rounds.forEach((r, i) => {
+            let currentReg = activityLogs.filter(l => l.activityTitle === act.title && l.roundName === r.name).length;
+            let isFull = r.max > 0 && currentReg >= r.max;
+            roundsHtml += `
+            <label class="flex items-center p-3 bg-white border rounded-xl cursor-pointer transition ${isFull ? 'border-slate-200 opacity-50' : 'hover:border-blue-300 hover:shadow-sm peer-checked:border-blue-500 peer-checked:bg-blue-50'}">
+                <input type="radio" name="select_round" value="${r.name}" class="mr-3 w-4 h-4 text-blue-600" ${isFull ? 'disabled' : ''}>
+                <div class="flex-1">
+                    <p class="font-bold text-sm text-slate-800 ${isFull ? 'text-slate-400' : ''}">${r.name}</p>
+                    <p class="text-[10px] text-slate-500"><i class="far fa-clock mr-1"></i>${r.time || '-'}</p>
+                </div>
+                <span class="text-xs font-bold px-2 py-1 rounded-md ${isFull ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}">${isFull ? 'ที่นั่งเต็ม' : (r.max > 0 ? `ว่าง (${r.max - currentReg}/${r.max})` : 'ไม่จำกัด')}</span>
+            </label>`;
+        });
+        roundsHtml += '</div></div>';
+    }
+
+    Swal.fire({
+        html: `
+        <div class="text-left mt-2">
+            <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-4 border border-blue-100 shadow-sm"><i class="fas fa-check"></i></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">ยืนยันการลงทะเบียน</h2>
+            <div class="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 text-sm leading-relaxed font-bold flex gap-3 shadow-inner">
+                <i class="fas fa-thumbtack text-rose-500 mt-1 text-lg"></i>
+                <p>${act.title}</p>
+            </div>
+            ${roundsHtml}
+        </div>`,
+        showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#111827', cancelButtonColor: '#ffffff', reverseButtons: true,
+        customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: '!text-slate-600 border border-slate-300 shadow-sm rounded-xl px-6 py-3 font-bold hover:bg-slate-50' },
+        preConfirm: () => {
+            let selectedRound = 'รอบปกติ';
+            if(act.rounds && act.rounds.length > 0) {
+                let radio = document.querySelector('input[name="select_round"]:checked');
+                if(!radio) return Swal.showValidationMessage('กรุณาเลือกรอบกิจกรรม');
+                selectedRound = radio.value;
+            }
+            return selectedRound;
+        }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            let stuId = window.currentGuestStuId;
+            let cleanStuId = String(stuId).replace(/-/g, '').trim();
+            let alreadyReg = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanStuId && l.activityTitle === act.title);
+            
+            if (!alreadyReg) {
+                activityLogs.unshift({ studentId: stuId, activityTitle: act.title, roundName: res.value, timeIn: 'จองสิทธิ์ล่วงหน้า', timeOut: null });
+                saveToLocal(true); 
+                if(typeof renderActivities === 'function') renderActivities();
+                if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            }
+            Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: 'บันทึกรายชื่อของคุณแล้ว', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(act.title));
         }
     });
 }
 
-// ฟังก์ชัน Sync ข้อมูลรอบ ไปใส่ใน Dropdown ให้หน้าสแกน/QR อัตโนมัติ!
-function renderMasterDropdowns() {
-    let opts = '<option value="">-- กรุณาเลือกรอบลงทะเบียน --</option>';
-    if (currentMasterActivity.rounds && currentMasterActivity.rounds.length > 0) {
-        currentMasterActivity.rounds.forEach(r => opts += `<option value="${r.name}">${r.name}</option>`);
-    } else {
-        opts += '<option value="รอบทั่วไป">ยังไม่ได้สร้างรอบ (คลิกแท็บรอบลงทะเบียนเพื่อสร้าง)</option>';
-    }
-    
-    // อัปเดต Dropdown ในทุกๆ หน้าที่มีการเลือกรอบ
-    let checkinSelect = document.getElementById('m-checkin-round'); // หน้าเช็คชื่อด้วยมือ
-    let qrSelect = document.getElementById('m-qr-round-select');    // หน้าตั้งค่า QR Code
-    
-    if (checkinSelect) checkinSelect.innerHTML = opts;
-    if (qrSelect) qrSelect.innerHTML = opts;
+window.promptCancelReg = function(title) {
+    Swal.fire({
+        html: `
+        <div class="text-left mt-2">
+            <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-2xl mb-4 border border-rose-100 shadow-sm"><i class="fas fa-exclamation"></i></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">ยกเลิกการลงทะเบียน?</h2>
+            <div class="bg-rose-50/70 border border-rose-100 p-4 rounded-xl text-rose-800 text-sm leading-relaxed font-bold flex gap-3 shadow-inner">
+                <i class="fas fa-exclamation-triangle text-amber-500 mt-1 text-lg"></i>
+                <p>${title}</p>
+            </div>
+        </div>`,
+        showCancelButton: true, confirmButtonText: 'ยืนยันยกเลิก', cancelButtonText: 'ปิดหน้าต่าง',
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#ffffff', reverseButtons: true,
+        customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold shadow-md', cancelButton: '!text-slate-600 border border-slate-300 shadow-sm rounded-xl px-6 py-3 font-bold hover:bg-slate-50' }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            let stuId = window.currentGuestStuId;
+            let cleanStuId = String(stuId).replace(/-/g, '').trim();
+            activityLogs = activityLogs.filter(l => !(String(l.studentId).replace(/-/g, '').trim() === cleanStuId && l.activityTitle === title));
+            saveToLocal(true); 
+            if(typeof renderActivities === 'function') renderActivities();
+            if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            Swal.fire({ icon: 'success', title: 'ยกเลิกสำเร็จ', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(title));
+        }
+    });
 }
+
+// ฟังก์ชันสร้าง/แก้ไข กิจกรรม 
+function createActivityModal() {
+    let htmlForm = `
+    <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4 font-sans">
+        <div>
+            <h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐานกิจกรรม</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ไทย) *</label><input id="act-title" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2"></div>
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ENG)</label><input id="act-title-eng" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2"></div>
+            </div>
+        </div>
+        <hr class="border-slate-200">
+        <div>
+            <h4 class="font-bold text-blue-700 mb-3 text-sm">รายละเอียดคะแนนและปีการศึกษา</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">ปีการศึกษา *</label><input id="act-year" type="number" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2" value="${new Date().getFullYear() + 543}"></div>
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">ภาคเรียน *</label><input id="act-term" type="number" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2" value="1"></div>
+            </div>
+        </div>
+        <hr class="border-slate-200">
+        <div>
+            <h4 class="font-bold text-blue-700 mb-3 text-sm">กำหนดการ</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <h5 class="font-bold text-slate-800 mb-3 text-xs border-b border-slate-200 pb-1">ช่วงเวลาการสมัคร</h5>
+                    <div class="space-y-3">
+                        <div><label class="block text-xs font-bold text-slate-700 mb-1">เริ่มรับสมัคร</label><input id="act-reg-start" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
+                        <div><label class="block text-xs font-bold text-slate-700 mb-1">สิ้นสุดการสมัคร</label><input id="act-reg-end" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
+                    </div>
+                </div>
+                <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <h5 class="font-bold text-blue-800 mb-3 text-xs border-b border-blue-200 pb-1">ช่วงเวลาจัดกิจกรรม</h5>
+                    <div class="space-y-3">
+                        <div><label class="block text-xs font-bold text-slate-700 mb-1">วันที่เริ่มกิจกรรม *</label><input id="act-start" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
+                        <div><label class="block text-xs font-bold text-slate-700 mb-1">วันที่สิ้นสุดกิจกรรม</label><input id="act-end" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr class="border-slate-200">
+        <div>
+            <h4 class="font-bold text-slate-800 mb-3 text-sm">รายละเอียดกิจกรรมเพิ่มเติม</h4>
+            <textarea id="act-desc" rows="3" class="modern-input w-full border-slate-300 rounded-lg p-2 text-sm"></textarea>
+        </div>
+    </div>`;
+
+    Swal.fire({
+        title: '<div class="flex items-center text-blue-700 text-lg font-bold border-b pb-2"><i class="fas fa-paper-plane mr-2"></i> แบบฟอร์มคำขอสร้างกิจกรรมใหม่</div>',
+        html: htmlForm, width: '800px', showCancelButton: true, confirmButtonText: 'ส่งคำขอสร้างกิจกรรม', confirmButtonColor: '#2563eb', cancelButtonText: 'ปิด',
+        preConfirm: () => {
+            const title = document.getElementById('act-title').value.trim();
+            const date = document.getElementById('act-start').value;
+            if (!title || !date) return Swal.showValidationMessage('กรุณาระบุชื่อกิจกรรม(ไทย) และ วันที่เริ่มกิจกรรม');
+            if (appSettings.activities.find(a => a.title === title)) return Swal.showValidationMessage('มีชื่อกิจกรรมนี้ในระบบแล้ว');
+
+            return {
+                title: title, titleEng: document.getElementById('act-title-eng').value.trim(),
+                year: document.getElementById('act-year').value, term: document.getElementById('act-term').value,
+                date: date, actEnd: document.getElementById('act-end').value,
+                regStart: document.getElementById('act-reg-start').value, regEnd: document.getElementById('act-reg-end').value,
+                desc: document.getElementById('act-desc').value,
+                status: 'รออนุมัติ', isOpen: true,
+                rounds: [], hours: 0, points: 0 
+            };
+        }
+    }).then(res => {
+        if (res.isConfirmed) {
+            appSettings.activities.push(res.value);
+            txHistory.unshift({ date: getNow(), name: 'สร้างกิจกรรม: ' + res.value.title, type: 'ระบบ', amt: 0, user: currentUsername });
+            saveToLocal(true); if(typeof renderActivities === 'function') renderActivities();
+            Swal.fire({ title: 'สำเร็จ', text: 'บันทึกข้อมูลเรียบร้อย', icon: 'success' });
+        }
+    });
+}
+
+function editActivityModal(oldTitle) {
+    let actIndex = appSettings.activities.findIndex(a => a.title === oldTitle);
+    if(actIndex === -1) return;
+    let act = appSettings.activities[actIndex];
+    let isRegOpen = act.isOpen !== false; 
+    let isVisible = act.isVisible !== false; 
+    let isCrossCampus = act.isCrossCampus === true;
+
+    let htmlForm = `
+    <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4 font-sans">
+        <div>
+            <h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐานกิจกรรม</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ไทย) *</label><input id="edit-act-title" class="modern-input w-full border-slate-300 rounded-lg p-2" value="${act.title}"></div>
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ENG)</label><input id="edit-act-title-eng" class="modern-input w-full border-slate-300 rounded-lg p-2" value="${act.titleEng || ''}"></div>
+            </div>
+        </div>
+        <hr class="border-slate-200">
+        <div>
+            <h4 class="font-bold text-emerald-600 mb-3 text-sm">การตั้งค่าการมองเห็นและการเข้าถึง</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label class="cursor-pointer border rounded-xl p-3 flex items-start gap-3 transition ${isRegOpen ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}"><input type="checkbox" id="edit-set-open" class="mt-1 w-4 h-4 text-emerald-600" ${isRegOpen ? 'checked' : ''}><div><p class="font-bold text-sm ${isRegOpen ? 'text-emerald-700' : 'text-slate-700'}"><i class="fas fa-user-plus mr-1"></i> เปิดรับสมัคร</p></div></label>
+            </div>
+        </div>
+        <hr class="border-slate-200">
+        <div>
+            <h4 class="font-bold text-blue-700 mb-3 text-sm">กำหนดการ</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <h5 class="font-bold text-slate-800 mb-3 text-xs border-b pb-1">ช่วงเวลาลงทะเบียน</h5>
+                    <div class="space-y-3">
+                        <div><label class="block text-xs font-bold text-slate-700 mb-1">เริ่ม</label><input id="edit-act-reg-start" type="date" class="w-full p-2 border rounded-lg" value="${act.regStart || ''}"></div>
+                        <div><label class="block text-xs font-bold text-slate-700 mb-1">สิ้นสุด</label><input id="edit-act-reg-end" type="date" class="w-full p-2 border rounded-lg" value="${act.regEnd || ''}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    Swal.fire({
+        title: '<div class="text-left text-slate-800 text-lg font-bold border-b pb-2">แก้ไขข้อมูลกิจกรรม</div>',
+        html: htmlForm, width: '800px', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            const title = document.getElementById('edit-act-title').value.trim();
+            if(!title) return Swal.showValidationMessage('กรุณาระบุชื่อกิจกรรม');
+            return {
+                title: title, titleEng: document.getElementById('edit-act-title-eng').value,
+                regStart: document.getElementById('edit-act-reg-start').value, regEnd: document.getElementById('edit-act-reg-end').value,
+                isOpen: document.getElementById('edit-set-open').checked
+            };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            let nTitle = res.value.title;
+            if (nTitle !== oldTitle) activityLogs.forEach(l => { if(l.activityTitle === oldTitle) l.activityTitle = nTitle; });
+            appSettings.activities[actIndex] = { ...act, ...res.value };
+            saveToLocal(true); if(typeof renderActivities === 'function') renderActivities();
+            Swal.fire('สำเร็จ!', 'อัปเดตข้อมูลกิจกรรมเรียบร้อยแล้ว', 'success');
+        }
+    });
+}
+
+function deleteActivity(title) { 
+    Swal.fire({ title: 'ลบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then((r) => { 
+        if (r.isConfirmed) { 
+            appSettings.activities = appSettings.activities.filter(a => a.title !== title); 
+            txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); 
+            saveToLocal(true); refreshAll(); 
+            Swal.fire('สำเร็จ', 'ลบกิจกรรมออกจากระบบแล้ว', 'success'); 
+        } 
+    }); 
+}
+
+function approveActivity(title) { 
+    Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { 
+        if (r.isConfirmed) { 
+            let act = appSettings.activities.find(a => a.title === title); 
+            if (act) { 
+                act.status = 'อนุมัติแล้ว'; act.isOpen = true; 
+                txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); 
+                saveToLocal(true); refreshAll(); 
+                Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อนุมัติกิจกรรมสำเร็จ', showConfirmButton: false, timer: 1500}); 
+            } 
+        } 
+    }); 
+}
+
     </script>
 
    <!-- ================= Modal E-Receipt (Minimalist Glow Style) ================= -->
