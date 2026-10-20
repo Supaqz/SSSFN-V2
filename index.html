@@ -636,11 +636,26 @@
     }
 
     let isFirstLoad = true;
-    db.collection('systemSignals').doc('lastUpdate').onSnapshot((doc) => {
+    db.collection('systemSignals').doc('lastUpdate').onSnapshot(async (doc) => {
         if (isFirstLoad) { isFirstLoad = false; return; }
-        if (typeof Swal !== 'undefined' && !Swal.isVisible()) {
-            console.log("🔥 Firebase กริ่งดัง! กำลังดึงข้อมูลล่าสุด...");
-            if (typeof silentPullFromGS === "function") silentPullFromGS();
+        
+        // 🌟 ระดับ 2 (Real-time แท้): ถ้ากริ่งดัง ให้ดึงข้อมูลจาก Firebase Queue มาอัปเดตหน้าจอทันที (0.1 วิ)
+        if (!isSyncing && typeof Swal !== 'undefined' && !Swal.isVisible()) {
+            console.log("⚡ Firebase กริ่งดัง! กำลังอัปเดตหน้าจอแบบ Real-time...");
+            try {
+                let queueDoc = await db.collection('syncQueue').doc('latest').get();
+                if (queueDoc.exists && queueDoc.data().payload) {
+                    let fastData = JSON.parse(queueDoc.data().payload);
+                    applyLoadedData(fastData); 
+                    console.log("🚀 อัปเดตหน้าจอข้ามเครื่องสำเร็จใน 0 วินาที!");
+                } else {
+                    // ถ้าคิวว่าง (หุ่นยนต์เอาลง Sheet ไปแล้ว) ค่อยไปดึงจาก Sheets เป็นแผนสำรอง
+                    if (typeof silentPullFromGS === "function") silentPullFromGS();
+                }
+            } catch (err) {
+                console.log("ดึงข้อมูล Firebase พลาด สลับไปใช้ Sheets แทน:", err);
+                if (typeof silentPullFromGS === "function") silentPullFromGS();
+            }
         }
     });
         // 🌟 ฟังก์ชันตัวช่วยส่งข้อมูลไป Google Sheets (ย้ายมา GitHub ต้องใช้ตัวนี้)
@@ -906,13 +921,12 @@ function saveToLocal(triggerSync = true) {
     let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
     localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
     
-    // 🌟 แก้ไข: ให้ระบบ Auto Sync ทำงาน "เฉพาะตอนที่เป็นแอดมิน" เท่านั้น!
-    // ถ้านักศึกษา (guest) กดทำรายการ ระบบจะไม่เซฟทับข้อมูลทั้งก้อนไปที่ Sheets
+    // 🌟 ให้นักศึกษา (guest) เซฟลงเครื่องตัวเองก็พอ ไม่ต้องดันขึ้นระบบใหญ่
     if(triggerSync && currentUserRole !== 'guest') { 
         clearTimeout(syncTimeout); 
         syncTimeout = setTimeout(() => {
             if(!isSyncing) autoSyncToGS();
-        }, 3000); 
+        }, 100); // 🌟 แก้ตรงนี้: เปลี่ยนจาก 3000 เป็น 100 (ใช้เวลาแค่ 0.1 วินาทีในการส่งข้อมูลเข้าคิว Firebase)
     } 
 }
         function loadFromLocal() {
