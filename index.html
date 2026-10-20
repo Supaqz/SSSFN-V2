@@ -639,18 +639,17 @@
     db.collection('systemSignals').doc('lastUpdate').onSnapshot(async (doc) => {
         if (isFirstLoad) { isFirstLoad = false; return; }
         
-        if (!isSyncing && typeof Swal !== 'undefined' && !Swal.isVisible()) {
-            console.log("⚡ Firebase กริ่งดัง! กำลังอัปเดตหน้าจอ...");
+        // 🌟 ลบเงื่อนไข !Swal.isVisible() ออก เพื่อให้ระบบซิงก์ได้ตลอดเวลาแม้จะเปิดป๊อปอัปอยู่
+        if (!isSyncing) {
+            console.log("⚡ Firebase กริ่งดัง! กำลังอัปเดตหน้าจอแบบ Real-time...");
             try {
                 let queueDoc = await db.collection('syncQueue').doc('latest').get();
                 
-                // 🌟 แก้ไข: ถ้ามีคิวข้อมูลที่ใหม่กว่า ให้ใช้คิวเลย ห้ามดึง Sheet มาทับ!
                 if (queueDoc.exists && queueDoc.data().payload) {
                     let fastData = JSON.parse(queueDoc.data().payload);
                     applyLoadedData(fastData); 
                     console.log("🚀 อัปเดตหน้าจอด้วยข้อมูลใหม่สุดสำเร็จ!");
                 } else {
-                    // 🌟 ดึง Sheet เฉพาะตอนที่คิวว่างเท่านั้น (เช่น เวลามีคนส่งสลิปเข้าหลังบ้านตรงๆ)
                     console.log("⏳ คิวว่าง กำลังหน่วงเวลาดึงข้อมูลจาก Sheets...");
                     let randomDelay = Math.floor(Math.random() * 2000) + 500;
                     setTimeout(() => {
@@ -4554,31 +4553,33 @@ function viewSlipPopup(url) {
             }).then(confirmRes => {
                 if (confirmRes.isConfirmed) {
                             
+                    // 🌟 1. ดึงข้อมูลตัวจริงใหม่ล่าสุดอีกครั้งก่อนประมวลผล เพื่อกันข้อมูลเก่าทับ
+                    let liveStu = students.find(s => s.id == studentId);
+                    let liveRound = fundRounds.find(rd => rd.id == roundId);
+                    let livePayment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+                            
                     // 1. ตัดบิลปัจจุบัน
-                    if(currentPayment) {
-                        let wasPaid = currentPayment.status.includes('จ่ายแล้ว');
-                        currentPayment.paidAmt = (currentPayment.paidAmt || 0) + currentBillPay;
-                        currentPayment.status = (currentPayment.paidAmt >= round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
+                    if(livePayment) {
+                        let wasPaid = livePayment.status.includes('จ่ายแล้ว');
+                        livePayment.paidAmt = (livePayment.paidAmt || 0) + currentBillPay;
+                        livePayment.status = (livePayment.paidAmt >= liveRound.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
                         
-                        // 🌟 ดึงคะแนนจากที่แอดมินตั้งค่าไว้และบวกแต้ม
                         let payPoints = (appSettings.ptsConfig && appSettings.ptsConfig.pay !== undefined) ? parseInt(appSettings.ptsConfig.pay) : 10;
-                        if (!wasPaid && currentPayment.status.includes('จ่ายแล้ว') && payPoints > 0) {
-                            stu.points = (stu.points || 0) + payPoints;
-                            txHistory.unshift({ date: getNow(), name: `+${payPoints} แต้ม (ชำระเงิน "${round.title}" ครบถ้วน)`, type: 'ระบบ', amt: 0, user: currentUsername });
+                        if (!wasPaid && livePayment.status.includes('จ่ายแล้ว') && payPoints > 0) {
+                            liveStu.points = (liveStu.points || 0) + payPoints;
+                            txHistory.unshift({ date: getNow(), name: `+${payPoints} แต้ม (ชำระเงิน "${liveRound.title}" ครบถ้วน)`, type: 'ระบบ', amt: 0, user: currentUsername });
                         }
                         
-                        // บันทึกข้อมูลสำหรับล็อกใบเสร็จ
-                        currentPayment.paidDate = getNow(); 
-                        currentPayment.paidBy = currentUsername || 'ผู้ดูแลระบบ';
+                        livePayment.paidDate = getNow(); 
+                        livePayment.paidBy = currentUsername || 'ผู้ดูแลระบบ';
                         
-                        // ล็อกเลข Reference ไว้ถาวร (ถ้ายังไม่มี)
-                        if (!currentPayment.receiptRef) {
-                            currentPayment.receiptRef = 'SSSFN-' + roundId + '-' + String(studentId).replace(/-/g,'') + '-' + Math.floor(1000 + Math.random() * 9000);
+                        if (!livePayment.receiptRef) {
+                            livePayment.receiptRef = 'SSSFN-' + roundId + '-' + String(studentId).replace(/-/g,'') + '-' + Math.floor(1000 + Math.random() * 9000);
                         }
                         
                         txHistory.unshift({ 
                             date: getNow(), 
-                            name: `รับเงิน (${round.title}): ${stu.name}`, 
+                            name: `รับเงิน (${liveRound.title}): ${liveStu.name}`, 
                             type: 'ระบบ', 
                             amt: currentBillPay, 
                             user: currentUsername 
@@ -4587,26 +4588,27 @@ function viewSlipPopup(url) {
                             
                     // 2. ตัดบิลค้างเก่า
                     otherPaymentsToUpdate.forEach(upd => {
-                        upd.payment.paidAmt = (upd.payment.paidAmt || 0) + upd.payAmt;
-                        upd.payment.status = (upd.payment.paidAmt >= upd.round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
-                        txHistory.unshift({ date: getNow(), name: `ตัดหนี้ค้างออโต้ (${upd.round.title}): ${stu.name}`, type: 'ระบบ', amt: upd.payAmt, user: currentUsername });
+                        let liveOtherP = fundPayments.find(p => p.roundId == upd.round.id && p.studentId == studentId);
+                        if(liveOtherP) {
+                            liveOtherP.paidAmt = (liveOtherP.paidAmt || 0) + upd.payAmt;
+                            liveOtherP.status = (liveOtherP.paidAmt >= upd.round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
+                            txHistory.unshift({ date: getNow(), name: `ตัดหนี้ค้างออโต้ (${upd.round.title}): ${liveStu.name}`, type: 'ระบบ', amt: upd.payAmt, user: currentUsername });
+                        }
                     });
                             
                     // 3. ทบยอดฝาก และเปลี่ยนชื่อสลิป
                     if (depositAdd > 0) {
-                        stu.dep = (stu.dep || 0) + depositAdd;
+                        liveStu.dep = (liveStu.dep || 0) + depositAdd;
                         
-                        if(currentPayment && currentPayment.slipUrl) stu.lastDepositSlip = currentPayment.slipUrl;
-                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${stu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
+                        if(livePayment && livePayment.slipUrl) liveStu.lastDepositSlip = livePayment.slipUrl;
+                        txHistory.unshift({ date: getNow(), name: `ฝากเงินล่วงหน้า (เงินโอนเกิน): ${liveStu.name}`, type: 'ฝาก', amt: depositAdd, user: currentUsername });
                                 
-                        // 🌟 แก้ไข: เปลี่ยนไปใช้ callBackend เพื่อไม่ให้หน้าเว็บแครช
-                        if (!isCash && currentPayment && currentPayment.slipUrl) {
-                            // สั่งให้ Backend ไปเปลี่ยนชื่อไฟล์เงียบๆ โดยไม่รอผลลัพธ์
+                        if (!isCash && livePayment && livePayment.slipUrl) {
                             callBackend({
-                                action: 'renameOverpaidSlipAPI', // ต้องเพิ่มเคสนี้ใน doPost ทีหลัง
-                                slipUrl: currentPayment.slipUrl, 
-                                studentId: stu.id, 
-                                studentName: stu.name
+                                action: 'renameOverpaidSlipAPI', 
+                                slipUrl: livePayment.slipUrl, 
+                                studentId: liveStu.id, 
+                                studentName: liveStu.name
                             }).catch(e => console.log("Rename slip failed", e));
                         }
                     }
@@ -4616,7 +4618,7 @@ function viewSlipPopup(url) {
                     recalculateDebts(); 
                     renderFundTable(); // รีเฟรชตาราง
                     renderHomeDirectory();
-                    updateSidebarBadges(); // 🌟 อัปเดตตัวเลขแจ้งเตือนสีแดงทันที
+                    if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
                     autoSyncToGS(); // แจ้งเครื่องอื่นหลังบันทึก Sheets สำเร็จ
                     
                     Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกรับเงินสำเร็จ!', showConfirmButton:false, timer:1500});
@@ -4626,8 +4628,8 @@ function viewSlipPopup(url) {
     });
 }
 
-        // 🌟 กล่องแก้ไขสถานะ (Popup) ที่เพิ่มการบันทึกเวลาประทับ (Timestamp)
-function editPaymentStatus(roundId, studentId) {
+// 🌟 กล่องแก้ไขสถานะ (Popup) ที่เพิ่มการดึงข้อมูลสด
+window.editPaymentStatus = function(roundId, studentId) {
     let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
     let stu = students.find(s => s.id == studentId); 
     let round = fundRounds.find(rd => rd.id == roundId);
@@ -4663,7 +4665,6 @@ function editPaymentStatus(roundId, studentId) {
         preConfirm: () => {
             let stat = document.getElementById('edit-p-stat').value;
             let amt = parseFloat(document.getElementById('edit-p-amt').value) || 0;
-            
             if (stat === 'จ่ายแล้ว' || stat === 'จ่ายแล้ว (เงินสด)') {
                 if (amt < round.amt) amt = round.amt;
             }
@@ -4671,23 +4672,27 @@ function editPaymentStatus(roundId, studentId) {
         }
     }).then(r => {
         if(r.isConfirmed) {
-            payment.status = r.value.status; 
-            payment.paidAmt = r.value.paidAmt;
+            // 🌟 1. ดึงข้อมูลตัวจริงใหม่ล่าสุดอีกครั้ง ป้องกันแอดมินคนอื่นซิงก์ข้อมูลทับ
+            let livePayment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+            let liveStu = students.find(s => s.id == studentId); 
+            let liveRound = fundRounds.find(rd => rd.id == roundId);
+            if(!livePayment || !liveStu || !liveRound) return;
+
+            livePayment.status = r.value.status; 
+            livePayment.paidAmt = r.value.paidAmt;
             
-            // 🌟 ตรวจสอบสถานะการจ่ายเงิน พร้อมล็อกข้อมูลใบเสร็จให้ครบถ้วน
             if (r.value.status.includes('จ่ายแล้ว')) {
-                if (!payment.paidDate) payment.paidDate = getNow(); // ล็อกวันเวลาครั้งแรก (หรืออัปเดตทุกครั้งที่แก้วันที่)
-                payment.paidBy = currentUsername || 'ผู้ดูแลระบบ'; // ป้องกันชื่อว่างเปล่า
-                
-                // สร้างเลข Reference ถาวร หากยังไม่เคยมี
-                if (!payment.receiptRef) {
-                    payment.receiptRef = 'SSSFN-' + roundId + '-' + String(studentId).replace(/-/g,'') + '-' + Math.floor(1000 + Math.random() * 9000);
+                if (!livePayment.paidDate) livePayment.paidDate = getNow(); 
+                livePayment.paidBy = currentUsername || 'ผู้ดูแลระบบ'; 
+                if (!livePayment.receiptRef) {
+                    livePayment.receiptRef = 'SSSFN-' + roundId + '-' + String(studentId).replace(/-/g,'') + '-' + Math.floor(1000 + Math.random() * 9000);
                 }
             }
 
-            txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${round.title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
-            updateSidebarBadges(); // 🌟 อัปเดตตัวเลขแจ้งเตือนสีแดงทันที
+            txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${liveRound.title}): ${liveStu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+
             saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
+            if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขสำเร็จ', showConfirmButton:false, timer:1500});
         }
     });
