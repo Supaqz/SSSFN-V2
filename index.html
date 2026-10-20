@@ -639,20 +639,19 @@
     db.collection('systemSignals').doc('lastUpdate').onSnapshot(async (doc) => {
         if (isFirstLoad) { isFirstLoad = false; return; }
         
-        // 🌟 ระดับ 2 (Real-time แท้): ถ้ากริ่งดัง ให้ดึงข้อมูลมาอัปเดตหน้าจอทันที
         if (!isSyncing && typeof Swal !== 'undefined' && !Swal.isVisible()) {
-            console.log("⚡ Firebase กริ่งดัง! กำลังอัปเดตหน้าจอแบบ Real-time...");
+            console.log("⚡ Firebase กริ่งดัง! กำลังอัปเดตหน้าจอ...");
             try {
-                // 1. ดึงคิวที่เร็วที่สุดมาแสดงผลบนหน้าจอทันที (0 วิ) สำหรับแอดมิน
                 let queueDoc = await db.collection('syncQueue').doc('latest').get();
+                
+                // 🌟 แก้ไข: ถ้ามีคิวข้อมูลที่ใหม่กว่า ให้ใช้คิวเลย ห้ามดึง Sheet มาทับ!
                 if (queueDoc.exists && queueDoc.data().payload) {
                     let fastData = JSON.parse(queueDoc.data().payload);
                     applyLoadedData(fastData); 
-                    console.log("🚀 อัปเดตหน้าจอข้ามเครื่องสำเร็จใน 0 วินาที!");
+                    console.log("🚀 อัปเดตหน้าจอด้วยข้อมูลใหม่สุดสำเร็จ!");
                 } else {
-                    // 2. ถ้าคิวว่าง (เช่น สลิปเพิ่งส่งเข้า Sheet โดยตรง)
-                    // 🌟 เพิ่ม Random Delay (สุ่ม 0.5 - 2.5 วินาที) ป้องกันทุกเครื่องแย่งกันพุ่งเข้า Google Sheets พร้อมกันจนเซิร์ฟเวอร์ล่ม
-                    console.log("⏳ กำลังหน่วงเวลาดึงข้อมูลจาก Sheets แบบสุ่ม เพื่อลดภาระเซิร์ฟเวอร์...");
+                    // 🌟 ดึง Sheet เฉพาะตอนที่คิวว่างเท่านั้น (เช่น เวลามีคนส่งสลิปเข้าหลังบ้านตรงๆ)
+                    console.log("⏳ คิวว่าง กำลังหน่วงเวลาดึงข้อมูลจาก Sheets...");
                     let randomDelay = Math.floor(Math.random() * 2000) + 500;
                     setTimeout(() => {
                         if (typeof silentPullFromGS === "function") silentPullFromGS();
@@ -913,6 +912,10 @@ function applyLoadedData(d) {
                         studentId: canonicalStudent ? canonicalStudent.id : String(serverP.studentId == null ? '' : serverP.studentId).trim(),
                         status,
                         paidAmt: finalPaidAmt,
+                        // 🌟 ป้องกันข้อมูลเวลา/ผู้รับเงิน/เลขที่ใบเสร็จหายจากการโดน Sheet ดึงทับ
+                        paidDate: serverP.paidDate || (localP ? localP.paidDate : ""),
+                        paidBy: serverP.paidBy || (localP ? localP.paidBy : ""),
+                        receiptRef: localP ? localP.receiptRef : "",
                         qrUnlocked: localP ? localP.qrUnlocked : false
                     });
                 });
@@ -4613,7 +4616,7 @@ function viewSlipPopup(url) {
                     recalculateDebts(); 
                     renderFundTable(); // รีเฟรชตาราง
                     renderHomeDirectory();
-                    
+                    updateSidebarBadges(); // 🌟 อัปเดตตัวเลขแจ้งเตือนสีแดงทันที
                     autoSyncToGS(); // แจ้งเครื่องอื่นหลังบันทึก Sheets สำเร็จ
                     
                     Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกรับเงินสำเร็จ!', showConfirmButton:false, timer:1500});
@@ -4683,7 +4686,7 @@ function editPaymentStatus(roundId, studentId) {
             }
 
             txHistory.unshift({ date: getNow(), name: `แอดมินแก้ไขสถานะ (${round.title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
-
+            updateSidebarBadges(); // 🌟 อัปเดตตัวเลขแจ้งเตือนสีแดงทันที
             saveToLocal(false); autoSyncToGS(); recalculateDebts(); renderFundTable(); renderHomeDirectory();
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขสำเร็จ', showConfirmButton:false, timer:1500});
         }
@@ -5692,36 +5695,62 @@ window.promptCancelReg = function(title) {
     });
 }
 
-// ================= อัปเดตตัวเลขแจ้งเตือนบนเมนู =================
-function updateSidebarBadges() {
-    if (currentUserRole !== 'guest' || !window.currentGuestStuId) return;
-    
-    let unvotedPolls = 0;
-    if (appSettings.polls) {
-        appSettings.polls.forEach(poll => {
-            if (poll.isOpen) {
-                let hasVoted = false;
-                poll.options.forEach(o => { if (o.votes && o.votes.includes(window.currentGuestStuId)) hasVoted = true; });
-                if (!hasVoted) unvotedPolls++;
-            }
-        });
-    }
-    
-    let unregActs = 0;
-    if (appSettings.activities) {
-        appSettings.activities.forEach(act => {
-            if (act.isOpen && act.status !== 'รออนุมัติ') {
-                let hasReg = activityLogs.find(l => l.studentId === window.currentGuestStuId && l.activityTitle === act.title);
-                if (!hasReg) unregActs++;
-            }
-        });
+// ================= อัปเดตตัวเลขแจ้งเตือนบนเมนู (แบบ Real-time) =================
+window.updateSidebarBadges = function() {
+    // --- 1. สำหรับฝั่งนักศึกษา (Guest) ---
+    if (currentUserRole === 'guest' && window.currentGuestStuId) {
+        let unvotedPolls = 0;
+        if (appSettings.polls) {
+            appSettings.polls.forEach(poll => {
+                if (poll.isOpen) {
+                    let hasVoted = false;
+                    poll.options.forEach(o => { if (o.votes && o.votes.includes(window.currentGuestStuId)) hasVoted = true; });
+                    if (!hasVoted) unvotedPolls++;
+                }
+            });
+        }
+        
+        let unregActs = 0;
+        if (appSettings.activities) {
+            appSettings.activities.forEach(act => {
+                if (act.isOpen && act.status !== 'รออนุมัติ') {
+                    let hasReg = activityLogs.find(l => l.studentId === window.currentGuestStuId && l.activityTitle === act.title);
+                    if (!hasReg) unregActs++;
+                }
+            });
+        }
+
+        let pollBadge = document.getElementById('badge-voting');
+        if (pollBadge) { pollBadge.innerText = unvotedPolls; pollBadge.style.display = unvotedPolls > 0 ? 'inline-block' : 'none'; }
+        
+        let actBadge = document.getElementById('badge-activity');
+        if (actBadge) { actBadge.innerText = unregActs; actBadge.style.display = unregActs > 0 ? 'inline-block' : 'none'; }
     }
 
-    let pollBadge = document.getElementById('badge-voting');
-    if (pollBadge) { pollBadge.innerText = unvotedPolls; pollBadge.style.display = unvotedPolls > 0 ? 'inline-block' : 'none'; }
-    
-    let actBadge = document.getElementById('badge-activity');
-    if (actBadge) { actBadge.innerText = unregActs; actBadge.style.display = unregActs > 0 ? 'inline-block' : 'none'; }
+    // --- 2. 🌟 สำหรับฝั่งแอดมิน (จัดการการเงิน) ---
+    if (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer') {
+        let navFin = document.getElementById('nav-fin-fund');
+        if (navFin) {
+            // ทำให้ตัวเมนูแม่เป็น relative เพื่อให้ป้ายลอยได้
+            if (!navFin.classList.contains('relative')) navFin.classList.add('relative');
+
+            // นับจำนวนบิลที่รอตรวจสอบ ณ วินาทีปัจจุบัน
+            let pendingCount = fundPayments.filter(p => p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ').length;
+
+            // ลบ Badge เก่าออกก่อน
+            let oldBadge = navFin.querySelector('.pending-badge');
+            if(oldBadge) oldBadge.remove();
+
+            // ถ้ามีรายการค้าง ให้สร้าง Badge ลอยขึ้นมาใหม่ทันที
+            if(pendingCount > 0) {
+                let badge = document.createElement('span');
+                // ใส่ animate-pulse เพื่อให้กระพริบเตือนนิดๆ เวลามีสลิปเข้าใหม่
+                badge.className = 'pending-badge absolute -top-1 -right-2 flex items-center justify-center w-5 h-5 bg-rose-600 text-white text-[10px] font-bold rounded-full shadow-md border-2 border-white animate-pulse';
+                badge.innerText = pendingCount;
+                navFin.appendChild(badge);
+            }
+        }
+    }
 }
 // ----------------------------------------------------------------------------
 function calculatePoints() {
