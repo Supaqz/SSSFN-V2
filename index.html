@@ -1792,16 +1792,28 @@ function showStudentSelectionModal(stu) {
 }
 
 // 🌟 2. ฟังก์ชันล็อกเอาท์ของนักศึกษา (ใช้วิธีเคลียร์ UI แทนการรีเฟรช ป้องกันจอขาว)
+// 🌟 1. ฟังก์ชันล็อกเอาท์ของนักศึกษา (เคลียร์ UI และรีเซ็ตโครงสร้างหน้าจอทันที)
 function guestLogout() { 
     // 1. ล้างความจำทั้งหมด
     window.currentGuestStuId = null; 
     localStorage.removeItem('sssfn_guest_id'); 
     
-    // 2. สั่งให้ระบบอัปเดตหน้าจอใหม่ทุกหน้า (หน้ากิจกรรมจะถูกล็อกทันที)
-    refreshAll(); 
+    // 2. คืนค่าคลาสของ body และแสดงหน้าล็อกอินให้ถูกต้องทันที
+    document.body.className = "flex h-screen overflow-hidden bg-[#222222]";
     
-    // 3. บังคับเด้งกลับไปที่หน้าหลัก (หน้าล็อกอิน)
-    switchPage('home'); 
+    let asideEl = document.querySelector('aside');
+    let headerEl = document.querySelector('header');
+    let mobileNav = document.querySelector('div.md\\:hidden.fixed.top-0'); 
+    
+    if(asideEl) asideEl.classList.add('hidden');
+    if(headerEl) headerEl.classList.add('hidden');
+    if(mobileNav) mobileNav.classList.add('hidden');
+    
+    let mainEl = document.querySelector('main');
+    if(mainEl) mainEl.classList.remove('pt-16', 'md:pt-0');
+
+    // 3. สั่งวาดหน้าจอหลักใหม่เพื่อให้แสดงกล่องล็อกอินขึ้นมาทันทีโดยไม่ต้องคลิกซ้ำ
+    renderHomeDirectory();
     
     Swal.fire({
         toast: true, position: 'top-end', icon: 'success', title: 'ออกจากระบบเรียบร้อย', showConfirmButton: false, timer: 1500
@@ -3866,60 +3878,60 @@ function keepInputFocused(e) {
         }
 
         // =========================================================================
-        // 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (ล็อกข้อมูลถาวร ไม่ให้เปลี่ยนไปมา)
-        // =========================================================================
-        function printReceipt(roundId, studentId) {
-            let stu = students.find(s => s.id == studentId);
-            let round = fundRounds.find(r => r.id == roundId);
-            let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
-            
-            if (!payment || !stu || !round) return;
-            
-            let paid = payment.paidAmt || 0;
-            
-            // 🌟 ระบบล็อกข้อมูล (ถ้ายังไม่มีการบันทึก ให้สร้างและล็อกไว้ถาวรทันที)
-            if (!payment.paidDate) {
-                payment.paidDate = getNow();
-                saveToLocal(false);
-            }
-            if (!payment.paidBy) {
-                payment.paidBy = currentUsername || 'ระบบอัตโนมัติ';
-                saveToLocal(false);
-            }
-            if (!payment.receiptRef) {
-                // สร้างเลข Ref ที่ไม่ซ้ำกันและล็อกไว้ตลอดไป
-                payment.receiptRef = 'SSSFN-' + roundId + '-' + String(studentId).replace(/-/g,'') + '-' + Math.floor(1000 + Math.random() * 9000);
-                saveToLocal(false);
-            }
-            
-            // นำค่าไปแสดงผลบนใบเสร็จ
-            document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
-            document.getElementById('receiptStuId').innerText = stu.id;
-            document.getElementById('receiptName').innerText = stu.name;
-            document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
-            document.getElementById('receiptRound').innerText = round.title;
-            
-            // 🔒 ใช้วันเวลาที่ล็อกไว้ในระบบ
-            document.getElementById('receiptDate').innerText = payment.paidDate; 
-            
-            // 🔒 ใช้เลข Ref ที่ล็อกไว้ในระบบ
-            document.getElementById('receiptRef').innerText = `REF: ${payment.receiptRef}`;
-        
-            // 🔒 อัปเดตชื่อผู้ที่อนุมัติจริง (แสดงชื่อแอดมินที่กดอนุมัติ หรือระบบอัตโนมัติ)
-            let parentBox = document.getElementById('receiptRef')?.closest('div') || document.getElementById('receiptRef')?.parentElement;
-            if (parentBox) {
-                let spans = parentBox.querySelectorAll('div, span');
-                spans.forEach(el => {
-                    if (el.innerText && el.innerText.includes('อนุมัติโดย')) {
-                        el.innerHTML = `👤 อนุมัติโดย: <span class="font-bold">${payment.paidBy}</span>`;
-                    }
-                });
-            }
-        
-            document.getElementById('receiptModal').classList.remove('hidden');
-            document.getElementById('receiptModal').classList.add('flex');
+// 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (ดึงเวลาและชื่อแอดมินจากฐานข้อมูล)
+// =========================================================================
+function printReceipt(roundId, studentId) {
+    let stu = students.find(s => s.id == studentId);
+    let round = fundRounds.find(r => r.id == roundId);
+    let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
+    
+    let paid = payment.paidAmt || 0;
+    
+    // ดึงเวลาและชื่อคนอนุมัติ
+    let displayDate = "-";
+    let approverName = "-";
+    let historyRef = "";
+    
+    if (payment.paidDate && String(payment.paidDate).trim() !== '') {
+        // 🌟 แก้ไข: ใช้ฟังก์ชัน formatDisplayDate เพื่อแปลงวันที่ให้สวยงาม
+        displayDate = formatDisplayDate(payment.paidDate); 
+        approverName = payment.paidBy || "ระบบ";
+        historyRef = String(payment.paidDate).replace(/\D/g, '').substring(0, 8);
+    } else {
+        let matchLog = txHistory.find(tx => tx.name.includes(stu.name) && tx.name.includes(round.title) && (tx.name.includes('รับเงิน') || tx.name.includes('แอดมินแก้ไขสถานะ')));
+        if (matchLog) {
+            // 🌟 แก้ไข: ใช้ฟังก์ชัน formatDisplayDate ครอบไว้ด้วยเช่นกัน
+            displayDate = formatDisplayDate(matchLog.date); 
+            approverName = matchLog.user || "ระบบ";
+            payment.paidDate = matchLog.date; 
+            payment.paidBy = matchLog.user;
+            historyRef = String(matchLog.date).replace(/\D/g, '').substring(0, 8);
+        } else {
+            displayDate = getNow() + " (เวลาเปิดดู)";
+            approverName = "ระบบอัตโนมัติ";
+            historyRef = Math.floor(10000000 + Math.random() * 90000000);
         }
+    }
+    
+    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
+    document.getElementById('receiptStuId').innerText = stu.id;
+    document.getElementById('receiptName').innerText = stu.name;
+    document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
+    document.getElementById('receiptRound').innerText = round.title;
+    
+    document.getElementById('receiptDate').innerText = displayDate; 
+    document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${historyRef}`;
+    
+    // 🌟 อัปเดตชื่อผู้อนุมัติลงใน HTML ของใบเสร็จ
+    let approverElement = document.getElementById('receiptApprover');
+    if (approverElement) {
+        approverElement.innerHTML = `<i class="fas fa-user-check"></i> อนุมัติโดย: ${approverName}`;
+    }
+
+    document.getElementById('receiptModal').classList.remove('hidden');
+    document.getElementById('receiptModal').classList.add('flex');
+}
 
         // ================= TIME LOGS TABLE =================
         function renderTimeHistoryTable() {
