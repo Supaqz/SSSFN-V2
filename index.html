@@ -7033,33 +7033,32 @@ window.renderAdminStudentList = function() {
 }
 
 // ================= ระบบอัปเดตคะแนนทันที (เปลี่ยนสีป้าย Badge อัตโนมัติ) =================
-window.confirmPointUpdate = function(stu, pts, noteStr) {
+window.confirmPointUpdate = function(studentId, pts, noteStr) {
     if (pts === 0) return;
-    stu.points = (stu.points || 0) + pts;
-    let sign = pts > 0 ? '+' : '';
-    txHistory.unshift({ date: getNow(), name: `ปรับคะแนน ${sign}${pts} แต้ม: ${stu.name} (${noteStr})`, type: 'ระบบ', amt: 0, user: currentUsername });
     
+    // 🌟 ดึงข้อมูล "ตัวจริง" จากฐานข้อมูล
+    let liveStu = students.find(s => s.id === studentId);
+    if (!liveStu) return;
+
+    // 🌟 อัปเดตคะแนนใส่ตัวจริง
+    liveStu.points = (parseInt(liveStu.points) || 0) + pts;
+    let sign = pts > 0 ? '+' : '';
+    txHistory.unshift({ date: getNow(), name: `ปรับคะแนน ${sign}${pts} แต้ม: ${liveStu.name} (${noteStr})`, type: 'ระบบ', amt: 0, user: currentUsername });
+    
+    // สั่งเซฟลงเครื่องและดันขึ้น Firebase (Real-time)
     saveToLocal(true); 
     
-    // 🌟 อัปเดตตัวเลขและสีป้ายบนตารางทันที
-    let disp = document.getElementById('pts-disp-' + stu.id);
+    // 🌟 อัปเดตตัวเลขและสีป้ายบนตารางแอดมินทันที
+    let disp = document.getElementById('pts-disp-' + liveStu.id);
     if (disp) {
-        let currentPts = stu.points;
+        let currentPts = liveStu.points;
         disp.innerHTML = `${currentPts} <i class="fas fa-star ml-1 text-[10px]"></i>`;
         
-        // ล้างคลาสสีเดิมออกก่อน
         disp.classList.remove('bg-amber-100', 'text-amber-600', 'border-amber-200', 'bg-slate-100', 'text-slate-500', 'border-slate-200', 'bg-rose-100', 'text-rose-600', 'border-rose-200');
-        
-        // ใส่คลาสสีใหม่ตามจำนวนแต้ม
-        if (currentPts > 0) {
-            disp.classList.add('bg-amber-100', 'text-amber-600', 'border-amber-200');
-        } else if (currentPts < 0) {
-            disp.classList.add('bg-rose-100', 'text-rose-600', 'border-rose-200');
-        } else {
-            disp.classList.add('bg-slate-100', 'text-slate-500', 'border-slate-200');
-        }
+        if (currentPts > 0) disp.classList.add('bg-amber-100', 'text-amber-600', 'border-amber-200');
+        else if (currentPts < 0) disp.classList.add('bg-rose-100', 'text-rose-600', 'border-rose-200');
+        else disp.classList.add('bg-slate-100', 'text-slate-500', 'border-slate-200');
 
-        // เอฟเฟกต์เด้งดึ๋งให้รู้ว่าคะแนนเข้าแล้ว
         disp.classList.add('scale-125'); 
         setTimeout(() => disp.classList.remove('scale-125'), 300);
     }
@@ -7195,11 +7194,11 @@ window.manageStudentPoints = function(studentId) {
                 
                 <label class="block text-xs font-bold text-slate-700 mb-2">กดปุ่มลัดเพื่อเพิ่ม/ลดคะแนนทันที</label>
                 <div class="grid grid-cols-4 gap-2 mb-4">
-                    <!-- 🌟 เวลากดปุ่มลัด ระบบจะเซฟและปิดหน้าต่างอัตโนมัติ -->
-                    <button type="button" onclick="confirmPointUpdate(${JSON.stringify(stu).replace(/"/g, '&quot;')}, 1, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+1</button>
-                    <button type="button" onclick="confirmPointUpdate(${JSON.stringify(stu).replace(/"/g, '&quot;')}, 5, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+5</button>
-                    <button type="button" onclick="confirmPointUpdate(${JSON.stringify(stu).replace(/"/g, '&quot;')}, -1, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-1</button>
-                    <button type="button" onclick="confirmPointUpdate(${JSON.stringify(stu).replace(/"/g, '&quot;')}, -5, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-5</button>
+                    <!-- 🌟 เปลี่ยนมาส่งแค่รหัส stu.id แทนการส่งข้อมูลทั้งก้อน -->
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', 1, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+1</button>
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', 5, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+5</button>
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', -1, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-1</button>
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', -5, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-5</button>
                 </div>
 
                 <div class="mb-4">
@@ -7223,7 +7222,58 @@ window.manageStudentPoints = function(studentId) {
         }
     }).then(res => {
         if(res.isConfirmed) {
-            confirmPointUpdate(stu, res.value.pts, res.value.note);
+            confirmPointUpdate(stu.id, res.value.pts, res.value.note);
+        }
+    });
+};// ================= ระบบจัดการคะแนน (Popup แบบพิมพ์+ปุ่มกด) =================
+window.manageStudentPoints = function(studentId) {
+    let stu = students.find(s => s.id === studentId);
+    if(!stu) return;
+
+    Swal.fire({
+        title: '<h2 class="text-2xl font-bold text-slate-700 mt-2 mb-4">จัดการคะแนนสะสม</h2>',
+        html: `
+            <div class="text-left font-sans bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                
+                <div class="flex items-center gap-4 mb-5 border-b border-slate-100 pb-4">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-xl shadow-sm shrink-0"><i class="fas fa-star"></i></div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-base">${stu.name}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">แต้มปัจจุบัน: <strong class="text-amber-500">${stu.points || 0}</strong> แต้ม</p>
+                    </div>
+                </div>
+                
+                <label class="block text-xs font-bold text-slate-700 mb-2">กดปุ่มลัดเพื่อเพิ่ม/ลดคะแนนทันที</label>
+                <div class="grid grid-cols-4 gap-2 mb-4">
+                    <!-- 🌟 เปลี่ยนมาส่งแค่รหัส stu.id แทนการส่งข้อมูลทั้งก้อน -->
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', 1, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+1</button>
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', 5, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-emerald-50 border border-emerald-200 text-emerald-600 font-bold py-2 rounded-xl text-sm hover:bg-emerald-100 hover:-translate-y-0.5 transition shadow-sm">+5</button>
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', -1, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-1</button>
+                    <button type="button" onclick="confirmPointUpdate('${stu.id}', -5, 'แอดมินกดปุ่มลัด'); Swal.close();" class="bg-rose-50 border border-rose-200 text-rose-600 font-bold py-2 rounded-xl text-sm hover:bg-rose-100 hover:-translate-y-0.5 transition shadow-sm">-5</button>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-2">หรือกรอกตัวเลข (ใส่ติดลบเพื่อหัก)</label>
+                    <input type="number" id="pts-val" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-slate-700 font-bold text-base focus:outline-none focus:border-amber-400 transition text-center" placeholder="เช่น 10">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">หมายเหตุ</label>
+                    <input type="text" id="pts-note" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:border-amber-400 transition" placeholder="เช่น ช่วยงานครู">
+                </div>
+            </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'บันทึก', cancelButtonText: 'Cancel', confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b',
+        customClass: { popup: 'rounded-[2rem] p-2 max-w-md w-full', confirmButton: 'rounded-xl px-8 py-2.5 font-bold text-lg', cancelButton: 'rounded-xl px-6 py-2.5 font-bold text-lg' },
+        preConfirm: () => {
+            let pts = parseInt(document.getElementById('pts-val').value);
+            let note = document.getElementById('pts-note').value.trim() || 'แอดมินปรับปรุงคะแนน';
+            if(isNaN(pts) || pts === 0) return Swal.showValidationMessage('กรุณาระบุคะแนน หรือกดปุ่มลัด');
+            return { pts, note };
+        }
+    }).then(res => {
+        if(res.isConfirmed) {
+            confirmPointUpdate(stu.id, res.value.pts, res.value.note);
         }
     });
 };
