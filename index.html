@@ -2423,16 +2423,17 @@ function renderActivities() {
     let actSearchEl = document.getElementById('act-search'); if(!actSearchEl) return;
     const search = actSearchEl.value.toLowerCase(); const grid = document.getElementById('activity-grid'); if(!grid) return;
     
-    let adminCard = document.getElementById('admin-activity-master-card');
-    let mainDash = document.getElementById('activity-main-dashboard');
+    // 🌟 แก้ไข ID ให้ตรงกับ HTML ดั้งเดิมของคุณ
+    let mainDash = document.getElementById('activity-main-view');
+    let detailView = document.getElementById('activity-detail-view');
     let btnCreate = document.getElementById('btn-create-act');
     
     if (currentUserRole !== 'guest') {
-        if(adminCard) adminCard.classList.add('hidden');
+        if(detailView) detailView.classList.add('hidden');
         if(mainDash) mainDash.classList.remove('hidden');
         if(btnCreate) btnCreate.classList.remove('hidden');
     } else {
-        if(adminCard) adminCard.classList.add('hidden');
+        if(detailView) detailView.classList.add('hidden');
         if(mainDash) mainDash.classList.remove('hidden');
         if(btnCreate) btnCreate.classList.add('hidden');
     }
@@ -2508,22 +2509,157 @@ window.loadActivityMasterData = function(title) {
     currentMasterActivity = appSettings.activities.find(a => a.title === title);
     if (!currentMasterActivity) return;
 
-    document.getElementById('activity-main-dashboard').classList.add('hidden');
-    document.getElementById('admin-activity-master-card').classList.remove('hidden');
-
-    document.getElementById('master-header-title').innerText = currentMasterActivity.title;
-    document.getElementById('master-header-term').innerText = `${currentMasterActivity.year}/${currentMasterActivity.term}`;
+    let mainView = document.getElementById('activity-main-view');
+    let detailView = document.getElementById('activity-detail-view');
     
-    let refEl = document.getElementById('master-header-ref');
-    if(refEl) { refEl.innerText = `691-A030-${Math.floor(Math.random()*9000)}`; refEl.classList.remove('hidden'); }
+    if (mainView) mainView.classList.add('hidden');
+    if (detailView) detailView.classList.remove('hidden');
 
-    switchMasterTab('dashboard');
+    let act = currentMasterActivity;
+    let roleIsAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
+    let isOpen = act.isOpen !== false;
+
+    // 🌟 ฝังโครงสร้าง HTML 10 แท็บลงไปตอนกดเปิดกิจกรรม (ลบปัญหาหา ID ไม่เจอ)
+    detailView.innerHTML = `
+    <div class="mb-4 text-left">
+        <button onclick="closeActivityMaster()" class="text-slate-500 hover:text-blue-600 font-bold text-sm transition"><i class="fas fa-arrow-left mr-2"></i> ย้อนกลับไปหน้ากิจกรรม</button>
+    </div>
+
+    <div class="bg-[#0f172a] rounded-t-xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-700 relative overflow-hidden shadow-lg">
+        <div class="absolute right-0 top-0 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/4 pointer-events-none"></div>
+        <div class="flex items-center gap-4 relative z-10 w-full md:w-auto">
+            <div class="w-12 h-12 bg-blue-600 text-white rounded-lg flex items-center justify-center text-xl font-bold shrink-0 shadow-lg">#</div>
+            <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-3 mb-1">
+                    <h2 class="text-lg md:text-2xl font-bold text-white tracking-wide truncate max-w-lg md:max-w-xl">${act.title}</h2>
+                    <span class="bg-slate-800 text-slate-300 text-[10px] px-2 py-1 rounded border border-slate-600 font-mono hidden sm:inline-block">691-A030-${Math.floor(Math.random()*900)}</span>
+                </div>
+                <p class="text-xs text-slate-400 font-medium flex items-center gap-2 truncate">
+                    <i class="far fa-calendar-alt"></i> ปี ${act.year}/${act.term} <span class="mx-1 text-slate-600">•</span> กิจกรรมเลือกเข้าร่วม
+                </p>
+            </div>
+        </div>
+        <div class="flex gap-2 relative z-10 shrink-0 w-full md:w-auto justify-end mt-4 md:mt-0">
+            <button onclick="${roleIsAdmin ? `toggleActivityOpen('${act.title}')` : ''}" class="${isOpen ? 'bg-slate-700 hover:bg-slate-600 text-slate-300' : 'bg-rose-500/20 hover:bg-rose-500/40 text-rose-300'} px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2"><i class="fas ${isOpen ? 'fa-globe' : 'fa-lock'}"></i> ${isOpen ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</button>
+        </div>
+    </div>
+
+    <div class="bg-[#1e293b] flex overflow-x-auto gap-1 p-2 rounded-b-xl custom-scrollbar shadow-md">
+        <button onclick="switchMasterTab('dashboard')" id="mtab-dashboard" class="mtab-btn px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2 shadow-inner"><i class="fas fa-chart-pie opacity-70"></i>ภาพรวม</button>
+        <button onclick="switchMasterTab('checkin')" id="mtab-checkin" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-qrcode opacity-70"></i>Scan นักศึกษา</button>
+        <button onclick="switchMasterTab('qractivity')" id="mtab-qractivity" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-qrcode opacity-70"></i>QRCODE กิจกรรม</button>
+        <button onclick="switchMasterTab('rounds')" id="mtab-rounds" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-layer-group opacity-70"></i>รอบลงทะเบียน</button>
+        <button onclick="switchMasterTab('import_s')" id="mtab-import_s" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-user-plus opacity-70"></i>นำเข้า นศ. (รายคน)</button>
+        <button onclick="switchMasterTab('import_b')" id="mtab-import_b" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-users opacity-70"></i>นำเข้า นศ. (กลุ่ม)</button>
+        <button onclick="switchMasterTab('admins')" id="mtab-admins" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-user-shield opacity-70"></i>ผู้ดูแลกิจกรรม</button>
+        <button onclick="editActivityModal('${act.title}')" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2 ml-auto"><i class="fas fa-edit opacity-70"></i>แก้ไขกิจกรรม</button>
+        <button onclick="exportActivityToCSV()" class="mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2"><i class="fas fa-file-excel opacity-70"></i>Export</button>
+    </div>
+
+    <div class="mt-6">
+        <!-- ภาพรวม -->
+        <div id="mtab-content-dashboard" class="mtab-content block space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">นักศึกษาทั้งหมด</p><div class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center"><i class="fas fa-users"></i></div></div>
+                    <h3 class="text-3xl font-black text-slate-800" id="m-stat-all">0</h3>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ลงทะเบียนผ่านเว็บ</p><div class="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center"><i class="fas fa-globe"></i></div></div>
+                    <div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-emerald-600 leading-none" id="m-stat-web">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max1">0</span></span></div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-emerald-500 h-1.5 rounded-full" id="m-bar-web" style="width: 0%"></div></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">สแกนหน้างาน</p><div class="w-8 h-8 bg-orange-50 text-orange-500 rounded-lg flex items-center justify-center"><i class="fas fa-layer-group"></i></div></div>
+                    <div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-slate-800 leading-none" id="m-stat-scan">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max2">0</span></span></div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-orange-500 h-1.5 rounded-full" id="m-bar-scan" style="width: 0%"></div></div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+                    <div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ไม่ผ่าน / รอพิจารณา</p><div class="w-8 h-8 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center"><i class="fas fa-times-circle"></i></div></div>
+                    <div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-slate-800 leading-none" id="m-stat-fail">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max3">0</span></span></div>
+                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-rose-500 h-1.5 rounded-full" id="m-bar-fail" style="width: 0%"></div></div>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-t-xl p-3 flex justify-between items-center shadow-sm">
+                <div class="relative w-full max-w-xs">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="m-table-search" onkeyup="filterMasterTable()" placeholder="ค้นหาชื่อ หรือ รหัส..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500">
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="executeBatchAction('C')" class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold">✅ ให้ผ่าน (C)</button>
+                    <button onclick="executeBatchAction('P')" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-bold">⏳ รอพินิจ (P)</button>
+                    <button onclick="executeBatchAction('U')" class="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold">❌ ไม่ผ่าน (U)</button>
+                    <button onclick="executeBatchAction('REMOVE')" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i> ลบชื่อ</button>
+                </div>
+            </div>
+            <div class="bg-white border-x border-b border-slate-200 rounded-b-xl overflow-x-auto shadow-sm max-h-[500px]">
+                <table class="w-full text-left whitespace-nowrap text-sm">
+                    <thead class="bg-[#f8fafc] text-slate-600 text-[11px] font-bold border-b border-slate-200 sticky top-0">
+                        <tr>
+                            <th class="p-4 text-center w-10"><input type="checkbox" onclick="toggleAllMasterChecks(this)"></th>
+                            <th class="p-4">ข้อมูลนักศึกษา</th>
+                            <th class="p-4 text-center">รอบ</th>
+                            <th class="p-4 text-center">ลงทะเบียนเว็บ</th>
+                            <th class="p-4 text-center">ลงทะเบียนหน้างาน</th>
+                            <th class="p-4 text-center">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="m-participant-list" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- แท็บอื่นๆ (แสกน, QR, ฯลฯ) สร้าง Placeholder ไว้ -->
+        <div id="mtab-content-checkin" class="mtab-content hidden">${generateScanHTML(act)}</div>
+        
+        <div id="mtab-content-qractivity" class="mtab-content hidden">
+            <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center flex flex-col items-center">
+                <div class="bg-blue-50/50 p-6 rounded-xl border border-blue-200 w-full max-w-sm">
+                    <div class="bg-white p-4 inline-block rounded-xl border-2 border-dashed border-blue-300 mb-4 w-48 h-48 flex items-center justify-center relative shadow-sm">
+                        <img id="m-dynamic-qr" src="" class="w-full h-full object-contain hidden absolute inset-0 z-10">
+                        <div id="m-qr-placeholder" class="text-slate-400 font-bold text-sm z-0"><i class="fas fa-qrcode text-4xl mb-2 block opacity-30"></i>รอกดสร้างรหัส</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="text-xs font-bold text-slate-500">เวลาเปลี่ยน Token (วินาที)</label>
+                        <input type="number" id="m-qr-interval" class="modern-input w-full mt-1 text-center" value="15" min="10">
+                    </div>
+                    <button id="btn-toggle-qr" onclick="toggleDynamicQR()" class="w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md transition"><i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mtab-content-rounds" class="mtab-content hidden">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white"><h3 class="font-bold text-slate-800 text-lg">จัดการรอบ</h3><button onclick="openAddRoundModal()" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-bold"><i class="fas fa-plus"></i> เพิ่มรอบ</button></div>
+                <div class="overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-[#f8fafc] border-b text-[11px] text-slate-600 font-bold"><tr><th class="p-4">รอบลงทะเบียน</th><th class="p-4 text-center">หมายเหตุ</th><th class="p-4 text-center">สถานะ</th><th class="p-4 text-center w-24">จัดการ</th></tr></thead><tbody id="master-rounds-list"></tbody></table></div>
+            </div>
+        </div>
+
+        <div id="mtab-content-import_s" class="mtab-content hidden">
+            <div class="bg-white p-6 rounded-xl border shadow-sm mb-6"><h3 class="font-bold mb-4 text-slate-800"><i class="fas fa-search text-blue-500"></i> นำเข้านักศึกษารายคน</h3><div class="flex gap-3 mb-4"><div class="flex-1"><label class="block text-xs font-bold text-slate-500 mb-1">รหัสนักศึกษา *</label><input type="text" id="m-s-id" class="w-full p-2.5 border rounded-lg text-sm font-bold" placeholder="เช่น 65000..."></div><div class="flex-1"><label class="block text-xs font-bold text-slate-500 mb-1">เลือกรอบ *</label><select id="m-import-s-round" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50"></select></div></div><button onclick="searchSingleStudentForImport()" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg text-sm font-bold"><i class="fas fa-search"></i> ค้นหาข้อมูล</button></div><div id="m-s-result"></div>
+        </div>
+
+        <div id="mtab-content-import_b" class="mtab-content hidden">
+            <div class="bg-white p-6 rounded-xl border shadow-sm"><h3 class="font-bold mb-4 text-slate-800"><i class="fas fa-users text-blue-500"></i> นำเข้าแบบกลุ่ม (รหัสต่อรหัส)</h3><div class="bg-slate-50 p-4 rounded-xl border mb-4"><label class="block text-sm font-bold mb-2">1. รหัสนักศึกษา (คั่นด้วยลูกน้ำ)</label><textarea id="m-import-text" rows="5" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="58162110024-5, 58162110042-4..."></textarea></div><div class="bg-slate-50 p-4 rounded-xl border mb-4"><label class="block text-sm font-bold mb-2">2. เลือกรอบ</label><select id="m-import-b-round" class="w-full p-3 border rounded-xl text-sm bg-white"></select></div><button onclick="importMasterParticipants()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold w-full md:w-auto"><i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล</button></div>
+        </div>
+
+        <div id="mtab-content-admins" class="mtab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-1"><div class="bg-white p-6 rounded-xl border shadow-sm"><h3 class="font-bold text-blue-700 mb-4"><i class="fas fa-user-plus"></i> เพิ่มผู้ดูแล</h3><div class="space-y-4 mb-4"><div><label class="block text-xs font-bold mb-1">Username</label><input type="text" id="admin-user-input" class="w-full p-2.5 border rounded-lg text-sm" placeholder="ระบุ Username"></div><div><label class="block text-xs font-bold mb-1">เบอร์โทร</label><input type="text" id="admin-phone-input" class="w-full p-2.5 border rounded-lg text-sm" placeholder="08X-XXXXXXX"></div></div><button onclick="addActivityAdmin(currentMasterActivity.title)" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm">เพิ่มผู้ดูแล</button></div></div><div class="lg:col-span-2"><div class="bg-white rounded-xl border shadow-sm overflow-hidden"><div class="p-5 border-b flex items-center gap-2 bg-emerald-50/30"><h3 class="font-bold text-emerald-800 text-sm"><i class="fas fa-shield-check"></i> รายชื่อผู้ดูแล (<span id="admin-count">0</span>)</h3></div><table class="w-full text-left text-sm"><thead class="bg-[#f8fafc] border-b text-[11px] text-slate-500 font-bold"><tr><th class="p-4">ผู้ดูแล</th><th class="p-4">เบอร์โทร</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody id="act-admins-list"></tbody></table></div></div></div>
+        </div>
+    </div>`;
+
+    switchMasterTab('dashboard'); // เริ่มที่แท็บแรกเสมอ
 }
 
 window.closeActivityMaster = function() {
     currentMasterActivity = null;
-    document.getElementById('admin-activity-master-card').classList.add('hidden');
-    document.getElementById('activity-main-dashboard').classList.remove('hidden');
+    let mainView = document.getElementById('activity-main-view');
+    let detailView = document.getElementById('activity-detail-view');
+    
+    if(detailView) detailView.classList.add('hidden');
+    if(mainView) mainView.classList.remove('hidden');
+    
     if (qrTokenInterval) { clearInterval(qrTokenInterval); qrTokenInterval = null; }
     renderActivities();
 }
@@ -2550,7 +2686,7 @@ window.switchMasterTab = function(tabId) {
     
     if (tabId === 'dashboard') renderMasterDashboard();
     if (tabId === 'rounds') renderMasterRoundsTab();
-    if (tabId === 'admins') renderActivityAdmins(currentMasterActivity.title);
+    if (tabId === 'admins') { renderActivityAdmins(currentMasterActivity.title); let countEl = document.getElementById('admin-count'); if(countEl) countEl.innerText = (currentMasterActivity.admins || []).length; }
     if (['checkin', 'qrsetting', 'qractivity', 'import_s', 'import_b'].includes(tabId)) renderMasterDropdowns();
 }
 
@@ -2562,24 +2698,29 @@ function renderMasterDashboard() {
     let regCount = logs.filter(p => p.timeIn && p.timeIn.includes('จองสิทธิ์')).length;
     let failCount = logs.filter(p => p.status === 'U' || p.status === 'P').length;
 
-    document.getElementById('m-stat-all').innerText = logs.length;
-    document.getElementById('m-stat-web').innerText = regCount;
+    let scanPercent = tMax > 0 ? ((scanIn / tMax) * 100).toFixed(0) : (logs.length > 0 ? ((scanIn / logs.length) * 100).toFixed(0) : 0);
+    let regPercent = tMax > 0 ? ((regCount / tMax) * 100).toFixed(0) : 0;
+    let failPercent = logs.length > 0 ? ((failCount / logs.length) * 100).toFixed(0) : 0;
+
+    let elAll = document.getElementById('m-stat-all'); if(elAll) elAll.innerText = logs.length;
+    let elWeb = document.getElementById('m-stat-web'); if(elWeb) elWeb.innerText = regCount;
     let elM1 = document.getElementById('m-stat-max1'); if(elM1) elM1.innerText = tMax > 0 ? tMax : logs.length;
-    let elBW = document.getElementById('m-bar-web'); if(elBW) elBW.style.width = `${tMax>0 ? (regCount/tMax)*100 : 0}%`;
+    let elBW = document.getElementById('m-bar-web'); if(elBW) elBW.style.width = `${regPercent}%`;
 
-    document.getElementById('m-stat-scan').innerText = scanIn;
+    let elScan = document.getElementById('m-stat-scan'); if(elScan) elScan.innerText = scanIn;
     let elM2 = document.getElementById('m-stat-max2'); if(elM2) elM2.innerText = tMax > 0 ? tMax : logs.length;
-    let elBS = document.getElementById('m-bar-scan'); if(elBS) elBS.style.width = `${tMax>0 ? (scanIn/tMax)*100 : 0}%`;
+    let elBS = document.getElementById('m-bar-scan'); if(elBS) elBS.style.width = `${scanPercent}%`;
 
-    document.getElementById('m-stat-fail').innerText = failCount;
+    let elFail = document.getElementById('m-stat-fail'); if(elFail) elFail.innerText = failCount;
     let elM3 = document.getElementById('m-stat-max3'); if(elM3) elM3.innerText = logs.length;
-    let elBF = document.getElementById('m-bar-fail'); if(elBF) elBF.style.width = `${logs.length>0 ? (failCount/logs.length)*100 : 0}%`;
+    let elBF = document.getElementById('m-bar-fail'); if(elBF) elBF.style.width = `${failPercent}%`;
 
     let tbody = document.getElementById('m-participant-list');
+    if(!tbody) return;
     tbody.innerHTML = '';
     
     if (logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-400 bg-slate-50/50 font-bold">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`; return;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-400 font-bold">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`; return;
     }
 
     logs.forEach(p => {
@@ -2627,8 +2768,11 @@ window.executeBatchAction = function(newStatus) {
     Swal.fire({ title: 'ยืนยันดำเนินการ?', text: `เปลี่ยนสถานะ ${cbs.length} รายการ`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#10b981' }).then((res) => {
         if (res.isConfirmed) {
             cbs.forEach(cb => {
-                let log = activityLogs.find(l => l.studentId === cb.value && l.activityTitle === currentMasterActivity.title);
-                if (log) log.status = newStatus;
+                let logIndex = activityLogs.findIndex(l => l.studentId === cb.value && l.activityTitle === currentMasterActivity.title);
+                if (logIndex !== -1) {
+                    if (newStatus === 'REMOVE') activityLogs.splice(logIndex, 1);
+                    else activityLogs[logIndex].status = newStatus;
+                }
             });
             saveToLocal(true); renderMasterDashboard();
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'เปลี่ยนสถานะสำเร็จ', showConfirmButton:false, timer:1500});
@@ -2675,7 +2819,7 @@ function renderMasterRoundsTab() {
     currentMasterActivity.rounds.forEach((r, idx) => {
         html += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-4"><p class="font-bold text-slate-800 text-sm">${r.name}</p><p class="text-[10px] text-slate-500">โควตา: ${r.max>0?r.max+' คน':'ไม่จำกัด'}</p></td><td class="p-4 text-center text-xs text-slate-500">${r.note||'-'}</td><td class="p-4 text-center"><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">เปิดใช้งาน</span></td><td class="p-4 text-center"><button onclick="deleteMasterRound(${idx})" class="text-rose-500 p-2"><i class="fas fa-trash"></i></button></td></tr>`;
     });
-    tbody.innerHTML = html;
+    if(tbody) tbody.innerHTML = html;
 }
 window.deleteMasterRound = function(idx) {
     Swal.fire({title: 'ลบรอบนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48'}).then(r => {
@@ -2692,18 +2836,21 @@ window.addActivityAdmin = function(title) {
     act.admins = act.admins || []; act.admins.push({ user: user, phone: phone });
     saveToLocal(true); document.getElementById('admin-user-input').value = ''; document.getElementById('admin-phone-input').value = '';
     renderActivityAdmins(title);
+    let countEl = document.getElementById('admin-count'); if(countEl) countEl.innerText = act.admins.length;
     Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มสำเร็จ', showConfirmButton:false, timer:1500});
 }
 window.deleteActivityAdmin = function(title, index) {
     let act = appSettings.activities.find(a => a.title === title); if (!act || !act.admins) return;
     Swal.fire({ title: 'ลบผู้ดูแลนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then(r => {
-        if(r.isConfirmed) { act.admins.splice(index, 1); saveToLocal(true); renderActivityAdmins(title); }
+        if(r.isConfirmed) { 
+            act.admins.splice(index, 1); saveToLocal(true); renderActivityAdmins(title); 
+            let countEl = document.getElementById('admin-count'); if(countEl) countEl.innerText = act.admins.length;
+        }
     });
 }
 function renderActivityAdmins(title) {
     let act = appSettings.activities.find(a => a.title === title); let listEl = document.getElementById('act-admins-list'); if (!act || !listEl) return;
     act.admins = act.admins || [];
-    let cEl = document.getElementById('admin-count'); if(cEl) cEl.innerText = act.admins.length;
     if (act.admins.length === 0) { listEl.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-400">ยังไม่มีผู้ดูแลกิจกรรม</td></tr>'; return; }
     let html = '';
     act.admins.forEach((admin, i) => {
@@ -2788,6 +2935,43 @@ window.toggleDynamicQR = function() {
 }
 
 // ---- Tab: Scan & Auto-Confirm ----
+function generateScanHTML(act) {
+    return `
+    <div id="scan-interface-container" class="space-y-6 max-w-5xl mx-auto text-left">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4 text-lg">บันทึกการเข้าร่วมกิจกรรม</h3>
+            <div class="mb-4">
+                <h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือกการแสดงผล</h4>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="hw-show-info" checked class="w-4 h-4 text-blue-600 rounded"> <span class="text-sm font-bold text-slate-600">แสดงข้อมูลนักศึกษาก่อนสแกน</span></label>
+                    <label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="hw-show-avatar" checked class="w-4 h-4 text-blue-600 rounded"> <span class="text-sm font-bold text-slate-600">แสดงรูปโปรไฟล์</span></label>
+                </div>
+            </div>
+            <hr class="my-5 border-slate-100">
+            <div>
+                <h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือก Auto-Confirm</h4>
+                <label class="flex items-center gap-3 cursor-pointer mb-3"><input type="checkbox" id="hw-auto-confirm" checked class="w-4 h-4 text-blue-600 rounded"> <span class="text-sm font-bold text-slate-600">เปิด Auto-Confirm</span></label>
+                <div class="ml-7"><span class="text-xs text-slate-500 block mb-1">วินาที (1-60):</span><input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-24 p-2 border rounded-lg text-center font-bold"></div>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl border shadow-sm">
+            <h3 class="font-bold text-slate-800 mb-4 text-lg">นำเข้าข้อมูลนักศึกษา</h3>
+            <div class="flex gap-2 p-2 bg-slate-50 rounded-xl border mb-6">
+                <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800"><i class="fas fa-expand text-lg mr-1"></i> กรอก / สแกนปืน</button>
+                <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800"><i class="fas fa-camera text-lg mr-1"></i> กล้อง</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500"><input type="radio" name="scan-mode-hw" value="in" checked class="hidden" onchange="updateScanModeUI(this)"> <i class="fas fa-sign-in-alt mr-1"></i> สแกนเข้างาน</label>
+                <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200"><input type="radio" name="scan-mode-hw" value="out" class="hidden" onchange="updateScanModeUI(this)"> <i class="fas fa-sign-out-alt mr-1"></i> สแกนกลับบ้าน</label>
+            </div>
+            <div id="manual-section" class="p-6 border-2 border-dashed border-slate-300 rounded-xl text-center bg-slate-50">
+                <input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border rounded-xl outline-none focus:border-blue-500" placeholder="กรอกรหัส หรือ สแกนเข้าที่นี่" onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, currentMasterActivity.title); this.value=''; }">
+            </div>
+            <div id="camera-section" class="hidden w-full h-[350px] border-2 rounded-xl overflow-hidden mt-4 bg-black"><div id="hw-reader" class="w-full h-full"></div></div>
+        </div>
+    </div>`;
+}
+
 window.updateScanModeUI = function(radioElem) {
     document.querySelectorAll('input[name="scan-mode-hw"]').forEach(el => {
         let lbl = el.parentElement;
@@ -2803,7 +2987,7 @@ window.switchScannerMode = function(mode) {
         bC.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
         document.getElementById('manual-section').classList.remove('hidden'); document.getElementById('camera-section').classList.add('hidden');
         if(window.hwScanner) { window.hwScanner.stop().catch(e=>console.log(e)); window.hwScanner = null; }
-        document.getElementById('hw-input-focus')?.focus();
+        let inp = document.getElementById('hw-input-focus'); if(inp) inp.focus();
     } else {
         bC.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
         bM.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
@@ -3070,7 +3254,6 @@ window.approveActivity = function(title) {
         } 
     }); 
 }
-
 // ================= FUND MANAGEMENT (ADMIN SECURE RESTRICTED) =================
         function toggleQrLock(roundId, studentId) {
             let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
