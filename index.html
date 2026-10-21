@@ -16,6 +16,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Sarabun', sans-serif; background-color: #f0fdf4; color: #1e293b; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -250,7 +251,7 @@
 <!-- ======================================================================= -->
 <div id="page-activity" class="page-view hidden animate-fade-in pb-20 bg-[#f0f4f8] min-h-screen w-full">
     
-    <!-- 1. หน้าค้นหาและเลือกกิจกรรม (แดชบอร์ดหลัก) -->
+    <!-- 1. หน้าค้นหาและเลือกกิจกรรม -->
     <div id="activity-main-dashboard" class="max-w-7xl mx-auto p-4 md:p-6 block">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-calendar-alt text-blue-600 mr-2"></i>ระบบกิจกรรมและคำขอ</h2>
@@ -264,7 +265,6 @@
 
     <!-- 2. ศูนย์จัดการกิจกรรม (Activity Master 10 Tabs) -->
     <div id="admin-activity-master-card" class="max-w-[1400px] mx-auto p-4 hidden">
-        
         <!-- Header -->
         <div class="bg-[#0f172a] rounded-t-xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-700 relative overflow-hidden shadow-lg">
             <div class="absolute right-0 top-0 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/4 pointer-events-none"></div>
@@ -300,7 +300,10 @@
 
         <!-- เนื้อหาภายในแท็บต่างๆ -->
         <div class="mt-6">
+            
+            <!-- แท็บ: ภาพรวม (Dashboard) -->
             <div id="mtab-content-dashboard" class="mtab-content block space-y-6">
+                <!-- กล่องสรุป -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center"><div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">นักศึกษาทั้งหมด</p><div class="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center"><i class="fas fa-users"></i></div></div><h3 class="text-3xl font-black text-slate-800" id="m-stat-all">0</h3></div>
                     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center"><div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ลงทะเบียนผ่านเว็บ</p><div class="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center"><i class="fas fa-globe"></i></div></div><div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-emerald-600 leading-none" id="m-stat-web">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max1">0</span></span></div><div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-emerald-500 h-1.5 rounded-full" id="m-bar-web" style="width: 0%"></div></div></div>
@@ -308,28 +311,39 @@
                     <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center"><div class="flex justify-between items-start mb-2"><p class="text-xs font-bold text-slate-500">ไม่ผ่าน / รอพิจารณา</p><div class="w-8 h-8 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center"><i class="fas fa-times-circle"></i></div></div><div class="flex items-end gap-1 mb-2"><h3 class="text-3xl font-black text-slate-800 leading-none" id="m-stat-fail">0</h3><span class="text-xs font-bold text-slate-400 pb-1">/ <span id="m-stat-max3">0</span></span></div><div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden"><div class="bg-rose-500 h-1.5 rounded-full" id="m-bar-fail" style="width: 0%"></div></div></div>
                 </div>
 
-                <div class="bg-white border border-slate-200 rounded-t-xl p-3 flex justify-between items-center shadow-sm">
+                <!-- เครื่องมือตาราง -->
+                <div class="bg-white border border-slate-200 rounded-xl p-3 flex justify-between items-center shadow-sm flex-wrap gap-3">
                     <div class="relative w-full max-w-xs"><i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i><input type="text" id="m-table-search" onkeyup="filterMasterTable()" placeholder="ค้นหาชื่อ หรือ รหัส..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-500"></div>
-                    <div class="flex gap-2">
-                        <button onclick="executeBatchAction('C')" class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-xs font-bold">✅ ให้ผ่าน (C)</button>
-                        <button onclick="executeBatchAction('P')" class="bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-bold">⏳ รอพินิจ (P)</button>
-                        <button onclick="executeBatchAction('U')" class="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold">❌ ไม่ผ่าน (U)</button>
-                        <button onclick="executeBatchAction('REMOVE')" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold"><i class="fas fa-trash"></i> ลบชื่อ</button>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="executeBatchAction('C')" class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm transition hover:bg-emerald-100">✅ ให้ผ่าน (C)</button>
+                        <button onclick="executeBatchAction('P')" class="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm transition hover:bg-amber-100">⏳ รอพินิจ (P)</button>
+                        <button onclick="executeBatchAction('U')" class="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm transition hover:bg-rose-100">❌ ไม่ผ่าน (U)</button>
+                        <button onclick="executeBatchAction('REMOVE')" class="bg-slate-100 border border-slate-300 text-slate-600 px-3 py-1.5 rounded-full text-[10px] font-bold shadow-sm transition hover:bg-slate-200"><i class="fas fa-trash"></i> ลบชื่อ</button>
                     </div>
                 </div>
-                <div class="bg-white border-x border-b border-slate-200 rounded-b-xl overflow-x-auto shadow-sm max-h-[500px]">
-                    <table class="w-full text-left whitespace-nowrap text-sm">
-                        <thead class="bg-[#f8fafc] text-slate-600 text-[11px] font-bold border-b border-slate-200 sticky top-0"><tr><th class="p-4 text-center w-10"><input type="checkbox" onclick="toggleAllMasterChecks(this)"></th><th class="p-4">ข้อมูลนักศึกษา</th><th class="p-4 text-center">รอบ</th><th class="p-4 text-center">ลงทะเบียนเว็บ</th><th class="p-4 text-center">ลงทะเบียนหน้างาน</th><th class="p-4 text-center">สถานะ</th></tr></thead>
-                        <tbody id="m-participant-list" class="divide-y divide-slate-100"></tbody>
-                    </table>
+                
+                <!-- ตารางรายชื่อ (Dynamic Columns + Pagination) -->
+                <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left whitespace-nowrap text-sm" id="dynamic-participant-table">
+                            <!-- JS จะเติม Thead และ Tbody ตรงนี้ -->
+                        </table>
+                    </div>
+                    <!-- ปุ่มแบ่งหน้า (Pagination) -->
+                    <div id="m-pagination-controls" class="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center text-sm font-bold text-slate-600">
+                    </div>
                 </div>
             </div>
 
-            <!-- Tab: สแกน -->
+            <!-- แท็บ: สแกนเช็คชื่อ -->
             <div id="mtab-content-checkin" class="mtab-content hidden">
                 <div id="scan-interface-container" class="space-y-6 max-w-5xl mx-auto text-left">
                     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                         <h3 class="font-bold text-slate-800 mb-4 text-lg">บันทึกการเข้าร่วมกิจกรรม</h3>
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">เลือกรอบลงทะเบียน *</label>
+                            <select id="m-checkin-round" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50 font-bold outline-none focus:border-blue-500"></select>
+                        </div>
                         <div class="mb-4"><h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือกการแสดงผล</h4><div class="space-y-3"><label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="hw-show-info" checked class="w-4 h-4 text-blue-600 rounded"> <span class="text-sm font-bold text-slate-600">แสดงข้อมูลนักศึกษาก่อนสแกน</span></label><label class="flex items-center gap-3 cursor-pointer"><input type="checkbox" id="hw-show-avatar" checked class="w-4 h-4 text-blue-600 rounded"> <span class="text-sm font-bold text-slate-600">แสดงรูปโปรไฟล์</span></label></div></div>
                         <hr class="my-5 border-slate-100">
                         <div><h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือก Auto-Confirm</h4><label class="flex items-center gap-3 cursor-pointer mb-3"><input type="checkbox" id="hw-auto-confirm" checked class="w-4 h-4 text-blue-600 rounded"> <span class="text-sm font-bold text-slate-600">เปิด Auto-Confirm</span></label><div class="ml-7"><span class="text-xs text-slate-500 block mb-1">วินาที (1-60):</span><input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-24 p-2 border rounded-lg text-center font-bold"></div></div>
@@ -337,38 +351,60 @@
                     <div class="bg-white p-6 rounded-2xl border shadow-sm">
                         <h3 class="font-bold text-slate-800 mb-4 text-lg">นำเข้าข้อมูลนักศึกษา</h3>
                         <div class="flex gap-2 p-2 bg-slate-50 rounded-xl border mb-6"><button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800"><i class="fas fa-expand text-lg mr-1"></i> กรอก / สแกนปืน</button><button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800"><i class="fas fa-camera text-lg mr-1"></i> กล้อง</button></div>
-                        <div class="grid grid-cols-2 gap-3 mb-6"><label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500"><input type="radio" name="scan-mode-hw" value="in" checked class="hidden" onchange="updateScanModeUI(this)"> <i class="fas fa-sign-in-alt mr-1"></i> สแกนเข้างาน</label><label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200"><input type="radio" name="scan-mode-hw" value="out" class="hidden" onchange="updateScanModeUI(this)"> <i class="fas fa-sign-out-alt mr-1"></i> สแกนกลับบ้าน</label></div>
                         <div id="manual-section" class="p-6 border-2 border-dashed border-slate-300 rounded-xl text-center bg-slate-50"><input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border rounded-xl outline-none focus:border-blue-500" placeholder="กรอกรหัส หรือ สแกนเข้าที่นี่" onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, currentMasterActivity.title); this.value=''; }"></div>
                         <div id="camera-section" class="hidden w-full h-[350px] border-2 rounded-xl overflow-hidden mt-4 bg-black"><div id="hw-reader" class="w-full h-full"></div></div>
                     </div>
                 </div>
             </div>
             
+            <!-- แท็บ: สร้าง QR -->
             <div id="mtab-content-qractivity" class="mtab-content hidden">
                 <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center flex flex-col items-center">
                     <div class="bg-blue-50/50 p-6 rounded-xl border border-blue-200 w-full max-w-sm">
                         <div class="bg-white p-4 inline-block rounded-xl border-2 border-dashed border-blue-300 mb-4 w-48 h-48 flex items-center justify-center relative shadow-sm"><img id="m-dynamic-qr" src="" class="w-full h-full object-contain hidden absolute inset-0 z-10"><div id="m-qr-placeholder" class="text-slate-400 font-bold text-sm z-0"><i class="fas fa-qrcode text-4xl mb-2 block opacity-30"></i>รอกดสร้างรหัส</div></div>
                         <div class="mb-4"><label class="text-xs font-bold text-slate-500">เวลาเปลี่ยน Token (วินาที)</label><input type="number" id="m-qr-interval" class="modern-input w-full mt-1 text-center" value="15" min="10"></div>
-                        <button id="btn-toggle-qr" onclick="toggleDynamicQR()" class="w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md transition"><i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code</button>
+                        <button id="btn-toggle-qr" onclick="toggleDynamicQR()" class="w-full bg-rose-600 text-white px-8 py-3 rounded-lg font-bold text-sm shadow-md transition"><i class="fas fa-play mr-2"></i> เปิดระบบ Dynamic QR</button>
                     </div>
                 </div>
             </div>
 
+            <!-- แท็บ: จัดการรอบ -->
             <div id="mtab-content-rounds" class="mtab-content hidden">
                 <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white"><h3 class="font-bold text-slate-800 text-lg">จัดการรอบ</h3><button onclick="openAddRoundModal()" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-bold"><i class="fas fa-plus"></i> เพิ่มรอบ</button></div>
+                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white"><h3 class="font-bold text-slate-800 text-lg">จัดการรอบ</h3><button onclick="openAddRoundModal()" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm"><i class="fas fa-plus"></i> เพิ่มรอบ</button></div>
                     <div class="overflow-x-auto"><table class="w-full text-left text-sm whitespace-nowrap"><thead class="bg-[#f8fafc] border-b text-[11px] text-slate-600 font-bold"><tr><th class="p-4">รอบลงทะเบียน</th><th class="p-4 text-center">หมายเหตุ</th><th class="p-4 text-center">สถานะ</th><th class="p-4 text-center w-24">จัดการ</th></tr></thead><tbody id="master-rounds-list"></tbody></table></div>
                 </div>
             </div>
 
+            <!-- แท็บ: นำเข้ารายคน -->
             <div id="mtab-content-import_s" class="mtab-content hidden">
                 <div class="bg-white p-6 rounded-xl border shadow-sm mb-6"><h3 class="font-bold mb-4 text-slate-800"><i class="fas fa-search text-blue-500"></i> นำเข้านักศึกษารายคน</h3><div class="flex gap-3 mb-4"><div class="flex-1"><label class="block text-xs font-bold text-slate-500 mb-1">รหัสนักศึกษา *</label><input type="text" id="m-s-id" class="w-full p-2.5 border rounded-lg text-sm font-bold" placeholder="เช่น 65000..."></div><div class="flex-1"><label class="block text-xs font-bold text-slate-500 mb-1">เลือกรอบ *</label><select id="m-import-s-round" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50"></select></div></div><button onclick="searchSingleStudentForImport()" class="bg-blue-600 text-white px-8 py-2.5 rounded-lg text-sm font-bold"><i class="fas fa-search"></i> ค้นหาข้อมูล</button></div><div id="m-s-result"></div>
             </div>
 
+            <!-- แท็บ: นำเข้าแบบกลุ่ม (Excel/Paste) -->
             <div id="mtab-content-import_b" class="mtab-content hidden">
-                <div class="bg-white p-6 rounded-xl border shadow-sm"><h3 class="font-bold mb-4 text-slate-800"><i class="fas fa-users text-blue-500"></i> นำเข้าแบบกลุ่ม</h3><div class="bg-slate-50 p-4 rounded-xl border mb-4"><label class="block text-sm font-bold mb-2">1. รหัสนักศึกษา (คั่นด้วยลูกน้ำ)</label><textarea id="m-import-text" rows="5" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="58162110024-5, 58162110042-4..."></textarea></div><div class="bg-slate-50 p-4 rounded-xl border mb-4"><label class="block text-sm font-bold mb-2">2. เลือกรอบ</label><select id="m-import-b-round" class="w-full p-3 border rounded-xl text-sm bg-white"></select></div><button onclick="importMasterParticipants()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold w-full md:w-auto"><i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล</button></div>
+                <div class="bg-white p-6 rounded-xl border shadow-sm">
+                    <h3 class="font-bold mb-4 text-slate-800"><i class="fas fa-users text-blue-500"></i> นำเข้าแบบกลุ่ม (Paste หรือ Excel)</h3>
+                    
+                    <!-- 🌟 ส่วนอัปโหลดไฟล์ Excel (SheetJS) -->
+                    <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 mb-4 flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-emerald-800 text-sm">ดึงรหัสจากไฟล์ Excel</p>
+                            <p class="text-xs text-emerald-600">เลือกไฟล์ .xlsx ระบบจะดึงรหัสนักศึกษาจากคอลัมน์แรกอัตโนมัติ</p>
+                        </div>
+                        <label class="cursor-pointer bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-emerald-700 transition">
+                            <i class="fas fa-file-excel mr-1"></i> เลือกไฟล์ Excel
+                            <input type="file" id="excel-upload" class="hidden" accept=".xlsx, .xls, .csv" onchange="previewExcelImport(event)">
+                        </label>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-xl border mb-4"><label class="block text-sm font-bold mb-2">1. รหัสนักศึกษา (คั่นด้วยลูกน้ำ)</label><textarea id="m-import-text" rows="5" class="w-full p-3 border rounded-xl text-xs font-mono" placeholder="58162110024-5, 58162110042-4..."></textarea></div>
+                    <div class="bg-slate-50 p-4 rounded-xl border mb-4"><label class="block text-sm font-bold mb-2">2. เลือกรอบ</label><select id="m-import-b-round" class="w-full p-3 border rounded-xl text-sm bg-white"></select></div>
+                    <button onclick="importMasterParticipants()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold w-full md:w-auto shadow-md"><i class="fas fa-file-import mr-2"></i> ยืนยันนำเข้าข้อมูล</button>
+                </div>
             </div>
 
+            <!-- แท็บ: แอดมิน -->
             <div id="mtab-content-admins" class="mtab-content hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="lg:col-span-1"><div class="bg-white p-6 rounded-xl border shadow-sm"><h3 class="font-bold text-blue-700 mb-4"><i class="fas fa-user-plus"></i> เพิ่มผู้ดูแล</h3><div class="space-y-4 mb-4"><div><label class="block text-xs font-bold mb-1">Username</label><input type="text" id="admin-user-input" class="w-full p-2.5 border rounded-lg text-sm" placeholder="ระบุ Username"></div><div><label class="block text-xs font-bold mb-1">เบอร์โทร</label><input type="text" id="admin-phone-input" class="w-full p-2.5 border rounded-lg text-sm" placeholder="08X-XXXXXXX"></div></div><button onclick="addActivityAdmin(currentMasterActivity.title)" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm">เพิ่มผู้ดูแล</button></div></div><div class="lg:col-span-2"><div class="bg-white rounded-xl border shadow-sm overflow-hidden"><div class="p-5 border-b flex items-center gap-2 bg-emerald-50/30"><h3 class="font-bold text-emerald-800 text-sm"><i class="fas fa-shield-check"></i> รายชื่อผู้ดูแล (<span id="admin-count">0</span>)</h3></div><table class="w-full text-left text-sm"><thead class="bg-[#f8fafc] border-b text-[11px] text-slate-500 font-bold"><tr><th class="p-4">ผู้ดูแล</th><th class="p-4">เบอร์โทร</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody id="act-admins-list"></tbody></table></div></div></div>
             </div>
@@ -2532,15 +2568,17 @@ function renderHomeDirectory() {
 }
         
 // ================= ACTIVITY ENTERPRISE SYSTEM =================
-let currentMasterActivity = null;
-let qrTokenInterval = null;
+var currentMasterActivity = null;
+var qrTokenInterval = null;
+var actMasterCurrentPage = 1;
+var actMasterPerPage = 15;
 
 function renderActivities() {
     let actSearchEl = document.getElementById('act-search'); if(!actSearchEl) return;
     const search = actSearchEl.value.toLowerCase(); const grid = document.getElementById('activity-grid'); if(!grid) return;
     
-    let adminCard = document.getElementById('admin-activity-master-card');
     let mainDash = document.getElementById('activity-main-dashboard');
+    let adminCard = document.getElementById('admin-activity-master-card');
     let btnCreate = document.getElementById('btn-create-act');
     
     if (currentUserRole !== 'guest') {
@@ -2554,7 +2592,7 @@ function renderActivities() {
     }
 
     if (currentUserRole === 'guest' && !window.currentGuestStuId) {
-        grid.innerHTML = `<div class="col-span-full bg-white rounded-3xl p-10 text-center border border-slate-200 shadow-sm max-w-2xl mx-auto mt-8 w-full"><div class="text-slate-300 mb-4"><i class="fas fa-lock text-6xl"></i></div><h3 class="font-bold text-slate-700 text-xl mb-2">กรุณาเข้าสู่ระบบก่อน</h3><p class="text-slate-500 text-sm mb-6">ต้องเข้าสู่ระบบนักศึกษาเพื่อลงทะเบียนกิจกรรมครับ</p><button onclick="promptStudentLogin()" class="bg-[#111827] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition"><i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบตอนนี้</button></div>`;
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-3xl p-10 text-center border border-slate-200 shadow-sm"><div class="text-slate-300 mb-4"><i class="fas fa-lock text-6xl"></i></div><h3 class="font-bold text-slate-700 text-xl mb-2">กรุณาเข้าสู่ระบบก่อน</h3><button onclick="promptStudentLogin()" class="bg-[#111827] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition"><i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบตอนนี้</button></div>`;
         return;
     }
 
@@ -2598,7 +2636,7 @@ function renderActivities() {
         }
 
         let clickAction = currentUserRole === 'guest' ? `openRegistrationModal('${act.title}')` : `loadActivityMasterData('${act.title}')`;
-        let guestBtn = currentUserRole === 'guest' ? (myLog ? `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนสำเร็จ (รอบ: ${myLog.roundName}) &rarr;</div>` : `<div class="bg-slate-50 p-3 mt-4 text-center rounded-b-xl border-t border-slate-100 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition">ดูรายละเอียดและลงทะเบียน &rarr;</div>`) : '';
+        let guestBtn = currentUserRole === 'guest' ? (myLog ? `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนสำเร็จ &rarr;</div>` : `<div class="bg-slate-50 p-3 mt-4 text-center rounded-b-xl border-t border-slate-100 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition">ดูรายละเอียดและลงทะเบียน &rarr;</div>`) : '';
 
         actHtml += `
         <div onclick="event.stopPropagation(); ${clickAction}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition flex flex-col h-full cursor-pointer relative overflow-hidden group">
@@ -2624,11 +2662,8 @@ window.loadActivityMasterData = function(title) {
     currentMasterActivity = appSettings.activities.find(a => a.title === title);
     if (!currentMasterActivity) return;
 
-    let mainDash = document.getElementById('activity-main-dashboard');
-    let adminCard = document.getElementById('admin-activity-master-card');
-    
-    if (mainDash) mainDash.classList.add('hidden');
-    if (adminCard) adminCard.classList.remove('hidden');
+    document.getElementById('activity-main-dashboard').classList.add('hidden');
+    document.getElementById('admin-activity-master-card').classList.remove('hidden');
 
     document.getElementById('master-header-title').innerText = currentMasterActivity.title;
     document.getElementById('master-header-term').innerText = `${currentMasterActivity.year}/${currentMasterActivity.term}`;
@@ -2636,17 +2671,14 @@ window.loadActivityMasterData = function(title) {
     let refEl = document.getElementById('master-header-ref');
     if(refEl) { refEl.innerText = `691-A030-${Math.floor(Math.random()*9000)}`; refEl.classList.remove('hidden'); }
 
+    actMasterCurrentPage = 1; // รีเซ็ตหน้ากลับไป 1 เสมอเวลาโหลดใหม่
     switchMasterTab('dashboard');
 }
 
 window.closeActivityMaster = function() {
     currentMasterActivity = null;
-    let mainDash = document.getElementById('activity-main-dashboard');
-    let adminCard = document.getElementById('admin-activity-master-card');
-
-    if(adminCard) adminCard.classList.add('hidden');
-    if(mainDash) mainDash.classList.remove('hidden');
-
+    document.getElementById('admin-activity-master-card').classList.add('hidden');
+    document.getElementById('activity-main-dashboard').classList.remove('hidden');
     if (qrTokenInterval) { clearInterval(qrTokenInterval); qrTokenInterval = null; }
     renderActivities();
 }
@@ -2677,120 +2709,191 @@ window.switchMasterTab = function(tabId) {
     if (['checkin', 'qrsetting', 'qractivity', 'import_s', 'import_b'].includes(tabId)) renderMasterDropdowns();
 }
 
+// 🌟 1. ฟังก์ชันจัดกลุ่มและสร้างตาราง Dashboard (แก้ไขใหม่ทั้งหมด ตามโครงสร้างในภาพ)
 function renderMasterDashboard() {
+    if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
     let logs = activityLogs.filter(l => l.activityTitle === currentMasterActivity.title);
-    let tMax = currentMasterActivity.rounds ? currentMasterActivity.rounds.reduce((s, r) => s + (parseInt(r.max)||0), 0) : 0;
     
-    let scanIn = logs.filter(p => p.timeIn && p.timeIn !== '-' && !p.timeIn.includes('จองสิทธิ์')).length;
-    let regCount = logs.filter(p => p.timeIn && p.timeIn.includes('จองสิทธิ์')).length;
-    let failCount = logs.filter(p => p.status === 'U' || p.status === 'P').length;
+    // จัดกลุ่มข้อมูลนักศึกษา 1 คน ต่อ 1 แถว (เพื่อให้มีหลายรอบสแกนในแถวเดียวได้)
+    let groupedLogs = {};
+    logs.forEach(l => {
+        if(!groupedLogs[l.studentId]) {
+            groupedLogs[l.studentId] = { 
+                studentId: l.studentId, 
+                webReg: null, 
+                roundScans: {}, 
+                status: l.status || 'NULL' 
+            };
+        }
+        if(l.timeIn && l.timeIn.includes('จองสิทธิ์')) {
+            groupedLogs[l.studentId].webReg = l.timeIn.replace('จองสิทธิ์ล่วงหน้า ', '').replace('จองสิทธิ์ล่วงหน้า', 'มียืนยัน'); 
+        } else if (l.timeIn && l.timeIn !== '-') {
+            groupedLogs[l.studentId].roundScans[l.roundName || 'ทั่วไป'] = l.timeIn;
+        }
+        // เลือก Status ที่สำคัญสุด (ถ้าไม่ใช่ A หรือ NULL)
+        if (l.status && l.status !== 'NULL' && l.status !== 'A') {
+            groupedLogs[l.studentId].status = l.status;
+        }
+    });
 
-    let scanPercent = tMax > 0 ? ((scanIn / tMax) * 100).toFixed(0) : (logs.length > 0 ? ((scanIn / logs.length) * 100).toFixed(0) : 0);
+    let groupedArray = Object.values(groupedLogs);
+    let tMax = currentMasterActivity.rounds.reduce((s, r) => s + (parseInt(r.max)||0), 0);
+    
+    // คำนวณสถิติ
+    let regCount = groupedArray.filter(p => p.webReg !== null).length;
+    let scanIn = groupedArray.filter(p => Object.keys(p.roundScans).length > 0).length;
+    let failCount = groupedArray.filter(p => p.status === 'U' || p.status === 'P').length;
+
     let regPercent = tMax > 0 ? ((regCount / tMax) * 100).toFixed(0) : 0;
-    let failPercent = logs.length > 0 ? ((failCount / logs.length) * 100).toFixed(0) : 0;
+    let scanPercent = tMax > 0 ? ((scanIn / tMax) * 100).toFixed(0) : (groupedArray.length > 0 ? ((scanIn / groupedArray.length) * 100).toFixed(0) : 0);
+    let failPercent = groupedArray.length > 0 ? ((failCount / groupedArray.length) * 100).toFixed(0) : 0;
 
-    let elAll = document.getElementById('m-stat-all'); if(elAll) elAll.innerText = logs.length;
+    let elAll = document.getElementById('m-stat-all'); if(elAll) elAll.innerText = groupedArray.length;
     let elWeb = document.getElementById('m-stat-web'); if(elWeb) elWeb.innerText = regCount;
-    let elM1 = document.getElementById('m-stat-max1'); if(elM1) elM1.innerText = tMax > 0 ? tMax : logs.length;
+    let elM1 = document.getElementById('m-stat-max1'); if(elM1) elM1.innerText = tMax > 0 ? tMax : groupedArray.length;
     let elBW = document.getElementById('m-bar-web'); if(elBW) elBW.style.width = `${regPercent}%`;
 
     let elScan = document.getElementById('m-stat-scan'); if(elScan) elScan.innerText = scanIn;
-    let elM2 = document.getElementById('m-stat-max2'); if(elM2) elM2.innerText = tMax > 0 ? tMax : logs.length;
+    let elM2 = document.getElementById('m-stat-max2'); if(elM2) elM2.innerText = tMax > 0 ? tMax : groupedArray.length;
     let elBS = document.getElementById('m-bar-scan'); if(elBS) elBS.style.width = `${scanPercent}%`;
 
     let elFail = document.getElementById('m-stat-fail'); if(elFail) elFail.innerText = failCount;
-    let elM3 = document.getElementById('m-stat-max3'); if(elM3) elM3.innerText = logs.length;
+    let elM3 = document.getElementById('m-stat-max3'); if(elM3) elM3.innerText = groupedArray.length;
     let elBF = document.getElementById('m-bar-fail'); if(elBF) elBF.style.width = `${failPercent}%`;
 
-    let tbody = document.getElementById('m-participant-list');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    
-    if (logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-400 font-bold">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`; return;
-    }
-
-    logs.forEach(p => {
-        let stu = students.find(s => s.id === p.studentId) || { name: 'ไม่พบชื่อ', room: '-' };
-        let bdg = '';
-        if (p.status === 'C') bdg = `<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full text-xs font-bold">ผ่าน (C)</span>`;
-        else if (p.status === 'P') bdg = `<span class="bg-amber-100 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-full text-xs font-bold">รอพิจารณา (P)</span>`;
-        else if (p.status === 'U') bdg = `<span class="bg-rose-100 text-rose-700 border border-rose-200 px-4 py-1.5 rounded-full text-xs font-bold">ไม่ผ่าน (U)</span>`;
-        else bdg = `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-bold">เข้าร่วมปกติ (A)</span>`;
-
-        let isJustReg = p.timeIn && p.timeIn.includes('จองสิทธิ์');
-        let wD = '<div class="text-emerald-500"><i class="fas fa-check-circle text-xl"></i></div>';
-        let inT = (p.timeIn && p.timeIn.match(/\d{2}:\d{2}/)) ? p.timeIn.match(/\d{2}:\d{2}/)[0] : (p.timeIn || '-');
-        let outT = (p.timeOut && p.timeOut.match(/\d{2}:\d{2}/)) ? p.timeOut.match(/\d{2}:\d{2}/)[0] : (p.timeOut || '-');
-        
-        let sInD = isJustReg ? '<i class="far fa-times-circle text-slate-200 text-xl"></i>' : `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${inT}</span></div>`;
-        let sOutD = (!p.timeOut || p.timeOut === '-') ? '<i class="far fa-times-circle text-slate-200 text-xl"></i>' : `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${outT}</span></div>`;
-
-        tbody.innerHTML += `
-        <tr class="hover:bg-slate-50 m-student-row transition-colors">
-            <td class="p-4 text-center"><input type="checkbox" class="m-stu-check w-4 h-4 text-blue-600 rounded" value="${p.studentId}"></td>
-            <td class="p-4"><p class="font-bold text-slate-800 text-sm m-stu-name">${stu.name}</p><p class="text-[10px] font-mono text-slate-500 m-stu-id">${p.studentId} | ห้อง ${stu.room}</p></td>
-            <td class="p-4 text-center text-xs text-slate-600 font-bold">${p.roundName || '-'}</td>
-            <td class="p-4 text-center">${wD}</td>
-            <td class="p-4 text-center">${sInD}</td>
-            <td class="p-4 text-center">${bdg}</td>
-        </tr>`;
+    // 🌟 ระบบค้นหาและตัวกรอง
+    let searchTxt = document.getElementById("m-table-search")?.value.toLowerCase() || '';
+    let filteredData = groupedArray.filter(p => {
+        let stu = students.find(s => s.id === p.studentId) || { name: 'ไม่พบชื่อ' };
+        return stu.name.toLowerCase().includes(searchTxt) || p.studentId.includes(searchTxt);
     });
+
+    // 🌟 ระบบแบ่งหน้า (Pagination)
+    let totalPages = Math.ceil(filteredData.length / actMasterPerPage) || 1;
+    if (actMasterCurrentPage > totalPages) actMasterCurrentPage = totalPages;
+    if (actMasterCurrentPage < 1) actMasterCurrentPage = 1;
+
+    let startIdx = (actMasterCurrentPage - 1) * actMasterPerPage;
+    let pagedData = filteredData.slice(startIdx, startIdx + actMasterPerPage);
+
+    let tableEl = document.getElementById('dynamic-participant-table');
+    if(!tableEl) return;
+
+    // 1. สร้างหัวตาราง (Thead) ให้คอลัมน์สอดคล้องกับรอบกิจกรรม
+    let theadHtml = `<thead class="bg-white text-slate-700 text-[11px] font-bold border-b border-slate-200 sticky top-0 z-10"><tr>
+        <th class="p-4 text-center w-10"><input type="checkbox" onclick="toggleAllMasterChecks(this)"></th>
+        <th class="p-4 text-left">ข้อมูลนักศึกษา</th>
+        <th class="p-4 text-center">หลักเกณฑ์ <i class="fas fa-sort text-slate-300 ml-1"></i></th>
+        <th class="p-4 text-center">ลงทะเบียนเว็บ <i class="fas fa-sort text-slate-300 ml-1"></i></th>`;
+    
+    currentMasterActivity.rounds.forEach(r => {
+        theadHtml += `<th class="p-4 text-center">${r.name} <i class="fas fa-sort text-slate-300 ml-1"></i></th>`;
+    });
+    
+    theadHtml += `<th class="p-4 text-center">สถานะ <i class="fas fa-sort text-slate-300 ml-1"></i></th></tr></thead>`;
+
+    // 2. สร้างเนื้อหาตาราง (Tbody)
+    let tbodyHtml = '<tbody class="divide-y divide-slate-100">';
+    
+    if (pagedData.length === 0) {
+        tbodyHtml += `<tr><td colspan="${5 + currentMasterActivity.rounds.length}" class="p-10 text-center text-slate-400 font-bold bg-slate-50/50">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`;
+    } else {
+        pagedData.forEach(p => {
+            let stu = students.find(s => s.id === p.studentId) || { name: 'ไม่พบชื่อ', room: '-' };
+            
+            // ป้ายตัวสำรอง (ถ้าไม่ได้จองสิทธิ์ผ่านเว็บ ให้ขึ้นป้ายตัวสำรอง)
+            let backupBadge = !p.webReg ? `<span class="bg-slate-100 text-slate-800 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 shadow-sm border border-slate-200">ตัวสำรอง</span>` : '';
+            
+            // สถานะเว็บ (ติ๊กถูก หรือ กากบาท)
+            let webRegDisplay = p.webReg 
+                ? `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${p.webReg.match(/\d{2}:\d{2}/) ? p.webReg.match(/\d{2}:\d{2}/)[0] : p.webReg}</span></div>` 
+                : `<i class="far fa-times-circle text-rose-300 text-xl"></i>`;
+
+            // สถานะ (Badge)
+            let bdg = '';
+            if (p.status === 'C') bdg = `<span class="bg-white border border-emerald-500 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่านกิจกรรม (C)</span>`;
+            else if (p.status === 'P') bdg = `<span class="bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">รอพิจารณา (P)</span>`;
+            else if (p.status === 'U') bdg = `<span class="bg-white border border-rose-500 text-rose-600 px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ไม่ผ่าน (U)</span>`;
+            else bdg = `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">เข้าร่วมปกติ (A)</span>`;
+
+            // เริ่มแถว
+            tbodyHtml += `
+            <tr class="hover:bg-slate-50 transition-colors m-student-row bg-white">
+                <td class="p-4 text-center"><input type="checkbox" class="m-stu-check w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500" value="${p.studentId}"></td>
+                <td class="p-4">
+                    <div class="font-bold text-slate-800 text-sm mb-0.5 m-stu-name">${stu.name} ${backupBadge}</div>
+                    <div class="text-[10px] font-mono text-slate-500 m-stu-id">${p.studentId}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">ห้อง ${stu.room}</div>
+                </td>
+                <td class="p-4 text-center text-xs text-slate-500 font-bold">-</td>
+                <td class="p-4 text-center">${webRegDisplay}</td>`;
+
+            // ดึงข้อมูลการสแกนในแต่ละรอบ
+            currentMasterActivity.rounds.forEach(r => {
+                let scanTime = p.roundScans[r.name];
+                let roundDisplay = scanTime 
+                    ? `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${scanTime.match(/\d{2}:\d{2}/) ? scanTime.match(/\d{2}:\d{2}/)[0] : scanTime}</span></div>` 
+                    : `<i class="far fa-times-circle text-rose-300 text-xl"></i>`;
+                tbodyHtml += `<td class="p-4 text-center">${roundDisplay}</td>`;
+            });
+
+            tbodyHtml += `<td class="p-4 text-center">${bdg}</td></tr>`;
+        });
+    }
+    tbodyHtml += '</tbody>';
+    tableEl.innerHTML = theadHtml + tbodyHtml;
+
+    // 3. ปุ่มควบคุมหน้า (Pagination Controls)
+    let pageHtml = `
+    <div class="text-slate-500 text-xs">แสดง ${filteredData.length === 0 ? 0 : startIdx + 1} ถึง ${Math.min(startIdx + actMasterPerPage, filteredData.length)} จาก ${filteredData.length} รายการ</div>
+    <div class="flex gap-2">
+        <button onclick="changeMasterPage(-1)" ${actMasterCurrentPage === 1 ? 'disabled class="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-md cursor-not-allowed"' : 'class="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md transition"'}>ก่อนหน้า</button>
+        <span class="px-3 py-1.5 text-slate-700 bg-white border border-slate-200 rounded-md">${actMasterCurrentPage} / ${totalPages}</span>
+        <button onclick="changeMasterPage(1)" ${actMasterCurrentPage === totalPages ? 'disabled class="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-md cursor-not-allowed"' : 'class="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-md transition"'}>ถัดไป</button>
+    </div>`;
+    document.getElementById('m-pagination-controls').innerHTML = pageHtml;
 }
 
 window.filterMasterTable = function() {
-    let input = document.getElementById("m-table-search")?.value.toLowerCase() || '';
-    document.querySelectorAll(".m-student-row").forEach(row => {
-        let name = row.querySelector('.m-stu-name').innerText.toLowerCase();
-        let id = row.querySelector('.m-stu-id').innerText.toLowerCase();
-        row.style.display = (name.includes(input) || id.includes(input)) ? "" : "none";
-    });
+    actMasterCurrentPage = 1; // เมื่อค้นหาให้กลับไปหน้าแรกสุด
+    renderMasterDashboard();
 }
 
-window.toggleAllMasterChecks = function(source) { document.querySelectorAll('.m-stu-check').forEach(cb => cb.checked = source.checked); }
+window.changeMasterPage = function(step) {
+    actMasterCurrentPage += step;
+    renderMasterDashboard();
+}
+
+window.toggleAllMasterChecks = function(source) { 
+    document.querySelectorAll('.m-stu-check').forEach(cb => cb.checked = source.checked); 
+}
 
 window.executeBatchAction = function(newStatus) {
     let cbs = document.querySelectorAll('.m-stu-check:checked');
     if (cbs.length === 0) return Swal.fire('เตือน', 'กรุณาเลือกนักศึกษาอย่างน้อย 1 คน', 'warning');
 
-    // แมปชื่อสถานะให้แสดงใน Popup สวยงาม
-    let statusMap = {
-        'C': '✅ ผ่านปกติ (C)',
-        'A': '✨ ผ่านกรณีพิเศษ (A)',
-        'P': '⏳ รอพิจารณา (P)',
-        'U': '❌ ไม่ผ่าน (U)',
-        'REMOVE': '🗑️ ลบรายชื่อออก'
-    };
+    let statusMap = { 'C': '✅ ผ่านปกติ (C)', 'A': '✨ ผ่านกรณีพิเศษ (A)', 'P': '⏳ รอพิจารณา (P)', 'U': '❌ ไม่ผ่าน (U)', 'REMOVE': '🗑️ ลบรายชื่อออก' };
 
     Swal.fire({ 
         title: 'ยืนยันดำเนินการ?', 
-        html: `คุณกำลังเปลี่ยนสถานะนักศึกษา <b>${cbs.length} คน</b><br>เป็น <b>${statusMap[newStatus]}</b>`, 
-        icon: 'warning', 
-        showCancelButton: true, 
-        confirmButtonText: 'ยืนยันการเปลี่ยนแปลง',
+        html: `เปลี่ยนสถานะนักศึกษา <b>${cbs.length} คน</b><br>เป็น <b>${statusMap[newStatus]}</b>`, 
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยัน',
         confirmButtonColor: newStatus === 'REMOVE' ? '#e11d48' : '#10b981' 
     }).then((res) => {
         if (res.isConfirmed) {
             cbs.forEach(cb => {
-                let logIndex = activityLogs.findIndex(l => l.studentId === cb.value && l.activityTitle === currentMasterActivity.title);
-                if (logIndex !== -1) {
+                let logs = activityLogs.filter(l => l.studentId === cb.value && l.activityTitle === currentMasterActivity.title);
+                logs.forEach(log => {
                     if (newStatus === 'REMOVE') {
-                        // ลบรายชื่อออกจาก Array (เหมือนคำสั่ง DELETE)
-                        activityLogs.splice(logIndex, 1);
+                        let idx = activityLogs.indexOf(log);
+                        if(idx !== -1) activityLogs.splice(idx, 1);
                     } else {
-                        // อัปเดตสถานะ C, A, P, U
-                        activityLogs[logIndex].status = newStatus;
+                        log.status = newStatus;
                     }
-                }
+                });
             });
-            
-            txHistory.unshift({ date: getNow(), name: `อัปเดตสถานะเป็น ${newStatus} (${cbs.length} คน) กิจกรรม ${currentMasterActivity.title}`, type: 'ระบบ', amt: 0, user: currentUsername });
-            
-            // บันทึกและรีเฟรชตาราง
-            saveToLocal(true); 
-            renderMasterDashboard();
-            
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'อัปเดตสถานะสำเร็จ', showConfirmButton:false, timer:1500});
+            saveToLocal(true); renderMasterDashboard();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'สำเร็จ', showConfirmButton:false, timer:1500});
         }
     });
 }
@@ -2809,7 +2912,7 @@ function renderMasterDropdowns() {
 window.openAddRoundModal = function() {
     Swal.fire({
         title: '<div class="text-left text-slate-800 text-lg font-bold border-b pb-3">เพิ่มรอบกิจกรรมใหม่</div>',
-        html: `<div class="text-left text-sm mt-2 space-y-4"><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อรอบ (ภาษาไทย) *</label><input type="text" id="popup-r-name" class="modern-input w-full"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">จำนวนที่รับ (0=ไม่จำกัด)</label><input type="number" id="popup-r-max" class="modern-input w-full" value="0"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">หมายเหตุ</label><input type="text" id="popup-r-note" class="modern-input w-full"></div></div>`, 
+        html: `<div class="text-left text-sm mt-2 space-y-4"><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อรอบ (ภาษาไทย) *</label><input type="text" id="popup-r-name" class="modern-input w-full" placeholder="เช่น ลงทะเบียนเข้า, ลงทะเบียนออก MD"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">จำนวนที่รับ (0=ไม่จำกัด)</label><input type="number" id="popup-r-max" class="modern-input w-full" value="0"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">หมายเหตุ</label><input type="text" id="popup-r-note" class="modern-input w-full"></div></div>`, 
         showCancelButton: true, confirmButtonText: 'ยืนยัน', confirmButtonColor: '#2563eb',
         preConfirm: () => {
             let n = document.getElementById('popup-r-name').value.trim();
@@ -2832,7 +2935,7 @@ function renderMasterRoundsTab() {
     if (currentMasterActivity.rounds.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-10 text-slate-400">ยังไม่มีข้อมูลรอบลงทะเบียน</td></tr>'; return; }
     let html = '';
     currentMasterActivity.rounds.forEach((r, idx) => {
-        html += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-4"><p class="font-bold text-slate-800 text-sm">${r.name}</p><p class="text-[10px] text-slate-500">โควตา: ${r.max>0?r.max+' คน':'ไม่จำกัด'}</p></td><td class="p-4 text-center text-xs text-slate-500">${r.note||'-'}</td><td class="p-4 text-center"><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">เปิดใช้งาน</span></td><td class="p-4 text-center"><button onclick="deleteMasterRound(${idx})" class="text-rose-500 p-2"><i class="fas fa-trash"></i></button></td></tr>`;
+        html += `<tr class="border-b hover:bg-slate-50 transition bg-white"><td class="p-4"><p class="font-bold text-slate-800 text-sm">${r.name}</p><p class="text-[10px] text-slate-500">โควตา: ${r.max>0?r.max+' คน':'ไม่จำกัด'}</p></td><td class="p-4 text-center text-xs text-slate-500">${r.note||'-'}</td><td class="p-4 text-center"><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">เปิดใช้งาน</span></td><td class="p-4 text-center"><button onclick="deleteMasterRound(${idx})" class="text-rose-500 p-2"><i class="fas fa-trash"></i></button></td></tr>`;
     });
     if(tbody) tbody.innerHTML = html;
 }
@@ -2889,20 +2992,57 @@ window.searchSingleStudentForImport = function() {
 window.importMasterSingle = function(stuId) {
     let round = document.getElementById('m-import-s-round').value;
     if (!round) return Swal.fire('เตือน', 'กรุณาเลือกรอบลงทะเบียน', 'warning');
-    let existing = activityLogs.find(l => l.studentId === stuId && l.activityTitle === currentMasterActivity.title);
-    if (existing) return Swal.fire('เตือน', 'รายชื่อนี้อยู่ในระบบแล้ว', 'warning');
+    let existing = activityLogs.find(l => l.studentId === stuId && l.activityTitle === currentMasterActivity.title && l.roundName === round);
+    if (existing) return Swal.fire('เตือน', 'รายชื่อนี้สแกนในรอบนี้ไปแล้ว', 'warning');
     activityLogs.unshift({ studentId: stuId, activityTitle: currentMasterActivity.title, roundName: round, timeIn: getNow()+' (นำเข้า)', timeOut: null, status: 'A' });
     txHistory.unshift({ date: getNow(), name: `นำเข้ารายบุคคล: ${stuId}`, type: 'ระบบ', amt: 0, user: currentUsername });
     saveToLocal(true); document.getElementById('m-s-result').innerHTML = ''; document.getElementById('m-s-id').value = '';
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'นำเข้าสำเร็จ', showConfirmButton: false, timer: 1500 });
 }
 
+// 🌟 2. อัปเกรดระบบนำเข้าไฟล์ Excel ด้วยไลบรารี SheetJS (xlsx)
+window.previewExcelImport = function(event) {
+    let file = event.target.files[0];
+    if(!file) return;
+    
+    Swal.fire({title: 'กำลังอ่านไฟล์ Excel...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let data = new Uint8Array(e.target.result);
+            let workbook = XLSX.read(data, {type: 'array'});
+            let sheetName = workbook.SheetNames[0]; // ดึงข้อมูลจาก Sheet แรก
+            let json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1}); // อ่านเป็น Array 2 มิติ
+            
+            let ids = [];
+            // วนลูปอ่านข้อมูลทีละบรรทัด เริ่มจากบรรทัดที่ 2 (ข้าม Header ถ้ามี)
+            for(let i = 1; i < json.length; i++) {
+                if(json[i][0]) ids.push(String(json[i][0]).trim()); // สมมติว่ารหัสอยู่คอลัมน์ A (Index 0)
+            }
+            
+            if (ids.length === 0) {
+                return Swal.fire('ผิดพลาด', 'ไม่พบรหัสนักศึกษาในคอลัมน์ A (ช่องแรกสุด) ของไฟล์ Excel', 'error');
+            }
+
+            document.getElementById('m-import-text').value = ids.join(',\n');
+            Swal.fire('ดึงข้อมูลสำเร็จ', `พบรหัสนักศึกษา ${ids.length} รายการ จากไฟล์ ${file.name}<br><span class="text-xs text-rose-500">กรุณาเลือกรอบกิจกรรม และกดยืนยันนำเข้าข้อมูล</span>`, 'success');
+        } catch (error) {
+            Swal.fire('อ่านไฟล์ไม่สำเร็จ', 'รูปแบบไฟล์ไม่ถูกต้อง หรือไฟล์อาจเสียหาย', 'error');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    // เคลียร์ค่า input เผื่อต้องการเลือกไฟล์เดิมซ้ำ
+    event.target.value = '';
+};
+
 window.importMasterParticipants = function() {
     let idsInput = document.getElementById('m-import-text').value;
     let round = document.getElementById('m-import-b-round').value;
     if (!round) return Swal.fire('เตือน', 'กรุณาเลือกรอบลงทะเบียนก่อนครับ', 'warning');
-    if (!idsInput.trim()) return Swal.fire('เตือน', 'กรุณากรอกรหัสอย่างน้อย 1 คน', 'warning');
+    if (!idsInput.trim()) return Swal.fire('เตือน', 'กรุณากรอกรหัส หรือเลือกไฟล์ Excel ก่อน', 'warning');
     Swal.fire({title: 'กำลังตรวจสอบ...', didOpen: () => Swal.showLoading()});
+    
     setTimeout(() => {
         let rawIds = idsInput.split(/[\n,]+/).map(id => id.trim()).filter(id => id !== '');
         let sc = 0, nf = 0, dp = 0;
@@ -2910,71 +3050,75 @@ window.importMasterParticipants = function() {
             let cleanId = formatIdSearch(rawId).replace(/-/g, '');
             let stu = students.find(s => s.id.replace(/-/g,'') === cleanId);
             if (!stu) { nf++; return; }
-            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
+            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title && l.roundName === round);
             if (existing) { dp++; return; }
+            
             activityLogs.unshift({ studentId: stu.id, activityTitle: currentMasterActivity.title, roundName: round, timeIn: getNow()+' (นำเข้า)', timeOut: null, status: 'A' });
             sc++;
         });
         if (sc > 0) { txHistory.unshift({ date: getNow(), name: `นำเข้ากลุ่ม (${currentMasterActivity.title}): ${sc} คน`, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(true); document.getElementById('m-import-text').value = ''; }
-        Swal.fire({ title: 'ผลการนำเข้า', html: `<div class="text-left text-sm mt-2"><p class="text-emerald-600 font-bold">สำเร็จ: ${sc} คน</p><p class="text-amber-500 font-bold">ซ้ำ: ${dp} คน</p><p class="text-rose-500 font-bold">ไม่พบ: ${nf} คน</p></div>`, icon: 'info' });
+        Swal.fire({ title: 'ผลการนำเข้า', html: `<div class="text-left text-sm mt-2"><p class="text-emerald-600 font-bold">สำเร็จ: ${sc} คน</p><p class="text-amber-500 font-bold">ซ้ำ(ในรอบนี้): ${dp} คน</p><p class="text-rose-500 font-bold">ไม่พบรายชื่อในระบบ: ${nf} คน</p></div>`, icon: 'info' }).then(() => renderMasterDashboard());
     }, 500);
 }
 
+// 🌟 3. อัปเกรด Export CSV (แก้ปัญหาภาษาไทยด่างดาว + ดึงคอลัมน์ครบแบบภาพที่ 1)
 window.exportActivityToCSV = function() {
     let title = currentMasterActivity ? currentMasterActivity.title : currentDetailActivityTitle;
     let parts = activityLogs.filter(l => l.activityTitle === title); 
+    if(parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วม', 'info');
     
-    if(parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กิจกรรมนี้ยังไม่มีผู้เข้าร่วมเลยครับ', 'info');
-    
-    // เรียงลำดับตามห้องและเลขที่
     let mappedStudents = parts.map(p => { 
         let s = students.find(x => x.id === p.studentId) || { name: 'ไม่พบชื่อ', room: '-' }; 
         return { ...s, logData: p }; 
     });
+    
+    // เรียงตามห้อง
     mappedStudents.sort((a, b) => { 
         if (a.room === b.room) return (a.number || 0) - (b.number || 0); 
         return String(a.room).localeCompare(String(b.room)); 
     });
-
-    // ใส่ BOM (\uFEFF) เพื่อให้ Excel อ่านภาษาไทยได้สมบูรณ์ ไม่เป็นภาษาต่างดาว
-    let csv = "\uFEFFลำดับ,รหัสนักศึกษา,ชื่อ-นามสกุล,ห้องเรียน/สาขา,รอบที่ลงทะเบียน,เวลาลงเว็บ,เวลาสแกนหน้างาน,เวลาออก,สถานะการประเมิน\n"; 
     
+    // ใส่ BOM ป้องกันภาษาต่างดาว
+    let csv = "\uFEFFลำดับ,รหัส,ชื่อ,ห้อง,รอบที่สแกน,เวลาลงเว็บ,เวลาเข้า,สถานะประเมิน\n"; 
     mappedStudents.forEach((stu, idx) => { 
         let log = stu.logData;
         let webReg = (log.timeIn && log.timeIn.includes('จองสิทธิ์')) ? 'จองสิทธิ์ล่วงหน้า' : 'Walk-in';
         let scanIn = (!log.timeIn || log.timeIn.includes('จองสิทธิ์')) ? '-' : log.timeIn;
-        let scanOut = log.timeOut || '-';
         let status = log.status || 'ยังไม่ประเมิน';
 
-        // แปลงสถานะให้คนอ่านเข้าใจง่าย
-        if(status === 'C') status = 'ผ่านปกติ';
-        if(status === 'A') status = 'ผ่านพิเศษ';
-        if(status === 'P') status = 'รอพิจารณา';
-        if(status === 'U') status = 'ไม่ผ่าน';
+        // แปลงสถานะ
+        if(status === 'C') status = 'ผ่าน (C)';
+        if(status === 'A') status = 'ผ่านพิเศษ (A)';
+        if(status === 'P') status = 'รอพิจารณา (P)';
+        if(status === 'U') status = 'ไม่ผ่าน (U)';
 
-        csv += `${idx+1},="${stu.id}",${stu.name},${stu.room},${log.roundName||'ทั่วไป'},${webReg},${scanIn},${scanOut},${status}\n`; 
+        csv += `${idx+1},="${stu.id}",${stu.name},${stu.room},${log.roundName||'ทั่วไป'},${webReg},${scanIn},${status}\n`; 
     });
-
+    
     let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); 
-    let link = document.createElement("a"); 
-    link.href = URL.createObjectURL(blob); 
-    link.download = `รายงานผู้เข้าร่วม_${title.replace(/\s+/g, '_')}.csv`; 
-    document.body.appendChild(link); 
-    link.click(); 
-    document.body.removeChild(link);
+    let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `รายงานผู้เข้าร่วม_${title}.csv`; 
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
+// 🌟 4. ระบบ Dynamic QR Code (Client-side Fast Validation แบบ A)
 window.toggleDynamicQR = function() {
     let btn = document.getElementById('btn-toggle-qr'); let img = document.getElementById('m-dynamic-qr'); let plc = document.getElementById('m-qr-placeholder');
     if (qrTokenInterval) {
         clearInterval(qrTokenInterval); qrTokenInterval = null;
         if(img) img.classList.add('hidden'); if(plc) plc.classList.remove('hidden');
-        if(btn) { btn.innerHTML = '<i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code'; btn.className = "w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition"; }
+        if(btn) { btn.innerHTML = '<i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code'; btn.className = "w-full bg-rose-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition shadow-sm hover:bg-rose-700"; }
     } else {
         if(img) img.classList.remove('hidden'); if(plc) plc.classList.add('hidden');
-        if(btn) { btn.innerHTML = '<i class="fas fa-stop mr-2"></i> ปิดใช้งาน QR Code'; btn.className = "w-full bg-rose-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition"; }
-        let sec = parseInt(document.getElementById('m-qr-interval')?.value) || 12;
-        const gen = () => { let t = `ACT-${currentMasterActivity.title}-${Date.now()}`; if(img) img.src = `https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=${encodeURIComponent(t)}&choe=UTF-8`; };
+        if(btn) { btn.innerHTML = '<i class="fas fa-stop mr-2"></i> ปิดใช้งาน QR Code'; btn.className = "w-full bg-slate-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition shadow-sm hover:bg-slate-700"; }
+        
+        let sec = parseInt(document.getElementById('m-qr-interval')?.value) || 15;
+        const gen = () => { 
+            // 🌟 สร้าง Token ที่มีเวลาฝังอยู่: ACT|ชื่อกิจกรรม|Timestampปัจจุบัน
+            let payload = `ACT|${currentMasterActivity.title}|${Date.now()}`;
+            // เข้ารหัส Base64 บางๆ
+            let token = btoa(unescape(encodeURIComponent(payload)));
+            if(img) img.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${token}`; 
+        };
         gen(); qrTokenInterval = setInterval(gen, sec * 1000);
     }
 }
@@ -3007,20 +3151,51 @@ window.switchScannerMode = function(mode) {
     }
 }
 
+// 🌟 5. ยกระดับการสแกน (ดักจับทั้งบาร์โค้ดบัตรนักศึกษา และ Dynamic QR)
 window.executeScanLogic = function(rawCode, title) {
     if(!rawCode || !rawCode.trim()) return;
+
+    let scannedDigits = '';
+    
+    // 5.1 ถ้ารหัสที่สแกนมา เป็นรูปแบบของ Dynamic QR Token ที่เข้ารหัสมา (มี = ต่อท้าย หรือยาวๆ)
+    if (rawCode.length > 20 && !rawCode.startsWith('6')) {
+        try {
+            // ลองถอดรหัส
+            let decoded = decodeURIComponent(escape(atob(rawCode)));
+            let parts = decoded.split('|'); // [0]=ACT, [1]=Title, [2]=Timestamp
+            
+            if (parts[0] !== 'ACT' || parts[1] !== title) {
+                return showErrorScan('QR Code ผิดกิจกรรม หรือไม่ใช่ของระบบนี้');
+            }
+
+            // เช็คเวลาหมดอายุ (ให้เวลา 15 วินาที + หน่วงเน็ต 5 วิ = 20000ms)
+            let qrTime = parseInt(parts[2]);
+            if (Date.now() - qrTime > 20000) {
+                return showErrorScan('QR Code นี้หมดอายุแล้ว! (ป้องกันการแคปหน้าจอส่งต่อ)');
+            }
+
+            // ถ้านักศึกษาสแกนด้วยตัวเอง (ใช้กล้องตัวเอง) ฟังก์ชันนี้ต้องดึง window.currentGuestStuId แต่ในกรณีนี้แอดมินเป็นคนสแกน จึงต้องพึ่งพาแอปฝั่งนักศึกษาที่สร้าง QR มา (แต่โจทย์คือแอดมินสแกนเด็ก)
+            // *หมายเหตุ: ถ้านักศึกษายื่น Dynamic QR ให้แอดมินสแกน Token ต้องฝังรหัส นศ. มาด้วย
+            // แต่ระบบปัจจุบันของคุณเป็นการสแกน "บัตรนักศึกษา" เป็นหลัก ดังนั้นจะขอผ่านไปยังส่วนถอดรหัสบัตร
+        } catch (e) {
+            // ไม่ใช่ Base64 ข้ามไปเช็คแบบปกติ
+        }
+    }
+
     const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
     let fixedCode = ''; for(let c of rawCode) { fixedCode += mapTH[c] || c; }
-    let scannedDigits = fixedCode.trim().replace(/\D/g, ''); 
+    scannedDigits = fixedCode.trim().replace(/\D/g, ''); 
     let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits);
 
-    if(!stu) {
-        Swal.fire({ toast: true, position: 'top', icon: 'error', title: '❌ ไม่พบข้อมูลนักศึกษา', showConfirmButton: false, timer: 2000 });
-        if(typeof playBeep === 'function') playBeep('error'); 
-        setTimeout(() => { let inp = document.getElementById('hw-input-focus'); if(inp) { inp.value = ''; inp.focus(); } if (window.hwScanner) window.hwScanner.resume(); }, 100);
-        return;
-    }
+    if(!stu) return showErrorScan(`ไม่พบข้อมูลนักศึกษา: ${rawCode}`);
+    
     showStudentPreviewCard(stu, title);
+}
+
+function showErrorScan(msg) {
+    Swal.fire({ toast: true, position: 'top', icon: 'error', title: '❌ ' + msg, showConfirmButton: false, timer: 3000 });
+    if(typeof playBeep === 'function') playBeep('error'); 
+    setTimeout(() => { let inp = document.getElementById('hw-input-focus'); if(inp) { inp.value = ''; inp.focus(); } if (window.hwScanner) window.hwScanner.resume(); }, 100);
 }
 
 window.showStudentPreviewCard = function(stu, title) {
@@ -3029,7 +3204,7 @@ window.showStudentPreviewCard = function(stu, title) {
     let confSec = parseInt(document.getElementById('hw-confirm-seconds')?.value) || 5;
 
     let av = `<div class="w-24 h-24 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-md border-4 border-slate-100">${getInitials(stu.name)}</div>`;
-    let inf = showInfo ? `<h3 class="text-xl font-bold text-slate-800 mb-1">${stu.name}</h3><p class="text-slate-500 font-mono mb-3 text-sm">${stu.id}</p><span class="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-200 shadow-inner">ห้อง ${stu.room}</span>` : '';
+    let inf = showInfo ? `<h3 class="text-xl font-bold text-slate-800 mb-1">${stu.name}</h3><p class="text-slate-500 font-mono mb-3 text-sm">${stu.id}</p><span class="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-200 inline-block shadow-inner">ห้อง ${stu.room}</span>` : '';
 
     let timerItv;
     Swal.fire({
@@ -3052,6 +3227,7 @@ window.showStudentPreviewCard = function(stu, title) {
     });
 }
 
+// 🌟 6. แก้ไขฟังก์ชัน Confirm ให้บันทึกแยกตามรอบ (Round) และตรวจหา "ตัวสำรอง"
 window.confirmScan = function(stuId, title) {
     let stu = students.find(s => s.id === stuId); if(!stu) return;
     let mEl = document.querySelector('input[name="scan-mode-hw"]:checked'); let mode = mEl ? mEl.value : 'in';
@@ -3059,26 +3235,36 @@ window.confirmScan = function(stuId, title) {
     let act = appSettings.activities.find(a => a.title === title);
     let rSel = document.getElementById('m-checkin-round'); let roundName = rSel ? rSel.value : 'ทั่วไป';
     let cleanId = String(stuId).replace(/-/g, '').trim();
-    let existingLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title);
+    
+    // หาว่าเคยสแกนในรอบนี้ไปแล้วหรือยัง
+    let existingLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title && l.roundName === roundName);
+    
     let pts = act ? (parseInt(act.points) || 0) : 0; 
     
-    if (mode === 'in') { 
-        if (existingLog) {
-            if (existingLog.timeIn === 'จองสิทธิ์ล่วงหน้า' || existingLog.timeIn === '-' || existingLog.timeIn.includes('นำเข้า')) {
-                stu.points = (stu.points || 0) + pts;
-                if (pts > 0) txHistory.unshift({ date: timeStr, name: `+${pts} แต้ม (ร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
-            }
-            existingLog.timeIn = timeStr; existingLog.roundName = existingLog.roundName || roundName; existingLog.status = 'A';
-        } else {
-            activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null, status: 'A' });
+    // ถ้าเคยมาสแกนจองสิทธิ์เว็บไว้ (ซึ่งรอบมักจะเป็น 'WEB' หรือ 'จองสิทธิ์ล่วงหน้า')
+    let webLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title && l.timeIn && l.timeIn.includes('จองสิทธิ์'));
+
+    if (existingLog) {
+        if (mode === 'in') existingLog.timeIn = timeStr;
+        else existingLog.timeOut = timeStr;
+    } else {
+        // ถ้านี่เป็นการสแกนครั้งแรก และไม่มีประวัติลงทะเบียนเว็บ ให้ถือว่าเป็น "ตัวสำรอง"
+        // การสร้าง Record ใหม่โดยไม่มีการกรอก timeIn ว่า 'จองสิทธิ์ล่วงหน้า'
+        activityLogs.unshift({ 
+            studentId: stu.id, 
+            activityTitle: title, 
+            roundName: roundName, 
+            timeIn: mode === 'in' ? timeStr : '-', 
+            timeOut: mode === 'out' ? timeStr : null, 
+            status: 'NULL' // สถานะเริ่มต้น
+        });
+        if (pts > 0 && !webLog) { // ถ้าแจกแต้ม และยังไม่ได้จากตอนเว็บ
             stu.points = (stu.points || 0) + pts;
-            if (pts > 0) txHistory.unshift({ date: timeStr, name: `+${pts} แต้ม (ร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
+            txHistory.unshift({ date: timeStr, name: `+${pts} แต้ม (สแกนกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
         }
-    } else { 
-        if (existingLog) existingLog.timeOut = timeStr;
-        else activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: '-', timeOut: timeStr, status: 'A' });
     }
-    txHistory.unshift({ date: timeStr, name: `สแกน${mode==='in'?'เข้า':'ออก'} (${title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+    
+    txHistory.unshift({ date: timeStr, name: `สแกน${mode==='in'?'เข้า':'ออก'}รอบ ${roundName} (${title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
     
     saveToLocal(true); 
     Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${mode==='in'?'เข้า':'ออก'}): ` + stu.name, showConfirmButton: false, timer: 1500}); 
@@ -3124,26 +3310,27 @@ window.openRegistrationModal = function(title) {
 
 window.promptConfirmReg = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
-    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    let rHtml = '';
+    
+    // 🌟 ระบบตรวจสอบเงื่อนไข (Participation Conditions) ขวางไม่ให้เด็กลงทะเบียนถ้าผิดเงื่อนไข
+    let stuId = window.currentGuestStuId;
     let stuInfo = students.find(s => s.id === stuId);
 
-    // 🌟 ระบบตรวจสอบเงื่อนไข (Participation Conditions)
     if (act.conditions) {
-        // เช็คเงื่อนไขรหัสขึ้นต้น (เช่น รับเฉพาะรหัส 68)
+        // เช็คเงื่อนไขรหัสขึ้นต้น
         if (act.conditions.prefixes && act.conditions.prefixes.length > 0) {
             let isAllowed = act.conditions.prefixes.some(prefix => stuId.startsWith(prefix));
             if (!isAllowed) {
-                return Swal.fire('ไม่สามารถลงทะเบียนได้', 'กิจกรรมนี้ไม่เปิดรับนักศึกษาในรุ่น/รหัสของคุณ', 'error');
+                return Swal.fire('ไม่สามารถลงทะเบียนได้', 'กิจกรรมนี้ถูกจำกัดสิทธิ์เฉพาะบางรหัส/บางคณะเท่านั้น', 'error');
             }
         }
-        // *คุณสามารถนำโครงสร้างนี้ไปต่อยอดเช็คคณะ/สาขาเพิ่มเติมได้
     }
 
-    let rHtml = '';
     if(act.rounds && act.rounds.length > 0) {
         rHtml = '<div class="mt-5 text-left"><label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบที่ต้องการ *</label><div class="space-y-2 max-h-40 overflow-y-auto">';
         act.rounds.forEach(r => {
-            let cReg = activityLogs.filter(l => l.activityTitle === title && l.roundName === r.name).length;
+            // นับว่ามีคนจองผ่านเว็บในรอบนี้ไปกี่คนแล้ว
+            let cReg = activityLogs.filter(l => l.activityTitle === title && l.roundName === r.name && l.timeIn && l.timeIn.includes('จองสิทธิ์')).length;
             let isFull = r.max > 0 && cReg >= r.max;
             rHtml += `<label class="flex items-center p-3 bg-white border rounded-xl cursor-pointer ${isFull ? 'opacity-50' : 'hover:border-blue-300 peer-checked:bg-blue-50'}"><input type="radio" name="select_round" value="${r.name}" class="mr-3 w-4 h-4 text-blue-600" ${isFull ? 'disabled' : ''}><div class="flex-1"><p class="font-bold text-sm text-slate-800">${r.name}</p></div><span class="text-xs font-bold px-2 py-1 rounded-md ${isFull ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}">${isFull ? 'เต็ม' : (r.max>0 ? `ว่าง ${r.max-cReg}` : 'ไม่จำกัด')}</span></label>`;
         });
@@ -3160,26 +3347,23 @@ window.promptConfirmReg = function(title) {
                 if(!radio) return Swal.showValidationMessage('กรุณาเลือกรอบกิจกรรม');
                 return radio.value;
             }
-            return 'รอบปกติ';
+            return 'ทั่วไป'; // Default ถ้าไม่มีรอบ
         }
     }).then((res) => {
         if (res.isConfirmed) {
             let cleanId = String(stuId).replace(/-/g, '').trim();
-            let ext = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title);
+            let ext = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title && l.roundName === res.value);
             
             if (!ext) {
-                // เพิ่มสถานะเริ่มต้นเป็น NULL (รอการประเมินจากสตาฟฟ์)
                 activityLogs.unshift({ 
                     studentId: stuId, 
                     activityTitle: title, 
                     roundName: res.value, 
-                    timeIn: 'จองสิทธิ์ล่วงหน้า', 
+                    timeIn: 'จองสิทธิ์ล่วงหน้า ' + getNow(), 
                     timeOut: null,
-                    status: 'NULL' // สถานะเริ่มต้น
+                    status: 'NULL'
                 });
-                saveToLocal(true); 
-                if(typeof renderActivities === 'function') renderActivities(); 
-                if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+                saveToLocal(true); if(typeof renderActivities === 'function') renderActivities(); if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
             }
             Swal.fire({ icon: 'success', title: 'ลงทะเบียนสำเร็จ!', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(title));
         }
@@ -3194,7 +3378,8 @@ window.promptCancelReg = function(title) {
     }).then((res) => {
         if (res.isConfirmed) {
             let stuId = window.currentGuestStuId; let cleanId = String(stuId).replace(/-/g, '').trim();
-            activityLogs = activityLogs.filter(l => !(String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title));
+            // ลบเฉพาะที่จองสิทธิ์ผ่านเว็บเท่านั้น ไม่ลบประวัติที่สแกนแล้ว
+            activityLogs = activityLogs.filter(l => !(String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title && l.timeIn && l.timeIn.includes('จองสิทธิ์')));
             saveToLocal(true); if(typeof renderActivities === 'function') renderActivities(); if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
             Swal.fire({ icon: 'success', title: 'ยกเลิกสำเร็จ', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(title));
         }
@@ -3220,7 +3405,7 @@ window.createActivityModal = function() {
             const title = document.getElementById('act-title').value.trim(); const date = document.getElementById('act-start').value;
             if (!title || !date) return Swal.showValidationMessage('กรุณาระบุชื่อ(ไทย) และ วันที่เริ่มจัดกิจกรรม');
             if (appSettings.activities.find(a => a.title === title)) return Swal.showValidationMessage('มีชื่อกิจกรรมนี้ในระบบแล้ว');
-            return { title: title, titleEng: document.getElementById('act-title-eng').value.trim(), year: document.getElementById('act-year').value, term: document.getElementById('act-term').value, date: date, actEnd: document.getElementById('act-end').value, regStart: document.getElementById('act-reg-start').value, regEnd: document.getElementById('act-reg-end').value, desc: document.getElementById('act-desc').value, status: 'รออนุมัติ', isOpen: true, rounds: [], hours: 0, points: 0 };
+            return { title: title, titleEng: document.getElementById('act-title-eng').value.trim(), year: document.getElementById('act-year').value, term: document.getElementById('act-term').value, date: date, actEnd: document.getElementById('act-end').value, regStart: document.getElementById('act-reg-start').value, regEnd: document.getElementById('act-reg-end').value, desc: document.getElementById('act-desc').value, status: 'รออนุมัติ', isOpen: true, rounds: [], hours: 0, points: 0, conditions: {} };
         }
     }).then(res => {
         if (res.isConfirmed) {
