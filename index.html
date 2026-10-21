@@ -2751,18 +2751,46 @@ window.toggleAllMasterChecks = function(source) { document.querySelectorAll('.m-
 
 window.executeBatchAction = function(newStatus) {
     let cbs = document.querySelectorAll('.m-stu-check:checked');
-    if (cbs.length === 0) return Swal.fire('เตือน', 'เลือกนักศึกษาอย่างน้อย 1 คน', 'warning');
-    Swal.fire({ title: 'ยืนยันดำเนินการ?', text: `เปลี่ยนสถานะ ${cbs.length} รายการ`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#10b981' }).then((res) => {
+    if (cbs.length === 0) return Swal.fire('เตือน', 'กรุณาเลือกนักศึกษาอย่างน้อย 1 คน', 'warning');
+
+    // แมปชื่อสถานะให้แสดงใน Popup สวยงาม
+    let statusMap = {
+        'C': '✅ ผ่านปกติ (C)',
+        'A': '✨ ผ่านกรณีพิเศษ (A)',
+        'P': '⏳ รอพิจารณา (P)',
+        'U': '❌ ไม่ผ่าน (U)',
+        'REMOVE': '🗑️ ลบรายชื่อออก'
+    };
+
+    Swal.fire({ 
+        title: 'ยืนยันดำเนินการ?', 
+        html: `คุณกำลังเปลี่ยนสถานะนักศึกษา <b>${cbs.length} คน</b><br>เป็น <b>${statusMap[newStatus]}</b>`, 
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonText: 'ยืนยันการเปลี่ยนแปลง',
+        confirmButtonColor: newStatus === 'REMOVE' ? '#e11d48' : '#10b981' 
+    }).then((res) => {
         if (res.isConfirmed) {
             cbs.forEach(cb => {
                 let logIndex = activityLogs.findIndex(l => l.studentId === cb.value && l.activityTitle === currentMasterActivity.title);
                 if (logIndex !== -1) {
-                    if (newStatus === 'REMOVE') activityLogs.splice(logIndex, 1);
-                    else activityLogs[logIndex].status = newStatus;
+                    if (newStatus === 'REMOVE') {
+                        // ลบรายชื่อออกจาก Array (เหมือนคำสั่ง DELETE)
+                        activityLogs.splice(logIndex, 1);
+                    } else {
+                        // อัปเดตสถานะ C, A, P, U
+                        activityLogs[logIndex].status = newStatus;
+                    }
                 }
             });
-            saveToLocal(true); renderMasterDashboard();
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'เปลี่ยนสถานะสำเร็จ', showConfirmButton:false, timer:1500});
+            
+            txHistory.unshift({ date: getNow(), name: `อัปเดตสถานะเป็น ${newStatus} (${cbs.length} คน) กิจกรรม ${currentMasterActivity.title}`, type: 'ระบบ', amt: 0, user: currentUsername });
+            
+            // บันทึกและรีเฟรชตาราง
+            saveToLocal(true); 
+            renderMasterDashboard();
+            
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'อัปเดตสถานะสำเร็จ', showConfirmButton:false, timer:1500});
         }
     });
 }
@@ -2895,15 +2923,45 @@ window.importMasterParticipants = function() {
 window.exportActivityToCSV = function() {
     let title = currentMasterActivity ? currentMasterActivity.title : currentDetailActivityTitle;
     let parts = activityLogs.filter(l => l.activityTitle === title); 
-    if(parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วม', 'info');
-    let csv = "\uFEFFลำดับ,รหัส,ชื่อ,ห้อง,รอบ,เข้า,ออก,สถานะ\n"; 
-    parts.forEach((p, idx) => { 
-        let s = students.find(x => x.id === p.studentId) || { name: '-', room: '-' };
-        csv += `${idx+1},="${p.studentId}",${s.name},${s.room},${p.roundName||'ทั่วไป'},${p.timeIn||'-'},${p.timeOut||'-'},${p.status||'A'}\n`; 
+    
+    if(parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'กิจกรรมนี้ยังไม่มีผู้เข้าร่วมเลยครับ', 'info');
+    
+    // เรียงลำดับตามห้องและเลขที่
+    let mappedStudents = parts.map(p => { 
+        let s = students.find(x => x.id === p.studentId) || { name: 'ไม่พบชื่อ', room: '-' }; 
+        return { ...s, logData: p }; 
     });
+    mappedStudents.sort((a, b) => { 
+        if (a.room === b.room) return (a.number || 0) - (b.number || 0); 
+        return String(a.room).localeCompare(String(b.room)); 
+    });
+
+    // ใส่ BOM (\uFEFF) เพื่อให้ Excel อ่านภาษาไทยได้สมบูรณ์ ไม่เป็นภาษาต่างดาว
+    let csv = "\uFEFFลำดับ,รหัสนักศึกษา,ชื่อ-นามสกุล,ห้องเรียน/สาขา,รอบที่ลงทะเบียน,เวลาลงเว็บ,เวลาสแกนหน้างาน,เวลาออก,สถานะการประเมิน\n"; 
+    
+    mappedStudents.forEach((stu, idx) => { 
+        let log = stu.logData;
+        let webReg = (log.timeIn && log.timeIn.includes('จองสิทธิ์')) ? 'จองสิทธิ์ล่วงหน้า' : 'Walk-in';
+        let scanIn = (!log.timeIn || log.timeIn.includes('จองสิทธิ์')) ? '-' : log.timeIn;
+        let scanOut = log.timeOut || '-';
+        let status = log.status || 'ยังไม่ประเมิน';
+
+        // แปลงสถานะให้คนอ่านเข้าใจง่าย
+        if(status === 'C') status = 'ผ่านปกติ';
+        if(status === 'A') status = 'ผ่านพิเศษ';
+        if(status === 'P') status = 'รอพิจารณา';
+        if(status === 'U') status = 'ไม่ผ่าน';
+
+        csv += `${idx+1},="${stu.id}",${stu.name},${stu.room},${log.roundName||'ทั่วไป'},${webReg},${scanIn},${scanOut},${status}\n`; 
+    });
+
     let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); 
-    let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `รายชื่อ_${title}.csv`; 
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    let link = document.createElement("a"); 
+    link.href = URL.createObjectURL(blob); 
+    link.download = `รายงานผู้เข้าร่วม_${title.replace(/\s+/g, '_')}.csv`; 
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
 }
 
 window.toggleDynamicQR = function() {
@@ -3066,6 +3124,21 @@ window.openRegistrationModal = function(title) {
 
 window.promptConfirmReg = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
+    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    let stuInfo = students.find(s => s.id === stuId);
+
+    // 🌟 ระบบตรวจสอบเงื่อนไข (Participation Conditions)
+    if (act.conditions) {
+        // เช็คเงื่อนไขรหัสขึ้นต้น (เช่น รับเฉพาะรหัส 68)
+        if (act.conditions.prefixes && act.conditions.prefixes.length > 0) {
+            let isAllowed = act.conditions.prefixes.some(prefix => stuId.startsWith(prefix));
+            if (!isAllowed) {
+                return Swal.fire('ไม่สามารถลงทะเบียนได้', 'กิจกรรมนี้ไม่เปิดรับนักศึกษาในรุ่น/รหัสของคุณ', 'error');
+            }
+        }
+        // *คุณสามารถนำโครงสร้างนี้ไปต่อยอดเช็คคณะ/สาขาเพิ่มเติมได้
+    }
+
     let rHtml = '';
     if(act.rounds && act.rounds.length > 0) {
         rHtml = '<div class="mt-5 text-left"><label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบที่ต้องการ *</label><div class="space-y-2 max-h-40 overflow-y-auto">';
@@ -3091,11 +3164,22 @@ window.promptConfirmReg = function(title) {
         }
     }).then((res) => {
         if (res.isConfirmed) {
-            let stuId = window.currentGuestStuId; let cleanId = String(stuId).replace(/-/g, '').trim();
+            let cleanId = String(stuId).replace(/-/g, '').trim();
             let ext = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title);
+            
             if (!ext) {
-                activityLogs.unshift({ studentId: stuId, activityTitle: title, roundName: res.value, timeIn: 'จองสิทธิ์ล่วงหน้า', timeOut: null });
-                saveToLocal(true); if(typeof renderActivities === 'function') renderActivities(); if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+                // เพิ่มสถานะเริ่มต้นเป็น NULL (รอการประเมินจากสตาฟฟ์)
+                activityLogs.unshift({ 
+                    studentId: stuId, 
+                    activityTitle: title, 
+                    roundName: res.value, 
+                    timeIn: 'จองสิทธิ์ล่วงหน้า', 
+                    timeOut: null,
+                    status: 'NULL' // สถานะเริ่มต้น
+                });
+                saveToLocal(true); 
+                if(typeof renderActivities === 'function') renderActivities(); 
+                if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
             }
             Swal.fire({ icon: 'success', title: 'ลงทะเบียนสำเร็จ!', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(title));
         }
