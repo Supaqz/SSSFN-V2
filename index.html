@@ -3008,888 +3008,617 @@ function renderHomeDirectory() {
 }
         
         // ================= ACTIVITY ENTERPRISE SYSTEM =================
-        function renderActivities() {
+let currentMasterActivity = null;
+let qrTokenInterval = null;
+
+function renderActivities() {
     let actSearchEl = document.getElementById('act-search'); if(!actSearchEl) return;
     const search = actSearchEl.value.toLowerCase(); const grid = document.getElementById('activity-grid'); if(!grid) return;
+    
+    let adminCard = document.getElementById('admin-activity-master-card');
+    let mainDash = document.getElementById('activity-main-dashboard');
+    let btnCreate = document.getElementById('btn-create-act');
+    
+    if (currentUserRole !== 'guest') {
+        if(adminCard) adminCard.classList.add('hidden');
+        if(mainDash) mainDash.classList.remove('hidden');
+        if(btnCreate) btnCreate.classList.remove('hidden');
+    } else {
+        if(adminCard) adminCard.classList.add('hidden');
+        if(mainDash) mainDash.classList.remove('hidden');
+        if(btnCreate) btnCreate.classList.add('hidden');
+    }
 
-    // 🌟 1. บังคับล็อกอินสำหรับนักศึกษาทั่วไป
     if (currentUserRole === 'guest' && !window.currentGuestStuId) {
-        grid.innerHTML = `
-        <div class="col-span-full bg-white rounded-3xl p-10 text-center border border-slate-200 shadow-sm max-w-2xl mx-auto mt-8 w-full">
-            <div class="text-slate-300 mb-4"><i class="fas fa-lock text-6xl"></i></div>
-            <h3 class="font-bold text-slate-700 text-xl mb-2">กรุณาเข้าสู่ระบบก่อน</h3>
-            <p class="text-slate-500 text-sm mb-6">คุณต้องเข้าสู่ระบบนักศึกษาเพื่อดูและลงทะเบียนกิจกรรมครับ</p>
-            <button onclick="promptStudentLogin()" class="bg-[#111827] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition inline-block"><i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบตอนนี้</button>
-        </div>`;
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-3xl p-10 text-center border border-slate-200 shadow-sm max-w-2xl mx-auto mt-8 w-full"><div class="text-slate-300 mb-4"><i class="fas fa-lock text-6xl"></i></div><h3 class="font-bold text-slate-700 text-xl mb-2">กรุณาเข้าสู่ระบบก่อน</h3><p class="text-slate-500 text-sm mb-6">ต้องเข้าสู่ระบบนักศึกษาเพื่อลงทะเบียนกิจกรรมครับ</p><button onclick="promptStudentLogin()" class="bg-[#111827] text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-slate-800 transition"><i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบตอนนี้</button></div>`;
         return;
     }
 
-    // 🌟 2. ตัวกรองกิจกรรม + ค้นหา
-    let filtered = appSettings.activities.filter(a => a.title.toLowerCase().includes(search) || String(a.year).includes(search) || String(a.term).includes(search));
+    let filtered = appSettings.activities.filter(a => a.title.toLowerCase().includes(search) || String(a.year).includes(search));
     
     if (currentUserRole === 'guest') {
         filtered = filtered.filter(a => {
-            // 1. เช็คว่าเคยลงทะเบียนไหม
-            let hasRegistered = activityLogs.some(l => l.studentId === window.currentGuestStuId && l.activityTitle === a.title);
-            
-            // 2. แปลงวันจัดกิจกรรมเป็น Date Object เพื่อเช็คว่าเลยวันหรือยัง
-            let eventDate = new Date(a.date); 
-            eventDate.setHours(23, 59, 59, 999); // เซ็ตให้เป็นเวลาปิดท้ายวันนั้นๆ
-            let isOverdue = new Date() > eventDate; // เป็นจริงถ้าวันนี้เลยวันจัดกิจกรรมไปแล้ว
-            
-            // 🌟 เงื่อนไขการแสดงผล:
-            // ถ้าเคยลงทะเบียนแล้ว ให้เห็นเสมอ (return true)
-            if (hasRegistered) return a.status === 'อนุมัติแล้ว';
-            
-            // ถ้ายังไม่ลงทะเบียน: ต้องเป็นกิจกรรมที่ "ยังไม่เลยวันจัด" และ "อนุมัติแล้ว"
-            return a.status === 'อนุมัติแล้ว' && !isOverdue;
+            let hasReg = activityLogs.some(l => l.studentId === window.currentGuestStuId && l.activityTitle === a.title);
+            let eDate = new Date(a.date); eDate.setHours(23, 59, 59, 999);
+            let isOver = new Date() > eDate;
+            if (hasReg) return a.status === 'อนุมัติแล้ว';
+            return a.status === 'อนุมัติแล้ว' && !isOver;
         });
     }
-
-    if (filtered.length === 0) { 
-        grid.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400"><i class="fas fa-box-open text-6xl mb-4 opacity-30"></i><p>ไม่พบข้อมูลกิจกรรม</p></div>'; 
-        return; 
-    }
     
+    if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-16 text-slate-400 bg-white rounded-2xl border border-slate-200"><i class="fas fa-box-open text-5xl mb-4 opacity-40"></i><p class="font-bold">ไม่พบข้อมูลกิจกรรม</p></div>`; return;
+    }
+
     let actHtml = '';
     filtered.forEach(act => {
         let count = activityLogs.filter(l => l.activityTitle === act.title).length;
         let isOpen = act.isOpen !== false;
-        
-        let totalMax = 0; if(act.rounds) { act.rounds.forEach(r => totalMax += r.max); }
+        let totalMax = 0; if(act.rounds) act.rounds.forEach(r => totalMax += (parseInt(r.max)||0));
         let countDisplay = totalMax > 0 ? `${count} / ${totalMax}` : `${count} คน`;
 
-        // 🌟 1. เช็คว่านักศึกษาล็อกอินอยู่และเคยลงทะเบียนกิจกรรมนี้ไหม
         let myLog = null;
-        if (currentUserRole === 'guest' && window.currentGuestStuId) {
-            myLog = activityLogs.find(l => l.studentId === window.currentGuestStuId && l.activityTitle === act.title);
-        }
+        if (currentUserRole === 'guest' && window.currentGuestStuId) myLog = activityLogs.find(l => l.studentId === window.currentGuestStuId && l.activityTitle === act.title);
 
-        // 🌟 2. อัปเดตป้ายสถานะ (Badge) มุมขวาบนของการ์ด
-        let statusBadge = '';
-        if (act.status === 'รออนุมัติ') {
-            statusBadge = `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-3 py-1 rounded-full">รออนุมัติ</span>`;
-        } else if (myLog) {
-            statusBadge = `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle mr-1"></i>ลงทะเบียนแล้ว</span>`;
-        } else if (isOpen) {
-            statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-full">เปิดลงทะเบียน</span>`;
-        } else {
-            statusBadge = `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-3 py-1 rounded-full">ปิดรับสมัคร</span>`;
-        }
+        let badge = act.status === 'รออนุมัติ' ? `<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-3 py-1 rounded-full">รออนุมัติ</span>` : 
+                    myLog ? `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle mr-1"></i>ลงทะเบียนแล้ว</span>` : 
+                    isOpen ? `<span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-3 py-1 rounded-full">เปิดลงทะเบียน</span>` : 
+                    `<span class="bg-rose-100 text-rose-700 text-[10px] font-bold px-3 py-1 rounded-full">ปิดรับสมัคร</span>`;
 
-        let adminActionHtml = ''; let approveBtnHtml = '';
-        if (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer') {
-            adminActionHtml = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition px-2 py-1 z-10"><i class="fas fa-trash"></i></button>`;
+        let adminBtn = ''; let appBtn = '';
+        if (currentUserRole !== 'guest') {
+            adminBtn = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition px-2 py-1 z-10"><i class="fas fa-trash"></i></button>`;
             if (act.status === 'รออนุมัติ' && currentUserRole !== 'treasurer') {
-                approveBtnHtml = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">อนุมัติกิจกรรมนี้</button>`;
+                appBtn = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">อนุมัติกิจกรรมนี้</button>`;
             }
         }
 
-        let clickAction = currentUserRole === 'guest' ? `openRegistrationModal('${act.title}')` : `openActivityDashboard('${act.title}')`;
-        
-        // 🌟 3. อัปเดตปุ่มกดด้านล่างของการ์ด
-        let guestActionBtn = '';
-        if (currentUserRole === 'guest') {
-            if (myLog) {
-                guestActionBtn = `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">คุณลงทะเบียนสำเร็จแล้ว (รอบ: ${myLog.roundName}) &rarr;</div>`;
-            } else {
-                guestActionBtn = `<div class="bg-slate-50 p-3 mt-4 text-center rounded-b-xl border-t border-slate-100 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition">คลิกเพื่อดูรายละเอียดและลงทะเบียน &rarr;</div>`;
-            }
-        }
+        let clickAction = currentUserRole === 'guest' ? `openRegistrationModal('${act.title}')` : `loadActivityMasterData('${act.title}')`;
+        let guestBtn = currentUserRole === 'guest' ? (myLog ? `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนสำเร็จ (รอบ: ${myLog.roundName}) &rarr;</div>` : `<div class="bg-slate-50 p-3 mt-4 text-center rounded-b-xl border-t border-slate-100 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition">ดูรายละเอียดและลงทะเบียน &rarr;</div>`) : '';
 
         actHtml += `
         <div onclick="event.stopPropagation(); ${clickAction}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition flex flex-col h-full cursor-pointer relative overflow-hidden group">
-            ${adminActionHtml}
+            ${adminBtn}
             <div class="p-5 flex-1 flex flex-col">
-                <div class="flex justify-between items-start mb-3">
-                    <h3 class="font-bold text-slate-800 text-base leading-tight pr-6 group-hover:text-blue-600 transition">${act.title}</h3>
-                    <div class="shrink-0 ml-2">${statusBadge}</div>
-                </div>
+                <div class="flex justify-between items-start mb-3"><h3 class="font-bold text-slate-800 text-base leading-tight pr-6 group-hover:text-blue-600 transition">${act.title}</h3><div class="shrink-0 ml-2">${badge}</div></div>
                 <div class="inline-block bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded mb-4 w-max">กิจกรรม / เลือกเข้าร่วม</div>
-                
                 <div class="space-y-2 text-xs text-slate-600 mt-auto">
-                    <div class="flex justify-between">
-                        <span class="font-bold text-slate-400">ปี/เทอม:</span>
-                        <span class="font-bold">${act.year}/${act.term}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="font-bold text-slate-400">วันดำเนินกิจกรรม:</span>
-                        <span class="font-bold">${act.date}</span>
-                    </div>
-                    <div class="flex justify-between items-end mt-4 pt-3 border-t border-slate-100">
-                        <span class="font-bold text-slate-400 text-[10px]">จำนวนผู้เข้าร่วม</span>
-                        <span class="font-bold text-sm text-slate-800">${countDisplay}</span>
-                    </div>
+                    <div class="flex justify-between"><span class="font-bold text-slate-400">ปี/เทอม:</span><span class="font-bold">${act.year}/${act.term}</span></div>
+                    <div class="flex justify-between"><span class="font-bold text-slate-400">วันจัดกิจกรรม:</span><span class="font-bold">${act.date}</span></div>
+                    <div class="flex justify-between items-end mt-4 pt-3 border-t border-slate-100"><span class="font-bold text-slate-400 text-[10px]">จำนวนผู้เข้าร่วม</span><span class="font-bold text-sm text-slate-800">${countDisplay}</span></div>
                 </div>
-                ${approveBtnHtml}
+                ${appBtn}
             </div>
-            ${guestActionBtn}
+            ${guestBtn}
         </div>`;
     });
     grid.innerHTML = actHtml;
 }
-// =========================================================================
-// 🌟 ฟังก์ชันเปิดหน้า Dashboard แอดมิน (UI อัปเดตตามภาพล่าสุด)
-// =========================================================================
-window.openActivityDashboard = function(title) {
-    currentDetailActivityTitle = title;
-    
-    let cleanTargetTitle = String(title).trim();
-    let act = appSettings.activities.find(a => String(a.title).trim() === cleanTargetTitle); 
-    if(!act) return;
 
-    // --- ส่วนจัดการฝั่งนักศึกษา (หน้าตั๋ว) คงไว้เหมือนเดิม ---
-    if (currentUserRole === 'guest' && window.currentGuestStuId) {
-        let cleanGuestId = String(window.currentGuestStuId).replace(/-/g, '').trim();
-        let existingLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanGuestId && String(l.activityTitle).trim() === cleanTargetTitle);
-        if (existingLog) {
-            Swal.fire({
-                title: '<div class="text-purple-600 font-bold text-xl"><i class="fas fa-ticket-alt mr-2"></i> บัตรเข้าร่วมกิจกรรม</div>',
-                html: `
-                <div class="text-left mt-4 bg-purple-50 border border-purple-200 p-6 rounded-2xl relative overflow-hidden shadow-inner">
-                    <div class="absolute -right-6 -top-6 text-purple-200 opacity-40"><i class="fas fa-check-circle text-[8rem]"></i></div>
-                    <div class="relative z-10">
-                        <h3 class="font-bold text-lg text-slate-800 mb-1">${title}</h3>
-                        <p class="text-xs text-purple-700 font-bold mb-4 bg-purple-100 inline-block px-3 py-1 rounded-full">สถานะ: ยืนยันการจองสิทธิ์แล้ว</p>
-                        
-                        <div class="space-y-3 text-sm text-slate-700 mt-2 bg-white p-4 rounded-xl border border-purple-100 shadow-sm">
-                            <p class="flex justify-between border-b border-slate-100 pb-2"><span class="text-slate-500">รหัสนักศึกษา</span> <span class="font-bold">${existingLog.studentId}</span></p>
-                            <p class="flex justify-between"><span class="text-slate-500">รอบที่ลงทะเบียน</span> <span class="font-bold text-purple-700">${existingLog.roundName}</span></p>
-                        </div>
-                    </div>
-                </div>
-                `,
-                confirmButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#9333ea', showCancelButton: true, cancelButtonText: 'ต้องการสละสิทธิ์?', cancelButtonColor: '#f1f5f9',
-                customClass: { cancelButton: '!text-rose-500 hover:!bg-rose-50 font-bold text-xs mt-2' }
-            }).then((res) => {
-                if (res.dismiss === Swal.DismissReason.cancel) {
-                    Swal.fire({
-                        title: 'ยืนยันการสละสิทธิ์?', text: "หากสละสิทธิ์ไปแล้ว คุณอาจกดลงทะเบียนใหม่ไม่ได้หากคิวเต็ม", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ยืนยันสละสิทธิ์', cancelButtonText: 'ไม่, กลับไป'
-                    }).then((delRes) => {
-                        if (delRes.isConfirmed) {
-                            activityLogs = activityLogs.filter(l => !(String(l.studentId).replace(/-/g, '').trim() === cleanGuestId && String(l.activityTitle).trim() === cleanTargetTitle));
-                            saveToLocal(); if(typeof renderActivities === 'function') renderActivities(); if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
-                            Swal.fire('สำเร็จ', 'คุณได้สละสิทธิ์กิจกรรมนี้แล้ว', 'success');
-                        }
-                    });
-                }
+window.loadActivityMasterData = function(title) {
+    if (!title) return;
+    currentMasterActivity = appSettings.activities.find(a => a.title === title);
+    if (!currentMasterActivity) return;
+
+    document.getElementById('activity-main-dashboard').classList.add('hidden');
+    document.getElementById('admin-activity-master-card').classList.remove('hidden');
+
+    document.getElementById('master-header-title').innerText = currentMasterActivity.title;
+    document.getElementById('master-header-term').innerText = `${currentMasterActivity.year}/${currentMasterActivity.term}`;
+    
+    let refEl = document.getElementById('master-header-ref');
+    if(refEl) { refEl.innerText = `691-A030-${Math.floor(Math.random()*9000)}`; refEl.classList.remove('hidden'); }
+
+    switchMasterTab('dashboard');
+}
+
+window.closeActivityMaster = function() {
+    currentMasterActivity = null;
+    document.getElementById('admin-activity-master-card').classList.add('hidden');
+    document.getElementById('activity-main-dashboard').classList.remove('hidden');
+    if (qrTokenInterval) { clearInterval(qrTokenInterval); qrTokenInterval = null; }
+    renderActivities();
+}
+
+window.switchMasterTab = function(tabId) {
+    if (!currentMasterActivity) return;
+    if (tabId !== 'checkin' && window.hwScanner) { window.hwScanner.stop().catch(e => console.log(e)); window.hwScanner = null; }
+    if (tabId !== 'qractivity' && qrTokenInterval) { clearInterval(qrTokenInterval); qrTokenInterval = null; let btn = document.getElementById('btn-toggle-qr'); if(btn) btn.innerHTML = '<i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code'; }
+
+    document.querySelectorAll('.mtab-content').forEach(el => { el.classList.remove('block'); el.classList.add('hidden'); });
+    document.querySelectorAll('.mtab-btn').forEach(btn => {
+        btn.className = "mtab-btn px-4 py-2.5 bg-transparent text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2";
+        let icon = btn.querySelector('i'); if(icon) { icon.classList.remove('opacity-100'); icon.classList.add('opacity-70'); }
+    });
+
+    let contentEl = document.getElementById(`mtab-content-${tabId}`);
+    if (contentEl) { contentEl.classList.remove('hidden'); contentEl.classList.add('block'); }
+    
+    let btnEl = document.getElementById(`mtab-${tabId}`);
+    if (btnEl) {
+        btnEl.className = "mtab-btn px-4 py-2.5 bg-blue-600 text-white rounded-lg text-xs font-bold whitespace-nowrap transition flex items-center gap-2 shadow-inner";
+        let icon = btnEl.querySelector('i'); if(icon) { icon.classList.remove('opacity-70'); icon.classList.add('opacity-100'); }
+    }
+    
+    if (tabId === 'dashboard') renderMasterDashboard();
+    if (tabId === 'rounds') renderMasterRoundsTab();
+    if (tabId === 'admins') renderActivityAdmins(currentMasterActivity.title);
+    if (['checkin', 'qrsetting', 'qractivity', 'import_s', 'import_b'].includes(tabId)) renderMasterDropdowns();
+}
+
+function renderMasterDashboard() {
+    let logs = activityLogs.filter(l => l.activityTitle === currentMasterActivity.title);
+    let tMax = currentMasterActivity.rounds ? currentMasterActivity.rounds.reduce((s, r) => s + (parseInt(r.max)||0), 0) : 0;
+    
+    let scanIn = logs.filter(p => p.timeIn && p.timeIn !== '-' && !p.timeIn.includes('จองสิทธิ์')).length;
+    let regCount = logs.filter(p => p.timeIn && p.timeIn.includes('จองสิทธิ์')).length;
+    let failCount = logs.filter(p => p.status === 'U' || p.status === 'P').length;
+
+    document.getElementById('m-stat-all').innerText = logs.length;
+    document.getElementById('m-stat-web').innerText = regCount;
+    let elM1 = document.getElementById('m-stat-max1'); if(elM1) elM1.innerText = tMax > 0 ? tMax : logs.length;
+    let elBW = document.getElementById('m-bar-web'); if(elBW) elBW.style.width = `${tMax>0 ? (regCount/tMax)*100 : 0}%`;
+
+    document.getElementById('m-stat-scan').innerText = scanIn;
+    let elM2 = document.getElementById('m-stat-max2'); if(elM2) elM2.innerText = tMax > 0 ? tMax : logs.length;
+    let elBS = document.getElementById('m-bar-scan'); if(elBS) elBS.style.width = `${tMax>0 ? (scanIn/tMax)*100 : 0}%`;
+
+    document.getElementById('m-stat-fail').innerText = failCount;
+    let elM3 = document.getElementById('m-stat-max3'); if(elM3) elM3.innerText = logs.length;
+    let elBF = document.getElementById('m-bar-fail'); if(elBF) elBF.style.width = `${logs.length>0 ? (failCount/logs.length)*100 : 0}%`;
+
+    let tbody = document.getElementById('m-participant-list');
+    tbody.innerHTML = '';
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-400 font-bold">ยังไม่มีผู้ลงทะเบียนกิจกรรมนี้</td></tr>`; return;
+    }
+
+    logs.forEach(p => {
+        let stu = students.find(s => s.id === p.studentId) || { name: 'ไม่พบชื่อ', room: '-' };
+        let bdg = '';
+        if (p.status === 'C') bdg = `<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-1.5 rounded-full text-xs font-bold">ผ่าน (C)</span>`;
+        else if (p.status === 'P') bdg = `<span class="bg-amber-100 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-full text-xs font-bold">รอพิจารณา (P)</span>`;
+        else if (p.status === 'U') bdg = `<span class="bg-rose-100 text-rose-700 border border-rose-200 px-4 py-1.5 rounded-full text-xs font-bold">ไม่ผ่าน (U)</span>`;
+        else bdg = `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-xs font-bold">เข้าร่วมปกติ (A)</span>`;
+
+        let isJustReg = p.timeIn && p.timeIn.includes('จองสิทธิ์');
+        let wD = '<div class="text-emerald-500"><i class="fas fa-check-circle text-xl"></i></div>';
+        let inT = (p.timeIn && p.timeIn.match(/\d{2}:\d{2}/)) ? p.timeIn.match(/\d{2}:\d{2}/)[0] : (p.timeIn || '-');
+        let outT = (p.timeOut && p.timeOut.match(/\d{2}:\d{2}/)) ? p.timeOut.match(/\d{2}:\d{2}/)[0] : (p.timeOut || '-');
+        
+        let sInD = isJustReg ? '<i class="far fa-times-circle text-slate-200 text-xl"></i>' : `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${inT}</span></div>`;
+        let sOutD = (!p.timeOut || p.timeOut === '-') ? '<i class="far fa-times-circle text-slate-200 text-xl"></i>' : `<div class="flex flex-col items-center"><i class="far fa-check-circle text-emerald-500 text-xl mb-0.5"></i><span class="text-[9px] font-bold text-emerald-600">${outT}</span></div>`;
+
+        tbody.innerHTML += `
+        <tr class="hover:bg-slate-50 m-student-row transition-colors">
+            <td class="p-4 text-center"><input type="checkbox" class="m-stu-check w-4 h-4 text-blue-600 rounded" value="${p.studentId}"></td>
+            <td class="p-4"><p class="font-bold text-slate-800 text-sm m-stu-name">${stu.name}</p><p class="text-[10px] font-mono text-slate-500 m-stu-id">${p.studentId} | ห้อง ${stu.room}</p></td>
+            <td class="p-4 text-center text-xs text-slate-600 font-bold">${p.roundName || '-'}</td>
+            <td class="p-4 text-center">${wD}</td>
+            <td class="p-4 text-center">${sInD}</td>
+            <td class="p-4 text-center">${bdg}</td>
+        </tr>`;
+    });
+}
+
+window.filterMasterTable = function() {
+    let input = document.getElementById("m-table-search")?.value.toLowerCase() || '';
+    document.querySelectorAll(".m-student-row").forEach(row => {
+        let name = row.querySelector('.m-stu-name').innerText.toLowerCase();
+        let id = row.querySelector('.m-stu-id').innerText.toLowerCase();
+        row.style.display = (name.includes(input) || id.includes(input)) ? "" : "none";
+    });
+}
+
+window.toggleAllMasterChecks = function(source) { document.querySelectorAll('.m-stu-check').forEach(cb => cb.checked = source.checked); }
+
+window.executeBatchAction = function(newStatus) {
+    let cbs = document.querySelectorAll('.m-stu-check:checked');
+    if (cbs.length === 0) return Swal.fire('เตือน', 'เลือกนักศึกษาอย่างน้อย 1 คน', 'warning');
+    Swal.fire({ title: 'ยืนยันดำเนินการ?', text: `เปลี่ยนสถานะ ${cbs.length} รายการ`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#10b981' }).then((res) => {
+        if (res.isConfirmed) {
+            cbs.forEach(cb => {
+                let log = activityLogs.find(l => l.studentId === cb.value && l.activityTitle === currentMasterActivity.title);
+                if (log) log.status = newStatus;
             });
-            return;
-        }
-    }
-
-    // --- ส่วนประมวลผลข้อมูลแอดมิน ---
-    let participants = activityLogs.filter(l => String(l.activityTitle).trim() === cleanTargetTitle);
-    let count = participants.length; 
-    let isOpen = act.isOpen !== false;
-    let roleIsAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
-
-    let totalMax = 0; if(act.rounds) act.rounds.forEach(r => totalMax += r.max);
-    
-    // คำนวณสถิติ
-    let scannedInCount = participants.filter(p => p.timeIn && p.timeIn !== '-' && !p.timeIn.includes('จองสิทธิ์')).length;
-    let registeredCount = participants.filter(p => p.timeIn && p.timeIn.includes('จองสิทธิ์')).length;
-    let scanPercent = totalMax > 0 ? ((scannedInCount / totalMax) * 100).toFixed(0) : (count > 0 ? 100 : 0);
-
-    // ====================================================
-    // 🌟 สร้างตารางรายชื่อแบบใหม่ (อัปเดตหัวตารางและลบคอลัมน์)
-    // ====================================================
-    let tableRowsHtml = '';
-    if (participants.length === 0) {
-        tableRowsHtml = '<tr><td colspan="5" class="p-8 text-center text-slate-400 italic">ยังไม่มีข้อมูลผู้เข้าร่วม</td></tr>';
-    } else {
-        let mergedData = participants.map((p, idx) => { 
-            let pId = String(p.studentId).replace(/-/g, '').trim();
-            let s = students.find(x => String(x.id).replace(/-/g, '').trim() === pId); 
-            return s ? { ...s, logData: p, index: idx + 1 } : null; 
-        }).filter(item => item);
-        
-        mergedData.forEach(item => {
-            let pLog = item.logData;
-
-            // 1. ลงทะเบียนเว็บ (ติ๊กถูกเสมอถ้ามีชื่อในระบบ)
-            let webRegDisplay = '<i class="far fa-check-circle text-emerald-500 text-xl"></i>';
-
-            // 2. จัดการเวลาเข้า
-            let timeInStr = pLog.timeIn || '';
-            let isJustReg = timeInStr.includes('จองสิทธิ์');
-            
-            let timeInDisplay = '<i class="far fa-times-circle text-slate-200 text-xl"></i>';
-            let statusBadge = `<span class="border border-slate-300 text-slate-400 px-4 py-1 rounded-full text-xs font-bold">ไม่ผ่าน</span>`;
-            
-            if (isJustReg) {
-                timeInDisplay = '<div class="flex flex-col items-center justify-center"><i class="far fa-clock text-amber-400 text-xl mb-1"></i><span class="text-[9px] text-amber-600 font-bold">รอสแกน</span></div>';
-            } else if (timeInStr !== '-' && timeInStr !== '') {
-                timeInDisplay = `
-                <div class="flex flex-col items-center justify-center">
-                    <i class="far fa-check-circle text-emerald-500 text-xl mb-1"></i>
-                    <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${timeInStr.match(/\d{2}:\d{2}/) ? timeInStr.match(/\d{2}:\d{2}/)[0] : timeInStr}</span>
-                </div>`;
-                statusBadge = `<span class="border border-emerald-500 text-emerald-600 bg-white px-3 py-1 rounded-full text-[10px] font-bold shadow-sm">ผ่านกิจกรรม</span>`;
-            }
-
-            // 3. จัดการเวลาออก
-            let timeOutStr = pLog.timeOut || '';
-            let timeOutDisplay = '<i class="far fa-times-circle text-slate-200 text-xl"></i>';
-            if (timeOutStr && timeOutStr !== '-' && timeOutStr !== '') {
-                timeOutDisplay = `
-                <div class="flex flex-col items-center justify-center">
-                    <i class="far fa-check-circle text-emerald-500 text-xl mb-1"></i>
-                    <span class="text-[9px] text-emerald-600 font-bold tracking-tight">${timeOutStr.match(/\d{2}:\d{2}/) ? timeOutStr.match(/\d{2}:\d{2}/)[0] : timeOutStr}</span>
-                </div>`;
-            }
-
-            // แถวตาราง (5 คอลัมน์)
-            tableRowsHtml += `
-            <tr class="border-b border-slate-100 hover:bg-slate-50 transition bg-white">
-                <td class="p-4">
-                    <p class="font-bold text-slate-800 text-sm mb-0.5">${item.name}</p>
-                    <p class="text-slate-500 text-[10px] font-mono leading-tight">${item.id}</p>
-                </td>
-                <td class="p-4 text-center">${webRegDisplay}</td>
-                <td class="p-4 text-center">${timeInDisplay}</td>
-                <td class="p-4 text-center">${timeOutDisplay}</td>
-                <td class="p-4 text-center">${statusBadge}</td>
-            </tr>`;
-        });
-    }
-
-    let scanHtml = generateScanHTML(act);
-
-    // ====================================================
-    // 🌟 โครงสร้าง HTML หน้าต่าง Dashboard
-    // ====================================================
-    let dashboardHtml = `
-    <div class="mb-4 text-left">
-        <button onclick="closeActivityDashboard()" class="text-slate-500 hover:text-blue-600 font-bold text-sm transition"><i class="fas fa-arrow-left mr-2"></i> ย้อนกลับไปหน้ากิจกรรม</button>
-    </div>
-
-    <!-- 🌟 ส่วน Header (สีน้ำเงินเข้ม) -->
-    <div class="bg-[#1a233a] rounded-xl overflow-hidden shadow-md text-white mb-6">
-        <div class="p-6 md:p-8 relative">
-            <div class="flex items-center gap-3 mb-4 text-xs">
-                <button onclick="${roleIsAdmin ? `toggleActivityOpen('${act.title}')` : ''}" class="${isOpen ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-700' : 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/40'} px-3 py-1 rounded-full border border-slate-600 transition flex items-center gap-1 cursor-pointer">
-                    <i class="fas ${isOpen ? 'fa-globe' : 'fa-lock'}"></i> ${isOpen ? 'เปิดการใช้งาน' : 'ปิดการใช้งาน'}
-                </button>
-                <span class="text-slate-400">รหัสกิจกรรม: ACT-${act.year}-${act.term}-${Math.floor(Math.random()*1000)}</span>
-                <span class="text-slate-400 border-l border-slate-600 pl-3">โครงการ/กิจกรรมนักศึกษา</span>
-            </div>
-
-            <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-                <div class="flex-1">
-                    <h2 class="text-2xl md:text-3xl font-bold mb-1 leading-tight">${act.title}</h2>
-                    <p class="text-sm text-slate-400">${act.titleEng || 'Student Activity'}</p>
-                </div>
-                <div class="flex gap-3 text-center shrink-0">
-                    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 min-w-[70px]">
-                        <p class="text-[10px] text-slate-400 mb-1">หน่วยกิต</p>
-                        <p class="text-2xl font-bold text-white">${act.hours || 0}</p>
-                    </div>
-                    <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 min-w-[70px]">
-                        <p class="text-[10px] text-slate-400 mb-1">คะแนน</p>
-                        <p class="text-2xl font-bold text-white">${act.points || 0}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 🌟 แถบปุ่มเมนูแนวนอน (Toolbar) -->
-            <div class="flex overflow-x-auto gap-2 mt-8 pb-2 scrollbar-hide text-xs md:text-sm">
-                <button onclick="switchActTab('overview', this)" class="act-tab-btn bg-[#2d3748] border border-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition"><i class="fas fa-eye text-blue-400"></i> ภาพรวม</button>
-                <button onclick="switchActTab('scan', this)" class="act-tab-btn bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition"><i class="fas fa-qrcode"></i> Scan นักศึกษา</button>
-                ${roleIsAdmin ? `<button onclick="editActivityModal('${act.title}')" class="bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition"><i class="fas fa-edit"></i> แก้ไขข้อมูล</button>` : ''}
-                <button onclick="exportActivityExcel('${act.title}')" class="bg-transparent border border-slate-600 text-slate-300 hover:bg-slate-700 px-4 py-2 rounded-lg flex items-center gap-2 whitespace-nowrap transition"><i class="fas fa-file-export"></i> ส่งออก Excel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================= แท็บ: ภาพรวม (Overview) ================= -->
-    <div id="act-tab-overview" class="act-tab-content block">
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-            <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col">
-                <h3 class="font-bold text-slate-700 mb-4 flex items-center text-sm"><i class="fas fa-book-open text-blue-500 mr-2"></i> รายละเอียดกิจกรรม</h3>
-                <p class="text-sm text-slate-600 mb-6 bg-[#f8fafc] p-4 rounded-lg border border-slate-100 flex-1">${act.desc || 'โครงการนี้เป็นกิจกรรมที่จัดขึ้นเพื่อนักศึกษา...'}</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-blue-50/50 border border-blue-100 rounded-lg p-4">
-                        <p class="text-blue-600 font-bold text-xs mb-2 flex items-center"><i class="far fa-star mr-1"></i> ช่วงวันลงทะเบียน</p>
-                        <p class="text-xs text-slate-600 mb-1">เริ่ม: <span class="font-bold text-blue-800">${act.regStart ? formatDisplayDate(act.regStart) : 'ไม่ระบุ'}</span></p>
-                        <p class="text-xs text-slate-600">สิ้นสุด: <span class="font-bold text-blue-800">${act.regEnd ? formatDisplayDate(act.regEnd) : 'ไม่ระบุ'}</span></p>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                        <p class="text-slate-600 font-bold text-xs mb-2 flex items-center"><i class="far fa-calendar-alt mr-1"></i> ช่วงวันดำเนินกิจกรรม</p>
-                        <p class="text-xs text-slate-500 mb-1">เริ่ม: <span class="font-bold text-slate-700">${act.date ? formatDisplayDate(act.date) : 'ไม่ระบุ'}</span></p>
-                        <p class="text-xs text-slate-500">สิ้นสุด: <span class="font-bold text-slate-700">${act.actEnd ? formatDisplayDate(act.actEnd) : 'ไม่ระบุ'}</span></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                <h3 class="font-bold text-slate-700 mb-4 text-sm">ข้อมูลเพิ่มเติม</h3>
-                <div class="space-y-5">
-                    <div class="flex gap-3 items-start">
-                        <div class="bg-[#f8fafc] p-2 rounded-lg border border-slate-100 text-slate-400"><i class="fas fa-tag"></i></div>
-                        <div><p class="text-[10px] text-slate-400 font-bold">ประเภทกิจกรรม</p><p class="text-xs font-bold text-slate-700">กิจกรรมเลือกเข้าร่วม - พัฒนาทักษะ</p></div>
-                    </div>
-                    <div class="flex gap-3 items-start">
-                        <div class="bg-[#f8fafc] p-2 rounded-lg border border-slate-100 text-blue-400"><i class="fas fa-user-friends"></i></div>
-                        <div><p class="text-[10px] text-slate-400 font-bold">จำนวนที่เปิดรับ</p><p class="text-xs font-bold text-slate-700">${totalMax > 0 ? totalMax + ' คน' : 'ไม่จำกัดจำนวน'}</p></div>
-                    </div>
-                    <div class="flex gap-3 items-start">
-                        <div class="bg-[#f8fafc] p-2 rounded-lg border border-slate-100 text-amber-500"><i class="fas fa-building"></i></div>
-                        <div><p class="text-[10px] text-slate-400 font-bold">หน่วยงานที่รับผิดชอบ</p><p class="text-xs font-bold text-slate-700">คณะกรรมการนักศึกษา</p></div>
-                    </div>
-                    <div class="flex gap-3 items-start">
-                        <div class="bg-[#f8fafc] p-2 rounded-lg border border-slate-100 text-slate-400"><i class="fas fa-hashtag"></i></div>
-                        <div><p class="text-[10px] text-slate-400 font-bold">ปีการศึกษา / ภาคเรียน</p><p class="text-xs font-bold text-slate-700">ปี ${act.year} | เทอม ${act.term}</p></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 🌟 ส่วนสรุปจำนวนผู้เข้าร่วม (ลดเหลือ 3 กล่อง) -->
-        <div class="mb-6">
-            <h3 class="font-bold text-blue-800 mb-3 flex items-center text-sm"><i class="far fa-check-circle mr-2"></i> สรุปจำนวนผู้เข้าร่วม</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                <div class="bg-white rounded-xl p-4 border border-slate-200 border-l-4 border-l-blue-400 shadow-sm flex flex-col justify-between h-28">
-                    <div class="flex justify-between items-start">
-                        <p class="text-xs font-bold text-slate-600">จำนวนที่เปิดรับทั้งหมด</p>
-                        <i class="fas fa-users text-blue-400 bg-blue-50 p-1.5 rounded"></i>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold text-slate-800">${totalMax > 0 ? totalMax : count}</p>
-                        <p class="text-[9px] text-slate-400 mt-1">* นับรวมทุกช่องทาง</p>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl p-4 border border-slate-200 border-l-4 border-l-emerald-400 shadow-sm flex flex-col justify-between h-28">
-                    <div class="flex justify-between items-start mb-2">
-                        <p class="text-xs font-bold text-slate-600">ลงทะเบียนล่วงหน้า</p>
-                        <i class="fas fa-globe text-emerald-400 bg-emerald-50 p-1.5 rounded"></i>
-                    </div>
-                    <div>
-                        <div class="flex items-end gap-1 mb-1">
-                            <p class="text-2xl font-bold text-emerald-600 leading-none">${registeredCount}</p>
-                            <p class="text-xs text-slate-400 font-bold pb-0.5">/ ${totalMax > 0 ? totalMax : count}</p>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-1 mt-2"><div class="bg-emerald-400 h-1 rounded-full" style="width: ${totalMax > 0 ? (registeredCount/totalMax)*100 : 0}%"></div></div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl p-4 border border-slate-200 border-l-4 border-l-orange-400 shadow-sm flex flex-col justify-between h-28">
-                    <div class="flex justify-between items-start mb-2">
-                        <p class="text-xs font-bold text-slate-600">สแกนเข้าร่วมกิจกรรม</p>
-                        <i class="fas fa-layer-group text-orange-400 bg-orange-50 p-1.5 rounded"></i>
-                    </div>
-                    <div>
-                        <div class="flex items-end gap-1 mb-1">
-                            <p class="text-2xl font-bold text-slate-800 leading-none">${scannedInCount}</p>
-                            <p class="text-xs text-slate-400 font-bold pb-0.5">/ ${totalMax > 0 ? totalMax : count}</p>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-1 mt-2 flex justify-end overflow-hidden"><div class="bg-orange-400 h-1 rounded-full" style="width: ${scanPercent}%"></div></div>
-                        <p class="text-[9px] text-orange-500 font-bold text-right mt-1">${scanPercent}%</p>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- 🌟 ส่วนตารางรายชื่อแบบใหม่ (อัปเดตหัวตาราง 5 คอลัมน์) -->
-        <h3 class="font-bold text-slate-800 mb-3 text-sm mt-6">รายชื่อและประวัติการลงทะเบียน</h3>
-        <div class="bg-white border border-slate-200 rounded-t-xl p-3 flex justify-between items-center shadow-sm">
-            <div class="relative w-full max-w-xs">
-                <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                <input type="text" placeholder="ค้นหาชื่อ หรือ รหัสนักศึกษา..." class="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400">
-            </div>
-            <button onclick="exportActivityExcel('${act.title}')" class="text-emerald-600 border border-emerald-500 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2"><i class="fas fa-file-excel"></i> Export Excel</button>
-        </div>
-        <div class="bg-white border-x border-b border-slate-200 rounded-b-xl overflow-x-auto shadow-sm mb-8">
-            <table class="w-full text-left whitespace-nowrap">
-                <thead class="bg-[#f8fafc] text-slate-700 text-[11px] font-bold border-b border-slate-200">
-                    <tr>
-                        <th class="p-4 text-left w-1/3">ข้อมูลนักศึกษา</th>
-                        <th class="p-4 text-center">ลงทะเบียนเว็บ <i class="fas fa-sort text-slate-300 ml-1"></i></th>
-                        <th class="p-4 text-center">เวลาเข้า <i class="fas fa-sort text-slate-300 ml-1"></i></th>
-                        <th class="p-4 text-center">เวลาออก <i class="fas fa-sort text-slate-300 ml-1"></i></th>
-                        <th class="p-4 text-center">สถานะ <i class="fas fa-sort text-slate-300 ml-1"></i></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tableRowsHtml}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- ================= แท็บ: สแกน (Scan) ================= -->
-    <div id="act-tab-scan" class="act-tab-content hidden pt-4">
-        ${scanHtml}
-    </div>`;
-    
-    document.getElementById('activity-main-view').classList.add('hidden'); 
-    let detailView = document.getElementById('activity-detail-view'); 
-    detailView.innerHTML = dashboardHtml; 
-    detailView.classList.remove('hidden');
-}
-
-// 🌟 ฟังก์ชันเสริมสำหรับสลับ Tab ให้ปุ่มเมนูด้านบนเปลี่ยนสี
-window.switchActTab = function(tabId, btnElement) {
-    // ปิดกล้องถ้ามีการสลับหน้าหนีจากแท็บ Scan
-    if (tabId !== 'scan' && window.hwScanner) {
-        window.hwScanner.stop().catch(e => console.log(e));
-        window.hwScanner = null;
-    }
-
-    // 🌟 แก้ปัญหาตารางไม่อัปเดต: ถ้ากดกลับมาหน้า "ภาพรวม" ให้ดึงข้อมูลมาวาดตารางใหม่ทั้งหมด
-    if (tabId === 'overview') {
-        openActivityDashboard(currentDetailActivityTitle);
-        return; 
-    }
-
-    // ซ่อนทุกแท็บ
-    document.querySelectorAll('.act-tab-content').forEach(el => {
-        el.classList.remove('block');
-        el.classList.add('hidden');
-    });
-    // เปิดแท็บที่เลือก
-    document.getElementById('act-tab-' + tabId).classList.remove('hidden');
-    document.getElementById('act-tab-' + tabId).classList.add('block');
-    
-    // เปลี่ยนสีปุ่มเมนูด้านบน
-    document.querySelectorAll('.act-tab-btn').forEach(btn => {
-        btn.classList.remove('bg-[#2d3748]', 'border-blue-500', 'text-white');
-        btn.classList.add('bg-transparent', 'border-slate-600', 'text-slate-300');
-    });
-    btnElement.classList.remove('bg-transparent', 'border-slate-600', 'text-slate-300');
-    btnElement.classList.add('bg-[#2d3748]', 'border-blue-500', 'text-white');
-    
-    // ถ้าคลิกแท็บสแกน ให้ Focus ที่ช่องกรอกข้อมูลอัตโนมัติ
-    if(tabId === 'scan') {
-        setTimeout(() => {
-            let inputF = document.getElementById('hw-input-focus');
-            if(inputF) inputF.focus();
-        }, 100);
-    }
-}
-
-// 🌟 สร้าง HTML ดีไซน์ใหม่สำหรับหน้า Scan (ซ่อนเมนูเลือกรอบแล้ว)
-function generateScanHTML(act) {
-    return `
-    <div id="scan-interface-container" class="space-y-6 max-w-5xl mx-auto text-left">
-        
-        <!-- ส่วนที่ 1: ตั้งค่าการสแกน -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 class="font-bold text-slate-800 mb-4 text-lg">บันทึกการเข้าร่วมกิจกรรม</h3>
-
-            <!-- ตัวเลือกการแสดงผล -->
-            <div class="mb-4">
-                <h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือกการแสดงผล</h4>
-                <div class="space-y-3">
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" id="hw-show-info" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"> 
-                        <span class="text-sm font-bold text-slate-600">แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ</span>
-                    </label>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" id="hw-show-avatar" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"> 
-                        <span class="text-sm font-bold text-slate-600">แสดงรูปโปรไฟล์ของนักศึกษา</span>
-                    </label>
-                </div>
-            </div>
-
-            <hr class="my-5 border-slate-100">
-
-            <!-- ตัวเลือก Auto Confirm -->
-            <div>
-                <h4 class="text-sm font-bold text-slate-700 mb-3">ตัวเลือก Auto-Confirm</h4>
-                <label class="flex items-center gap-3 cursor-pointer mb-3">
-                    <input type="checkbox" id="hw-auto-confirm" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"> 
-                    <span class="text-sm font-bold text-slate-600">เปิด Auto-Confirm (ยืนยันอัตโนมัติ)</span>
-                </label>
-                <div class="ml-7">
-                    <span class="text-xs text-slate-500 block mb-1">จำนวนวินาที (1-60)</span>
-                    <input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-24 p-2 border border-slate-300 rounded-lg text-center font-bold outline-none focus:border-blue-500 bg-white shadow-sm">
-                </div>
-            </div>
-        </div>
-
-        <!-- ส่วนที่ 2: นำเข้าข้อมูล -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 class="font-bold text-slate-800 mb-4 text-lg">นำเข้าข้อมูลนักศึกษา</h3>
-            
-            <div class="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 mb-6">
-                <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm bg-white shadow-sm border border-slate-200 text-slate-800 transition flex flex-col items-center justify-center gap-1">
-                    <i class="fas fa-expand text-lg"></i> กรอก / สแกน <span class="text-[10px] font-normal text-slate-400">Barcode reader</span>
-                </button>
-                <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-3 rounded-lg font-bold text-sm text-slate-500 hover:text-slate-800 transition flex flex-col items-center justify-center gap-1">
-                    <i class="fas fa-camera text-lg"></i> กล้อง <span class="text-[10px] font-normal text-slate-400">QR / Barcode</span>
-                </button>
-            </div>
-
-            <!-- สแกนเข้า/ออก -->
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm hover:bg-blue-100">
-                    <input type="radio" name="scan-mode-hw" value="in" checked class="hidden" onchange="updateScanModeUI(this)"> 
-                    <i class="fas fa-sign-in-alt mr-1"></i> สแกนเข้างาน
-                </label>
-                <label class="cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200 transition shadow-sm hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300">
-                    <input type="radio" name="scan-mode-hw" value="out" class="hidden" onchange="updateScanModeUI(this)"> 
-                    <i class="fas fa-sign-out-alt mr-1"></i> สแกนกลับบ้าน
-                </label>
-            </div>
-
-            <!-- ส่วนกรอกมือ หรือใช้ปืนสแกน -->
-            <div id="manual-section" class="p-6 border-2 border-dashed border-slate-300 rounded-xl text-center bg-slate-50/50">
-                <input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition shadow-sm" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" 
-                    onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${act.title}'); this.value=''; }">
-                <p class="text-[11px] text-slate-400 mt-3 font-bold">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
-            </div>
-
-            <!-- ส่วนของกล้อง -->
-            <div id="camera-section" class="hidden w-full h-[350px] md:h-[450px] border-2 border-slate-200 rounded-xl overflow-hidden mt-4 bg-black shadow-inner">
-                <div id="hw-reader" class="w-full h-full"></div>
-            </div>
-        </div>
-    </div>`;
-}
-
-// ----------------------------------------------------------------------
-// ฟังก์ชันเสริม (Helper Functions) สำหรับแท็บต่างๆ วางต่อท้ายได้เลยครับ
-// ----------------------------------------------------------------------
-// 🌟 1. ระบบสลับแท็บเมนู (อัปเดตให้รองรับ Scan)
-window.switchActTab = function(tabId, btnElement) {
-    // ปิดกล้องถ้ามีการสลับหน้าหนีจากแท็บ Scan
-    if (tabId !== 'scan' && window.hwScanner) {
-        window.hwScanner.stop().catch(e => console.log(e));
-        window.hwScanner = null;
-    }
-
-    // ซ่อนทุกแท็บ
-    document.querySelectorAll('.act-tab-content').forEach(el => {
-        el.classList.remove('block');
-        el.classList.add('hidden');
-    });
-    // เปิดแท็บที่เลือก
-    document.getElementById('act-tab-' + tabId).classList.remove('hidden');
-    document.getElementById('act-tab-' + tabId).classList.add('block');
-    
-    // เปลี่ยนสีปุ่มเมนูด้านบน
-    document.querySelectorAll('.act-tab-btn').forEach(btn => {
-        btn.classList.remove('border-blue-500', 'text-white');
-        btn.classList.add('border-transparent', 'text-slate-300');
-    });
-    btnElement.classList.remove('border-transparent', 'text-slate-300');
-    btnElement.classList.add('border-blue-500', 'text-white');
-    
-    // ถ้าคลิกแท็บสแกน ให้ Focus ที่ช่องกรอกข้อมูลอัตโนมัติ
-    if(tabId === 'scan') {
-        setTimeout(() => {
-            let inputF = document.getElementById('hw-input-focus');
-            if(inputF) inputF.focus();
-        }, 100);
-    }
-}
-
-// 🌟 2. อัปเดต UI ปุ่มสแกนเข้า/ออก
-window.updateScanModeUI = function(radioElem) {
-    document.querySelectorAll('input[name="scan-mode-hw"]').forEach(el => {
-        let lbl = el.parentElement;
-        if (el.checked) {
-            if(el.value === 'in') {
-                lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm";
-            } else {
-                lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border-rose-500 transition shadow-sm";
-            }
-        } else {
-            lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200 transition shadow-sm hover:bg-slate-100";
+            saveToLocal(true); renderMasterDashboard();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'เปลี่ยนสถานะสำเร็จ', showConfirmButton:false, timer:1500});
         }
     });
 }
 
-// 🌟 3. ปรับให้ฟังก์ชันกล้องทำงานเข้ากับ UI ใหม่
-window.switchScannerMode = function(mode) {
-    let btnManual = document.getElementById('btn-manual');
-    let btnCamera = document.getElementById('btn-camera');
-
-    if (mode === 'manual') {
-        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
-        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
-    } else {
-        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
-        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
+function renderMasterDropdowns() {
+    let opts = '<option value="">กรุณาเลือกรอบ..</option>';
+    if (currentMasterActivity.rounds && currentMasterActivity.rounds.length > 0) {
+        currentMasterActivity.rounds.forEach(r => opts += `<option value="${r.name}">${r.name}</option>`);
     }
-
-    document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
-    document.getElementById('camera-section').classList.toggle('hidden', mode !== 'camera');
-    
-    if (mode === 'manual') {
-        if(window.hwScanner) { window.hwScanner.stop().catch(e => console.log(e)); window.hwScanner = null; }
-        document.getElementById('hw-input-focus').focus();
-        document.addEventListener('click', keepInputFocused);
-    } else {
-        document.removeEventListener('click', keepInputFocused);
-        if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
-        
-        // 🌟 แก้ไขโลจิกการเปิดกล้องสำหรับไอแพด/แท็บเล็ต
-        window.hwScanner.start(
-            { facingMode: "environment" }, 
-            { 
-                fps: 30, // ดันความลื่นไหลกล้องสูงสุด
-                // 🌟 ปรับปรุงจุดสแกน (qrbox) ให้คำนวณตามสัดส่วนวิดีโอจริงอัตโนมัติ
-                // โดยให้กรอบกว้าง 80% ของความกว้างจอ และมีความสูง 160px เป็นสี่เหลี่ยมผืนผ้าแนวนอนพอดีกับบาร์โค้ด
-                qrbox: function(videoWidth, videoHeight) {
-                    let widthBox = Math.min(videoWidth * 0.8, 400);
-                    let heightBox = Math.min(videoHeight * 0.4, 160);
-                    return { width: widthBox, height: heightBox };
-                }
-                // 🌟 นำ aspectRatio เดิมออก เพื่อไม่ให้ระบบบังคับครอปตัดขอบวิดีโอจนจุดศูนย์กลางเพี้ยนตกขอบล่าง
-            },
-            (decodedText) => {
-                window.hwScanner.pause();
-                executeScanLogic(decodedText, currentDetailActivityTitle);
-            }
-        ).catch(err => Swal.fire('ไม่สามารถเปิดกล้องได้', 'โปรดตรวจสอบการอนุญาตสิทธิ์กล้องบนเบราว์เซอร์ของคุณ', 'error'));
-    }
+    ['m-checkin-round', 'm-qr-round-select', 'm-import-s-round', 'm-import-b-round'].forEach(id => {
+        let el = document.getElementById(id); if (el) el.innerHTML = opts;
+    });
 }
-// 2. ระบบนำเข้านักศึกษาแบบกลุ่ม (Group Import)
-function importStudentsGroup(title) {
-    let idsInput = document.getElementById('import-ids-input').value;
-    let round = document.getElementById('import-round-select').value;
-    if (!idsInput.trim()) return Swal.fire('เตือน', 'กรุณากรอกรหัสนักศึกษาอย่างน้อย 1 คน', 'warning');
-    
-    Swal.fire({title: 'กำลังตรวจสอบ...', didOpen: () => Swal.showLoading()});
 
-    setTimeout(() => {
-        // หั่นรหัสด้วยลูกน้ำ (,) หรือการเว้นบรรทัด (Enter)
-        let rawIds = idsInput.split(/[\n,]+/).map(id => id.trim()).filter(id => id !== '');
-        let successCount = 0, notFoundCount = 0, dupCount = 0;
-        
-        rawIds.forEach(rawId => {
-            let cleanId = formatIdSearch(rawId); 
-            let plainId = cleanId.replace(/-/g, '');
-            let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === plainId); 
-            
-            if (!stu) { notFoundCount++; return; }
-            
-            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === title);
-            if (existing) { dupCount++; return; }
-            
-            // บันทึกเข้ากิจกรรม โดยใช้สถานะ (นำเข้า)
-            activityLogs.unshift({
-                studentId: stu.id,
-                activityTitle: title,
-                roundName: round || '',
-                timeIn: getNow() + ' (นำเข้า)', 
-                timeOut: null
-            });
-            successCount++;
-        });
-        
-        if (successCount > 0) {
-            txHistory.unshift({ date: getNow(), name: `นำเข้ารายชื่อกลุ่ม (${title}): ${successCount} คน`, type: 'ระบบ', amt: 0, user: currentUsername });
-            saveToLocal();
+// ---- Tab: รอบลงทะเบียน ----
+window.openAddRoundModal = function() {
+    Swal.fire({
+        title: '<div class="text-left text-slate-800 text-lg font-bold border-b pb-3">เพิ่มรอบกิจกรรมใหม่</div>',
+        html: `<div class="text-left text-sm mt-2 space-y-4"><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อรอบ (ภาษาไทย) *</label><input type="text" id="popup-r-name" class="modern-input w-full"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">จำนวนที่รับ (0=ไม่จำกัด)</label><input type="number" id="popup-r-max" class="modern-input w-full" value="0"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">หมายเหตุ</label><input type="text" id="popup-r-note" class="modern-input w-full"></div></div>`, 
+        showCancelButton: true, confirmButtonText: 'ยืนยัน', confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            let n = document.getElementById('popup-r-name').value.trim();
+            if (!n) return Swal.showValidationMessage('กรุณาระบุชื่อรอบ');
+            if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
+            if (currentMasterActivity.rounds.find(r => r.name === n)) return Swal.showValidationMessage('ชื่อรอบนี้มีอยู่แล้ว');
+            return { name: n, max: parseInt(document.getElementById('popup-r-max').value)||0, note: document.getElementById('popup-r-note').value };
         }
-        
-        Swal.fire({
-            title: 'ผลการนำเข้าข้อมูล', 
-            html: `<div class="text-left text-sm space-y-2 mt-2">
-                <p class="text-emerald-600 font-bold"><i class="fas fa-check-circle"></i> นำเข้าสำเร็จ: ${successCount} คน</p>
-                <p class="text-amber-500 font-bold"><i class="fas fa-exclamation-triangle"></i> ข้าม (มีอยู่แล้ว): ${dupCount} คน</p>
-                <p class="text-rose-500 font-bold"><i class="fas fa-times-circle"></i> ไม่พบในระบบ: ${notFoundCount} คน</p>
-            </div>`, 
-            icon: 'info'
-        }).then(() => {
-            openActivityDashboard(title); // รีเฟรชหน้าต่าง
-        });
-    }, 500);
+    }).then(res => {
+        if (res.isConfirmed) {
+            currentMasterActivity.rounds.push(res.value); saveToLocal(true); renderMasterRoundsTab();
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกสำเร็จ', showConfirmButton:false, timer:1500});
+        }
+    });
 }
 
-// 3. ระบบผู้ดูแลกิจกรรม (Admin Management)
-function addActivityAdmin(title) {
-    let act = appSettings.activities.find(a => a.title === title);
-    if (!act) return;
-    
+function renderMasterRoundsTab() {
+    let tbody = document.getElementById('master-rounds-list');
+    if (!currentMasterActivity.rounds) currentMasterActivity.rounds = [];
+    if (currentMasterActivity.rounds.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="text-center p-10 text-slate-400">ยังไม่มีข้อมูลรอบลงทะเบียน</td></tr>'; return; }
+    let html = '';
+    currentMasterActivity.rounds.forEach((r, idx) => {
+        html += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-4"><p class="font-bold text-slate-800 text-sm">${r.name}</p><p class="text-[10px] text-slate-500">โควตา: ${r.max>0?r.max+' คน':'ไม่จำกัด'}</p></td><td class="p-4 text-center text-xs text-slate-500">${r.note||'-'}</td><td class="p-4 text-center"><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">เปิดใช้งาน</span></td><td class="p-4 text-center"><button onclick="deleteMasterRound(${idx})" class="text-rose-500 p-2"><i class="fas fa-trash"></i></button></td></tr>`;
+    });
+    tbody.innerHTML = html;
+}
+window.deleteMasterRound = function(idx) {
+    Swal.fire({title: 'ลบรอบนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48'}).then(r => {
+        if (r.isConfirmed) { currentMasterActivity.rounds.splice(idx, 1); saveToLocal(true); renderMasterRoundsTab(); }
+    });
+}
+
+// ---- Tab: แอดมินกิจกรรม ----
+window.addActivityAdmin = function(title) {
+    let act = appSettings.activities.find(a => a.title === title); if (!act) return;
     let user = document.getElementById('admin-user-input').value.trim();
     let phone = document.getElementById('admin-phone-input').value.trim();
     if (!user) return Swal.fire({toast:true, position:'top', icon:'warning', title:'กรุณาระบุ Username', showConfirmButton:false, timer:2000});
-    
-    act.admins = act.admins || [];
-    act.admins.push({ user: user, phone: phone });
-    
-    saveToLocal();
-    document.getElementById('admin-user-input').value = '';
-    document.getElementById('admin-phone-input').value = '';
+    act.admins = act.admins || []; act.admins.push({ user: user, phone: phone });
+    saveToLocal(true); document.getElementById('admin-user-input').value = ''; document.getElementById('admin-phone-input').value = '';
     renderActivityAdmins(title);
-    Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มผู้ดูแลสำเร็จ', showConfirmButton:false, timer:1500});
+    Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มสำเร็จ', showConfirmButton:false, timer:1500});
 }
-
-function deleteActivityAdmin(title, index) {
-    let act = appSettings.activities.find(a => a.title === title);
-    if (!act || !act.admins) return;
-    
+window.deleteActivityAdmin = function(title, index) {
+    let act = appSettings.activities.find(a => a.title === title); if (!act || !act.admins) return;
     Swal.fire({ title: 'ลบผู้ดูแลนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then(r => {
-        if(r.isConfirmed) {
-            act.admins.splice(index, 1);
-            saveToLocal();
-            renderActivityAdmins(title);
-        }
+        if(r.isConfirmed) { act.admins.splice(index, 1); saveToLocal(true); renderActivityAdmins(title); }
     });
 }
-
 function renderActivityAdmins(title) {
-    let act = appSettings.activities.find(a => a.title === title);
-    let listEl = document.getElementById('act-admins-list');
-    if (!act || !listEl) return;
-    
+    let act = appSettings.activities.find(a => a.title === title); let listEl = document.getElementById('act-admins-list'); if (!act || !listEl) return;
     act.admins = act.admins || [];
-    if (act.admins.length === 0) {
-        listEl.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-400">ยังไม่มีการเพิ่มผู้ดูแลกิจกรรม<br><span class="text-xs">แอดมินหลักของระบบมีสิทธิ์จัดการได้อัตโนมัติอยู่แล้ว</span></td></tr>';
-        return;
-    }
-    
+    let cEl = document.getElementById('admin-count'); if(cEl) cEl.innerText = act.admins.length;
+    if (act.admins.length === 0) { listEl.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-400">ยังไม่มีผู้ดูแลกิจกรรม</td></tr>'; return; }
     let html = '';
     act.admins.forEach((admin, i) => {
-        let initial = admin.user.charAt(0).toUpperCase();
-        html += `<tr class="border-b border-slate-100 hover:bg-slate-50 transition">
-            <td class="p-4 flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shadow-sm">${initial}</div>
-                <span class="font-bold text-slate-700">${admin.user}</span>
-            </td>
-            <td class="p-4 text-slate-500"><i class="fas fa-phone-alt mr-2 text-slate-300"></i> ${admin.phone || '-'}</td>
-            <td class="p-4 text-center"><button onclick="deleteActivityAdmin('${title}', ${i})" class="text-rose-500 hover:bg-rose-50 rounded-lg p-2 transition"><i class="fas fa-trash-alt"></i></button></td>
-        </tr>`;
+        let init = admin.user.charAt(0).toUpperCase();
+        html += `<tr class="border-b"><td class="p-4 flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">${init}</div><span class="font-bold">${admin.user}</span></td><td class="p-4 text-slate-500 text-xs">${admin.phone || '-'}</td><td class="p-4 text-center"><button onclick="deleteActivityAdmin('${title}', ${i})" class="text-rose-500"><i class="fas fa-trash"></i></button></td></tr>`;
     });
     listEl.innerHTML = html;
 }
 
-        function closeActivityDashboard() { currentDetailActivityTitle = ''; document.getElementById('activity-detail-view').classList.add('hidden'); document.getElementById('activity-main-view').classList.remove('hidden'); renderActivities(); }
-        function toggleActivityOpen(title) { let act = appSettings.activities.find(a => a.title === title); if (act) { act.isOpen = act.isOpen === false ? true : false; saveToLocal(); if(currentDetailActivityTitle) openActivityDashboard(currentDetailActivityTitle); else renderActivities(); } }
+// ---- Tab: นำเข้ารายชื่อ ----
+window.searchSingleStudentForImport = function() {
+    let stuId = document.getElementById('m-s-id').value.trim();
+    if (!stuId) return Swal.fire('แจ้งเตือน', 'กรุณากรอกรหัสนักศึกษา', 'warning');
+    let cleanId = formatIdSearch(stuId).replace(/-/g, '');
+    let stu = students.find(s => s.id.replace(/-/g, '') === cleanId);
+    let resultZone = document.getElementById('m-s-result');
+    if (!stu) { resultZone.innerHTML = `<div class="p-6 text-center text-rose-500 bg-rose-50 rounded-xl font-bold">ไม่พบข้อมูลรหัส ${stuId}</div>`; return; }
+    resultZone.innerHTML = `<div class="p-6 bg-emerald-50 border border-emerald-200 rounded-xl flex justify-between items-center mt-4"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold text-xl">${getInitials(stu.name)}</div><div><p class="font-bold text-emerald-800 text-lg">${stu.name}</p><p class="text-xs text-emerald-600">${stu.id} | ห้อง ${stu.room}</p></div></div><button onclick="importMasterSingle('${stu.id}')" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">นำเข้า</button></div>`;
+}
 
-        // =========================================================================
-// ฟังก์ชันสร้าง/แก้ไขกิจกรรม (ไม่มีการสร้างรอบในหน้านี้แล้ว)
-// =========================================================================
-function createActivityModal() {
-    let htmlForm = `
-    <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4 font-sans">
-        <div>
-            <h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐานกิจกรรม</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ไทย) *</label><input id="act-title" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2"></div>
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ENG)</label><input id="act-title-eng" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2"></div>
-            </div>
-        </div>
-        <hr class="border-slate-200">
-        <div>
-            <h4 class="font-bold text-blue-700 mb-3 text-sm">รายละเอียดคะแนนและปีการศึกษา</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">ปีการศึกษา *</label><input id="act-year" type="number" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2" value="${new Date().getFullYear() + 543}"></div>
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">ภาคเรียน *</label><input id="act-term" type="number" class="modern-input mb-0 w-full border-slate-300 rounded-lg p-2" value="1"></div>
-            </div>
-        </div>
-        <hr class="border-slate-200">
-        <div>
-            <h4 class="font-bold text-blue-700 mb-3 text-sm">กำหนดการ</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h5 class="font-bold text-slate-800 mb-3 text-xs border-b border-slate-200 pb-1">ช่วงเวลาการสมัคร</h5>
-                    <div class="space-y-3">
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">เริ่มรับสมัคร</label><input id="act-reg-start" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">สิ้นสุดการสมัคร</label><input id="act-reg-end" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
-                    </div>
-                </div>
-                <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                    <h5 class="font-bold text-blue-800 mb-3 text-xs border-b border-blue-200 pb-1">ช่วงเวลาจัดกิจกรรม</h5>
-                    <div class="space-y-3">
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">วันที่เริ่มกิจกรรม *</label><input id="act-start" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">วันที่สิ้นสุดกิจกรรม</label><input id="act-end" type="date" class="w-full p-2 border border-slate-300 rounded-lg"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <hr class="border-slate-200">
-        <div>
-            <h4 class="font-bold text-slate-800 mb-3 text-sm">รายละเอียดกิจกรรมเพิ่มเติม</h4>
-            <textarea id="act-desc" rows="3" class="modern-input w-full border-slate-300 rounded-lg p-2 text-sm"></textarea>
-        </div>
-    </div>`;
+window.importMasterSingle = function(stuId) {
+    let round = document.getElementById('m-import-s-round').value;
+    if (!round) return Swal.fire('เตือน', 'กรุณาเลือกรอบลงทะเบียน', 'warning');
+    let existing = activityLogs.find(l => l.studentId === stuId && l.activityTitle === currentMasterActivity.title);
+    if (existing) return Swal.fire('เตือน', 'รายชื่อนี้อยู่ในระบบแล้ว', 'warning');
+    activityLogs.unshift({ studentId: stuId, activityTitle: currentMasterActivity.title, roundName: round, timeIn: getNow()+' (นำเข้า)', timeOut: null, status: 'A' });
+    txHistory.unshift({ date: getNow(), name: `นำเข้ารายบุคคล: ${stuId}`, type: 'ระบบ', amt: 0, user: currentUsername });
+    saveToLocal(true); document.getElementById('m-s-result').innerHTML = ''; document.getElementById('m-s-id').value = '';
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'นำเข้าสำเร็จ', showConfirmButton: false, timer: 1500 });
+}
 
+window.importMasterParticipants = function() {
+    let idsInput = document.getElementById('m-import-text').value;
+    let round = document.getElementById('m-import-b-round').value;
+    if (!round) return Swal.fire('เตือน', 'กรุณาเลือกรอบลงทะเบียนก่อนครับ', 'warning');
+    if (!idsInput.trim()) return Swal.fire('เตือน', 'กรุณากรอกรหัสอย่างน้อย 1 คน', 'warning');
+    Swal.fire({title: 'กำลังตรวจสอบ...', didOpen: () => Swal.showLoading()});
+    setTimeout(() => {
+        let rawIds = idsInput.split(/[\n,]+/).map(id => id.trim()).filter(id => id !== '');
+        let sc = 0, nf = 0, dp = 0;
+        rawIds.forEach(rawId => {
+            let cleanId = formatIdSearch(rawId).replace(/-/g, '');
+            let stu = students.find(s => s.id.replace(/-/g,'') === cleanId);
+            if (!stu) { nf++; return; }
+            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
+            if (existing) { dp++; return; }
+            activityLogs.unshift({ studentId: stu.id, activityTitle: currentMasterActivity.title, roundName: round, timeIn: getNow()+' (นำเข้า)', timeOut: null, status: 'A' });
+            sc++;
+        });
+        if (sc > 0) { txHistory.unshift({ date: getNow(), name: `นำเข้ากลุ่ม (${currentMasterActivity.title}): ${sc} คน`, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(true); document.getElementById('m-import-text').value = ''; }
+        Swal.fire({ title: 'ผลการนำเข้า', html: `<div class="text-left text-sm mt-2"><p class="text-emerald-600 font-bold">สำเร็จ: ${sc} คน</p><p class="text-amber-500 font-bold">ซ้ำ: ${dp} คน</p><p class="text-rose-500 font-bold">ไม่พบ: ${nf} คน</p></div>`, icon: 'info' });
+    }, 500);
+}
+
+window.exportActivityToCSV = function() {
+    let title = currentMasterActivity ? currentMasterActivity.title : currentDetailActivityTitle;
+    let parts = activityLogs.filter(l => l.activityTitle === title); 
+    if(parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วม', 'info');
+    let csv = "\uFEFFลำดับ,รหัส,ชื่อ,ห้อง,รอบ,เข้า,ออก,สถานะ\n"; 
+    parts.forEach((p, idx) => { 
+        let s = students.find(x => x.id === p.studentId) || { name: '-', room: '-' };
+        csv += `${idx+1},="${p.studentId}",${s.name},${s.room},${p.roundName||'ทั่วไป'},${p.timeIn||'-'},${p.timeOut||'-'},${p.status||'A'}\n`; 
+    });
+    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); 
+    let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `รายชื่อ_${title}.csv`; 
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+window.toggleDynamicQR = function() {
+    let btn = document.getElementById('btn-toggle-qr'); let img = document.getElementById('m-dynamic-qr'); let plc = document.getElementById('m-qr-placeholder');
+    if (qrTokenInterval) {
+        clearInterval(qrTokenInterval); qrTokenInterval = null;
+        if(img) img.classList.add('hidden'); if(plc) plc.classList.remove('hidden');
+        if(btn) { btn.innerHTML = '<i class="fas fa-play mr-2"></i> เปิดใช้งาน QR Code'; btn.className = "w-full bg-blue-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition"; }
+    } else {
+        if(img) img.classList.remove('hidden'); if(plc) plc.classList.add('hidden');
+        if(btn) { btn.innerHTML = '<i class="fas fa-stop mr-2"></i> ปิดใช้งาน QR Code'; btn.className = "w-full bg-rose-600 text-white px-8 py-3 rounded-lg font-bold text-sm transition"; }
+        let sec = parseInt(document.getElementById('m-qr-interval')?.value) || 12;
+        const gen = () => { let t = `ACT-${currentMasterActivity.title}-${Date.now()}`; if(img) img.src = `https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=${encodeURIComponent(t)}&choe=UTF-8`; };
+        gen(); qrTokenInterval = setInterval(gen, sec * 1000);
+    }
+}
+
+// ---- Tab: Scan & Auto-Confirm ----
+window.updateScanModeUI = function(radioElem) {
+    document.querySelectorAll('input[name="scan-mode-hw"]').forEach(el => {
+        let lbl = el.parentElement;
+        if (el.checked) lbl.className = el.value === 'in' ? "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-blue-50 text-blue-700 border-blue-500 transition shadow-sm" : "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-rose-50 text-rose-700 border-rose-500 transition shadow-sm";
+        else lbl.className = "cursor-pointer border-2 p-3 rounded-xl text-center font-bold bg-slate-50 text-slate-500 border-slate-200 transition shadow-sm hover:bg-slate-100";
+    });
+}
+
+window.switchScannerMode = function(mode) {
+    let bM = document.getElementById('btn-manual'); let bC = document.getElementById('btn-camera');
+    if (mode === 'manual') {
+        bM.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
+        bC.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
+        document.getElementById('manual-section').classList.remove('hidden'); document.getElementById('camera-section').classList.add('hidden');
+        if(window.hwScanner) { window.hwScanner.stop().catch(e=>console.log(e)); window.hwScanner = null; }
+        document.getElementById('hw-input-focus')?.focus();
+    } else {
+        bC.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
+        bM.className = "mode-btn flex-1 py-4 rounded-xl border-2 border-slate-200 bg-white text-slate-500 font-bold transition flex flex-col items-center justify-center gap-2 shadow-sm";
+        document.getElementById('camera-section').classList.remove('hidden'); document.getElementById('manual-section').classList.add('hidden');
+        if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
+        window.hwScanner.start({ facingMode: "environment" }, { fps: 30, qrbox: function(vw, vh) { return { width: Math.min(vw * 0.8, 400), height: Math.min(vh * 0.4, 160) }; } },
+            (dec) => { window.hwScanner.pause(); executeScanLogic(dec, currentMasterActivity.title); }
+        ).catch(e => Swal.fire('Error', 'ไม่สามารถเปิดกล้องได้', 'error'));
+    }
+}
+
+window.executeScanLogic = function(rawCode, title) {
+    if(!rawCode || !rawCode.trim()) return;
+    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
+    let fixedCode = ''; for(let c of rawCode) { fixedCode += mapTH[c] || c; }
+    let scannedDigits = fixedCode.trim().replace(/\D/g, ''); 
+    let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits);
+
+    if(!stu) {
+        Swal.fire({ toast: true, position: 'top', icon: 'error', title: '❌ ไม่พบข้อมูลนักศึกษา', showConfirmButton: false, timer: 2000 });
+        if(typeof playBeep === 'function') playBeep('error'); 
+        setTimeout(() => { let inp = document.getElementById('hw-input-focus'); if(inp) { inp.value = ''; inp.focus(); } if (window.hwScanner) window.hwScanner.resume(); }, 100);
+        return;
+    }
+    showStudentPreviewCard(stu, title);
+}
+
+window.showStudentPreviewCard = function(stu, title) {
+    let showInfo = document.getElementById('hw-show-info')?.checked;
+    let autoConf = document.getElementById('hw-auto-confirm') ? document.getElementById('hw-auto-confirm').checked : true;
+    let confSec = parseInt(document.getElementById('hw-confirm-seconds')?.value) || 5;
+
+    let av = `<div class="w-24 h-24 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-md border-4 border-slate-100">${getInitials(stu.name)}</div>`;
+    let inf = showInfo ? `<h3 class="text-xl font-bold text-slate-800 mb-1">${stu.name}</h3><p class="text-slate-500 font-mono mb-3 text-sm">${stu.id}</p><span class="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-200 shadow-inner">ห้อง ${stu.room}</span>` : '';
+
+    let timerItv;
     Swal.fire({
-        title: '<div class="flex items-center text-blue-700 text-lg font-bold border-b pb-2"><i class="fas fa-paper-plane mr-2"></i> แบบฟอร์มคำขอสร้างกิจกรรมใหม่</div>',
-        html: htmlForm, width: '800px', showCancelButton: true, confirmButtonText: 'ส่งคำขอสร้างกิจกรรม', confirmButtonColor: '#2563eb', cancelButtonText: 'ปิด',
-        preConfirm: () => {
-            const title = document.getElementById('act-title').value.trim();
-            const date = document.getElementById('act-start').value;
-            if (!title || !date) return Swal.showValidationMessage('กรุณาระบุชื่อกิจกรรม(ไทย) และ วันที่เริ่มกิจกรรม');
-            if (appSettings.activities.find(a => a.title === title)) return Swal.showValidationMessage('มีชื่อกิจกรรมนี้ในระบบแล้ว');
-
-            return {
-                title: title, titleEng: document.getElementById('act-title-eng').value.trim(),
-                year: document.getElementById('act-year').value, term: document.getElementById('act-term').value,
-                date: date, actEnd: document.getElementById('act-end').value,
-                regStart: document.getElementById('act-reg-start').value, regEnd: document.getElementById('act-reg-end').value,
-                desc: document.getElementById('act-desc').value,
-                status: 'รออนุมัติ', isOpen: true,
-                rounds: [], // 🌟 สร้างกิจกรรมด้วย Array รอบที่ว่างเปล่า รอไปตั้งค่าแยก
-                hours: 0, points: 0 
-            };
-        }
-    }).then(res => {
-        if (res.isConfirmed) {
-            appSettings.activities.push(res.value);
-            txHistory.unshift({ date: getNow(), name: 'สร้างกิจกรรม: ' + res.value.title, type: 'ระบบ', amt: 0, user: currentUsername });
-            saveToLocal(true); if(typeof renderActivities === 'function') renderActivities();
-            Swal.fire({ title: 'สำเร็จ', text: 'บันทึกข้อมูลกิจกรรมเรียบร้อยแล้ว กรุณาไปตั้งค่ารอบในศูนย์จัดการกิจกรรม', icon: 'success' });
+        html: `<div class="text-center p-2 font-sans">${av}${inf}<p id="tmr-txt" class="mt-4 text-rose-500 text-xs font-bold h-4"></p></div>`, 
+        showCancelButton: true, confirmButtonText: '✅ ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', allowOutsideClick: false, allowEscapeKey: false,
+        customClass: { popup: 'rounded-3xl p-4 max-w-sm', confirmButton: 'rounded-xl px-5 py-2.5 font-bold', cancelButton: 'rounded-xl px-5 py-2.5 font-bold' },
+        didOpen: () => {
+            if (autoConf) {
+                let t = confSec; let tEl = document.getElementById('tmr-txt'); if (tEl) tEl.innerText = `ระบบจะยืนยันใน ${t} วิ...`;
+                timerItv = setInterval(() => { t--; if (tEl) tEl.innerText = `ระบบจะยืนยันใน ${t} วิ...`; if (t <= 0) { clearInterval(timerItv); Swal.clickConfirm(); } }, 1000);
+            }
+        },
+        willClose: () => { clearInterval(timerItv); }
+    }).then((res) => {
+        if (res.isConfirmed) confirmScan(stu.id, title);
+        else {
+            if (window.hwScanner) window.hwScanner.resume();
+            let inp = document.getElementById('hw-input-focus'); if (inp) { inp.value = ''; inp.focus(); }
         }
     });
 }
 
-function editActivityModal(oldTitle) {
-    let actIndex = appSettings.activities.findIndex(a => a.title === oldTitle);
-    if(actIndex === -1) return;
-    let act = appSettings.activities[actIndex];
+window.confirmScan = function(stuId, title) {
+    let stu = students.find(s => s.id === stuId); if(!stu) return;
+    let mEl = document.querySelector('input[name="scan-mode-hw"]:checked'); let mode = mEl ? mEl.value : 'in';
+    let timeStr = getNow();
+    let act = appSettings.activities.find(a => a.title === title);
+    let rSel = document.getElementById('m-checkin-round'); let roundName = rSel ? rSel.value : 'ทั่วไป';
+    let cleanId = String(stuId).replace(/-/g, '').trim();
+    let existingLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title);
+    let pts = act ? (parseInt(act.points) || 0) : 0; 
+    
+    if (mode === 'in') { 
+        if (existingLog) {
+            if (existingLog.timeIn === 'จองสิทธิ์ล่วงหน้า' || existingLog.timeIn === '-' || existingLog.timeIn.includes('นำเข้า')) {
+                stu.points = (stu.points || 0) + pts;
+                if (pts > 0) txHistory.unshift({ date: timeStr, name: `+${pts} แต้ม (ร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
+            }
+            existingLog.timeIn = timeStr; existingLog.roundName = existingLog.roundName || roundName; existingLog.status = 'A';
+        } else {
+            activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null, status: 'A' });
+            stu.points = (stu.points || 0) + pts;
+            if (pts > 0) txHistory.unshift({ date: timeStr, name: `+${pts} แต้ม (ร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
+        }
+    } else { 
+        if (existingLog) existingLog.timeOut = timeStr;
+        else activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: '-', timeOut: timeStr, status: 'A' });
+    }
+    txHistory.unshift({ date: timeStr, name: `สแกน${mode==='in'?'เข้า':'ออก'} (${title}): ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+    
+    saveToLocal(true); 
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${mode==='in'?'เข้า':'ออก'}): ` + stu.name, showConfirmButton: false, timer: 1500}); 
+    if(typeof playBeep === 'function') playBeep('success'); 
 
+    let scanTab = document.getElementById('mtab-content-checkin');
+    if (scanTab && !scanTab.classList.contains('hidden')) {
+        setTimeout(() => { let inp = document.getElementById('hw-input-focus'); if(inp) { inp.value = ''; inp.focus(); } if (window.hwScanner) { try { window.hwScanner.resume(); } catch(e) {} } }, 300); 
+    }
+}
+
+// ---- ส่วนจัดการ Modal (ฝั่งผู้ใช้) ----
+window.openRegistrationModal = function(title) {
+    let act = appSettings.activities.find(a => a.title === title); if (!act) return;
+    let t = new Date(); t.setHours(0, 0, 0, 0); let rE = act.regEnd ? new Date(act.regEnd) : new Date(act.date); rE.setHours(23, 59, 59, 999);
+    let isOpen = (act.isOpen !== false) && (t <= rE);
+    let badge = isOpen ? `<span class="bg-emerald-500/20 text-emerald-500 border-emerald-500 text-xs font-bold px-3 py-1 rounded-full border">เปิดรับสมัคร</span>` : `<span class="bg-rose-500/20 text-rose-500 border-rose-500 text-xs font-bold px-3 py-1 rounded-full border">ปิดรับสมัคร</span>`;
+    
+    let stuId = window.currentGuestStuId;
+    let extLog = null; if (stuId) extLog = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+    let tMax = 0; if(act.rounds) act.rounds.forEach(r => tMax += (parseInt(r.max)||0));
+
+    let ft = '';
+    if (!stuId) ft = `<p class="text-sm text-slate-500 font-bold">กรุณาเข้าสู่ระบบก่อนลงทะเบียน</p>`;
+    else if (extLog) ft = `<div class="bg-emerald-100 text-emerald-600 font-bold py-3.5 rounded-xl mb-3 border border-emerald-200">ลงทะเบียนสำเร็จ (รอบ: ${extLog.roundName||'ทั่วไป'})</div><button type="button" onclick="promptCancelReg('${title}')" class="w-full bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 font-bold py-3.5 rounded-xl transition shadow-sm">ยกเลิกการเข้าร่วม</button>`;
+    else if (!isOpen) ft = `<button type="button" disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3.5 rounded-xl cursor-not-allowed">ปิดรับสมัครแล้ว</button>`;
+    else ft = `<button type="button" onclick="promptConfirmReg('${title}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition">ลงทะเบียนเข้าร่วมกิจกรรม</button>`;
+
+    let html = `
+    <div class="text-left font-sans">
+        <div class="bg-[#1e293b] text-white p-8 relative rounded-t-3xl"><button type="button" onclick="Swal.close()" class="absolute top-4 right-5 text-slate-400 hover:text-white transition"><i class="fas fa-times text-2xl"></i></button><div class="mb-4">${badge}</div><h2 class="text-2xl font-bold pr-12">${title}</h2></div>
+        <div class="bg-white p-6 md:p-8 flex flex-col lg:flex-row gap-8">
+             <div class="flex-1">
+                 <h3 class="font-bold text-slate-700 mb-4 text-lg">รายละเอียดกิจกรรม</h3><p class="text-slate-600 text-sm mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">${act.desc || 'ไม่มีรายละเอียด'}</p>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-blue-50 border border-blue-100 p-5 rounded-2xl"><h4 class="font-bold text-blue-800 text-sm mb-2">วันลงทะเบียน</h4><p class="text-xs text-blue-700">เริ่ม: ${act.regStart||'-'}<br>สิ้นสุด: ${act.regEnd||'-'}</p></div><div class="bg-slate-50 border border-slate-200 p-5 rounded-2xl"><h4 class="font-bold text-slate-800 text-sm mb-2">วันจัดกิจกรรม</h4><p class="text-xs text-slate-600">เริ่ม: ${act.date||'-'}<br>สิ้นสุด: ${act.actEnd||'-'}</p></div></div>
+             </div>
+        </div>
+        <div class="p-6 bg-white border-t border-slate-100 text-center rounded-b-3xl">${ft}</div>
+    </div>`;
+
+    Swal.fire({ html: html, width: '900px', padding: 0, showConfirmButton: false, customClass: { popup: 'rounded-3xl overflow-hidden shadow-2xl' } });
+}
+
+window.promptConfirmReg = function(title) {
+    let act = appSettings.activities.find(a => a.title === title);
+    let rHtml = '';
+    if(act.rounds && act.rounds.length > 0) {
+        rHtml = '<div class="mt-5 text-left"><label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบที่ต้องการ *</label><div class="space-y-2 max-h-40 overflow-y-auto">';
+        act.rounds.forEach(r => {
+            let cReg = activityLogs.filter(l => l.activityTitle === title && l.roundName === r.name).length;
+            let isFull = r.max > 0 && cReg >= r.max;
+            rHtml += `<label class="flex items-center p-3 bg-white border rounded-xl cursor-pointer ${isFull ? 'opacity-50' : 'hover:border-blue-300 peer-checked:bg-blue-50'}"><input type="radio" name="select_round" value="${r.name}" class="mr-3 w-4 h-4 text-blue-600" ${isFull ? 'disabled' : ''}><div class="flex-1"><p class="font-bold text-sm text-slate-800">${r.name}</p></div><span class="text-xs font-bold px-2 py-1 rounded-md ${isFull ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}">${isFull ? 'เต็ม' : (r.max>0 ? `ว่าง ${r.max-cReg}` : 'ไม่จำกัด')}</span></label>`;
+        });
+        rHtml += '</div></div>';
+    }
+
+    Swal.fire({
+        html: `<div class="text-left mt-2"><div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-4"><i class="fas fa-check"></i></div><h2 class="text-2xl font-bold text-slate-800 mb-2">ยืนยันลงทะเบียน</h2><div class="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 font-bold">${title}</div>${rHtml}</div>`,
+        showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#111827', cancelButtonColor: '#ffffff', reverseButtons: true,
+        customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: '!text-slate-600 border border-slate-300 shadow-sm rounded-xl px-6 py-3 font-bold' },
+        preConfirm: () => {
+            if(act.rounds && act.rounds.length > 0) {
+                let radio = document.querySelector('input[name="select_round"]:checked');
+                if(!radio) return Swal.showValidationMessage('กรุณาเลือกรอบกิจกรรม');
+                return radio.value;
+            }
+            return 'รอบปกติ';
+        }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            let stuId = window.currentGuestStuId; let cleanId = String(stuId).replace(/-/g, '').trim();
+            let ext = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title);
+            if (!ext) {
+                activityLogs.unshift({ studentId: stuId, activityTitle: title, roundName: res.value, timeIn: 'จองสิทธิ์ล่วงหน้า', timeOut: null });
+                saveToLocal(true); if(typeof renderActivities === 'function') renderActivities(); if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            }
+            Swal.fire({ icon: 'success', title: 'ลงทะเบียนสำเร็จ!', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(title));
+        }
+    });
+}
+
+window.promptCancelReg = function(title) {
+    Swal.fire({
+        html: `<div class="text-left mt-2"><div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-2xl mb-4"><i class="fas fa-exclamation"></i></div><h2 class="text-2xl font-bold text-slate-800 mb-2">ยกเลิกการลงทะเบียน?</h2><div class="bg-rose-50/70 border border-rose-100 p-4 rounded-xl text-rose-800 font-bold">${title}</div></div>`,
+        showCancelButton: true, confirmButtonText: 'ยืนยันยกเลิก', cancelButtonText: 'ปิดหน้าต่าง', confirmButtonColor: '#ef4444', cancelButtonColor: '#ffffff', reverseButtons: true,
+        customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold shadow-md', cancelButton: '!text-slate-600 border border-slate-300 shadow-sm rounded-xl px-6 py-3 font-bold hover:bg-slate-50' }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            let stuId = window.currentGuestStuId; let cleanId = String(stuId).replace(/-/g, '').trim();
+            activityLogs = activityLogs.filter(l => !(String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === title));
+            saveToLocal(true); if(typeof renderActivities === 'function') renderActivities(); if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            Swal.fire({ icon: 'success', title: 'ยกเลิกสำเร็จ', confirmButtonColor: '#10b981', timer: 1500 }).then(() => openRegistrationModal(title));
+        }
+    });
+}
+
+window.createActivityModal = function() {
+    let formHtml = `
+    <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4">
+        <div><h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐาน</h4><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ไทย) *</label><input id="act-title" class="modern-input w-full p-2"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ENG)</label><input id="act-title-eng" class="modern-input w-full p-2"></div></div></div>
+        <hr class="border-slate-200">
+        <div><h4 class="font-bold text-blue-700 mb-3 text-sm">รายละเอียด</h4><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-slate-700 mb-1">ปีการศึกษา *</label><input id="act-year" type="number" class="modern-input w-full p-2" value="${new Date().getFullYear() + 543}"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">ภาคเรียน *</label><input id="act-term" type="number" class="modern-input w-full p-2" value="1"></div></div></div>
+        <hr class="border-slate-200">
+        <div><h4 class="font-bold text-blue-700 mb-3 text-sm">กำหนดการ</h4><div class="grid grid-cols-2 gap-6"><div class="bg-slate-50 p-4 rounded-xl border border-slate-200"><h5 class="font-bold text-slate-800 mb-3 text-xs border-b pb-1">ช่วงเวลาการสมัคร</h5><div class="space-y-3"><div><label class="text-xs font-bold mb-1 block">เริ่ม</label><input id="act-reg-start" type="date" class="w-full p-2 border rounded-lg"></div><div><label class="text-xs font-bold mb-1 block">สิ้นสุด</label><input id="act-reg-end" type="date" class="w-full p-2 border rounded-lg"></div></div></div><div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100"><h5 class="font-bold text-blue-800 mb-3 text-xs border-b border-blue-200 pb-1">ช่วงเวลาจัดกิจกรรม</h5><div class="space-y-3"><div><label class="text-xs font-bold mb-1 block">เริ่ม *</label><input id="act-start" type="date" class="w-full p-2 border rounded-lg"></div><div><label class="text-xs font-bold mb-1 block">สิ้นสุด</label><input id="act-end" type="date" class="w-full p-2 border rounded-lg"></div></div></div></div></div>
+        <hr class="border-slate-200">
+        <div><h4 class="font-bold text-slate-800 mb-3 text-sm">หมายเหตุ</h4><textarea id="act-desc" rows="3" class="modern-input w-full p-2"></textarea></div>
+    </div>`;
+
+    Swal.fire({
+        title: '<div class="flex items-center text-blue-700 text-lg font-bold border-b pb-2"><i class="fas fa-paper-plane mr-2"></i> สร้างกิจกรรมใหม่</div>',
+        html: formHtml, width: '800px', showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#2563eb',
+        preConfirm: () => {
+            const title = document.getElementById('act-title').value.trim(); const date = document.getElementById('act-start').value;
+            if (!title || !date) return Swal.showValidationMessage('กรุณาระบุชื่อ(ไทย) และ วันที่เริ่มจัดกิจกรรม');
+            if (appSettings.activities.find(a => a.title === title)) return Swal.showValidationMessage('มีชื่อกิจกรรมนี้ในระบบแล้ว');
+            return { title: title, titleEng: document.getElementById('act-title-eng').value.trim(), year: document.getElementById('act-year').value, term: document.getElementById('act-term').value, date: date, actEnd: document.getElementById('act-end').value, regStart: document.getElementById('act-reg-start').value, regEnd: document.getElementById('act-reg-end').value, desc: document.getElementById('act-desc').value, status: 'รออนุมัติ', isOpen: true, rounds: [], hours: 0, points: 0 };
+        }
+    }).then(res => {
+        if (res.isConfirmed) {
+            appSettings.activities.push(res.value); txHistory.unshift({ date: getNow(), name: 'สร้างกิจกรรม: ' + res.value.title, type: 'ระบบ', amt: 0, user: currentUsername });
+            saveToLocal(true); if(typeof renderActivities === 'function') renderActivities();
+            Swal.fire({ title: 'สำเร็จ', text: 'บันทึกกิจกรรมเรียบร้อยแล้ว', icon: 'success' });
+        }
+    });
+}
+
+window.editActivityModal = function(oldTitle) {
+    let actIndex = appSettings.activities.findIndex(a => a.title === oldTitle); if(actIndex === -1) return;
+    let act = appSettings.activities[actIndex];
     let isRegOpen = act.isOpen !== false; 
-    let isVisible = act.isVisible !== false; 
-    let isCrossCampus = act.isCrossCampus === true;
 
     let htmlForm = `
-    <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4 font-sans">
-        <div>
-            <h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐานกิจกรรม</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ไทย) *</label><input id="edit-act-title" class="modern-input w-full border-slate-300 rounded-lg p-2" value="${act.title}"></div>
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ENG)</label><input id="edit-act-title-eng" class="modern-input w-full border-slate-300 rounded-lg p-2" value="${act.titleEng || ''}"></div>
-            </div>
+    <div class="text-left text-sm h-[70vh] overflow-y-auto pr-3 custom-scrollbar space-y-6 mt-4">
+        <div><h4 class="font-bold text-blue-700 mb-3 text-sm">ข้อมูลพื้นฐาน</h4><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ไทย) *</label><input id="edit-act-title" class="modern-input w-full p-2" value="${act.title}"></div><div><label class="block text-xs font-bold text-slate-700 mb-1">ชื่อกิจกรรม (ENG)</label><input id="edit-act-title-eng" class="modern-input w-full p-2" value="${act.titleEng || ''}"></div></div></div>
+        <hr class="border-slate-200">
+        <div><h4 class="font-bold text-emerald-600 mb-3 text-sm">การตั้งค่าการใช้งาน</h4>
+            <label class="cursor-pointer border rounded-xl p-3 flex items-start gap-3 w-max transition ${isRegOpen ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}"><input type="checkbox" id="edit-set-open" class="mt-1 w-4 h-4 text-emerald-600" ${isRegOpen ? 'checked' : ''}><div><p class="font-bold text-sm ${isRegOpen ? 'text-emerald-700' : 'text-slate-700'}"><i class="fas fa-user-plus mr-1"></i> เปิดรับสมัคร</p></div></label>
         </div>
         <hr class="border-slate-200">
-        <div>
-            <h4 class="font-bold text-emerald-600 mb-3 text-sm">การตั้งค่าการมองเห็นและการเข้าถึง</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <label class="cursor-pointer border rounded-xl p-3 flex items-start gap-3 transition ${isRegOpen ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}"><input type="checkbox" id="edit-set-open" class="mt-1 w-4 h-4 text-emerald-600" ${isRegOpen ? 'checked' : ''}><div><p class="font-bold text-sm ${isRegOpen ? 'text-emerald-700' : 'text-slate-700'}"><i class="fas fa-user-plus mr-1"></i> เปิดรับสมัคร</p></div></label>
-                <label class="cursor-pointer border rounded-xl p-3 flex items-start gap-3 transition ${isVisible ? 'bg-blue-50 border-blue-300' : 'bg-white border-slate-200'}"><input type="checkbox" id="edit-set-visible" class="mt-1 w-4 h-4 text-blue-600" ${isVisible ? 'checked' : ''}><div><p class="font-bold text-sm ${isVisible ? 'text-blue-700' : 'text-slate-700'}"><i class="fas fa-eye mr-1"></i> แสดงในรายการ</p></div></label>
-                <label class="cursor-pointer border rounded-xl p-3 flex items-start gap-3 transition ${isCrossCampus ? 'bg-orange-50 border-orange-300' : 'bg-white border-slate-200'}"><input type="checkbox" id="edit-set-cross" class="mt-1 w-4 h-4 text-orange-600" ${isCrossCampus ? 'checked' : ''}><div><p class="font-bold text-sm ${isCrossCampus ? 'text-orange-700' : 'text-slate-700'}"><i class="fas fa-globe mr-1"></i> รับข้ามวิทยาเขต</p></div></label>
-            </div>
-        </div>
-        <hr class="border-slate-200">
-        <div>
-            <h4 class="font-bold text-blue-700 mb-3 text-sm">กำหนดการ</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <h5 class="font-bold text-slate-800 mb-3 text-xs border-b pb-1">ช่วงเวลาลงทะเบียน</h5>
-                    <div class="space-y-3">
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">เริ่ม</label><input id="edit-act-reg-start" type="date" class="w-full p-2 border rounded-lg" value="${act.regStart || ''}"></div>
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">สิ้นสุด</label><input id="edit-act-reg-end" type="date" class="w-full p-2 border rounded-lg" value="${act.regEnd || ''}"></div>
-                    </div>
-                </div>
-                <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                    <h5 class="font-bold text-blue-800 mb-3 text-xs border-b pb-1">ช่วงเวลาดำเนินกิจกรรม</h5>
-                    <div class="space-y-3">
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">เริ่ม</label><input id="edit-act-start" type="date" class="w-full p-2 border rounded-lg" value="${act.date || ''}"></div>
-                        <div><label class="block text-xs font-bold text-slate-700 mb-1">สิ้นสุด</label><input id="edit-act-end" type="date" class="w-full p-2 border rounded-lg" value="${act.actEnd || ''}"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div><h4 class="font-bold text-blue-700 mb-3 text-sm">กำหนดการ</h4><div class="grid grid-cols-2 gap-6"><div class="bg-slate-50 p-4 rounded-xl border border-slate-200"><h5 class="font-bold text-slate-800 mb-3 text-xs border-b pb-1">ช่วงเวลาการสมัคร</h5><div class="space-y-3"><div><label class="block text-xs font-bold mb-1">เริ่ม</label><input id="edit-act-reg-start" type="date" class="w-full p-2 border rounded-lg" value="${act.regStart||''}"></div><div><label class="block text-xs font-bold mb-1">สิ้นสุด</label><input id="edit-act-reg-end" type="date" class="w-full p-2 border rounded-lg" value="${act.regEnd||''}"></div></div></div><div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100"><h5 class="font-bold text-blue-800 mb-3 text-xs border-b pb-1">ช่วงเวลาจัดกิจกรรม</h5><div class="space-y-3"><div><label class="block text-xs font-bold mb-1">เริ่ม</label><input id="edit-act-start" type="date" class="w-full p-2 border rounded-lg" value="${act.date||''}"></div><div><label class="block text-xs font-bold mb-1">สิ้นสุด</label><input id="edit-act-end" type="date" class="w-full p-2 border rounded-lg" value="${act.actEnd||''}"></div></div></div></div></div>
     </div>`;
 
     Swal.fire({
@@ -3898,395 +3627,42 @@ function editActivityModal(oldTitle) {
         preConfirm: () => {
             const title = document.getElementById('edit-act-title').value.trim();
             if(!title) return Swal.showValidationMessage('กรุณาระบุชื่อกิจกรรม');
-            return {
-                title: title, titleEng: document.getElementById('edit-act-title-eng').value,
-                date: document.getElementById('edit-act-start').value, actEnd: document.getElementById('edit-act-end').value,
-                regStart: document.getElementById('edit-act-reg-start').value, regEnd: document.getElementById('edit-act-reg-end').value,
-                isOpen: document.getElementById('edit-set-open').checked,
-                isVisible: document.getElementById('edit-set-visible').checked,
-                isCrossCampus: document.getElementById('edit-set-cross').checked
-            };
+            return { title: title, titleEng: document.getElementById('edit-act-title-eng').value, date: document.getElementById('edit-act-start').value, actEnd: document.getElementById('edit-act-end').value, regStart: document.getElementById('edit-act-reg-start').value, regEnd: document.getElementById('edit-act-reg-end').value, isOpen: document.getElementById('edit-set-open').checked };
         }
     }).then(res => {
         if(res.isConfirmed) {
             let nTitle = res.value.title;
-            if (nTitle !== oldTitle) activityLogs.forEach(l => { if(l.activityTitle === oldTitle) l.activityTitle = nTitle; });
+            if (nTitle !== oldTitle) { activityLogs.forEach(l => { if(l.activityTitle === oldTitle) l.activityTitle = nTitle; }); currentMasterActivity.title = nTitle; }
             appSettings.activities[actIndex] = { ...act, ...res.value };
-            saveToLocal(true); if(typeof renderActivities === 'function') renderActivities();
+            saveToLocal(true); 
+            if(document.getElementById('admin-activity-master-card').classList.contains('hidden')) renderActivities();
+            else { document.getElementById('master-header-title').innerText = nTitle; switchMasterTab('dashboard'); }
             Swal.fire('สำเร็จ!', 'อัปเดตข้อมูลกิจกรรมเรียบร้อยแล้ว', 'success');
         }
     });
 }
 
-// 🌟 ฟังก์ชันเสริม: เพิ่มช่องให้กรอกรอบใหม่ในหน้าแก้ไข
-window.addEditRoundRow = function() {
-    let container = document.getElementById('edit-rounds-container');
-    let input = document.createElement('div'); input.className = 'flex gap-2 round-row mb-2';
-    input.innerHTML = '<input class="modern-input r-name mb-0 w-2/5 border-slate-300 text-xs" placeholder="ชื่อรอบ"><input type="time" class="modern-input r-time mb-0 w-1/5 border-slate-300 text-xs p-1"><input type="number" class="modern-input r-max mb-0 w-2/5 border-slate-300 text-xs" placeholder="จำนวน (0=ไม่จำกัด)" value="50">';
-    container.appendChild(input); container.scrollTop = container.scrollHeight;
-}
-
-        function deleteActivity(title) { Swal.fire({ title: 'ลบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then((r) => { if (r.isConfirmed) { appSettings.activities = appSettings.activities.filter(a => a.title !== title); txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบกิจกรรมออกจากระบบแล้ว', 'success'); } }); }
-        function approveActivity(title) { 
-    Swal.fire({ title: 'ยืนยันอนุมัติกิจกรรม?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { 
+window.deleteActivity = function(title) { 
+    Swal.fire({ title: 'ลบกิจกรรมนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then((r) => { 
         if (r.isConfirmed) { 
-            let act = appSettings.activities.find(a => a.title === title); 
-            if (act) { 
-                act.status = 'อนุมัติแล้ว'; 
-                act.isOpen = true; 
-                txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); 
-                
-                // 🌟 อัปเกรด: อัปเดตหน้าจอและกดกริ่งทันที แล้วปล่อยเซฟทำงานเบื้องหลัง
-                saveToLocal(false); 
-                refreshAll(); 
-                autoSyncToGS(); 
-                
-                Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อนุมัติกิจกรรมสำเร็จ', showConfirmButton: false, timer: 1500}); 
-            } 
+            appSettings.activities = appSettings.activities.filter(a => a.title !== title); 
+            txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); 
+            saveToLocal(true); renderActivities(); 
+            Swal.fire('สำเร็จ', 'ลบกิจกรรมแล้ว', 'success'); 
         } 
     }); 
 }
-// =========================================================================
-// 🌟 โหมดสแกนอัจฉริยะ (การ์ด Popup + Auto Confirm + ขยายจอกล้อง)
-// =========================================================================
 
-function renderScanInterface(title) {
-    let act = appSettings.activities.find(a => a.title === title);
-    if (!act) return;
-
-    let roundsHtml = act.rounds && act.rounds.length > 0 
-        ? act.rounds.map(r => `<option value="${r.name}">${r.name}</option>`).join('')
-        : '<option value="รอบทั่วไป">รอบทั่วไป</option>';
-
-    let html = `
-    <div id="scan-interface-container" class="space-y-6">
-        <div class="bg-white p-6 rounded-2xl border shadow-sm">
-            <h4 class="font-bold text-slate-800 mb-4">บันทึกการเข้าร่วมกิจกรรม</h4>
-            <label class="block text-sm font-bold text-slate-700 mb-2">เลือกรอบลงทะเบียน</label>
-            <select id="hw-active-round" class="w-full p-3 border rounded-xl mb-6 font-bold bg-slate-50 outline-none focus:border-emerald-500">
-                ${roundsHtml}
-            </select>
-
-            <div class="space-y-3 mb-6 p-4 bg-slate-50 rounded-xl border">
-                <h4 class="text-xs font-bold text-slate-500 uppercase">ตัวเลือกการแสดงผล</h4>
-                <label class="flex items-center gap-2"><input type="checkbox" id="hw-show-info" checked> แสดงข้อมูลนักศึกษาก่อนสแกน</label>
-                <label class="flex items-center gap-2"><input type="checkbox" id="hw-show-avatar" checked> แสดงรูปโปรไฟล์</label>
-                
-                <h4 class="text-xs font-bold text-slate-500 uppercase mt-4">ตัวเลือก AUTO-CONFIRM</h4>
-                <label class="flex items-center gap-2">
-                    <input type="checkbox" id="hw-auto-confirm" checked> เปิด Auto-Confirm (ยืนยันอัตโนมัติ)
-                </label>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs">จำนวนวินาที (1-60):</span>
-                    <input type="number" id="hw-confirm-seconds" value="5" min="1" max="60" class="w-16 p-1 border rounded text-center">
-                </div>
-            </div>
-
-            <h4 class="font-bold text-slate-800 mb-2">นำเข้าข้อมูลนักศึกษา</h4>
-            <div class="flex gap-2 p-1.5 bg-slate-100 rounded-lg mb-4">
-                <button id="btn-manual" onclick="switchScannerMode('manual')" class="mode-btn flex-1 py-2 rounded-lg font-bold text-sm bg-white shadow-sm transition">กรอก / สแกน</button>
-                <button id="btn-camera" onclick="switchScannerMode('camera')" class="mode-btn flex-1 py-2 rounded-lg font-bold text-sm text-slate-500 transition">กล้อง</button>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 mb-4">
-                <label class="cursor-pointer border p-3 rounded-lg text-center font-bold bg-emerald-50 text-emerald-700 border-emerald-500">
-                    <input type="radio" name="scan-mode-hw" value="in" checked class="hidden"> สแกนเข้างาน
-                </label>
-                <label class="cursor-pointer border p-3 rounded-lg text-center font-bold bg-slate-50 text-slate-500 border-slate-200">
-                    <input type="radio" name="scan-mode-hw" value="out" class="hidden"> สแกนกลับบ้าน
-                </label>
-            </div>
-
-            <div id="manual-section" class="p-4 border-2 border-dashed rounded-xl text-center bg-slate-50">
-                <input type="text" id="hw-input-focus" class="w-full p-4 text-center text-lg font-bold border rounded-lg" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" 
-                    onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, '${title}'); this.value=''; }">
-                <p class="text-[10px] text-slate-400 mt-2">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้ *</p>
-            </div>
-
-            <div id="camera-section" class="hidden w-full h-[300px] border-2 rounded-xl overflow-hidden mt-4">
-                <div id="hw-reader" class="w-full h-full"></div>
-            </div>
-        </div>
-    </div>`;
-
-    // เอาไปแสดงใน Dashboard แทนที่ส่วนเก่า
-    let dashboard = document.getElementById('activity-detail-view');
-    dashboard.innerHTML += html; 
+window.approveActivity = function(title) { 
+    Swal.fire({ title: 'ยืนยันอนุมัติ?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { 
+        if (r.isConfirmed) { 
+            let act = appSettings.activities.find(a => a.title === title); 
+            if (act) { act.status = 'อนุมัติแล้ว'; act.isOpen = true; txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(true); renderActivities(); Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'อนุมัติกิจกรรมสำเร็จ', showConfirmButton: false, timer: 1500}); } 
+        } 
+    }); 
 }
 
-function switchScannerMode(mode) {
-    let btnManual = document.getElementById('btn-manual');
-    let btnCamera = document.getElementById('btn-camera');
-
-    if (mode === 'manual') {
-        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
-        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
-    } else {
-        btnCamera.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm bg-white shadow-sm text-slate-800 transition flex items-center justify-center gap-2";
-        btnManual.className = "mode-btn flex-1 py-2.5 rounded-lg font-bold text-xs md:text-sm text-slate-500 hover:text-slate-800 transition flex items-center justify-center gap-2";
-    }
-
-    document.getElementById('manual-section').classList.toggle('hidden', mode !== 'manual');
-    document.getElementById('camera-section').classList.toggle('hidden', mode !== 'camera');
-    
-    if (mode === 'manual') {
-        if(window.hwScanner) { window.hwScanner.stop().catch(e => console.log(e)); window.hwScanner = null; }
-        document.getElementById('hw-input-focus').focus();
-        document.addEventListener('click', keepInputFocused);
-    } else {
-        document.removeEventListener('click', keepInputFocused);
-        if (!window.hwScanner) window.hwScanner = new Html5Qrcode("hw-reader");
-        
-        // 🌟 แก้ไข: เพิ่ม aspectRatio: 1.333 เพื่อบังคับให้กล้องมือถือ/ไอแพดกางออกเต็มจอ ไม่แบน
-        window.hwScanner.start(
-            { facingMode: "environment" }, 
-            { fps: 15, qrbox: {width: 250, height: 250}, aspectRatio: 1.333334 },
-            (decodedText) => {
-                window.hwScanner.pause();
-                executeScanLogic(decodedText, currentDetailActivityTitle);
-                // ระบบเปิดกล้องใหม่จะถูกจัดการในหน้าต่าง Popup Confirm แล้ว (ไม่ต้องใส่ setTimeout ตรงนี้)
-            }
-        ).catch(err => Swal.fire('ไม่สามารถเปิดกล้องได้', 'โปรดตรวจสอบการอนุญาตสิทธิ์กล้องบนเบราว์เซอร์ของคุณ', 'error'));
-    }
-}
-
-// 🌟 4. ฟังก์ชันแสดงการ์ดนักศึกษาแบบ Popup (Swal) ล็อกหน้าจอ
-window.showStudentPreviewCard = function(stu, title) {
-    let showInfo = document.getElementById('hw-show-info')?.checked;
-    let showAvatar = document.getElementById('hw-show-avatar')?.checked;
-    let autoConfirm = document.getElementById('hw-auto-confirm')?.checked;
-    let confirmSecs = parseInt(document.getElementById('hw-confirm-seconds')?.value) || 5;
-
-    // สร้างเนื้อหาภายใน Popup
-    let avatarHtml = showAvatar ? `<div class="w-24 h-24 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl font-bold mb-4 shadow-md border-4 border-slate-100">${getInitials(stu.name)}</div>` : '';
-    let infoHtml = showInfo ? `<h3 class="text-xl font-bold text-slate-800 mb-1">${stu.name}</h3><p class="text-slate-500 font-mono mb-3 text-sm">${stu.id}</p><span class="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-200 inline-block shadow-inner">ห้อง ${stu.room}</span>` : '';
-
-    let popupHtml = `
-    <div class="text-center p-2 font-sans">
-        ${avatarHtml}
-        ${infoHtml}
-        <p id="timer-text" class="mt-4 text-rose-500 text-xs font-bold h-4"></p>
-    </div>`;
-
-    let timerInterval;
-
-    Swal.fire({
-        html: popupHtml,
-        showCancelButton: true,
-        confirmButtonText: '✅ ยืนยัน',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#10b981',
-        cancelButtonColor: '#64748b',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        customClass: {
-            popup: 'rounded-3xl p-4 max-w-sm',
-            confirmButton: 'rounded-xl px-5 py-2.5 font-bold text-md',
-            cancelButton: 'rounded-xl px-5 py-2.5 font-bold text-md'
-        },
-        didOpen: () => {
-            // ระบบ Auto-Confirm นับถอยหลัง
-            if (autoConfirm) {
-                let timer = confirmSecs;
-                let timerText = document.getElementById('timer-text');
-                if (timerText) timerText.innerText = `ระบบจะยืนยันอัตโนมัติใน ${timer} วินาที...`;
-
-                timerInterval = setInterval(() => {
-                    timer--;
-                    if (timerText) timerText.innerText = `ระบบจะยืนยันอัตโนมัติใน ${timer} วินาที...`;
-                    
-                    if (timer <= 0) {
-                        clearInterval(timerInterval);
-                        Swal.clickConfirm(); // สั่งคลิกปุ่มยืนยันอัตโนมัติ
-                    }
-                }, 1000);
-            }
-        },
-        willClose: () => {
-            clearInterval(timerInterval);
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // เรียกฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ
-            confirmScan(stu.id, title);
-        } else {
-            // หากกดยกเลิก ให้เปิดการทำงานกล้องใหม่อีกครั้ง และโฟกัสช่องกรอกมือ
-            if (window.hwScanner) window.hwScanner.resume();
-            let inputF = document.getElementById('hw-input-focus');
-            if (inputF) inputF.focus();
-        }
-    });
-}
-// 🌟 1. ระบบประมวลผลอัจฉริยะ (แก้ไขให้บังคับต้องมีชื่อในระบบเท่านั้น)
-window.executeScanLogic = function(rawCode, title) {
-    if(!rawCode || !rawCode.trim()) return;
-    
-    // แปลงรหัสกรณีเผลอพิมพ์ภาษาไทย [cite: 559, 560]
-    const mapTH = {'ๅ':'1', '/':'2', '-':'3', 'ภ':'4', 'ถ':'5', 'ุ':'6', 'ึ':'7', 'ค':'8', 'ต':'9', 'จ':'0', 'ข':'-', 'ช':'+'};
-    let fixedCode = '';
-    for(let c of rawCode) { fixedCode += mapTH[c] || c; } // [cite: 560]
-    rawCode = fixedCode.trim();
-    let scannedDigits = rawCode.replace(/\D/g, ''); // [cite: 561]
-
-    // ค้นหานักศึกษาในระบบ [cite: 562]
-    let stu = students.find(s => String(s.id).replace(/\D/g, '') === scannedDigits); // [cite: 562]
-
-    // 🌟 บังคับเงื่อนไข: ถ้าไม่มีชื่อในระบบ จะแจ้งเตือนข้อผิดพลาดและหยุดการทำงานทันที (ไม่บันทึกข้อมูล)
-    if(!stu) {
-        Swal.fire({
-            toast: true, 
-            position: 'top', 
-            icon: 'error', 
-            title: '❌ ไม่พบข้อมูลนักศึกษา: ' + rawCode, 
-            showConfirmButton: false, 
-            timer: 2000
-        }); // [cite: 562]
-        if(typeof playBeep === 'function') playBeep('error'); // [cite: 563]
-        
-        // คืน Focus กลับมาที่ช่องกรอกข้อมูลเพื่อให้สแกนคนถัดไปได้ทันที
-        setTimeout(() => {
-            let inputF = document.getElementById('hw-input-focus');
-            if(inputF) inputF.focus();
-            if (window.hwScanner) window.hwScanner.resume();
-        }, 100);
-        return;
-    }
-
-    // ถ้ามีรายชื่อถูกต้อง ให้แสดงการ์ด Popup เพื่อยืนยันข้อมูลตามปกติ [cite: 563, 564]
-    showStudentPreviewCard(stu, title);
-}
-
-// 🌟 2. ฟังก์ชันบันทึกข้อมูลเข้าสู่ระบบ (ระบบประมวลผลรอบให้อัตโนมัติ)
-window.confirmScan = function(stuId, title) {
-    let card = document.getElementById('student-preview-card');
-    if(card) card.remove();
-    
-    let stu = students.find(s => s.id === stuId);
-    if(!stu) return;
-
-    let modeElem = document.querySelector('input[name="scan-mode-hw"]:checked');
-    let mode = modeElem ? modeElem.value : 'in';
-    let timeStr = getNow();
-    
-    let act = appSettings.activities.find(a => a.title === title);
-    let defaultRound = (act && act.rounds && act.rounds.length > 0) ? act.rounds[0].name : 'รอบทั่วไป';
-
-    let cleanStuId = String(stuId).replace(/-/g, '').trim();
-    let cleanTitle = String(title).trim();
-    
-    // ค้นหาประวัติว่าเด็กเคยจองสิทธิ์ไว้ไหม
-    let existingLog = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanStuId && String(l.activityTitle).trim() === cleanTitle);
-    
-    // 🌟 ถ้านักศึกษาเคยจองรอบไหนมา ให้ใช้รอบนั้นเลย ถ้าไม่เคยจอง (Walk-in) ให้ยัดเข้ารอบแรกอัตโนมัติ
-    let roundName = (existingLog && existingLog.roundName) ? existingLog.roundName : defaultRound;
-    
-    let actPoints = act ? (parseInt(act.points) || 0) : 0; 
-    
-    if (mode === 'in') { // สแกนเข้า
-        if (existingLog) {
-            if (existingLog.timeIn === 'จองสิทธิ์ล่วงหน้า' || existingLog.timeIn === '-') {
-                stu.points = (stu.points || 0) + actPoints;
-                if (actPoints > 0) txHistory.unshift({ date: timeStr, name: `+${actPoints} แต้ม (เข้าร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
-            }
-            existingLog.timeIn = timeStr;
-            existingLog.roundName = roundName; 
-        } else {
-            activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: timeStr, timeOut: null });
-            stu.points = (stu.points || 0) + actPoints;
-            if (actPoints > 0) txHistory.unshift({ date: timeStr, name: `+${actPoints} แต้ม (เข้าร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
-        }
-    } else { // สแกนออก
-        if (existingLog) {
-            existingLog.timeOut = timeStr;
-        } else {
-            activityLogs.unshift({ studentId: stu.id, activityTitle: title, roundName: roundName, timeIn: '-', timeOut: timeStr });
-        }
-    }
-    
-    txHistory.unshift({ date: timeStr, name: 'สแกน' + (mode === 'in' ? 'เข้า' : 'ออก') + ' (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
-    
-    finishScanProcess(stu.name, title, mode === 'in' ? 'เข้า' : 'ออก');
-}
-        
-// 🌟 3. ฟังก์ชันเสร็จสิ้นกระบวนการ (ล็อกหน้าจอไว้ที่แท็บสแกนเสมอ ไม่เด้งหนี)
-window.finishScanProcess = function(stuName, title, actionType = 'เข้า') { 
-    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
-    localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
-    clearTimeout(syncTimeout); 
-    syncTimeout = setTimeout(autoSyncToGS, 2000); 
-    
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: `✅ ผ่าน (${actionType}): ` + stuName, showConfirmButton: false, timer: 1500}); 
-    if(typeof playBeep === 'function') playBeep('success'); 
-    
-    if(currentDetailActivityTitle === title) {
-        let scanTab = document.getElementById('act-tab-scan');
-        let isScanning = scanTab && !scanTab.classList.contains('hidden');
-
-        // ถ้าเปิดหน้าสแกนอยู่ ไม่ต้องรีเฟรชตาราง (แค่กระตุ้นช่องรับข้อมูล)
-        if (isScanning) {
-            setTimeout(() => {
-                let inputF = document.getElementById('hw-input-focus');
-                if(inputF) inputF.focus(); 
-                if (window.hwScanner) {
-                    try { window.hwScanner.resume(); } catch(e) { console.log(e); }
-                }
-            }, 300); 
-        } else {
-            openActivityDashboard(title);
-        }
-    } 
-}
-        
-function closeHardwareScanner() { 
-    document.removeEventListener('click', keepInputFocused);
-    if (window.hwScanner) {
-        window.hwScanner.stop().catch(e => console.log(e));
-        window.hwScanner = null;
-    }
-    let container = document.getElementById('hw-modal-container'); 
-    if(container) container.remove(); 
-    if(currentDetailActivityTitle) openActivityDashboard(currentDetailActivityTitle); else renderActivities(); 
-}
-
-function keepInputFocused(e) { 
-    // ถ้าผู้ใช้คลิกที่ input หรือ button ให้หยุดการบังคับ Focus
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
-    
-    let inputEl = document.getElementById('hw-input-focus'); 
-    if(inputEl) inputEl.focus();
-}
-        function manualAddParticipant(title) {
-            let inputEl = document.getElementById('manual-add-input'); let inputVal = inputEl.value.trim(); if(!inputVal) return Swal.fire('เตือน', 'กรุณากรอกรหัสนักศึกษา', 'warning');
-            let cleanId = formatIdSearch(inputVal); let plainId = cleanId.replace(/-/g, ''); let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === plainId); 
-            if(!stu) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีรหัสนักศึกษานี้ในระบบ', 'error');
-            let act = appSettings.activities.find(a => a.title === title); let participants = activityLogs.filter(l => l.activityTitle === title);
-            if (act && act.maxParticipants > 0 && participants.length >= act.maxParticipants) return Swal.fire('คิวเต็ม!', `กิจกรรมนี้รับครบ ${act.maxParticipants} คนแล้วครับ`, 'error');
-            let existing = activityLogs.find(l => l.studentId === stu.id && l.activityTitle === title); if(existing) return Swal.fire('ซ้ำ', 'นักศึกษาคนนี้ลงทะเบียนไปแล้วครับ', 'warning');
-            let actPoints = act ? (parseInt(act.points) || 0) : 0;
-            activityLogs.unshift({ studentId: stu.id, activityTitle: title, timeIn: getNow(), timeOut: null }); 
-            stu.points = (stu.points || 0) + actPoints;
-            if (actPoints > 0) txHistory.unshift({ date: getNow(), name: `+${actPoints} แต้ม (เข้าร่วมกิจกรรม ${title})`, type: 'ระบบ', amt: 0, user: currentUsername });
-            txHistory.unshift({ date: getNow(), name: 'เพิ่มชื่อด้วยมือ (' + title + '): ' + stu.name, type: 'ระบบ', amt: 0, user: currentUsername });
-            saveToLocal(); inputEl.value = ''; openActivityDashboard(title); Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'เพิ่มรายชื่อสำเร็จ', showConfirmButton: false, timer: 1500});
-        }
-
-        function refreshRecentScans(title) {
-            let container = document.getElementById('hw-recent-scans'); let countEl = document.getElementById('hw-scan-count'); if(!container) return; let participants = activityLogs.filter(l => l.activityTitle === title);
-            if(countEl) countEl.innerText = participants.length + ' คน'; if(participants.length === 0) { container.innerHTML = '<p class="text-center text-slate-400 mt-10 text-sm">ยังไม่มีผู้เข้าร่วม</p>'; return; }
-            let html = ''; participants.slice(0, 30).forEach((p, index) => { let stu = students.find(s => s.id === p.studentId || s.id.replace(/-/g,'') === p.studentId.replace(/-/g,'')); if(stu) { let isLatest = index === 0 ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-200' : 'bg-white border-slate-200'; let mark = index === 0 ? '<span class="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded animate-pulse">ล่าสุด</span>' : ''; html += `<div class="p-3 rounded-xl border ${isLatest} flex items-center gap-3 shadow-sm"><div class="w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm">${stu.number}</div><div class="flex-1"><p class="font-bold text-slate-800 text-sm leading-tight">${stu.name} ${mark}</p><p class="text-[10px] text-slate-500 font-mono">${stu.id} | ห้อง ${stu.room}</p></div><div class="text-emerald-500"><i class="fas fa-check-circle text-xl"></i></div></div>`; } }); container.innerHTML = html;
-        }
-
-        function playBeep(type) { try { let ctx = new (window.AudioContext || window.webkitAudioContext)(); let osc = ctx.createOscillator(); let gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); if (type === 'success') { osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1); osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.1); } else { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2); osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2); } } catch(e){} }
-
-        function exportActivityExcel(title) {
-            let participants = activityLogs.filter(l => l.activityTitle === title); if(participants.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วมให้ดาวน์โหลดครับ', 'info');
-            let mappedStudents = participants.map(p => { let s = students.find(x => x.id === p.studentId || x.id.replace(/-/g,'') === p.studentId.replace(/-/g,'')); return s ? { ...s, logData: p } : null; }).filter(item => item);
-            mappedStudents.sort((a, b) => { if (a.room === b.room) return a.number - b.number; return a.room.localeCompare(b.room); });
-            let csvContent = "\uFEFFลำดับ,รหัสนักศึกษา,ชื่อ-นามสกุล,ห้องเรียน,เวลาสแกนเข้า,เวลาสแกนออก\n"; mappedStudents.forEach((stu, index) => { let tIn = stu.logData.timeIn || '-'; let tOut = stu.logData.timeOut || '-'; csvContent += `${index+1},="${stu.id}",${stu.name},${stu.room},${tIn},${tOut}\n`; });
-            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); let url = URL.createObjectURL(blob); link.setAttribute("href", url); link.setAttribute("download", `รายชื่อเข้าออก_${title}.csv`); link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
-
-        // ================= FUND MANAGEMENT (ADMIN SECURE RESTRICTED) =================
+// ================= FUND MANAGEMENT (ADMIN SECURE RESTRICTED) =================
         function toggleQrLock(roundId, studentId) {
             let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
             if(payment) { payment.qrUnlocked = !payment.qrUnlocked; saveToLocal(false); autoSyncToGS(); renderFundTable(); let statusTxt = payment.qrUnlocked ? '🔓 ปลดล็อกให้พิมพ์ยอดเองแล้ว' : '🔒 ล็อกยอดเป๊ะแล้ว'; Swal.fire({toast:true, position:'top', icon:'success', title: statusTxt, showConfirmButton:false, timer:1500}); }
