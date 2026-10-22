@@ -1269,7 +1269,19 @@
 
     let isFirstLoad = true;
     db.collection('systemSignals').doc('lastUpdate').onSnapshot(async (doc) => {
-        if (isFirstLoad) { isFirstLoad = false; return; }
+        if (isFirstLoad) { 
+            isFirstLoad = false; 
+            try {
+                let queueDoc = await db.collection('syncQueue').doc('latest').get();
+                if (queueDoc.exists && queueDoc.data().payload) {
+                    let fastData = JSON.parse(queueDoc.data().payload);
+                    applyLoadedData(fastData); 
+                    console.log("🚀 โหลดข้อมูลล่าสุดจาก Firebase สำเร็จทันทีตั้งแต่เริ่มเปิดเว็บ!");
+                    if (typeof checkUrlCheckin === 'function') checkUrlCheckin();
+                }
+            } catch(e) { console.warn("Initial Firebase load failed:", e); }
+            return; 
+        }
         
         // 🌟 ลบเงื่อนไข !Swal.isVisible() ออก เพื่อให้ระบบซิงก์ได้ตลอดเวลาแม้จะเปิดป๊อปอัปอยู่
         if (!isSyncing) {
@@ -1470,12 +1482,35 @@ window.renderMasterDropdowns = window.renderMasterDropdowns || renderMasterDropd
 async function autoSyncToGS() {
     if (students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
 
+    let dbData = {
+        appSettings, users, rooms, students, txHistory,
+        fundRounds, fundPayments, expenses, activityLogs, timeLogs
+    };
+
     isSyncing = true;
     try {
-        const dbData = {
-            appSettings, users, rooms, students, txHistory,
-            fundRounds, fundPayments, expenses, activityLogs, timeLogs
-        };
+        // 🌟 ดึงข้อมูลคิวล่าสุดจาก Firebase ก่อนเซ็ต เพื่อผสาน activityLogs ป้องกันบันทึกทับกันเมื่อมีผู้ใช้เช็กอินพร้อมกัน
+        try {
+            let latestDoc = await db.collection('syncQueue').doc('latest').get();
+            if (latestDoc.exists && latestDoc.data().payload) {
+                let remoteData = JSON.parse(latestDoc.data().payload);
+                if (remoteData.activityLogs && Array.isArray(remoteData.activityLogs)) {
+                    let logMap = new Map();
+                    remoteData.activityLogs.forEach(l => {
+                        let k = (String(l.studentId).replace(/-/g,'').trim()) + '||' + l.activityTitle + '||' + (l.roundName || '');
+                        logMap.set(k, l);
+                    });
+                    activityLogs.forEach(l => {
+                        let k = (String(l.studentId).replace(/-/g,'').trim()) + '||' + l.activityTitle + '||' + (l.roundName || '');
+                        logMap.set(k, l);
+                    });
+                    dbData.activityLogs = Array.from(logMap.values());
+                    activityLogs = dbData.activityLogs;
+                }
+            }
+        } catch(merr) {
+            console.warn("Queue merge warning:", merr);
+        }
 
         // 🌟 บันทึกก้อนข้อมูลล่าสุดลง Firebase ฝากไว้ในคิว (ทำงานเสร็จในเสี้ยววินาที)
         await db.collection('syncQueue').doc('latest').set({
@@ -1668,8 +1703,23 @@ function applyLoadedData(d) {
             }
             
             expenses = d.expenses || [];
-            activityLogs = d.activityLogs || []; timeLogs = d.timeLogs || []; 
-            saveToLocal(false); refreshAll();
+            activityLogs = d.activityLogs || []; 
+            timeLogs = d.timeLogs || []; 
+            saveToLocal(false); 
+            refreshAll();
+
+            // 🌟 ซิงก์หน้าจอศูนย์จัดการกิจกรรมแอดมินแบบ Real-time ทันที
+            let adminMasterCard = document.getElementById('admin-activity-master-card');
+            let isMasterActive = adminMasterCard && !adminMasterCard.classList.contains('hidden');
+            if (isMasterActive && typeof currentMasterActivity !== 'undefined' && currentMasterActivity) {
+                let freshAct = (appSettings.activities || []).find(a => a.title === currentMasterActivity.title);
+                if (freshAct) currentMasterActivity = freshAct;
+                if (typeof filterMasterTable === 'function') filterMasterTable();
+                if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
+                if (typeof renderCheckinMapDisplay === 'function') renderCheckinMapDisplay();
+                if (typeof renderMasterRoundsTable === 'function') renderMasterRoundsTable();
+                if (typeof updateMasterHeaderStatusButtons === 'function') updateMasterHeaderStatusButtons();
+            }
         }
         // แก้ไขฟังก์ชัน saveToLocal
 function saveToLocal(triggerSync = true) { 
@@ -1677,7 +1727,7 @@ function saveToLocal(triggerSync = true) {
     localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
     
     // 🌟 ให้นักศึกษา (guest) เซฟลงเครื่องตัวเองก็พอ ไม่ต้องดันขึ้นระบบใหญ่
-    if(triggerSync && currentUserRole !== 'guest') { 
+    if(triggerSync) { 
         clearTimeout(syncTimeout); 
         syncTimeout = setTimeout(() => {
             if(!isSyncing) autoSyncToGS();
@@ -2160,7 +2210,9 @@ function openPublicSlipModal(targetRoundId = null) {
     
     // 🌟 เริ่มการทำงานของหุ่นยนต์ส่งข้อมูลหลังบ้าน (หน่วง 5 วิก่อนเริ่ม เพื่อให้เว็บโหลดเสร็จก่อน)
     setTimeout(startBackgroundSyncWorker, 5000);
-    setTimeout(checkUrlCheckin, 500);
+    setTimeout(() => {
+        if (typeof checkUrlCheckin === 'function') checkUrlCheckin();
+    }, 500);
 });
         // 🌟 ฟังก์ชันเปิด-ปิดแถบเมนูด้านซ้าย (รองรับทั้งมือถือและคอมพิวเตอร์)
 window.toggleSidebar = function() { 
@@ -2473,26 +2525,102 @@ async function executeEmailLinking(stu, email) {
 }
 
 // ================= ระบบเข้าสู่ระบบของนักศึกษา (RMUTI Style) =================
+window.seedRandomRegistrations = function(actTitle, count = 5) {
+    let act = (appSettings.activities || []).find(a => a.title === actTitle) || (appSettings.activities && appSettings.activities[0]);
+    if (!act) return 0;
+
+    let pool = (students && students.length > 0) ? [...students] : [
+        { id: '68152110087-3', name: 'ศุภชัย หมื่นสาร', room: 'สคบ.1' },
+        { id: '68152110001-2', name: 'ธนกฤต ชัยนา', room: 'สคบ.1' },
+        { id: '68152110002-3', name: 'นัฐพงษ์ สุขสันต์', room: 'สคบ.1' },
+        { id: '68152110003-4', name: 'กิตติศักดิ์ เจริญพร', room: 'สคบ.1' },
+        { id: '68152110004-5', name: 'วิภาดา รัตนกูล', room: 'สคบ.1' },
+        { id: '68152110005-6', name: 'ชลธิชา แก้วใส', room: 'สคบ.1' },
+        { id: '68152110006-7', name: 'ปิยะวัฒน์ สมบัติ', room: 'สคบ.1' }
+    ];
+
+    let rounds = (act.rounds && act.rounds.length > 0) ? act.rounds : [{ id: 'R1', thName: 'ทั่วไป' }];
+    let added = 0;
+    let shuffled = pool.sort(() => 0.5 - Math.random());
+
+    for (let stu of shuffled) {
+        if (added >= count) break;
+        let cleanId = String(stu.id).replace(/-/g, '').trim();
+        let exists = activityLogs.some(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === act.title);
+        if (!exists) {
+            let assignedRound = rounds[Math.floor(Math.random() * rounds.length)];
+            let roundName = assignedRound.thName || assignedRound.name || assignedRound.id || 'ทั่วไป';
+            let randomCode = 'REG-' + Math.floor(100000 + Math.random() * 900000);
+            activityLogs.unshift({
+                studentId: stu.id,
+                activityTitle: act.title,
+                roundName: roundName,
+                timeIn: 'จองสิทธิ์ล่วงหน้า',
+                timeOut: null,
+                status: 'P',
+                isWebReg: true,
+                regId: randomCode
+            });
+            added++;
+        }
+    }
+
+    if (added > 0) {
+        saveToLocal(true);
+        if (typeof renderActivities === 'function') renderActivities();
+        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+        if (typeof filterMasterTable === 'function' && currentMasterActivity?.title === act.title) filterMasterTable();
+        if (typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === act.title) renderMasterDashboard();
+        if (typeof renderCheckinMapDisplay === 'function' && currentMasterActivity?.title === act.title) renderCheckinMapDisplay();
+        if (typeof renderMasterRoundsTable === 'function' && currentMasterActivity?.title === act.title) renderMasterRoundsTable();
+    }
+    return added;
+};
+
+window.randomFillStudentId = function() {
+    let pool = (students && students.length > 0) ? students : [
+        { id: '68152110087-3', name: 'ศุภชัย หมื่นสาร', room: 'สคบ.1' },
+        { id: '68152110001-2', name: 'ธนกฤต ชัยนา', room: 'สคบ.1' },
+        { id: '68152110002-3', name: 'นัฐพงษ์ สุขสันต์', room: 'สคบ.1' },
+        { id: '68152110003-4', name: 'กิตติศักดิ์ เจริญพร', room: 'สคบ.1' },
+        { id: '68152110004-5', name: 'วิภาดา รัตนกูล', room: 'สคบ.1' }
+    ];
+    let rand = pool[Math.floor(Math.random() * pool.length)];
+    let input = document.getElementById('login-stu-id');
+    if (input) {
+        input.value = rand.id;
+        input.focus();
+    }
+};
+
 function promptStudentLogin() {
     Swal.fire({
         title: '<div class="text-left font-bold text-xl text-slate-800">เข้าสู่ระบบนักศึกษา</div>',
         html: `
-        <div class="text-left mt-2">
+        <div class="text-left mt-2 font-sans">
             <p class="text-slate-500 text-sm mb-4">กรุณากรอกรหัสนักศึกษา 12 หลักของคุณเพื่อเข้าสู่ระบบ</p>
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-id-card text-slate-400"></i></div>
                 <input id="login-stu-id" class="w-full pl-10 pr-3 py-3 border-2 border-slate-200 rounded-xl outline-none focus:border-purple-500 transition font-bold text-lg text-slate-800 tracking-wider" placeholder="68152110001-2" oninput="this.value = formatIdSearch(this.value)">
             </div>
+            <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <span>ตัวอย่าง: <a href="javascript:void(0)" onclick="if(document.getElementById('login-stu-id')){document.getElementById('login-stu-id').value='68152110087-3';}" class="text-purple-600 underline font-mono font-bold">68152110087-3</a></span>
+                <button type="button" onclick="randomFillStudentId()" class="text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition shadow-sm"><i class="fas fa-dice"></i> สุ่มรหัสไอดี</button>
+            </div>
         </div>`,
         showCancelButton: true, cancelButtonText: 'ยกเลิก', confirmButtonText: 'ค้นหาข้อมูล', confirmButtonColor: '#111827',
         preConfirm: () => {
-            let val = document.getElementById('login-stu-id').value.trim(); let clean = formatIdSearch(val);
+            let val = document.getElementById('login-stu-id')?.value.trim();
+            if(!val) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษา');
+            let clean = formatIdSearch(val);
             let stu = students.find(s => s.id === clean || s.id.replace(/-/g,'') === clean.replace(/-/g,''));
-            if(!stu) return Swal.showValidationMessage('ไม่พบรหัสนักศึกษาในระบบฐานข้อมูล');
+            if(!stu) {
+                stu = { id: clean, name: 'นักศึกษา (' + clean + ')', room: '-' };
+            }
             return stu;
         }
     }).then(res => {
-        if(res.isConfirmed) showStudentSelectionModal(res.value);
+        if(res.isConfirmed && res.value) showStudentSelectionModal(res.value);
     });
 }
 
@@ -2511,7 +2639,7 @@ function showStudentSelectionModal(stu) {
                 <div class="flex-1">
                     <div class="flex justify-between items-center mb-1"><h3 class="font-bold text-slate-800 text-lg peer-checked:text-purple-800">${stu.id}</h3><i class="fas fa-check-circle text-purple-600 opacity-0 peer-checked:opacity-100 text-xl transition"></i></div>
                     <p class="text-slate-600 font-bold mb-3 text-sm">${stu.name}</p>
-                    <div class="flex flex-wrap gap-2 text-[10px] font-bold text-slate-500"><span class="bg-white border border-slate-200 px-2 py-1 rounded-md">ห้อง ${stu.room}</span><span class="bg-white border border-slate-200 px-2 py-1 rounded-md">ศูนย์กลางฯ นครราชสีมา</span></div>
+                    <div class="flex flex-wrap gap-2 text-[10px] font-bold text-slate-500"><span class="bg-white border border-slate-200 px-2 py-1 rounded-md">ห้อง ${stu.room || '-'}</span><span class="bg-white border border-slate-200 px-2 py-1 rounded-md">ศูนย์กลางฯ นครราชสีมา</span></div>
                 </div>
             </div>
         </label>
@@ -2521,24 +2649,36 @@ function showStudentSelectionModal(stu) {
         title: '<div class="text-left font-bold text-xl text-slate-800">เลือกรหัสนักศึกษา</div>', html: html, showCancelButton: true, cancelButtonText: 'ยกเลิก', confirmButtonText: 'ยืนยันการเลือก', confirmButtonColor: '#8b5cf6', cancelButtonColor: '#ffffff', customClass: { cancelButton: '!text-slate-600 font-bold border border-slate-300 shadow-sm' }
     }).then(r => {
         if(r.isConfirmed) {
-            // โชว์โหลดดิ้งแปปนึงให้ระบบประมวลผล จะได้ไม่รู้สึกว่าเว็บค้าง
             Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             
             setTimeout(() => {
                 window.currentGuestStuId = stu.id; 
                 localStorage.setItem('sssfn_guest_id', stu.id); // 💾 บันทึกความจำลงเครื่อง
-                
+                currentUserRole = 'guest';
+                applyRoleUI();
                 refreshAll(); // 🌟 อัปเดตข้อมูลให้ครบทุกหน้า (โปรไฟล์, กิจกรรม, โหวต)
-                switchPage('home'); // 🌟 บังคับเด้งกลับหน้าหลัก
-                
-                Swal.fire({toast:true, position:'top-end', icon:'success', title:'เข้าสู่ระบบสำเร็จ', showConfirmButton:false, timer:1500});
+
+                // 🌟 ตรวจสอบว่ามาจากการสแกน QR กิจกรรมภายนอกหรือไม่
+                let pending = window.pendingQRCheckin || null;
+                if (!pending) {
+                    try { pending = JSON.parse(sessionStorage.getItem('pendingQRCheckin') || 'null'); } catch(e){}
+                }
+
+                if (pending && pending.act) {
+                    window.pendingQRCheckin = null;
+                    try { sessionStorage.removeItem('pendingQRCheckin'); } catch(e){}
+                    switchPage('activity');
+                    processStudentQRCheckin(pending, 'url');
+                } else {
+                    // เข้าระบบบริการนักศึกษาแบบปกติที่ไม่ได้สแกนผ่านคิวอาร์ของระบบกิจกรรม
+                    switchPage('home');
+                    Swal.fire({toast:true, position:'top-end', icon:'success', title:'เข้าสู่ระบบสำเร็จ', showConfirmButton:false, timer:1500});
+                }
             }, 300);
         }
     });
 }
 
-// 🌟 2. ฟังก์ชันล็อกเอาท์ของนักศึกษา (ใช้วิธีเคลียร์ UI แทนการรีเฟรช ป้องกันจอขาว)
-// 🌟 1. ฟังก์ชันล็อกเอาท์ของนักศึกษา (เคลียร์ UI และรีเซ็ตโครงสร้างหน้าจอทันที)
 function guestLogout() { 
     // 1. ล้างข้อมูลล็อกอินนักศึกษาทั้งหมด
     window.currentGuestStuId = null; 
@@ -3533,7 +3673,6 @@ window.loadActivityMasterData = function(title) {
     // ถ้าเป็น Staff ให้เปิดตรงไปที่แท็บ Scan ทันที, ถ้าไม่ใช่ให้ไปที่ภาพรวม
     if (typeof updateMasterHeaderActiveButton === "function") updateMasterHeaderActiveButton();
     if (typeof updateTab2ActiveState === "function") updateTab2ActiveState();
-    if (typeof updateMasterHeaderVisibleButton === "function") updateMasterHeaderVisibleButton();
     let dateTextEl = document.getElementById("master-header-date"); if (dateTextEl) dateTextEl.innerText = currentMasterActivity.date || "-";
     switchMasterTab(isStaff ? "scan" : "overview");
 };
@@ -3782,10 +3921,12 @@ window.filterMasterTable = function() {
                 student: stu,
                 logs: [],
                 webRegTime: log.isWebReg ? (log.timeIn || '-') : '-',
-                status: log.status || 'P'
+                status: log.status || 'P',
+                regId: log.regId || null
             };
         }
         studentMap[log.studentId].logs.push(log);
+        if (log.regId && !studentMap[log.studentId].regId) studentMap[log.studentId].regId = log.regId;
         if (log.isWebReg && log.timeIn) studentMap[log.studentId].webRegTime = log.timeIn;
         if (log.status && log.status !== 'P') studentMap[log.studentId].status = log.status;
     });
@@ -3846,12 +3987,11 @@ window.filterMasterTable = function() {
                     <span>สถานะ</span>
                     <i class="fa-solid fa-arrows-up-down text-[10px] text-slate-400 ml-1"></i>
                 </th>
-                ${!isStaff ? '<th class="p-3.5 text-center border-b border-slate-200 w-16">จัดการ</th>' : ''}
             </tr>
         </thead>
     `;
 
-    let totalCols = 4 + rounds.length + (!isStaff ? 1 : 0);
+    let totalCols = 4 + rounds.length;
 
     if (pageItems.length === 0) {
         table.innerHTML = theadHtml + `
@@ -3884,7 +4024,10 @@ window.filterMasterTable = function() {
                             <span class="font-bold text-slate-800 text-xs leading-tight">${stu.name}</span>
                             <span class="bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm leading-none">เช็คชื่อ</span>
                         </div>
-                        <div class="text-[11px] text-slate-400 font-mono mt-0.5 leading-tight">${stu.id}</div>
+                        <div class="text-[11px] text-slate-400 font-mono mt-0.5 leading-tight flex items-center gap-1.5">
+                            <span>${stu.id}</span>
+                            ${p.regId ? `<span class="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded leading-none shadow-sm"><i class="fa-solid fa-ticket text-[9px] mr-1 text-purple-500"></i>${p.regId}</span>` : ''}
+                        </div>
                         <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">${stu.major || stu.dept || (stu.room ? 'ห้อง ' + stu.room : 'สาขาวิชาในระบบ')}</div>
                     </div>
                 </div>
@@ -3953,18 +4096,6 @@ window.filterMasterTable = function() {
 
         let statusCol = `<td class="p-3.5 text-center">${statusBadge}</td>`;
 
-        // คอลัมน์ จัดการ (ปุ่มลบ)
-        let actionCol = '';
-        if (!isStaff) {
-            actionCol = `
-                <td class="p-3.5 text-center">
-                    <button onclick="deleteParticipant('${stu.id}')" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition" title="ลบออกจากกิจกรรม">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </td>
-            `;
-        }
-
         tbodyHtml += `
             <tr class="hover:bg-slate-50/80 transition">
                 ${stuCol}
@@ -3972,9 +4103,9 @@ window.filterMasterTable = function() {
                 ${webRegCol}
                 ${roundColsHtml}
                 ${statusCol}
-                ${actionCol}
             </tr>
         `;
+
     });
     tbodyHtml += '</tbody>';
     table.innerHTML = theadHtml + tbodyHtml;
@@ -4528,6 +4659,111 @@ window.openExternalGoogleMap = function(lat, lng) {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
 };
 
+window.applyPickerLocation = function(lat, lng, zoom = 17, label = '') {
+    if (!window.pickerMap || !window.pickerMarker) return;
+    let nLat = parseFloat(lat);
+    let nLng = parseFloat(lng);
+    if (isNaN(nLat) || isNaN(nLng)) return;
+
+    window.pickerMap.setView([nLat, nLng], zoom);
+    window.pickerMarker.setLatLng([nLat, nLng]);
+    window.pickerSelectedLat = nLat.toFixed(6);
+    window.pickerSelectedLng = nLng.toFixed(6);
+
+    let coordText = document.getElementById('picker-coord-text');
+    if (coordText) {
+        coordText.innerHTML = `<span class="text-blue-700 font-bold">${label ? label + ' &bull; ' : ''}พิกัด: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+    }
+};
+
+window.searchMapLocation = function() {
+    let input = document.getElementById('picker-search-input');
+    let q = (input?.value || '').trim();
+    if (!q) return showToast('กรุณากรอกชื่อสถานที่หรือพิกัด', 'warning');
+
+    let btn = document.getElementById('picker-search-btn');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    // 1. ตรวจสอบว่ากรอกพิกัด lat, lng หรือไม่
+    let coordsMatch = q.match(/^([-+]?[0-9]*\.?[0-9]+)[\s,]+([-+]?[0-9]*\.?[0-9]+)$/);
+    if (coordsMatch) {
+        let lat = parseFloat(coordsMatch[1]);
+        let lng = parseFloat(coordsMatch[2]);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            if (btn) btn.innerHTML = 'ค้นหา';
+            window.applyPickerLocation(lat, lng, 17, 'พิกัดที่ค้นหา');
+            showToast('ระบุพิกัดสำเร็จ', 'success');
+            return;
+        }
+    }
+
+    // 2. ค้นหาสถานที่ผ่าน OpenStreetMap Nominatim
+    let searchUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(q);
+    if (q.includes('มทร') || q.includes('ราชมงคล')) {
+        searchUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent('มหาวิทยาลัยเทคโนโลยีราชมงคลอีสาน นครราชสีมา');
+    }
+
+    fetch(searchUrl, { headers: { 'Accept': 'application/json' } })
+        .then(res => res.json())
+        .then(data => {
+            if (btn) btn.innerHTML = 'ค้นหา';
+            if (data && data.length > 0) {
+                let first = data[0];
+                let lat = parseFloat(first.lat);
+                let lng = parseFloat(first.lon);
+                let shortName = first.display_name.split(',')[0];
+                window.applyPickerLocation(lat, lng, 17, shortName);
+                showToast(`พบสถานที่: ${shortName}`, 'success');
+            } else {
+                showToast(`ไม่พบสถานที่ "${q}" ลองพิมพ์ชื่ออำเภอ/จังหวัดเพิ่มเติม หรือคลิกเลือกบนแผนที่`, 'info');
+            }
+        })
+        .catch(err => {
+            if (btn) btn.innerHTML = 'ค้นหา';
+            showToast('ค้นหาสถานที่ขัดข้อง กรุณาคลิกเลือกจุดบนแผนที่โดยตรง', 'warning');
+        });
+};
+
+window.getCurrentGpsLocation = function() {
+    let gpsBtn = document.getElementById('picker-gps-btn');
+    if (!navigator.geolocation) {
+        return showToast('เบราว์เซอร์หรืออุปกรณ์ของคุณไม่รองรับ GPS', 'error');
+    }
+
+    if (gpsBtn) {
+        gpsBtn.disabled = true;
+        gpsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังดึงดาวเทียม GPS...';
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            if (gpsBtn) {
+                gpsBtn.disabled = false;
+                gpsBtn.innerHTML = '<i class="fa-solid fa-crosshairs mr-1"></i> ดึง GPS ปัจจุบัน';
+            }
+            let lat = pos.coords.latitude;
+            let lng = pos.coords.longitude;
+            let acc = Math.round(pos.coords.accuracy || 0);
+
+            window.applyPickerLocation(lat, lng, 18, `GPS อุปกรณ์ (ความแม่นยำ ~${acc} ม.)`);
+            showToast(`ดึงตำแหน่ง GPS สำเร็จ (ความคลาดเคลื่อน ~${acc} เมตร)`, 'success');
+        },
+        (err) => {
+            if (gpsBtn) {
+                gpsBtn.disabled = false;
+                gpsBtn.innerHTML = '<i class="fa-solid fa-crosshairs mr-1"></i> ดึง GPS ปัจจุบัน';
+            }
+            let msg = 'ไม่สามารถดึงตำแหน่ง GPS ได้: ';
+            if (err.code === 1) msg += 'กรุณาอนุญาตการเข้าถึงตำแหน่งที่ตั้ง (Location Permission) ในเบราว์เซอร์';
+            else if (err.code === 2) msg += 'ไม่พบสัญญาณดาวเทียมตำแหน่งที่ตั้ง';
+            else if (err.code === 3) msg += 'หมดเวลาการเชื่อมต่อ GPS กรุณาลองใหม่อีกครั้ง';
+            else msg += (err.message || '');
+            showToast(msg, 'warning');
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+};
+
 window.openMapPicker = function() {
     ensureLeafletLoaded(() => {
         if (window.pickerMap) {
@@ -4535,34 +4771,62 @@ window.openMapPicker = function() {
             window.pickerMap = null;
         }
 
+        let defaultLat = 14.986195;
+        let defaultLng = 102.118729; // มทร.อีสาน ศูนย์กลางฯ นครราชสีมา
+        let existingLat = parseFloat(document.getElementById('m-qr-lat')?.value);
+        let existingLng = parseFloat(document.getElementById('m-qr-lng')?.value);
+        if (!isNaN(existingLat) && !isNaN(existingLng) && existingLat !== 0) {
+            defaultLat = existingLat;
+            defaultLng = existingLng;
+        }
+
         Swal.fire({
-            title: '<div class="text-left font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-blue-600"></i> คลิกบนแผนที่เพื่อระบุตำแหน่งศูนย์กลางเช็กอิน</div>',
+            title: '<div class="text-left font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-blue-600"></i> ระบุตำแหน่งศูนย์กลางเช็กอินกิจกรรม</div>',
             html: `
-                <div id="picker-map-container" style="height: 380px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-300 mt-2 mb-3"></div>
-                <div class="flex justify-between items-center text-xs">
-                    <span id="picker-coord-text" class="font-mono text-slate-600 font-bold">พิกัดที่เลือก: ยังไม่ได้เลือก</span>
-                    <button type="button" onclick="getCurrentGpsLocation()" class="bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold px-3 py-1.5 rounded-lg border border-blue-200 transition flex items-center gap-1">
+                <!-- Search & Quick Presets Toolbar -->
+                <div class="space-y-2 mb-2.5 text-xs font-sans text-left">
+                    <div class="flex gap-1.5">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input id="picker-search-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchMapLocation();}" placeholder="พิมพ์ชื่อสถานที่ เช่น มทร.อีสาน, หอประชุม หรือพิมพ์พิกัด..." class="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500">
+                        </div>
+                        <button type="button" id="picker-search-btn" onclick="searchMapLocation()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg transition shrink-0">
+                            ค้นหา
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span class="text-slate-400 font-bold">ปุ่มลัด:</span>
+                        <button type="button" onclick="applyPickerLocation(14.986195, 102.118729, 17, 'มทร.อีสาน นครราชสีมา')" class="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md font-bold transition">
+                            <i class="fa-solid fa-graduation-cap mr-1"></i>มทร.อีสาน นครราชสีมา
+                        </button>
+                        <button type="button" onclick="applyPickerLocation(14.987250, 102.116800, 18, 'อาคารยิมเนเซียม / อาคารกิจกรรม')" class="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md font-bold transition">
+                            <i class="fa-solid fa-building mr-1"></i>อาคารยิมเนเซียม
+                        </button>
+                    </div>
+                </div>
+
+                <div id="picker-map-container" style="height: 380px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-300 mb-2.5"></div>
+                
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
+                    <div id="picker-coord-text" class="font-mono text-slate-700 font-bold leading-tight">
+                        พิกัดที่เลือก: ${defaultLat.toFixed(6)}, ${defaultLng.toFixed(6)}
+                    </div>
+                    <button type="button" id="picker-gps-btn" onclick="getCurrentGpsLocation()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-3 py-1.5 rounded-lg border border-emerald-300 transition flex items-center gap-1 shadow-sm shrink-0">
                         <i class="fa-solid fa-crosshairs"></i> ดึง GPS ปัจจุบัน
                     </button>
                 </div>
+                <div class="text-[11px] text-slate-400 mt-2 text-left">
+                    <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i>สามารถคลิกบนแผนที่หรือลากหมุดสีฟ้าเพื่อกำหนดจุดศูนย์กลางเช็กอินได้ทันที
+                </div>
             `,
-            width: '680px',
+            width: '720px',
             showCancelButton: true,
             confirmButtonText: 'ใช้ตำแหน่งนี้',
             cancelButtonText: 'ยกเลิก',
             confirmButtonColor: '#2563eb',
             didOpen: () => {
-                let defaultLat = 13.7563;
-                let defaultLng = 100.5018;
-                let existingLat = parseFloat(document.getElementById('m-qr-lat')?.value);
-                let existingLng = parseFloat(document.getElementById('m-qr-lng')?.value);
-                if (!isNaN(existingLat) && !isNaN(existingLng) && existingLat !== 0) {
-                    defaultLat = existingLat;
-                    defaultLng = existingLng;
-                }
-
                 try {
-                    window.pickerMap = L.map('picker-map-container').setView([defaultLat, defaultLng], 16);
+                    window.pickerMap = L.map('picker-map-container').setView([defaultLat, defaultLng], 17);
                     
                     const pickRoadmap = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
                         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
@@ -4578,24 +4842,23 @@ window.openMapPicker = function() {
                     L.control.layers({ 'แผนที่ถนน (Google Maps)': pickRoadmap, 'แผนที่ดาวเทียม (Satellite)': pickSatellite }, null, { position: 'topright' }).addTo(window.pickerMap);
 
                     window.pickerMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(window.pickerMap);
-
-                    function updateCoord(lat, lng) {
-                        window.pickerSelectedLat = lat.toFixed(6);
-                        window.pickerSelectedLng = lng.toFixed(6);
-                        let coordText = document.getElementById('picker-coord-text');
-                        if (coordText) coordText.innerText = `พิกัดที่เลือก: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}`;
-                    }
-
-                    updateCoord(defaultLat, defaultLng);
+                    window.pickerSelectedLat = defaultLat.toFixed(6);
+                    window.pickerSelectedLng = defaultLng.toFixed(6);
 
                     window.pickerMap.on('click', function(e) {
                         window.pickerMarker.setLatLng(e.latlng);
-                        updateCoord(e.latlng.lat, e.latlng.lng);
+                        window.pickerSelectedLat = e.latlng.lat.toFixed(6);
+                        window.pickerSelectedLng = e.latlng.lng.toFixed(6);
+                        let coordText = document.getElementById('picker-coord-text');
+                        if (coordText) coordText.innerHTML = `<span class="text-blue-700 font-bold">พิกัดที่เลือก: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
                     });
 
                     window.pickerMarker.on('dragend', function(e) {
                         let pos = e.target.getLatLng();
-                        updateCoord(pos.lat, pos.lng);
+                        window.pickerSelectedLat = pos.lat.toFixed(6);
+                        window.pickerSelectedLng = pos.lng.toFixed(6);
+                        let coordText = document.getElementById('picker-coord-text');
+                        if (coordText) coordText.innerHTML = `<span class="text-blue-700 font-bold">พิกัดที่เลือก: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
                     });
 
                     setTimeout(() => { if (window.pickerMap) window.pickerMap.invalidateSize(); }, 200);
@@ -4632,30 +4895,6 @@ window.openMapPicker = function() {
             }
         });
     });
-};
-
-window.getCurrentGpsLocation = function() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                let lat = pos.coords.latitude;
-                let lng = pos.coords.longitude;
-                if (window.pickerMap && window.pickerMarker) {
-                    window.pickerMap.setView([lat, lng], 17);
-                    window.pickerMarker.setLatLng([lat, lng]);
-                    window.pickerSelectedLat = lat.toFixed(6);
-                    window.pickerSelectedLng = lng.toFixed(6);
-                    let coordText = document.getElementById('picker-coord-text');
-                    if (coordText) coordText.innerText = `พิกัด GPS: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}`;
-                }
-            },
-            (err) => {
-                showToast('ไม่สามารถดึงตำแหน่ง GPS ได้: ' + err.message, 'warning');
-            }
-        );
-    } else {
-        showToast('เบราว์เซอร์ไม่รองรับ GPS', 'error');
-    }
 };
 
 // 8. แสดงตาราง QRCODE กิจกรรมตามรอบ (Tab 4: QRCODE กิจกรรม - ตรงตาม Image 2 & Image 4)
@@ -7713,8 +7952,12 @@ window.openRegistrationModal = function(title) {
         footerHtml = `<button type="button" onclick="promptStudentLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition flex items-center justify-center gap-2"><i class="fas fa-sign-in-alt"></i> กรุณาเข้าสู่ระบบนักศึกษาก่อนทำการลงทะเบียน</button>`;
     } else if (existingLog) {
         footerHtml = `
-            <div class="bg-emerald-50 text-emerald-700 font-bold py-3.5 rounded-xl mb-3 flex items-center justify-center gap-2 border border-emerald-200">
-                <i class="fa-solid fa-circle-check text-lg"></i> คุณได้ลงทะเบียนเข้าร่วมกิจกรรมนี้แล้ว (รอบ: ${existingLog.roundName || 'ทั่วไป'})
+            <div class="bg-emerald-50 text-emerald-700 font-bold py-3.5 rounded-xl mb-3 flex flex-col sm:flex-row items-center justify-center gap-2 border border-emerald-200 shadow-sm text-center">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-check text-lg text-emerald-600"></i>
+                    <span>คุณได้ลงทะเบียนเข้าร่วมกิจกรรมนี้แล้ว (รอบ: ${existingLog.roundName || 'ทั่วไป'})</span>
+                </div>
+                <span class="bg-emerald-100/90 text-emerald-800 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border border-emerald-300">รหัสคิว: ${existingLog.regId || ('REG-' + String(existingLog.studentId).slice(-4))}</span>
             </div>
             <button type="button" onclick="promptCancelReg('${act.title}')" class="w-full bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
                 <i class="fa-solid fa-user-xmark"></i> ยกเลิกการเข้าร่วมกิจกรรม
@@ -7839,29 +8082,11 @@ window.openRegistrationModal = function(title) {
 
 promptConfirmReg = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
-    
-    let roundsHtml = '';
-    if(act.rounds && act.rounds.length > 0) {
-        roundsHtml = '<div class="mt-5 text-left"><label class="block text-sm font-bold text-slate-700 mb-2">โปรดเลือกรอบที่ต้องการเข้าร่วม *</label><div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">';
-        act.rounds.forEach((r, i) => {
-            let currentReg = activityLogs.filter(l => l.activityTitle === act.title && l.roundName === r.name).length;
-            let isFull = r.max > 0 && currentReg >= r.max;
-            roundsHtml += `
-            <label class="flex items-center p-3 bg-white border rounded-xl cursor-pointer transition ${isFull ? 'border-slate-200 opacity-50' : 'hover:border-blue-300 hover:shadow-sm peer-checked:border-blue-500 peer-checked:bg-blue-50'}">
-                <input type="radio" name="select_round" value="${r.name}" class="mr-3 w-4 h-4 text-blue-600" ${isFull ? 'disabled' : ''}>
-                <div class="flex-1">
-                    <p class="font-bold text-sm text-slate-800 ${isFull ? 'text-slate-400' : ''}">${r.name}</p>
-                    <p class="text-[10px] text-slate-500"><i class="far fa-clock mr-1"></i>${r.time || '-'}</p>
-                </div>
-                <span class="text-xs font-bold px-2 py-1 rounded-md ${isFull ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}">${isFull ? 'ที่นั่งเต็ม' : (r.max > 0 ? `ว่าง (${r.max - currentReg}/${r.max})` : 'ไม่จำกัด')}</span>
-            </label>`;
-        });
-        roundsHtml += '</div></div>';
-    }
+    if (!act) return;
 
     Swal.fire({
         html: `
-        <div class="text-left mt-2">
+        <div class="text-left mt-2 font-sans">
             <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-4 border border-blue-100 shadow-sm"><i class="fas fa-check"></i></div>
             <h2 class="text-2xl font-bold text-slate-800 mb-2">ยืนยันการลงทะเบียนกิจกรรม</h2>
             <p class="text-sm text-slate-600 mb-5">คุณต้องการเข้าร่วมกิจกรรมนี้ใช่หรือไม่? เมื่อยืนยันแล้วระบบจะบันทึกรายชื่อของคุณทันที</p>
@@ -7869,36 +8094,43 @@ promptConfirmReg = function(title) {
                 <i class="fas fa-thumbtack text-rose-500 mt-1 text-lg"></i>
                 <p>${act.title}</p>
             </div>
-            ${roundsHtml}
         </div>
         `,
         showCancelButton: true, confirmButtonText: 'ยืนยันการลงทะเบียน', cancelButtonText: 'กลับไปคิดดูอีกที',
         confirmButtonColor: '#111827', cancelButtonColor: '#ffffff', reverseButtons: true,
         customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: '!text-slate-600 border border-slate-300 shadow-sm rounded-xl px-6 py-3 font-bold hover:bg-slate-50' },
         preConfirm: () => {
-            let selectedRound = 'รอบปกติ';
-            if(act.rounds && act.rounds.length > 0) {
-                let radio = document.querySelector('input[name="select_round"]:checked');
-                if(!radio) return Swal.showValidationMessage('กรุณาเลือกรอบกิจกรรมก่อนยืนยัน');
-                selectedRound = radio.value;
-            }
-            return selectedRound;
+            let defaultRound = (act.rounds && act.rounds.length > 0) ? (act.rounds[0].thName || act.rounds[0].name || act.rounds[0].id || 'ทั่วไป') : 'ทั่วไป';
+            return defaultRound;
         }
     }).then((res) => {
         if (res.isConfirmed) {
             let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-            // ทำความสะอาดรหัส ป้องกันปัญหาการพิมพ์ - (ขีด)
+            if (!stuId) {
+                showToast('กรุณาเข้าสู่ระบบก่อนลงทะเบียน', 'warning');
+                return promptStudentLogin();
+            }
             let cleanStuId = String(stuId).replace(/-/g, '').trim();
-            
             let alreadyReg = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanStuId && l.activityTitle === act.title);
             
             if (!alreadyReg) {
-                activityLogs.unshift({ studentId: stuId, activityTitle: act.title, roundName: res.value, timeIn: 'จองสิทธิ์ล่วงหน้า', timeOut: null });
-                saveToLocal(); 
+                let randomRegId = 'REG-' + Math.floor(100000 + Math.random() * 900000);
+                activityLogs.unshift({ 
+                    studentId: stuId, 
+                    activityTitle: act.title, 
+                    roundName: res.value || 'ทั่วไป', 
+                    timeIn: 'จองสิทธิ์ล่วงหน้า', 
+                    timeOut: null,
+                    status: 'P',
+                    isWebReg: true,
+                    regId: randomRegId
+                });
+                saveToLocal(true); 
                 
-                // 🌟 อัปเดตเฉพาะหน้าจอ UI ไม่ให้ไปดึงเน็ตมาทับ!
                 if(typeof renderActivities === 'function') renderActivities();
                 if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
+                if(typeof filterMasterTable === 'function' && currentMasterActivity?.title === act.title) filterMasterTable();
+                if(typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === act.title) renderMasterDashboard();
             }
             
             Swal.fire({ icon: 'success', title: 'ลงทะเบียนสำเร็จ!', text: 'ระบบได้บันทึกรายชื่อเข้าร่วมกิจกรรมของคุณแล้ว', confirmButtonColor: '#10b981', timer: 1500 }).then(() => {
@@ -7906,7 +8138,7 @@ promptConfirmReg = function(title) {
             });
         }
     });
-}
+};
 
 // =========================================================================
 // 🌟 3. ฟังก์ชันป๊อปอัป "ยกเลิกการลงทะเบียน" (แก้บั๊กเด้งกลับ)
@@ -7967,43 +8199,30 @@ window.getDistanceFromLatLonInM = function(lat1, lon1, lat2, lon2) {
 window.processStudentQRCheckin = function(data, source) {
     if (!data || !data.act) return showToast('ไม่พบข้อมูลกิจกรรมใน QR Code', 'error');
 
-    let act = appSettings.activities.find(a => a.title === data.act);
+    let act = appSettings.activities.find(a => a.title.trim() === String(data.act).trim());
     if (!act) return showToast(`ไม่พบกิจกรรม "${data.act}" ในระบบ`, 'error');
+
+    if (act.isActive === false) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'กิจกรรมยังไม่เปิดใช้งาน',
+            text: 'กิจกรรมนี้ยังไม่เปิดระบบรับเช็กอิน กรุณาติดต่อผู้จัดกิจกรรม',
+            confirmButtonColor: '#2563eb'
+        });
+    }
 
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
     if (!stuId) {
-        // ถ้ายังไม่ได้ล็อกอิน ให้กรอกรหัสนักศึกษาก่อน
-        Swal.fire({
-            title: '<div class="text-left font-bold text-slate-800 text-sm">เข้าสู่ระบบเพื่อเช็กอินกิจกรรม</div>',
-            html: `
-                <div class="text-left text-xs space-y-3 mt-2">
-                    <p class="text-slate-600">กรุณากรอกรหัสนักศึกษาของคุณเพื่อยืนยันการเช็กอินในกิจกรรม: <b>${data.act}</b> (รอบ: ${data.round || 'ทั่วไป'})</p>
-                    <input id="quick-checkin-stuid" class="w-full border border-slate-300 rounded-xl p-3 font-mono font-bold text-center text-sm outline-none focus:border-blue-500" placeholder="เช่น 66302040001-1">
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'ยืนยันรหัสนักศึกษา',
-            cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#2563eb',
-            preConfirm: () => {
-                let id = document.getElementById('quick-checkin-stuid')?.value.trim();
-                if (!id) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษา');
-                return id;
-            }
-        }).then(res => {
-            if (res.isConfirmed && res.value) {
-                window.currentGuestStuId = res.value;
-                localStorage.setItem('sssfn_guest_id', res.value);
-                processStudentQRCheckin(data, source);
-            }
-        });
-        return;
+        // 🌟 ถ้านักศึกษายังไม่ล็อกอิน: เก็บข้อมูลกิจกรรมที่สแกนไว้ แล้วเปิดหน้าต่างล็อกอินนักศึกษาตามปกติ
+        window.pendingQRCheckin = data;
+        try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(data)); } catch(e){}
+        return promptStudentLogin();
     }
 
-    let stu = students.find(s => s.id === stuId) || { id: stuId, name: 'นักศึกษา (' + stuId + ')', room: '-' };
+    let cleanStuId = String(stuId).replace(/-/g, '').trim();
+    let stu = students.find(s => String(s.id).replace(/-/g, '').trim() === cleanStuId) || { id: stuId, name: 'นักศึกษา (' + stuId + ')', room: '-' };
 
     // ตรวจสอบว่าเคยเช็กอินในรอบนี้ไปแล้วหรือยัง
-    let cleanStuId = String(stuId).replace(/-/g, '').trim();
     let alreadyCheckedIn = activityLogs.find(l => 
         String(l.studentId).replace(/-/g, '').trim() === cleanStuId && 
         l.activityTitle === data.act && 
@@ -8016,15 +8235,18 @@ window.processStudentQRCheckin = function(data, source) {
             icon: 'info',
             title: 'คุณเช็กอินรอบนี้แล้ว',
             html: `
-                <div class="text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 space-y-1.5">
+                <div class="text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 space-y-1.5 font-sans">
                     <p><b>กิจกรรม:</b> ${data.act}</p>
-                    <p><b>รอบ:</b> ${data.round || 'ทั่วไป'}</p>
-                    <p><b>รหัสนักศึกษา:</b> ${stuId}</p>
+                    <p><b>รอบ:</b> ${alreadyCheckedIn.roundName || data.round || 'ทั่วไป'}</p>
+                    <p><b>นักศึกษา:</b> ${stu.name} (${stuId})</p>
                     <p><b>เวลาที่เช็กอินแล้ว:</b> <span class="text-emerald-600 font-bold">${alreadyCheckedIn.timeIn}</span></p>
+                    <p class="text-blue-600 font-mono text-[11px] font-bold"><i class="fa-solid fa-ticket mr-1"></i>รหัสคิว: ${alreadyCheckedIn.regId || ('REG-' + String(stuId).slice(-4))}</p>
                 </div>
             `,
-            confirmButtonText: 'ตกลง',
+            confirmButtonText: 'เปิดดูกิจกรรมของฉัน',
             confirmButtonColor: '#2563eb'
+        }).then(() => {
+            if (typeof openRegistrationModal === 'function') openRegistrationModal(data.act);
         });
     }
 
@@ -8032,24 +8254,30 @@ window.processStudentQRCheckin = function(data, source) {
     const doSaveCheckin = (userLat, userLng, distText) => {
         let existingBooking = activityLogs.find(l => 
             String(l.studentId).replace(/-/g, '').trim() === cleanStuId && 
-            l.activityTitle === data.act && 
-            l.roundName === data.round
+            l.activityTitle === data.act
         );
 
+        let randomRegId = existingBooking?.regId || ('REG-' + Math.floor(100000 + Math.random() * 900000));
         let nowStr = getNow();
         if (existingBooking) {
             existingBooking.timeIn = nowStr;
-            existingBooking.lat = userLat;
-            existingBooking.lng = userLng;
+            if (data.round) existingBooking.roundName = data.round;
+            if (userLat) { existingBooking.lat = userLat; existingBooking.lng = userLng; }
+            existingBooking.status = 'P';
+            existingBooking.isWebReg = true;
+            if (!existingBooking.regId) existingBooking.regId = randomRegId;
         } else {
             activityLogs.unshift({
                 studentId: stuId,
                 activityTitle: data.act,
                 roundName: data.round || 'ทั่วไป',
-                lat: userLat,
-                lng: userLng,
+                lat: userLat || null,
+                lng: userLng || null,
                 timeIn: nowStr,
-                timeOut: null
+                timeOut: null,
+                status: 'P',
+                isWebReg: true,
+                regId: randomRegId
             });
         }
 
@@ -8057,22 +8285,28 @@ window.processStudentQRCheckin = function(data, source) {
         if (typeof renderActivities === 'function') renderActivities();
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
         if (typeof filterMasterTable === 'function' && currentMasterActivity?.title === data.act) filterMasterTable();
+        if (typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === data.act) renderMasterDashboard();
         if (typeof renderCheckinMapDisplay === 'function' && currentMasterActivity?.title === data.act) renderCheckinMapDisplay();
+        if (typeof renderMasterRoundsTable === 'function' && currentMasterActivity?.title === data.act) renderMasterRoundsTable();
 
         Swal.fire({
             icon: 'success',
             title: 'เช็กอินเข้าร่วมกิจกรรมสำเร็จ!',
             html: `
-                <div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2">
+                <div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2 font-sans">
                     <p class="font-bold text-emerald-900 text-sm">${data.act}</p>
                     <p><b>รอบลงทะเบียน:</b> <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">${data.round || 'ทั่วไป'}</span></p>
                     <p><b>นักศึกษา:</b> ${stu.name} (${stuId})</p>
                     <p><b>เวลาเช็กอิน:</b> ${nowStr}</p>
-                    ${distText ? `<p class="text-emerald-700 font-bold"><i class="fa-solid fa-location-dot mr-1"></i>${distText}</p>` : ''}
+                    <p class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>สถานะ: ลงทะเบียนและเช็กอินเข้าร่วมแล้ว</p>
+                    <p class="text-blue-700 font-bold font-mono text-[11px]"><i class="fa-solid fa-ticket mr-1"></i>รหัสลงทะเบียน: ${randomRegId}</p>
+                    ${distText ? `<p class="text-slate-500 text-[11px]"><i class="fa-solid fa-location-dot mr-1"></i>${distText}</p>` : ''}
                 </div>
             `,
-            confirmButtonText: 'เรียบร้อย',
+            confirmButtonText: 'เปิดดูกิจกรรมของฉัน',
             confirmButtonColor: '#10b981'
+        }).then(() => {
+            if (typeof openRegistrationModal === 'function') openRegistrationModal(data.act);
         });
     };
 
@@ -8119,9 +8353,15 @@ window.processStudentQRCheckin = function(data, source) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'ไม่สามารถระบุพิกัด GPS ได้',
-                    text: 'กรุณาเปิดบริการตำแหน่ง (GPS) บนอุปกรณ์และอนุญาตการเข้าถึง แล้วลองสแกนใหม่อีกครั้ง',
-                    confirmButtonText: 'ตกลง',
+                    text: 'ระบบไม่สามารถเข้าถึงพิกัด GPS ของอุปกรณ์คุณได้ คุณต้องการดำเนินการเช็กอินต่อหรือไม่?',
+                    showCancelButton: true,
+                    confirmButtonText: 'เช็กอินต่อไป',
+                    cancelButtonText: 'ยกเลิก',
                     confirmButtonColor: '#2563eb'
+                }).then(res => {
+                    if (res.isConfirmed) {
+                        doSaveCheckin(null, null, 'เช็กอินโดยไม่ตรวจสอบพิกัด');
+                    }
                 });
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -8224,15 +8464,46 @@ window.checkUrlCheckin = function() {
             let lng = parseFloat(params.get('lng'));
             let rad = parseFloat(params.get('rad')) || 50;
             let token = params.get('token');
-            if (act && round) {
+            if (act) {
                 // ล้าง URL ไม่ให้ค้าง search params เพื่อไม่ให้กดรีเฟรชแล้วเด้งซ้ำ
                 window.history.replaceState({}, document.title, window.location.pathname);
+                let checkinData = { act, round, lat, lng, rad, token };
+
+                let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+                if (!stuId) {
+                    // 🌟 ถ้ายังไม่ได้เข้าสู่ระบบ ให้จำข้อมูลที่สแกนไว้ แล้วเปิดหน้าต่างล็อกอินนักศึกษาตามปกติทันที!
+                    window.pendingQRCheckin = checkinData;
+                    try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(checkinData)); } catch(e){}
+                    
+                    setTimeout(() => {
+                        if (typeof promptStudentLogin === 'function') promptStudentLogin();
+                    }, 400);
+                    return;
+                }
+                
+                // ถ้ารายการกิจกรรมยังโหลดไม่เสร็จ ให้รอข้อมูล 1.5 วินาที
+                if (!appSettings.activities || appSettings.activities.length === 0) {
+                    let attempts = 0;
+                    let checkInterval = setInterval(() => {
+                        attempts++;
+                        if ((appSettings.activities && appSettings.activities.length > 0) || attempts > 15) {
+                            clearInterval(checkInterval);
+                            switchPage('activity');
+                            processStudentQRCheckin(checkinData, 'url');
+                        }
+                    }, 150);
+                    return;
+                }
+                
                 setTimeout(() => {
-                    processStudentQRCheckin({ act, round, lat, lng, rad, token }, 'url');
-                }, 600);
+                    switchPage('activity');
+                    processStudentQRCheckin(checkinData, 'url');
+                }, 300);
             }
         }
-    } catch(e) {}
+    } catch(e) {
+        console.error('checkUrlCheckin error:', e);
+    }
 };
 
 window.promptCancelReg = function(title) {
