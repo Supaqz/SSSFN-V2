@@ -649,6 +649,20 @@
 
             <!-- ================= Tab 4: QRCODE กิจกรรม ================= -->
             <section id="mtab-content-qractivity" class="tab-section hidden max-w-5xl mx-auto space-y-6">
+                <!-- แจ้งเตือนเมื่อกิจกรรมยังปิดการใช้งานอยู่ -->
+                <div id="m-qr-inactive-alert" class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3.5 text-amber-800 shadow-sm hidden">
+                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 border border-amber-300 text-lg">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-sm text-amber-900">กิจกรรมนี้ยังปิดการใช้งานอยู่</h4>
+                        <p class="text-xs text-amber-700 mt-0.5 leading-relaxed">ระบบ QR Code กิจกรรมและการเช็กอินถูกล็อกไว้ กรุณากดปุ่ม <b>[เปิดการใช้งาน]</b> ที่แถบส่วนหัวด้านบน เพื่อเปิดระบบฉาย QR Code และอนุญาตให้นักศึกษาเช็กชื่อ</p>
+                    </div>
+                    <button type="button" onclick="toggleActivityActiveStatus()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition shadow-sm shrink-0 flex items-center gap-1.5">
+                        <i class="fa-solid fa-power-off"></i> เปิดการใช้งานเดี๋ยวนี้
+                    </button>
+                </div>
+
                 <!-- เมื่อยังไม่ได้ตั้งค่า QR Code ในแท็บ 3 -->
                 <div id="m-qr-unconfigured-alert" class="bg-white rounded-2xl p-10 border border-slate-200 shadow-sm text-center">
                     <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 border border-amber-200 flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
@@ -3512,6 +3526,17 @@ window.updateTab2ActiveState = function() {
         if (!isActive) lockedOverlay.classList.remove('hidden');
         else lockedOverlay.classList.add('hidden');
     }
+
+    // อัปเดตการล็อกในแท็บ QRCODE กิจกรรมด้วย
+    let qrInactiveAlert = document.getElementById('m-qr-inactive-alert');
+    if (qrInactiveAlert) {
+        if (!isActive) qrInactiveAlert.classList.remove('hidden');
+        else qrInactiveAlert.classList.add('hidden');
+    }
+    let qractSec = document.getElementById('mtab-content-qractivity');
+    if (qractSec && qractSec.classList.contains('active') && typeof renderQRActivityTab === 'function') {
+        renderQRActivityTab();
+    }
 };
 
 window.toggleQuotaInput = function(val, boxId) {
@@ -4906,14 +4931,21 @@ var liveQrExpiryTime = 0;
 
 window.renderQRActivityTab = function() {
     if (!currentMasterActivity) return;
+    let actIsActive = (currentMasterActivity.isActive !== false);
     let rules = currentMasterActivity.qrRules || [];
 
     let countEl = document.getElementById('m-qract-rules-count');
     if (countEl) countEl.innerText = `${rules.length} รายการ`;
 
+    let inactiveAlert = document.getElementById('m-qr-inactive-alert');
     let unconfigAlert = document.getElementById('m-qr-unconfigured-alert');
     let configuredCard = document.getElementById('m-qract-configured-card');
     let tableEl = document.getElementById('m-qract-rules-table');
+
+    if (inactiveAlert) {
+        if (!actIsActive) inactiveAlert.classList.remove('hidden');
+        else inactiveAlert.classList.add('hidden');
+    }
 
     if (rules.length === 0) {
         if (unconfigAlert) unconfigAlert.classList.remove('hidden');
@@ -4928,7 +4960,7 @@ window.renderQRActivityTab = function() {
 
     let rowsHtml = '';
     rules.forEach((rule, idx) => {
-        let isActive = (rule.isActive !== false);
+        let ruleIsActive = (rule.isActive !== false);
         rowsHtml += `
             <tr class="hover:bg-slate-50 transition">
                 <td class="p-3.5">
@@ -4941,8 +4973,8 @@ window.renderQRActivityTab = function() {
                     <span class="bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full text-xs border border-blue-100">${rule.radius || 50} เมตร</span>
                 </td>
                 <td class="p-3.5 text-center">
-                    <span class="${isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'} font-bold px-3 py-1 rounded-full text-xs border">
-                        ${isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                    <span class="${actIsActive && ruleIsActive ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'} font-bold px-3 py-1 rounded-full text-xs border">
+                        ${!actIsActive ? 'ปิดตามกิจกรรม' : (ruleIsActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน')}
                     </span>
                 </td>
                 <td class="p-3.5 text-center">
@@ -4950,8 +4982,8 @@ window.renderQRActivityTab = function() {
                         <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Maps
                         </button>
-                        <button type="button" onclick="openLiveQRModal('${rule.roundName}')" class="border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800 px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-qrcode text-xs"></i> QRCODE
+                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${rule.roundName}')` : `showToast('กิจกรรมนี้ยังปิดการใช้งานอยู่ กรุณากดเปิดใช้งานที่แถบส่วนหัวด้านบนก่อน', 'warning')`}" class="${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-300 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-qrcode text-xs"></i> QRCODE ${!actIsActive ? '<i class="fa-solid fa-lock text-[10px] text-amber-500 ml-0.5"></i>' : ''}
                         </button>
                     </div>
                 </td>
@@ -4965,6 +4997,15 @@ window.renderQRActivityTab = function() {
 window.openLiveQRModal = function(roundName) {
     if (!currentMasterActivity) return;
     let rules = currentMasterActivity.qrRules || [];
+    if (currentMasterActivity.isActive === false) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'กิจกรรมยังไม่เปิดใช้งาน',
+            text: 'กรุณากดปุ่ม [เปิดการใช้งาน] ที่แถบส่วนหัวด้านบน ก่อนเปิดแสดง QR Code กิจกรรม',
+            confirmButtonColor: '#2563eb'
+        });
+    }
+
     let rule = rules.find(r => r.roundName === roundName) || rules[0];
     if (!rule) return showToast('ไม่พบข้อมูลรอบกิจกรรมนี้', 'warning');
 
@@ -5583,6 +5624,15 @@ window.resetIndividualSearch = function() {
 };
 
 window.importMasterSingle = function(stuId) {
+    if (!currentMasterActivity) return;
+    if (currentMasterActivity.isActive === false) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'กิจกรรมยังไม่เปิดใช้งาน',
+            text: 'กรุณากดปุ่ม [เปิดการใช้งาน] ที่แถบส่วนหัวด้านบน ก่อนทำการนำเข้ารายชื่อนักศึกษา',
+            confirmButtonColor: '#2563eb'
+        });
+    }
     let round = document.getElementById('m-import-s-round')?.value;
     if (!round) return showToast('กรุณาเลือกรอบลงทะเบียนก่อนนำเข้า', 'warning');
 
@@ -5615,6 +5665,15 @@ window.importMasterSingle = function(stuId) {
 
 // 13. นำเข้านักศึกษารายกลุ่ม (Tab 9: นำเข้า นศ. กลุ่ม)
 window.executeBulkImportStudents = function() {
+    if (!currentMasterActivity) return;
+    if (currentMasterActivity.isActive === false) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'กิจกรรมยังไม่เปิดใช้งาน',
+            text: 'กรุณากดปุ่ม [เปิดการใช้งาน] ที่แถบส่วนหัวด้านบน ก่อนทำการนำเข้ารายชื่อนักศึกษา',
+            confirmButtonColor: '#2563eb'
+        });
+    }
     let round = document.getElementById('m-bulk-round-select')?.value;
     if (!round) return showToast('กรุณาเลือกรอบลงทะเบียนก่อนนำเข้า', 'warning');
 
