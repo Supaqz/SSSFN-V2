@@ -145,9 +145,9 @@
 </head>
 <body class="flex h-screen overflow-hidden text-slate-800">
 
-    <div class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-emerald-100 z-40 flex items-center px-4 shadow-sm gap-4">
-        <button onclick="toggleSidebar()" class="text-emerald-800 text-2xl p-1"><i class="fas fa-bars"></i></button>
-        <div class="font-bold text-emerald-800 text-lg flex items-center gap-2"><i class="fas fa-university text-emerald-600"></i> SSSFN</div>
+    <div class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200/80 z-40 flex items-center px-4 shadow-xs gap-4">
+        <button onclick="toggleSidebar()" class="text-slate-700 text-2xl p-1"><i class="fas fa-bars"></i></button>
+        <div class="font-bold text-slate-900 text-lg flex items-center gap-2"><i class="fas fa-university text-blue-600"></i> SSSFN</div>
     </div>
 
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
@@ -170,9 +170,7 @@
         <div class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             <p class="px-3 text-[10px] font-bold text-slate-400 mb-3 mt-2">เมนูที่คุณเข้าถึงได้</p>
             
-            <style>
-                .menu-active { background-color: #f1f5f9 !important; color: #0f172a !important; font-weight: 700 !important; border-right: none !important; }
-            </style>
+
 
             <button onclick="switchPage('home')" id="nav-home" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition menu-active flex items-center gap-3"><i class="far fa-user text-lg w-5 text-center"></i> โปรไฟล์ของคุณ</button>
             <button onclick="openPublicSlipModal()" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition flex items-center gap-3 shadow-sm"><i class="far fa-paper-plane text-lg w-5 text-center"></i> สแกน & แนบสลิปโอนเงิน</button>
@@ -221,15 +219,15 @@
     </aside>
 
     <main class="flex-1 flex flex-col h-screen overflow-hidden pt-16 md:pt-0">
-        <header class="bg-white border-b border-emerald-100 px-4 md:px-8 py-3 z-10 flex justify-between items-center shadow-sm">
+        <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 py-3.5 z-10 flex justify-between items-center shadow-xs">
             
             <div class="flex items-center gap-4">
-                <button onclick="toggleSidebar()" class="hidden md:block text-slate-400 hover:text-emerald-600 text-xl transition" title="เปิด/ปิดเมนู"><i class="fas fa-bars"></i></button>
-                <h2 id="header-title" class="text-xl font-bold text-emerald-900">หน้าหลัก</h2>
+                <button onclick="toggleSidebar()" class="hidden md:block text-slate-400 hover:text-slate-800 text-xl transition" title="เปิด/ปิดเมนู"><i class="fas fa-bars"></i></button>
+                <h2 id="header-title" class="text-lg md:text-xl font-bold text-slate-900">หน้าหลัก</h2>
             </div>
             
             <div class="flex items-center gap-2">
-                <button onclick="pullFromGS()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center gap-2"><i class="fas fa-sync-alt"></i> <span class="hidden md:inline">ดึงข้อมูล</span></button>
+                <button onclick="pullFromGS()" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-2"><i class="fas fa-sync-alt"></i> <span class="hidden md:inline">ดึงข้อมูล</span></button>
                 <div id="system-actions" class="hidden flex gap-2">
                     <button onclick="pushToGS()" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"><i class="fas fa-cloud-upload-alt"></i> <span class="hidden md:inline">บันทึกลง Sheet</span></button>
                 </div>
@@ -240,37 +238,38 @@
         <div class="flex-1 overflow-y-auto p-4 md:p-6 relative">
             
             <div id="page-home" class="page-view block w-full max-w-6xl mx-auto">
-                <!-- 🌟 สรุปยอดเงินกองกลาง (Playful Style Responsive) 🌟 -->
-                <div class="playful-card p-5 md:p-8 flex flex-col md:flex-row justify-between items-center gap-4 mb-6 md:mb-8 w-full">
+                <!-- 🌟 สรุปยอดเงินกองกลาง (Executive Modern Style) 🌟 -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 mb-6 md:mb-8 w-full transition-all">
                     <div class="flex items-center gap-4 w-full md:w-auto">
-                        <div class="w-14 h-14 md:w-16 md:h-16 bg-emerald-100 text-emerald-500 rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-black border-2 border-emerald-200 border-b-[4px] shrink-0">
-                            ฿
+                        <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl font-bold border border-emerald-200/60 shadow-xs shrink-0">
+                            <i class="fa-solid fa-wallet text-xl"></i>
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-slate-800 font-black text-xl md:text-2xl">บัญชีส่วนกลาง</h3>
-                            <p id="home-bal-label" class="text-slate-400 font-bold text-xs md:text-sm mt-0.5 md:mt-1">พร้อมใช้งาน</p>
+                            <h3 class="text-slate-900 font-bold text-xl md:text-2xl tracking-tight">บัญชีส่วนกลาง</h3>
+                            <p id="home-bal-label" class="text-slate-400 font-medium text-xs md:text-sm mt-0.5">พร้อมใช้งาน</p>
                         </div>
                     </div>
-                    <div class="text-right w-full md:w-auto bg-slate-50 p-4 md:p-5 rounded-2xl border-2 border-slate-100 border-b-[4px] overflow-hidden">
-                        <p id="home-bal-pool-fund" class="text-3xl md:text-4xl lg:text-5xl font-black text-emerald-500 tracking-tight truncate">฿ 0.00</p>
+                    <div class="text-left md:text-right w-full md:w-auto bg-slate-50/80 px-6 py-4 rounded-xl border border-slate-200/60 overflow-hidden">
+                        <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">ยอดเงินคงเหลือ</p>
+                        <p id="home-bal-pool-fund" class="text-3xl md:text-4xl font-extrabold text-emerald-600 tracking-tight font-mono truncate">฿ 0.00</p>
                     </div>
                 </div>
 
-                <!-- 🌟 แถบค้นหาและตัวกรอง (Playful Style Responsive) 🌟 -->
-                <div id="home-title-container" class="bg-white playful-card !border-b-[4px] p-4 md:p-5 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 transition-all w-full">
-                    <h2 class="text-lg md:text-xl font-black text-slate-800 w-full md:w-auto flex items-center shrink-0">
-                        <div class="w-10 h-10 bg-indigo-100 text-indigo-500 rounded-xl flex items-center justify-center mr-3 border-2 border-indigo-200 border-b-[4px] shrink-0"><i class="fas fa-users"></i></div>
+                <!-- 🌟 แถบค้นหาและตัวกรอง (Executive Modern Style) 🌟 -->
+                <div id="home-title-container" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 md:p-5 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 transition-all w-full">
+                    <h2 class="text-lg md:text-xl font-bold text-slate-900 w-full md:w-auto flex items-center shrink-0">
+                        <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mr-3 border border-blue-200/60 shrink-0"><i class="fas fa-users"></i></div>
                         รายชื่อนักศึกษา
                     </h2>
                     
                     <div class="flex flex-col md:flex-row items-center w-full md:w-auto gap-3 flex-1 md:justify-end">
-                        <select id="home-room-filter" onchange="renderHomeDirectory()" class="w-full md:w-auto bg-slate-50 border-2 border-slate-200 border-b-[4px] rounded-xl text-slate-700 font-black text-sm focus:ring-0 cursor-pointer px-4 py-2.5 outline-none hover:bg-slate-100 transition hover:translate-y-[2px] hover:border-b-[2px]">
+                        <select id="home-room-filter" onchange="renderHomeDirectory()" class="w-full md:w-auto bg-slate-50/80 border border-slate-200 rounded-xl text-slate-700 font-semibold text-xs md:text-sm focus:border-blue-500 focus:bg-white cursor-pointer px-4 py-2.5 outline-none transition shadow-xs">
                             <option value="all">ทุกห้อง</option>
                         </select>
                         
-                        <div class="relative w-full md:w-64 flex items-center bg-slate-50 border-2 border-slate-200 border-b-[4px] rounded-xl px-3 transition focus-within:border-emerald-400 focus-within:bg-white focus-within:translate-y-[2px] focus-within:border-b-[2px]">
-                            <i class="fas fa-search text-slate-400 text-sm shrink-0"></i>
-                            <input id="home-search" oninput="renderHomeDirectory()" class="w-full pl-2 pr-2 py-2 bg-transparent border-none text-sm text-slate-700 font-bold outline-none focus:ring-0 placeholder:text-slate-400" placeholder="ค้นหาชื่อ / รหัส...">
+                        <div class="relative w-full md:w-72 flex items-center bg-slate-50/80 border border-slate-200 rounded-xl px-3 transition focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/10 shadow-xs">
+                            <i class="fas fa-search text-slate-400 text-xs shrink-0"></i>
+                            <input id="home-search" oninput="renderHomeDirectory()" class="w-full pl-2 pr-2 py-2.5 bg-transparent border-none text-xs md:text-sm text-slate-800 font-medium outline-none placeholder:text-slate-400" placeholder="ค้นหาชื่อ หรือ รหัสนักศึกษา...">
                         </div>
                     </div>
                 </div>
@@ -508,11 +507,31 @@
                             <button onclick="exportActivityToCSV()" class="bg-emerald-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm">
                                 <i class="fa-solid fa-file-excel"></i> Export Excel
                             </button>
-                            <div id="m-batch-actions-wrapper" class="flex gap-1.5">
-                                <button onclick="executeBatchAction('C')" class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-100 transition"><i class="fa-solid fa-check mr-1"></i> ผ่าน (C)</button>
-                                <button onclick="executeBatchAction('P')" class="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition"><i class="fa-regular fa-clock mr-1"></i> รอพินิจ (P)</button>
-                                <button onclick="executeBatchAction('U')" class="bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-100 transition"><i class="fa-solid fa-xmark mr-1"></i> ไม่ผ่าน (U)</button>
-                                <button onclick="executeBatchAction('REMOVE')" class="bg-slate-100 text-slate-600 border border-slate-300 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-trash mr-1"></i> ลบ</button>
+                            <!-- Warning Banner when Activity is Active (Official SAMS RMUTI) -->
+                            <div id="m-overview-eval-alert" class="hidden flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs font-medium">
+                                <i class="fa-solid fa-circle-exclamation w-3.5 h-3.5 shrink-0 text-amber-600"></i>
+                                <span>หากสถานะกิจกรรมยังทำงานอยู่จะไม่สามารถประเมินได้ กรุณาปิดการใช้งานเพื่อประเมิน</span>
+                            </div>
+                            <div id="m-batch-actions-wrapper" class="flex flex-wrap items-center gap-1.5 transition-all opacity-0 pointer-events-none">
+                                <button type="button" onclick="openCriteriaModal()" class="border border-violet-300 text-violet-700 hover:bg-violet-50 font-bold shadow-sm px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-filter text-violet-500"></i> กรองหลักเกณฑ์
+                                </button>
+                                <div class="h-5 w-[1px] bg-slate-300 mx-0.5 hidden sm:block"></div>
+                                <button type="button" id="m-batch-btn-p" onclick="executeBatchAction('P')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-200 shadow-sm px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-regular fa-clock text-amber-500"></i> ตั้งเป็น "รอพิจารณา"
+                                </button>
+                                <button type="button" id="m-batch-btn-c" onclick="executeBatchAction('C')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-100 px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-check"></i> ประเมิน: ผ่าน (C)
+                                </button>
+                                <button type="button" id="m-batch-btn-a" onclick="executeBatchAction('A')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-100 px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-star"></i> ประเมิน: ผ่าน (A)
+                                </button>
+                                <button type="button" id="m-batch-btn-u" onclick="executeBatchAction('U')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-md shadow-rose-100 px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-xmark"></i> ประเมิน: ไม่ผ่าน (U)
+                                </button>
+                                <button type="button" id="m-batch-btn-remove" onclick="executeBatchAction('REMOVE')" class="border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold shadow-sm px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-trash"></i> นำชื่อออก
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -521,13 +540,27 @@
                     </div>
                     <!-- Legend & Pagination Footer -->
                     <div class="p-3.5 border-t border-slate-200 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-3">
-                        <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold">
-                            <span class="text-slate-500"><i class="fa-solid fa-filter mr-1"></i> ตัวคัดกรอง:</span>
-                            <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">เกรด A: ผ่าน(กยศ)</span>
-                            <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">เกรด C: ผ่านปกติ</span>
-                            <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded">เกรด P: รอพิจารณา/รอผล</span>
-                            <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded">เกรด U: ไม่ผ่านกิจกรรม</span>
-                            <span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded">NULL: ยังไม่ประเมิน</span>
+                        <div class="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                                <span>เกรด A: ผ่าน (ไม่คำนวณเกรด) ใช้สำหรับ กยศ. เป็นต้น</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                <span>เกรด C: ผ่านปกติ</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+                                <span>เกรด P: รอพิจารณา/รอผล</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                                <span>เกรด U: ไม่ผ่านกิจกรรม</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0"></span>
+                                <span>Null: ยังไม่ได้ประเมิน</span>
+                            </div>
                         </div>
                         <div id="m-pagination-controls" class="flex items-center gap-2 text-xs"></div>
                     </div>
@@ -549,21 +582,25 @@
                         <span>หากสถานะกิจกรรมยังไม่เปิดใช้งานจะไม่สามารถเลือกรอบลงทะเบียนได้ กรุณาเปิดใช้งานกิจกรรมเพื่อเลือกรอบลงทะเบียน</span>
                     </div>
                     <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                        <p class="text-xs font-bold text-slate-700 mb-2.5">ตัวเลือกการแสดงผล</p>
-                        <div class="space-y-2">
-                            <label class="flex items-center text-xs font-bold text-slate-700 cursor-pointer">
-                                <input type="checkbox" id="hw-show-info" checked class="mr-2.5 rounded text-blue-600 w-4 h-4">
-                                <span>แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ</span>
-                            </label>
-                            <label class="flex items-center text-xs font-bold text-slate-500 cursor-pointer">
-                                <input type="checkbox" id="hw-show-photo" class="mr-2.5 rounded text-blue-600 w-4 h-4">
-                                <span>แสดงรูปโปรไฟล์ของนักศึกษา <span class="text-slate-400 font-normal">(ต้องเข้าสู่ระบบด้วย SSO RMUTI)</span></span>
-                            </label>
-                            <div class="flex items-center text-xs font-bold text-slate-700 pt-1">
-                                <input type="checkbox" id="hw-auto-confirm" checked class="mr-2 rounded text-blue-600 w-4 h-4">
-                                <span>ยืนยันอัตโนมัติภายใน</span>
-                                <input type="number" id="hw-confirm-seconds" value="3" min="1" max="60" class="w-14 mx-2 border border-slate-300 rounded px-2 py-0.5 text-center font-bold bg-white">
-                                <span>วินาที</span>
+                        <div class="space-y-3">
+                        <label class="text-sm font-bold block text-slate-800">ตัวเลือกการแสดงผล</label>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="show-student-data" checked class="rounded text-blue-600 w-4 h-4 cursor-pointer" onchange="let autoBox=document.getElementById('auto-confirm-container'); if(autoBox) autoBox.style.display=this.checked?'block':'none';">
+                            <label for="show-student-data" class="font-medium cursor-pointer text-xs text-slate-700">แสดงข้อมูลนักศึกษาก่อนสแกนเข้าระบบ</label>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" id="show-profile-image" class="rounded text-blue-600 w-4 h-4 cursor-pointer">
+                            <label for="show-profile-image" class="font-medium cursor-pointer text-xs text-slate-700">แสดงรูปโปรไฟล์ของนักศึกษา <span class="text-[11px] text-slate-400 font-normal">(ต้องเข้าสู่ระบบด้วย SSO RMUTI)</span></label>
+                        </div>
+                        <div id="auto-confirm-container" class="space-y-3 mt-4 pt-4 border-t border-slate-300">
+                            <label class="text-xs font-bold block text-slate-800">ตัวเลือก Auto-Confirm</label>
+                            <div class="flex items-center space-x-3">
+                                <input type="checkbox" id="enable-auto-confirm" checked class="rounded text-blue-600 w-4 h-4 cursor-pointer" onchange="let secWrap=document.getElementById('auto-confirm-sec-wrapper'); if(secWrap) secWrap.style.display=this.checked?'block':'none';">
+                                <label for="enable-auto-confirm" class="font-medium cursor-pointer text-xs text-slate-700">เปิด Auto-Confirm (ยืนยันอัตโนมัติ)</label>
+                            </div>
+                            <div id="auto-confirm-sec-wrapper" class="ml-6 space-y-1">
+                                <label for="auto-confirm-seconds" class="text-[11px] font-medium block text-slate-600">จำนวนวินาที (1-60)</label>
+                                <input type="number" id="auto-confirm-seconds" value="3" min="1" max="60" class="w-20 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold bg-white focus:border-blue-500 outline-none">
                             </div>
                         </div>
                     </div>
@@ -647,19 +684,24 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                         <div>
-                            <h4 class="text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-emerald-600"></i> พื้นที่เช็กอิน</h4>
-                            <p class="text-[11px] text-slate-400 mb-4">กำหนดจุดศูนย์กลางและรัศมีสำหรับตรวจสอบตำแหน่งผู้ใช้งาน</p>
-                            <label class="block text-xs font-bold text-slate-700 mb-2">ตำแหน่งศูนย์กลาง (Geofencing)</label>
-                            <button type="button" onclick="openMapPicker()" class="w-full bg-slate-50 border border-slate-300 hover:bg-slate-100 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 mb-4">
-                                <i class="fa-solid fa-map-pin text-rose-500"></i> ระบุตำแหน่งเช็กอิน
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-xs font-bold text-slate-900 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> พื้นที่เช็กอิน (Geofence)</h4>
+                                <span class="bg-blue-50 text-blue-700 border border-blue-200/60 text-[10px] font-semibold px-2.5 py-0.5 rounded-full">GPS & Maps</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mb-4">กำหนดจุดศูนย์กลางและรัศมีสำหรับตรวจสอบตำแหน่งผู้ใช้งานเมื่อสแกน QR</p>
+                            <label class="block text-xs font-semibold text-slate-700 mb-2">ตำแหน่งศูนย์กลางเช็กอิน</label>
+                            <button type="button" onclick="openMapPicker()" id="btn-open-map-picker" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-3 rounded-xl text-xs shadow-xs hover:shadow transition flex items-center justify-center gap-2 mb-4 active:scale-[0.99]">
+                                <i class="fa-solid fa-location-crosshairs text-sm"></i> ระบุตำแหน่งเช็กอินบนแผนที่
                             </button>
                         </div>
-                        <div id="m-qr-geo-box" class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50/50">
-                            <i class="fa-solid fa-location-dot text-3xl text-slate-300 mb-2"></i>
-                            <p id="map-status-text" class="text-xs text-slate-400 font-bold">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
-                            <p class="text-[10px] text-slate-400 mt-1">เปิดแผนที่เพื่อเลือกจุดศูนย์กลางสำหรับการตรวจสอบตำแหน่งก่อนสแกน QR</p>
+                        <div id="m-qr-geo-box" class="border border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/60 transition">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-2.5">
+                                <i class="fa-solid fa-location-dot text-lg"></i>
+                            </div>
+                            <p id="map-status-text" class="text-xs text-slate-600 font-semibold mb-1">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
+                            <p class="text-[11px] text-slate-400">กดปุ่ม "ระบุตำแหน่งเช็กอินบนแผนที่" ด้านบน เพื่อเลือกจุดศูนย์กลาง Geofence</p>
                             <input type="hidden" id="m-qr-lat"><input type="hidden" id="m-qr-lng">
                         </div>
                     </div>
@@ -708,36 +750,36 @@
             <!-- ================= Tab 4: QRCODE กิจกรรม ================= -->
             <section id="mtab-content-qractivity" class="tab-section hidden max-w-5xl mx-auto space-y-6">
                 <!-- แจ้งเตือนเมื่อกิจกรรมยังปิดการใช้งานอยู่ -->
-                <div id="m-qr-inactive-alert" class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-3.5 text-amber-800 shadow-sm hidden">
-                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 border border-amber-300 text-lg">
+                <div id="m-qr-inactive-alert" style="display: none;" class="bg-amber-50/90 border border-amber-200 rounded-2xl p-5 flex items-start gap-3.5 text-amber-900 shadow-xs hidden">
+                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-300/80 text-lg">
                         <i class="fa-solid fa-lock"></i>
                     </div>
                     <div class="flex-1">
                         <h4 class="font-bold text-sm text-amber-900">กิจกรรมนี้ยังปิดการใช้งานอยู่</h4>
-                        <p class="text-xs text-amber-700 mt-0.5 leading-relaxed">ระบบ QR Code กิจกรรมและการเช็กอินถูกล็อกไว้ กรุณากดปุ่ม <b>[เปิดการใช้งาน]</b> ที่แถบส่วนหัวด้านบน เพื่อเปิดระบบฉาย QR Code และอนุญาตให้นักศึกษาเช็กชื่อ</p>
+                        <p class="text-xs text-amber-800/90 mt-0.5 leading-relaxed">ระบบ QR Code กิจกรรมและการเช็กอินถูกล็อกไว้ กรุณากดปุ่ม <b>[เปิดการใช้งาน]</b> ที่แถบส่วนหัวด้านบน เพื่อเปิดระบบฉาย QR Code และอนุญาตให้นักศึกษาเช็กชื่อ</p>
                     </div>
-                    <button type="button" onclick="toggleActivityActiveStatus()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition shadow-sm shrink-0 flex items-center gap-1.5">
+                    <button type="button" onclick="toggleActivityActiveStatus()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition shadow-xs shrink-0 flex items-center gap-1.5">
                         <i class="fa-solid fa-power-off"></i> เปิดการใช้งานเดี๋ยวนี้
                     </button>
                 </div>
 
-                <!-- เมื่อยังไม่ได้ตั้งค่า QR Code ในแท็บ 3 -->
-                <div id="m-qr-unconfigured-alert" class="bg-white rounded-2xl p-10 border border-slate-200 shadow-sm text-center">
-                    <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 border border-amber-200 flex items-center justify-center text-3xl mx-auto mb-4 shadow-sm">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
+                <!-- เมื่อยังไม่ได้ตั้งค่า QR Code ในแท็บ 3 (Official SAMS RMUTI Empty State) -->
+                <div id="m-qr-unconfigured-alert" class="bg-white rounded-2xl p-12 border border-slate-200/80 shadow-xs text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center text-2xl mx-auto mb-4 shadow-xs">
+                        <i class="fa-solid fa-map-pin"></i>
                     </div>
-                    <h4 class="text-base font-bold text-slate-800 mb-2">ยังไม่ได้ตั้งค่า QR Code กิจกรรม</h4>
-                    <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6 leading-relaxed">
-                        กรุณาไปที่แท็บ <b>"ตั้งค่า QRCODE"</b> เพื่อกำหนดรอบและเงื่อนไขระยะเวลาก่อน จึงจะสามารถเปิดใช้งานและฉาย QR Code กิจกรรมได้
+                    <h4 class="text-base font-bold text-slate-800 mb-1">ยังไม่มีข้อมูล QRCODE</h4>
+                    <p class="text-xs text-slate-400 max-w-sm mx-auto mb-6 leading-relaxed">
+                        เมื่อมีการตั้งค่าพิกัดและรัศมีแล้ว รายการจะแสดงในส่วนนี้
                     </p>
-                    <button onclick="switchMasterTab('qrsetting')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-md flex items-center gap-2 mx-auto">
-                        <i class="fa-solid fa-sliders"></i> ไปที่หน้าตั้งค่า QR Code
+                    <button type="button" onclick="switchMasterTab('qrsetting')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-xs transition shadow-xs flex items-center gap-2 mx-auto">
+                        <i class="fa-solid fa-sliders"></i> ตั้งค่า QR Code
                     </button>
                 </div>
 
-                <!-- ตารางรายการ QRCODE ตามรอบลงทะเบียน (Image 2) -->
-                <div id="m-qract-configured-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hidden">
-                    <div class="p-4 border-b flex justify-between items-center bg-white">
+                <!-- ตารางรายการ QRCODE ตามรอบลงทะเบียน (ตรงตามรูปต้นแบบ Image 2) -->
+                <div id="m-qract-configured-card" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden hidden" style="display: none;">
+                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 border border-slate-200">
                                 <i class="fa-solid fa-map-location-dot text-base"></i>
@@ -747,11 +789,11 @@
                                 <p class="text-xs text-slate-400">แสดงตำแหน่งพิกัด รัศมี และสถานะของ QRCODE ที่ผูกกับรอบลงทะเบียน</p>
                             </div>
                         </div>
-                        <span id="m-qract-rules-count" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">1 รายการ</span>
+                        <span id="m-qract-rules-count" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">0 รายการ</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs whitespace-nowrap">
-                            <thead class="bg-slate-50 text-[11px] text-slate-500 border-b font-bold">
+                            <thead class="bg-slate-50/80 text-[11px] text-slate-500 border-b border-slate-200 font-semibold uppercase tracking-wider">
                                 <tr>
                                     <th class="p-3.5">รอบลงทะเบียน</th>
                                     <th class="p-3.5">Latitude</th>
@@ -827,12 +869,17 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
                         <h3 class="font-bold text-slate-800 text-base">จัดการรอบกิจกรรมการลงทะเบียน</h3>
-                        <button onclick="openAddRoundModal()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> เพิ่มรอบใหม่</button>
+                        <button type="button" onclick="openAddRoundModal()" class="bg-blue-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> เพิ่มรอบกิจกรรมใหม่</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs whitespace-nowrap">
                             <thead class="bg-slate-50 border-b text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                                <tr><th class="p-4">รอบลงทะเบียน</th><th class="p-4 text-center">หมายเหตุ</th><th class="p-4 text-center w-28">สถานะรอบ</th><th class="p-4 text-center w-24">จัดการ</th></tr>
+                                <tr>
+                                    <th class="p-4">รอบลงทะเบียน</th>
+                                    <th class="p-4 text-center">หมายเหตุ</th>
+                                    <th class="p-4 text-center w-28">สถานะการสแกน</th>
+                                    <th class="p-4 text-center w-24">จัดการ</th>
+                                </tr>
                             </thead>
                             <tbody id="master-rounds-list" class="divide-y divide-slate-100 bg-white"></tbody>
                         </table>
@@ -928,10 +975,10 @@
                             <h3 class="font-bold text-blue-700 mb-4 text-sm border-b pb-2 flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> เพิ่มผู้ดูแลกิจกรรม</h3>
                             <div class="space-y-4 mb-4">
                                 <div>
-                                    <label class="block text-xs font-bold mb-1 text-slate-600">Username ผู้ใช้งาน / ค้นหาชื่อ นศ.</label>
+                                    <label class="block text-xs font-bold mb-1 text-slate-600">Username ผู้ใช้งาน</label>
                                     <div class="relative">
                                         <i class="fa-regular fa-user absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                                        <input list="sys-users-list" id="admin-user-input" class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-slate-700" placeholder="ระบุ Username / ชื่อ นศ." onchange="autoFillAdminPhone()">
+                                        <input list="sys-users-list" id="admin-user-input" class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500 font-bold text-slate-700" placeholder="Username ผู้ใช้งาน" onchange="autoFillAdminPhone()">
                                         <datalist id="sys-users-list"></datalist>
                                     </div>
                                 </div>
@@ -939,11 +986,11 @@
                                     <label class="block text-xs font-bold mb-1 text-slate-600">เบอร์โทรศัพท์ติดต่อ</label>
                                     <div class="relative">
                                         <i class="fa-solid fa-phone absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                                        <input type="text" id="admin-phone-input" class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500 font-mono" placeholder="08X-XXXXXXX">
+                                        <input type="tel" id="admin-phone-input" class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500 font-mono" placeholder="08X-XXXXXXX">
                                     </div>
                                 </div>
                             </div>
-                            <button onclick="addActivityAdmin(currentMasterActivity.title)" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md hover:bg-blue-700 transition">ยืนยันเพิ่มผู้ดูแล</button>
+                            <button type="button" onclick="addActivityAdmin(currentMasterActivity.title)" class="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs shadow-md hover:bg-blue-700 transition">ยืนยันเพิ่มผู้ดูแล</button>
                         </div>
                     </div>
                     <div class="lg:col-span-2">
@@ -1454,6 +1501,10 @@ function toggleAllMasterChecks(...args) { if (typeof window.toggleAllMasterCheck
 window.toggleAllMasterChecks = window.toggleAllMasterChecks || toggleAllMasterChecks;
 function toggleSingleMasterCheck(...args) { if (typeof window.toggleSingleMasterCheck === 'function') { return window.toggleSingleMasterCheck(...args); } console.warn('toggleSingleMasterCheck is not yet ready'); }
 window.toggleSingleMasterCheck = window.toggleSingleMasterCheck || toggleSingleMasterCheck;
+function updateOverviewEvalState(...args) { if (typeof window.updateOverviewEvalState === 'function' && window.updateOverviewEvalState !== updateOverviewEvalState) { return window.updateOverviewEvalState(...args); } }
+window.updateOverviewEvalState = window.updateOverviewEvalState || updateOverviewEvalState;
+function openCriteriaModal(...args) { if (typeof window.openCriteriaModal === 'function' && window.openCriteriaModal !== openCriteriaModal) { return window.openCriteriaModal(...args); } }
+window.openCriteriaModal = window.openCriteriaModal || openCriteriaModal;
 function executeBatchAction(...args) { if (typeof window.executeBatchAction === 'function') { return window.executeBatchAction(...args); } console.warn('executeBatchAction is not yet ready'); }
 window.executeBatchAction = window.executeBatchAction || executeBatchAction;
 function deleteParticipant(...args) { if (typeof window.deleteParticipant === 'function') { return window.deleteParticipant(...args); } console.warn('deleteParticipant is not yet ready'); }
@@ -1794,9 +1845,8 @@ function applyLoadedData(d) {
             }
         }
         // แก้ไขฟังก์ชัน saveToLocal
-// แก้ไขฟังก์ชัน saveToLocal
 function saveToLocal(triggerSync = true) { 
-    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs }; 
+    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
     localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
     
     // 🌟 ให้นักศึกษา (guest) เซฟลงเครื่องตัวเองก็พอ ไม่ต้องดันขึ้นระบบใหญ่
@@ -1804,7 +1854,7 @@ function saveToLocal(triggerSync = true) {
         clearTimeout(syncTimeout); 
         syncTimeout = setTimeout(() => {
             if(!isSyncing) autoSyncToGS();
-        }, 100); // 🌟 เปลี่ยนจาก 3000 เป็น 100 เพื่อให้ส่งขึ้น Firebase ทันทีที่กดปุ่ม
+        }, 100); // 🌟 แก้ตรงนี้: เปลี่ยนจาก 3000 เป็น 100 (ใช้เวลาแค่ 0.1 วินาทีในการส่งข้อมูลเข้าคิว Firebase)
     } 
 }
         function loadFromLocal() {
@@ -3339,23 +3389,23 @@ function renderHomeDirectory() {
             else if (fundBgClass.includes('emerald')) badgeStyle = 'bg-emerald-100 text-emerald-600 border-emerald-200';
             
             gridHtml += `
-            <div onclick="openStudentProfileModal('${s.id}')" class="playful-card p-4 md:p-5 flex flex-col h-full cursor-pointer w-full overflow-hidden hover:ring-2 hover:ring-emerald-400 transition-all hover:shadow-lg">
+            <div onclick="openStudentProfileModal('${s.id}')" class="bg-white rounded-2xl border border-slate-200/80 p-4 md:p-5 flex flex-col h-full cursor-pointer w-full overflow-hidden hover:border-blue-400 hover:shadow-md transition-all group">
                 <div class="flex items-center gap-3 md:gap-4 mb-4">
-                    <div class="w-12 h-12 md:w-14 md:h-14 bg-slate-800 text-white rounded-2xl flex items-center justify-center font-black text-lg md:text-xl border-2 border-slate-700 border-b-[4px] shrink-0">
+                    <div class="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl flex items-center justify-center font-bold text-lg md:text-xl shadow-xs shrink-0 ring-1 ring-slate-200/50">
                         ${getInitials(s.name)}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h3 class="font-black text-slate-800 text-base md:text-lg leading-tight mb-1 truncate" title="${s.name}">${s.name}</h3>
-                        <span class="bg-slate-100 text-slate-500 text-[10px] md:text-xs font-bold px-2 py-1 rounded-lg border border-slate-200 border-b-[2px] block truncate" title="${s.id} | ห้อง ${s.room}">${s.id} | ห้อง ${s.room}</span>
+                        <h3 class="font-bold text-slate-900 text-base md:text-lg leading-tight mb-1 truncate group-hover:text-blue-600 transition-colors" title="${s.name}">${s.name}</h3>
+                        <span class="bg-slate-100 text-slate-600 text-[11px] font-medium px-2.5 py-1 rounded-md border border-slate-200/60 block truncate" title="${s.id} | ห้อง ${s.room}">${s.id} | ห้อง ${s.room}</span>
                     </div>
                 </div>
-                <div class="mt-auto bg-slate-50 p-3 rounded-xl border-2 border-slate-100 border-b-[4px] flex items-center justify-between gap-2">
+                <div class="mt-auto bg-slate-50/80 p-3 rounded-xl border border-slate-200/60 flex items-center justify-between gap-2">
                     <div class="min-w-0 flex-1">
-                        <p class="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 truncate">สถานะเงินห้อง</p>
-                        <p class="font-black text-xs md:text-sm ${fundTextClass} truncate">${fundStatusLabel}</p>
+                        <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5 truncate">สถานะเงินห้อง</p>
+                        <p class="font-bold text-xs md:text-sm ${fundTextClass} truncate">${fundStatusLabel}</p>
                     </div>
                     <div class="text-right shrink-0">
-                        ${iconHtml !== '-' ? iconHtml : `<div class="w-7 h-7 md:w-8 md:h-8 rounded-xl ${badgeStyle} flex items-center justify-center text-xs md:text-sm border-2 border-b-[3px]"><i class="fas fa-minus"></i></div>`}
+                        ${iconHtml !== '-' ? iconHtml : `<div class="w-8 h-8 rounded-lg ${badgeStyle} flex items-center justify-center text-xs md:text-sm border shadow-xs"><i class="fas fa-minus"></i></div>`}
                     </div>
                 </div>
             </div>`;
@@ -3517,7 +3567,9 @@ function ensureLeafletLoaded(callback) {
     script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     script.onload = () => { callback(); };
     script.onerror = () => { showToast('ไม่สามารถโหลดระบบแผนที่ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', 'error'); };
-    document.head.appendChild(script);
+    if (document.head) document.head.appendChild(script);
+    else if (document.body) document.body.appendChild(script);
+    else callback();
 }
 
 
@@ -3553,87 +3605,6 @@ window.updateOverviewEvalState = function() {
             b.classList.toggle('opacity-40', isActive);
             b.classList.toggle('cursor-not-allowed', isActive);
             b.title = isActive ? 'หากสถานะกิจกรรมยังทำงานอยู่จะไม่สามารถประเมินได้ กรุณาปิดการใช้งานเพื่อประเมิน' : '';
-        }
-    });
-};
-
-window.openCriteriaModal = function() {
-    if (!currentMasterActivity) return;
-    let act = currentMasterActivity;
-    let actLogs = activityLogs.filter(l => l.activityTitle === act.title);
-    let rounds = getMasterRounds();
-    let distinctIds = [...new Set(actLogs.map(l => l.studentId))];
-
-    Swal.fire({
-        title: '<div class="text-left font-bold text-violet-800 text-base flex items-center gap-2"><i class="fa-solid fa-filter text-violet-600"></i> กรองหลักเกณฑ์นักศึกษา</div>',
-        html: `
-            <div class="text-left text-xs space-y-4 font-sans mt-2">
-                <p class="text-slate-500">เลือกเงื่อนไขหลักเกณฑ์เพื่อคัดกรองนักศึกษาสำหรับการประเมินผลแบบกลุ่ม:</p>
-                
-                <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <label class="font-bold text-slate-700 block mb-1">1. กรองตามระดับการศึกษา / หลักเกณฑ์:</label>
-                    <select id="criteria-degree-filter" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white focus:border-violet-500 outline-none">
-                        <option value="ALL">-- ทุกหลักเกณฑ์ --</option>
-                        <option value="BACHELOR">ปริญญาตรี 4-5 ปี</option>
-                        <option value="DIPLOMA">ปวส. (ประกาศนียบัตรวิชาชีพชั้นสูง)</option>
-                    </select>
-                </div>
-
-                <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <label class="font-bold text-slate-700 block mb-1">2. กรองตามประวัติการเข้าร่วม:</label>
-                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-1.5">
-                        <input type="radio" name="criteria-scan-filter" value="ALL" checked class="text-violet-600">
-                        <span>ทั้งหมด (ทั้งที่สแกนแล้วและยังไม่สแกน)</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-1.5">
-                        <input type="radio" name="criteria-scan-filter" value="CHECKED_ALL" class="text-violet-600">
-                        <span>สแกนเช็กชื่อครบทุกรอบ (${rounds.length} รอบ)</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                        <input type="radio" name="criteria-scan-filter" value="CHECKED_ANY" class="text-violet-600">
-                        <span>สแกนเช็กชื่ออย่างน้อย 1 รอบ</span>
-                    </label>
-                </div>
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: 'เลือกตามหลักเกณฑ์นี้',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#7c3aed',
-        cancelButtonColor: '#64748b'
-    }).then(res => {
-        if (res.isConfirmed) {
-            let degFilter = document.getElementById('criteria-degree-filter')?.value || 'ALL';
-            let scanFilter = document.querySelector('input[name="criteria-scan-filter"]:checked')?.value || 'ALL';
-
-            window.actMasterSelectedIds.clear();
-
-            distinctIds.forEach(id => {
-                let stu = students.find(s => s.id === id) || { id: id };
-                let stuLogs = actLogs.filter(l => l.studentId === id && l.timeIn);
-                
-                let matchDeg = true;
-                if (degFilter === 'BACHELOR') {
-                    matchDeg = !stu.degree || stu.degree.includes('ตรี') || stu.degree.includes('Bachelor') || !stu.degree.includes('ปวส');
-                } else if (degFilter === 'DIPLOMA') {
-                    matchDeg = stu.degree && (stu.degree.includes('ปวส') || stu.degree.includes('อนุปริญญา'));
-                }
-
-                let matchScan = true;
-                if (scanFilter === 'CHECKED_ALL') {
-                    matchScan = rounds.every(r => stuLogs.some(l => l.roundName === (r.thName || r.id) || l.roundId === r.id));
-                } else if (scanFilter === 'CHECKED_ANY') {
-                    matchScan = stuLogs.length > 0;
-                }
-
-                if (matchDeg && matchScan) {
-                    window.actMasterSelectedIds.add(id);
-                }
-            });
-
-            filterMasterTable();
-            if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
-            showToast(`เลือกนักศึกษาตามหลักเกณฑ์แล้ว ${window.actMasterSelectedIds.size} คน`, 'info');
         }
     });
 };
@@ -3877,7 +3848,15 @@ window.loadActivityMasterData = function(title) {
     // ถ้าเป็น Staff ให้เปิดตรงไปที่แท็บ Scan ทันที, ถ้าไม่ใช่ให้ไปที่ภาพรวม
     if (typeof updateMasterHeaderActiveButton === "function") updateMasterHeaderActiveButton();
     if (typeof updateTab2ActiveState === "function") updateTab2ActiveState();
-    let dateTextEl = document.getElementById("master-header-date"); if (dateTextEl) dateTextEl.innerText = currentMasterActivity.date || "-";
+    let dateTextEl = document.getElementById("master-header-date");
+    if (dateTextEl) {
+        let dVal = currentMasterActivity.date || "-";
+        if (dVal && dVal.includes('T')) {
+            let parts = dVal.split('T');
+            dVal = parts[0] + (parts[1] ? ' (' + parts[1] + ' น.)' : '');
+        }
+        dateTextEl.innerText = dVal;
+    }
     switchMasterTab(isStaff ? "scan" : "overview");
 };
 
@@ -4179,7 +4158,7 @@ window.filterMasterTable = function() {
                     </div>
                 </th>
                 <th class="p-3.5 text-center border-b border-slate-200 min-w-[140px]">
-                    <span>หลักสูตร</span>
+                    <span>หลักเกณฑ์</span>
                     <i class="fa-solid fa-arrows-up-down text-[10px] text-slate-400 ml-1"></i>
                 </th>
                 <th class="p-3.5 text-center border-b border-slate-200 min-w-[130px]">
@@ -4330,10 +4309,92 @@ window.filterMasterTable = function() {
             </div>
         `;
     }
+    if (typeof updateOverviewEvalState === "function") updateOverviewEvalState();
 };
 window.changeMasterPage = function(page) {
     actMasterCurrentPage = page;
     filterMasterTable();
+};
+
+window.openCriteriaModal = function() {
+    if (!currentMasterActivity) return;
+    let act = currentMasterActivity;
+    let actLogs = activityLogs.filter(l => l.activityTitle === act.title);
+    let rounds = getMasterRounds();
+    let distinctIds = [...new Set(actLogs.map(l => l.studentId))];
+
+    Swal.fire({
+        title: '<div class="text-left font-bold text-violet-800 text-base flex items-center gap-2"><i class="fa-solid fa-filter text-violet-600"></i> กรองหลักเกณฑ์นักศึกษา</div>',
+        html: `
+            <div class="text-left text-xs space-y-4 font-sans mt-2">
+                <p class="text-slate-500">เลือกเงื่อนไขหลักเกณฑ์เพื่อคัดกรองนักศึกษาสำหรับการประเมินผลแบบกลุ่ม:</p>
+                
+                <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label class="font-bold text-slate-700 block mb-1">1. กรองตามระดับการศึกษา / หลักเกณฑ์:</label>
+                    <select id="criteria-degree-filter" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white focus:border-violet-500 outline-none">
+                        <option value="ALL">-- ทุกหลักเกณฑ์ --</option>
+                        <option value="BACHELOR">ปริญญาตรี 4-5 ปี</option>
+                        <option value="DIPLOMA">ปวส. (ประกาศนียบัตรวิชาชีพชั้นสูง)</option>
+                    </select>
+                </div>
+
+                <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label class="font-bold text-slate-700 block mb-1">2. กรองตามประวัติการเข้าร่วม:</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-1.5">
+                        <input type="radio" name="criteria-scan-filter" value="ALL" checked class="text-violet-600">
+                        <span>ทั้งหมด (ทั้งที่สแกนแล้วและยังไม่สแกน)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-1.5">
+                        <input type="radio" name="criteria-scan-filter" value="CHECKED_ALL" class="text-violet-600">
+                        <span>สแกนเช็กชื่อครบทุกรอบ (${rounds.length} รอบ)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                        <input type="radio" name="criteria-scan-filter" value="CHECKED_ANY" class="text-violet-600">
+                        <span>สแกนเช็กชื่ออย่างน้อย 1 รอบ</span>
+                    </label>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'เลือกตามหลักเกณฑ์นี้',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#7c3aed',
+        cancelButtonColor: '#64748b'
+    }).then(res => {
+        if (res.isConfirmed) {
+            let degFilter = document.getElementById('criteria-degree-filter')?.value || 'ALL';
+            let scanFilter = document.querySelector('input[name="criteria-scan-filter"]:checked')?.value || 'ALL';
+
+            window.actMasterSelectedIds.clear();
+
+            distinctIds.forEach(id => {
+                let stu = students.find(s => s.id === id) || { id: id };
+                let stuLogs = actLogs.filter(l => l.studentId === id && l.timeIn);
+                
+                let matchDeg = true;
+                if (degFilter === 'BACHELOR') {
+                    matchDeg = !stu.degree || stu.degree.includes('ตรี') || stu.degree.includes('Bachelor') || !stu.degree.includes('ปวส');
+                } else if (degFilter === 'DIPLOMA') {
+                    matchDeg = stu.degree && (stu.degree.includes('ปวส') || stu.degree.includes('อนุปริญญา'));
+                }
+
+                let matchScan = true;
+                if (scanFilter === 'CHECKED_ALL') {
+                    matchScan = rounds.every(r => stuLogs.some(l => l.roundName === (r.thName || r.id) || l.roundId === r.id));
+                } else if (scanFilter === 'CHECKED_ANY') {
+                    matchScan = stuLogs.length > 0;
+                }
+
+                if (matchDeg && matchScan) {
+                    window.actMasterSelectedIds.add(id);
+                }
+            });
+
+            filterMasterTable();
+            if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
+            showToast(`เลือกนักศึกษาตามหลักเกณฑ์แล้ว ${window.actMasterSelectedIds.size} คน`, 'info');
+        }
+    });
 };
 
 window.toggleAllMasterChecks = function(masterCb) {
@@ -4359,6 +4420,7 @@ window.toggleAllMasterChecks = function(masterCb) {
         pageIds.forEach(id => window.actMasterSelectedIds.delete(id));
     }
     filterMasterTable();
+    if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
 };
 
 window.toggleSingleMasterCheck = function(stuId, cb) {
@@ -4367,15 +4429,26 @@ window.toggleSingleMasterCheck = function(stuId, cb) {
     } else {
         window.actMasterSelectedIds.delete(stuId);
     }
+    if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
 };
 
-// จัดการแบบกลุ่ม (Batch Action)
+// จัดการแบบกลุ่ม (Batch Action - Official SAMS RMUTI)
 window.executeBatchAction = function(action) {
     if (currentUserRole === 'guest') {
         return showToast('Staff ไม่มีสิทธิ์ปรับเปลี่ยนสถานะนักศึกษา', 'warning');
     }
-    if (window.actMasterSelectedIds.size === 0) {
+    if (!window.actMasterSelectedIds || window.actMasterSelectedIds.size === 0) {
         return showToast('กรุณาติ๊กเลือกรายชื่อนักศึกษาอย่างน้อย 1 คน', 'warning');
+    }
+
+    // ล็อกการประเมินหากสถานะกิจกรรมยังเปิดใช้งานอยู่ (ยกเว้นลบชื่อ)
+    if (action !== 'REMOVE' && currentMasterActivity && currentMasterActivity.isActive !== false) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'ไม่สามารถประเมินได้',
+            text: 'หากสถานะกิจกรรมยังทำงานอยู่จะไม่สามารถประเมินได้ กรุณาปิดการใช้งานเพื่อประเมิน',
+            confirmButtonColor: '#d97706'
+        });
     }
 
     let count = window.actMasterSelectedIds.size;
@@ -4396,11 +4469,19 @@ window.executeBatchAction = function(action) {
                 window.actMasterSelectedIds.clear();
                 saveToLocal(true);
                 renderMasterDashboard();
+                if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
+                if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
                 showToast(`ลบรายชื่อนักศึกษาเรียบร้อยแล้ว`, 'success');
             }
         });
     } else {
         // อัปเดตสถานะ (C, P, U, A)
+        let statusLabels = {
+            'C': 'ผ่านกิจกรรม (C)',
+            'A': 'ผ่านกิจกรรม (A)',
+            'U': 'ไม่ผ่านกิจกรรม (U)',
+            'P': 'รอพิจารณา (P)'
+        };
         activityLogs.forEach(l => {
             if (l.activityTitle === currentMasterActivity.title && window.actMasterSelectedIds.has(l.studentId)) {
                 l.status = action;
@@ -4409,7 +4490,9 @@ window.executeBatchAction = function(action) {
         window.actMasterSelectedIds.clear();
         saveToLocal(true);
         renderMasterDashboard();
-        showToast(`ปรับสถานะนักศึกษา ${count} คน เรียบร้อยแล้ว`, 'success');
+        if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
+        if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
+        showToast(`ประเมินผล: ${statusLabels[action] || action} สำหรับนักศึกษา ${count} คน สำเร็จ`, 'success');
     }
 };
 
@@ -4536,7 +4619,36 @@ window.executeScanLogic = function(barcode, actTitle) {
         });
     }
 
-    // ตรวจสอบการสแกนซ้ำในรอบเดียวกัน
+    // ตรวจสอบเงื่อนไขการเข้าร่วม (Conditions)
+    let cond = currentMasterActivity.conditions || {};
+    
+    // 1. ตรวจสอบเงื่อนไขระงับผู้ไม่ได้ลงทะเบียนผ่านเว็บ
+    if (cond.blockUnregistered) {
+        let hasReg = activityLogs.some(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
+        if (!hasReg) {
+            return Swal.fire({
+                icon: 'error',
+                title: 'สิทธิ์ถูกระงับ',
+                text: 'นักศึกษาไม่ได้ลงทะเบียนเข้าร่วมกิจกรรมผ่านหน้าเว็บล่วงหน้า',
+                confirmButtonColor: '#e11d48'
+            });
+        }
+    }
+
+    // 2. ตรวจสอบรหัสนำหน้า (ID Prefix)
+    if (cond.prefixes && cond.prefixes.length > 0) {
+        let matchPrefix = cond.prefixes.some(p => stu.id.startsWith(p));
+        if (matchPrefix) {
+            return Swal.fire({
+                icon: 'error',
+                title: 'สิทธิ์ถูกระงับตามเงื่อนไขรหัส',
+                text: `นักศึกษารหัส ${stu.id} อยู่ในกลุ่มที่ระงับสิทธิ์เข้าร่วม`,
+                confirmButtonColor: '#e11d48'
+            });
+        }
+    }
+
+    // 3. ตรวจสอบการสแกนซ้ำในรอบเดียวกัน
     let existingLog = activityLogs.find(l => 
         l.studentId === stu.id && 
         l.activityTitle === currentMasterActivity.title && 
@@ -4558,10 +4670,16 @@ window.executeScanLogic = function(barcode, actTitle) {
     let autoConfirm = (document.getElementById('enable-auto-confirm') || document.getElementById('hw-auto-confirm'))?.checked;
     let autoConfirmSec = parseInt((document.getElementById('auto-confirm-seconds') || document.getElementById('hw-confirm-seconds'))?.value) || 3;
 
+    // ตรวจสอบพื้นที่จัดกิจกรรม (Campus Matching)
+    let actCampus = (currentMasterActivity.campus || 'วิทยาเขตนครราชสีมา').trim();
+    let stuCampus = (stu.campus || 'วิทยาเขตนครราชสีมา').trim();
+    let isCrossCampus = (currentMasterActivity.isAcrossCampus === true || currentMasterActivity.activityIsAcrossCampus === true);
+    let campusMatches = isCrossCampus || (stuCampus === actCampus);
+
     if (showInfo) {
         let timerInterval;
         Swal.fire({
-            title: '<div class="text-left font-bold text-slate-900 text-lg leading-tight">ยืนยันข้อมูลนักศึกษา</div>',
+            title: '<div class="text-left font-bold text-slate-900 text-lg leading-tight">ยืนยันข้อมูลนักศึกษา</div><div class="text-left text-xs text-slate-500 font-normal mt-1">กรุณาตรวจสอบข้อมูลนักศึกษาและวิทยาเขตให้ถูกต้องก่อนทำการบันทึกเข้ากิจกรรม</div>',
             html: `
                 <div class="space-y-3 text-left font-sans mt-3">
                     <!-- ข้อมูลนักศึกษา -->
@@ -4586,6 +4704,14 @@ window.executeScanLogic = function(barcode, actTitle) {
                                 <label class="text-[11px] font-semibold text-slate-500 block">ชื่อ-นามสกุล</label>
                                 <p class="font-bold text-slate-900 text-sm truncate" title="${stu.name}">${stu.name}</p>
                             </div>
+                            <div class="col-span-2">
+                                <label class="text-[11px] font-semibold text-slate-500 block">หลักสูตร</label>
+                                <p class="font-medium text-slate-800 text-xs">${stu.degree || stu.program || 'วศ.บ.วิศวกรรมคอมพิวเตอร์'}</p>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="text-[11px] font-semibold text-slate-500 block">คณะ</label>
+                                <p class="font-medium text-slate-800 text-xs">${stu.faculty || stu.dept || 'คณะวิศวกรรมศาสตร์และเทคโนโลยี'}</p>
+                            </div>
                         </div>
                     </div>
 
@@ -4597,6 +4723,28 @@ window.executeScanLogic = function(barcode, actTitle) {
                             </p>
                         </div>
                     ` : ''}
+
+                    <!-- รอบลงทะเบียนที่เลือก -->
+                    <div class="flex items-center gap-3 p-3 rounded-xl bg-blue-50 border border-blue-200 shadow-sm">
+                        <div class="bg-blue-600 p-2 rounded-lg text-white text-xs shrink-0">
+                            <i class="fa-regular fa-calendar-check"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[10px] uppercase tracking-wider font-bold text-blue-500 leading-none mb-1">รอบลงทะเบียนที่เลือก</p>
+                            <p class="text-xs font-bold text-blue-900 leading-none truncate">${selectedRound}</p>
+                        </div>
+                    </div>
+
+                    <!-- ตรวจสอบพื้นที่จัดกิจกรรม -->
+                    <div class="flex items-center gap-3 p-3 rounded-xl border shadow-sm transition-all ${campusMatches ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200 animate-pulse'}">
+                        <div class="p-2 rounded-lg text-white text-xs shrink-0 ${campusMatches ? 'bg-emerald-600' : 'bg-rose-600'}">
+                            <i class="fa-solid ${campusMatches ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] uppercase tracking-wider font-bold leading-none mb-1 ${campusMatches ? 'text-emerald-500' : 'text-rose-500'}">ตรวจสอบพื้นที่จัดกิจกรรม</p>
+                            <p class="text-xs font-bold leading-none ${campusMatches ? 'text-emerald-800' : 'text-rose-800'}">${campusMatches ? 'วิทยาเขตนักศึกษาและกิจกรรมตรงกัน' : 'วิทยาเขตนักศึกษาและกิจกรรมไม่ตรงกัน'}</p>
+                        </div>
+                    </div>
                 </div>
             `,
             showCancelButton: true,
@@ -4653,7 +4801,7 @@ window.confirmScan = function(stuId, roundName) {
 
     saveToLocal(true);
 
-    // เสียงแจ้งเตือน Success สั้นๆ
+    // เสียงแจ้งเตือน Success สั้นๆ ผ่าน Web Audio API
     try {
         let ctx = new (window.AudioContext || window.webkitAudioContext)();
         let osc = ctx.createOscillator();
@@ -4792,10 +4940,23 @@ window.saveQRSettings = function() {
     if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
 };
 
-window.editQRRule = function(index) {
-    if (!currentMasterActivity || !currentMasterActivity.qrRules[index]) return;
-    let rule = currentMasterActivity.qrRules[index];
+window.editQRRule = function(indexOrId) {
+    if (!currentMasterActivity) return;
+    let rules = currentMasterActivity.qrRules || [];
+    let index = -1;
+    if (typeof indexOrId === 'number') {
+        index = indexOrId;
+    } else {
+        index = rules.findIndex(r => String(r.id) === String(indexOrId));
+    }
+    if (index === -1 || !rules[index]) return;
+    let rule = rules[index];
     window.editingQRRuleIndex = index;
+
+    // สลับไปยังแท็บตั้งค่า QRCODE ทันที (แท็บ 3)
+    if (typeof switchMasterTab === 'function') {
+        switchMasterTab('qrsetting');
+    }
 
     let roundSelect = document.getElementById('m-qr-round-select');
     if (roundSelect) roundSelect.value = rule.roundName;
@@ -4815,14 +4976,17 @@ window.editQRRule = function(index) {
     let lngInput = document.getElementById('m-qr-lng');
     if (lngInput) lngInput.value = rule.lng;
 
-    let statusText = document.getElementById('map-status-text');
-    if (statusText) {
-        statusText.innerText = `พิกัด: ${rule.lat}, ${rule.lng}`;
-        statusText.className = 'text-xs text-emerald-600 font-bold';
+    if (typeof updateGeofencePreviewCard === 'function') {
+        updateGeofencePreviewCard(rule.lat, rule.lng, rule.radius);
+    } else {
+        let statusText = document.getElementById('map-status-text');
+        if (statusText) {
+            statusText.innerText = `พิกัด: ${rule.lat}, ${rule.lng}`;
+            statusText.className = 'text-xs text-emerald-600 font-bold';
+        }
+        let geoBox = document.getElementById('m-qr-geo-box');
+        if (geoBox) geoBox.className = 'border border-emerald-300 rounded-xl p-4 text-center bg-emerald-50/40';
     }
-
-    let geoBox = document.getElementById('m-qr-geo-box');
-    if (geoBox) geoBox.className = 'border-2 border-emerald-300 rounded-xl p-6 text-center bg-emerald-50/40';
 
     let saveBtn = document.getElementById('btn-save-qr-settings');
     if (saveBtn) saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> บันทึกการแก้ไข';
@@ -4841,7 +5005,17 @@ window.toggleQRRuleActive = function(index) {
     showToast(`เปลี่ยนสถานะรอบ "${rule.roundName}" เป็น "${rule.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}" แล้ว`, rule.isActive ? 'success' : 'info');
 };
 
-window.deleteQRRule = function(index) {
+window.deleteQRRule = function(indexOrId) {
+    if (!currentMasterActivity) return;
+    let rules = currentMasterActivity.qrRules || [];
+    let index = -1;
+    if (typeof indexOrId === 'number') {
+        index = indexOrId;
+    } else {
+        index = rules.findIndex(r => String(r.id) === String(indexOrId));
+    }
+    if (index === -1 || !rules[index]) return;
+
     Swal.fire({
         title: 'ลบการตั้งค่า QR นี้?',
         icon: 'warning',
@@ -4853,7 +5027,7 @@ window.deleteQRRule = function(index) {
         if (r.isConfirmed) {
             currentMasterActivity.qrRules.splice(index, 1);
             saveToLocal(true);
-            renderQRSettingsTab();
+            if (typeof renderQRSettingsTab === 'function') renderQRSettingsTab();
             if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
             showToast('ลบรายการเรียบร้อยแล้ว', 'success');
         }
@@ -4932,6 +5106,7 @@ window.searchMapLocation = function() {
     let btn = document.getElementById('picker-search-btn');
     if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>';
 
+    // 1. ตรวจสอบว่ากรอกพิกัด lat, lng หรือไม่
     let coordsMatch = q.match(/^([-+]?[0-9]*\.?[0-9]+)[\s,]+([-+]?[0-9]*\.?[0-9]+)$/);
     if (coordsMatch) {
         let lat = parseFloat(coordsMatch[1]);
@@ -4944,6 +5119,7 @@ window.searchMapLocation = function() {
         }
     }
 
+    // 2. ค้นหาสถานที่ผ่าน OpenStreetMap Nominatim
     let searchUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(q);
     if (q.includes('มทร') || q.includes('ราชมงคล')) {
         searchUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent('มหาวิทยาลัยเทคโนโลยีราชมงคลอีสาน นครราชสีมา');
@@ -4955,10 +5131,13 @@ window.searchMapLocation = function() {
             if (btn) btn.innerHTML = '<i class="fa-solid fa-magnifying-glass text-xs mr-1"></i> ค้นหา';
             if (data && data.length > 0) {
                 let first = data[0];
-                window.applyPickerLocation(parseFloat(first.lat), parseFloat(first.lon), 18, first.display_name.split(',')[0]);
-                showToast(`พบสถานที่: ${first.display_name.split(',')[0]}`, 'success');
+                let lat = parseFloat(first.lat);
+                let lng = parseFloat(first.lon);
+                let shortName = first.display_name.split(',')[0];
+                window.applyPickerLocation(lat, lng, 18, shortName);
+                showToast(`พบสถานที่: ${shortName}`, 'success');
             } else {
-                showToast(`ไม่พบสถานที่ "${q}" ลองคลิกเลือกบนแผนที่`, 'info');
+                showToast(`ไม่พบสถานที่ "${q}" ลองพิมพ์ชื่ออำเภอ/จังหวัดเพิ่มเติม หรือคลิกเลือกบนแผนที่`, 'info');
             }
         })
         .catch(err => {
@@ -4969,7 +5148,9 @@ window.searchMapLocation = function() {
 
 window.getCurrentGpsLocation = function() {
     let gpsBtn = document.getElementById('picker-gps-btn');
-    if (!navigator.geolocation) return showToast('ไม่สามารถเข้าถึงตำแหน่งของคุณได้ กรุณาอนุญาตสิทธิ์ก่อน', 'error');
+    if (!navigator.geolocation) {
+        return showToast('ไม่สามารถเข้าถึงตำแหน่งของคุณได้ กรุณาอนุญาตสิทธิ์ก่อน', 'error');
+    }
 
     if (gpsBtn) {
         gpsBtn.disabled = true;
@@ -4982,7 +5163,11 @@ window.getCurrentGpsLocation = function() {
                 gpsBtn.disabled = false;
                 gpsBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs mr-1"></i> ใช้ตำแหน่ง GPS ปัจจุบัน';
             }
-            window.applyPickerLocation(pos.coords.latitude, pos.coords.longitude, 18, `GPS อุปกรณ์ (ความแม่นยำ ~${Math.round(pos.coords.accuracy || 0)} ม.)`);
+            let lat = pos.coords.latitude;
+            let lng = pos.coords.longitude;
+            let acc = Math.round(pos.coords.accuracy || 0);
+
+            window.applyPickerLocation(lat, lng, 18, `GPS อุปกรณ์ (ความแม่นยำ ~${acc} ม.)`);
             showToast('ดึงพิกัดปัจจุบันสำเร็จ', 'success');
         },
         (err) => {
@@ -4990,6 +5175,7 @@ window.getCurrentGpsLocation = function() {
                 gpsBtn.disabled = false;
                 gpsBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs mr-1"></i> ใช้ตำแหน่ง GPS ปัจจุบัน';
             }
+            console.warn('GPS Error:', err);
             showToast('ไม่สามารถเข้าถึงตำแหน่งของคุณได้ กรุณาอนุญาตสิทธิ์ตำแหน่ง หรือคลิกเลือกบนแผนที่', 'error');
         },
         { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
@@ -4997,6 +5183,7 @@ window.getCurrentGpsLocation = function() {
 };
 
 window.openMapPicker = function() {
+    // 🌟 เปิดแผนที่ทันที ไม่บล็อกด้วยการตรวจสอบฟิลด์อื่นก่อน
     ensureLeafletLoaded(() => {
         if (window.pickerMap) {
             try { window.pickerMap.remove(); } catch(e){}
@@ -5004,7 +5191,7 @@ window.openMapPicker = function() {
         }
 
         let defaultLat = 14.986195;
-        let defaultLng = 102.118729; 
+        let defaultLng = 102.118729; // มทร.อีสาน ศูนย์กลางฯ นครราชสีมา
         let existingLat = parseFloat(document.getElementById('m-qr-lat')?.value);
         let existingLng = parseFloat(document.getElementById('m-qr-lng')?.value);
         if (!isNaN(existingLat) && !isNaN(existingLng) && existingLat !== 0) {
@@ -5014,7 +5201,20 @@ window.openMapPicker = function() {
 
         let radiusInput = document.getElementById('m-qr-radius');
         let currentRadius = parseFloat(radiusInput?.value);
-        if (isNaN(currentRadius) || currentRadius <= 0) currentRadius = 50;
+        if (isNaN(currentRadius) || currentRadius <= 0) {
+            currentRadius = 50;
+            if (radiusInput) radiusInput.value = '50';
+        }
+
+        let intervalInput = document.getElementById('m-qr-interval');
+        if (!intervalInput?.value || isNaN(parseFloat(intervalInput.value))) {
+            if (intervalInput) intervalInput.value = '15';
+        }
+
+        let errorInput = document.getElementById('m-qr-error') || document.getElementById('m-qr-max-accuracy');
+        if (!errorInput?.value || isNaN(parseFloat(errorInput.value))) {
+            if (errorInput) errorInput.value = '20';
+        }
 
         Swal.fire({
             title: `
@@ -5036,6 +5236,7 @@ window.openMapPicker = function() {
                 </div>
             `,
             html: `
+                <!-- Search & Quick Presets Toolbar -->
                 <div class="space-y-2 mb-3 mt-3 text-xs font-sans text-left">
                     <div class="flex gap-2">
                         <div class="relative flex-1">
@@ -5070,34 +5271,86 @@ window.openMapPicker = function() {
                         <i class="fa-solid fa-location-crosshairs text-emerald-600"></i> ใช้ตำแหน่ง GPS ปัจจุบัน
                     </button>
                 </div>
+                <div class="text-[11px] text-slate-400 mt-2 text-left flex items-center gap-1">
+                    <i class="fa-solid fa-circle-info text-blue-500"></i>
+                    <span>คุณสามารถคลิกบนแผนที่หรือลากหมุดสีฟ้าเพื่อย้ายตำแหน่ง วงกลมสีน้ำเงินแสดงขอบเขตพื้นที่รัศมีที่อนุญาตให้เช็กอิน</span>
+                </div>
             `,
-            width: '780px', showCancelButton: true, confirmButtonText: '<i class="fa-solid fa-check mr-1.5"></i> ยืนยันตำแหน่งนี้', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#2563eb',
-            customClass: { popup: 'rounded-2xl p-5', confirmButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold shadow-sm', cancelButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold' },
+            width: '780px',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa-solid fa-check mr-1.5"></i> ยืนยันตำแหน่งนี้',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#2563eb',
+            cancelButtonColor: '#64748b',
+            customClass: {
+                popup: 'rounded-2xl p-5',
+                confirmButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold shadow-sm',
+                cancelButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold'
+            },
             didOpen: () => {
                 try {
                     window.pickerMap = L.map('picker-map-container').setView([defaultLat, defaultLng], 17);
-                    const pickRoadmap = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20 });
+                    
+                    const pickRoadmap = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                        maxZoom: 20,
+                        attribution: '&copy; Google Maps'
+                    });
+                    const pickSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                        maxZoom: 20,
+                        attribution: '&copy; Google Maps'
+                    });
                     pickRoadmap.addTo(window.pickerMap);
+                    L.control.layers({ 'แผนที่ถนน (Google Maps)': pickRoadmap, 'แผนที่ดาวเทียม (Satellite)': pickSatellite }, null, { position: 'topright' }).addTo(window.pickerMap);
 
                     window.pickerMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(window.pickerMap);
-                    window.pickerCircle = L.circle([defaultLat, defaultLng], { radius: currentRadius, color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2, dashArray: '4, 4' }).addTo(window.pickerMap);
+                    window.pickerCircle = L.circle([defaultLat, defaultLng], {
+                        radius: currentRadius,
+                        color: '#2563eb',
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.15,
+                        weight: 2,
+                        dashArray: '4, 4'
+                    }).addTo(window.pickerMap);
 
-                    window.pickerSelectedLat = defaultLat.toFixed(6); window.pickerSelectedLng = defaultLng.toFixed(6);
+                    window.pickerSelectedLat = defaultLat.toFixed(6);
+                    window.pickerSelectedLng = defaultLng.toFixed(6);
 
                     window.pickerMap.on('click', function(e) {
-                        window.pickerMarker.setLatLng(e.latlng); window.pickerCircle.setLatLng(e.latlng);
-                        window.pickerSelectedLat = e.latlng.lat.toFixed(6); window.pickerSelectedLng = e.latlng.lng.toFixed(6);
-                        document.getElementById('picker-coord-text').innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+                        window.pickerMarker.setLatLng(e.latlng);
+                        window.pickerCircle.setLatLng(e.latlng);
+                        window.pickerSelectedLat = e.latlng.lat.toFixed(6);
+                        window.pickerSelectedLng = e.latlng.lng.toFixed(6);
+                        let coordText = document.getElementById('picker-coord-text');
+                        if (coordText) coordText.innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+                    });
+
+                    window.pickerMarker.on('drag', function(e) {
+                        let pos = e.target.getLatLng();
+                        window.pickerCircle.setLatLng(pos);
                     });
 
                     window.pickerMarker.on('dragend', function(e) {
-                        let pos = e.target.getLatLng(); window.pickerCircle.setLatLng(pos);
-                        window.pickerSelectedLat = pos.lat.toFixed(6); window.pickerSelectedLng = pos.lng.toFixed(6);
-                        document.getElementById('picker-coord-text').innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+                        let pos = e.target.getLatLng();
+                        window.pickerCircle.setLatLng(pos);
+                        window.pickerSelectedLat = pos.lat.toFixed(6);
+                        window.pickerSelectedLng = pos.lng.toFixed(6);
+                        let coordText = document.getElementById('picker-coord-text');
+                        if (coordText) coordText.innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
                     });
 
+                    setTimeout(() => { if (window.pickerMap) window.pickerMap.invalidateSize(); }, 200);
                     setTimeout(() => { if (window.pickerMap) window.pickerMap.invalidateSize(); }, 500);
-                } catch(err) {}
+                } catch(err) {
+                    console.error('Picker map init error:', err);
+                }
+            },
+            willClose: () => {
+                if (window.pickerMap) {
+                    try { window.pickerMap.remove(); } catch(e){}
+                    window.pickerMap = null;
+                }
             },
             preConfirm: () => {
                 if (!window.pickerMarker) return false;
@@ -5106,11 +5359,21 @@ window.openMapPicker = function() {
             }
         }).then(r => {
             if (r.isConfirmed && r.value) {
-                let latEl = document.getElementById('m-qr-lat'); let lngEl = document.getElementById('m-qr-lng');
-                if (latEl) latEl.value = r.value.lat; if (lngEl) lngEl.value = r.value.lng;
+                let latEl = document.getElementById('m-qr-lat');
+                let lngEl = document.getElementById('m-qr-lng');
+                if (latEl) latEl.value = r.value.lat;
+                if (lngEl) lngEl.value = r.value.lng;
                 
                 if (typeof updateGeofencePreviewCard === 'function') {
                     updateGeofencePreviewCard(r.value.lat, r.value.lng, currentRadius);
+                } else {
+                    let statusText = document.getElementById('map-status-text');
+                    if (statusText) {
+                        statusText.innerText = `พิกัด: ${r.value.lat}, ${r.value.lng}`;
+                        statusText.className = 'text-xs text-emerald-600 font-bold';
+                    }
+                    let geoBox = document.getElementById('m-qr-geo-box');
+                    if (geoBox) geoBox.className = 'border border-emerald-300 rounded-xl p-4 text-center bg-emerald-50/40';
                 }
                 showToast('ระบุพิกัดศูนย์กลาง Geofence เรียบร้อยแล้ว', 'success');
             }
@@ -5138,19 +5401,37 @@ window.renderQRActivityTab = function() {
     let configuredCard = document.getElementById('m-qract-configured-card');
     let tableEl = document.getElementById('m-qract-rules-table');
 
+    // จัดการแสดง/ซ่อน Alert ปิดการใช้งานอย่างเด็ดขาดด้วยทั้ง class และ inline style
     if (inactiveAlert) {
-        if (!actIsActive) inactiveAlert.classList.remove('hidden');
-        else inactiveAlert.classList.add('hidden');
+        if (!actIsActive) {
+            inactiveAlert.classList.remove('hidden');
+            inactiveAlert.style.display = 'flex';
+        } else {
+            inactiveAlert.classList.add('hidden');
+            inactiveAlert.style.display = 'none';
+        }
     }
 
     if (rules.length === 0) {
-        if (unconfigAlert) unconfigAlert.classList.remove('hidden');
-        if (configuredCard) configuredCard.classList.add('hidden');
+        if (unconfigAlert) {
+            unconfigAlert.classList.remove('hidden');
+            unconfigAlert.style.display = 'block';
+        }
+        if (configuredCard) {
+            configuredCard.classList.add('hidden');
+            configuredCard.style.display = 'none';
+        }
         return;
     }
 
-    if (unconfigAlert) unconfigAlert.classList.add('hidden');
-    if (configuredCard) configuredCard.classList.remove('hidden');
+    if (unconfigAlert) {
+        unconfigAlert.classList.add('hidden');
+        unconfigAlert.style.display = 'none';
+    }
+    if (configuredCard) {
+        configuredCard.classList.remove('hidden');
+        configuredCard.style.display = 'block';
+    }
 
     if (!tableEl) return;
 
@@ -5158,7 +5439,7 @@ window.renderQRActivityTab = function() {
     rules.forEach((rule, idx) => {
         let ruleIsActive = (rule.isActive !== false);
         rowsHtml += `
-            <tr class="hover:bg-slate-50 transition">
+            <tr class="hover:bg-slate-50/80 transition-colors">
                 <td class="p-3.5">
                     <div class="font-bold text-slate-800 text-xs">${rule.roundName || 'ทั่วไป'}</div>
                     <div class="text-[10px] text-slate-400 font-mono mt-0.5">ID: ${rule.id || (idx + 35)}</div>
@@ -5166,20 +5447,26 @@ window.renderQRActivityTab = function() {
                 <td class="p-3.5 font-mono text-slate-700 text-xs">${rule.lat || '-'}</td>
                 <td class="p-3.5 font-mono text-slate-700 text-xs">${rule.lng || '-'}</td>
                 <td class="p-3.5 text-center">
-                    <span class="bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full text-xs border border-blue-100">${rule.radius || 50} เมตร</span>
+                    <span class="bg-blue-50 text-blue-700 font-semibold px-3 py-1 rounded-full text-xs border border-blue-200/60">${rule.radius || 50} เมตร</span>
                 </td>
                 <td class="p-3.5 text-center">
-                    <span class="${actIsActive && ruleIsActive ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'} font-bold px-3 py-1 rounded-full text-xs border">
+                    <span class="${actIsActive && ruleIsActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} font-semibold px-3 py-1 rounded-full text-xs border">
                         ${!actIsActive ? 'ปิดตามกิจกรรม' : (ruleIsActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน')}
                     </span>
                 </td>
                 <td class="p-3.5 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                        <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Maps
                         </button>
-                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${rule.roundName}')` : `showToast('กิจกรรมนี้ยังปิดการใช้งานอยู่ กรุณากดเปิดใช้งานที่แถบส่วนหัวด้านบนก่อน', 'warning')`}" class="${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-300 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${rule.roundName}')` : `showToast('เปิดใช้งานคิวอาร์โค้ดได้เมื่อกิจกรรมอยู่ในสถานะเปิดใช้งาน', 'warning')`}" class="${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
                             <i class="fa-solid fa-qrcode text-xs"></i> QRCODE ${!actIsActive ? '<i class="fa-solid fa-lock text-[10px] text-amber-500 ml-0.5"></i>' : ''}
+                        </button>
+                        <button type="button" onclick="editQRRule(${idx})" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition" title="แก้ไขการตั้งค่ารอบนี้">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button type="button" onclick="deleteQRRule(${idx})" class="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition" title="ลบ QRCODE รอบนี้">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
                 </td>
@@ -5189,7 +5476,6 @@ window.renderQRActivityTab = function() {
     tableEl.innerHTML = rowsHtml;
 };
 
-// เปิด Modal แสดง QR เช็กชื่อกิจกรรมแบบ Live Dynamic (Image 4)
 window.openLiveQRModal = function(roundName) {
     if (!currentMasterActivity) return;
     let rules = currentMasterActivity.qrRules || [];
@@ -5461,7 +5747,7 @@ window.renderMasterRoundsTab = function() {
     if (!listEl) return;
 
     if (rounds.length === 0) {
-        listEl.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-bold text-xs"><i class="fa-solid fa-clock-rotate-left text-2xl mb-2 text-slate-300 block"></i> ยังไม่มีรอบกิจกรรม กดปุ่ม "เพิ่มรอบใหม่" ด้านบนเพื่อสร้าง</td></tr>';
+        listEl.innerHTML = '<tr><td colspan="4" class="py-20 text-center text-gray-400 italic">ไม่มีข้อมูลรอบกิจกรรม</td></tr>';
         return;
     }
 
@@ -5477,18 +5763,18 @@ window.renderMasterRoundsTab = function() {
                 </td>
                 <td class="p-4 text-center text-slate-500 text-xs">${r.note || '-'}</td>
                 <td class="p-4 text-center">
-                    <button onclick="toggleRoundOpenStatus('${r.id}')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 mx-auto ${isOpen ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}">
-                        <i class="fa-solid ${isOpen ? 'fa-toggle-on text-emerald-600 text-sm' : 'fa-toggle-off text-slate-400 text-sm'}"></i>
-                        ${isOpen ? 'เปิดใช้งาน' : 'ปิดรอบ'}
+                    <button type="button" onclick="toggleRoundOpenStatus('${r.id}')" class="px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 mx-auto ${isOpen ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}">
+                        <i class="fa-solid fa-power-off text-[11px]"></i>
+                        ${isOpen ? 'เปิดสแกน' : 'ปิดสแกน'}
                     </button>
                 </td>
                 <td class="p-4 text-center">
                     <div class="flex items-center justify-center gap-2">
                         ${!isStaff ? `
-                            <button onclick="openEditRoundModal('${r.id}')" class="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition" title="แก้ไขรอบนี้">
+                            <button type="button" onclick="openEditRoundModal('${r.id}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="แก้ไขรอบนี้">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            <button onclick="deleteMasterRound('${r.id}')" class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition" title="ลบรอบนี้">
+                            <button type="button" onclick="deleteMasterRound('${r.id}')" class="text-rose-500 hover:bg-red-100 p-2 rounded-lg transition" title="ลบรอบนี้">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         ` : '<span class="text-slate-300">-</span>'}
@@ -5511,7 +5797,7 @@ window.toggleRoundOpenStatus = function(roundId) {
     renderMasterRoundsTab();
     renderMasterDropdowns();
     renderMasterDashboard();
-    showToast(r.isOpen ? ('เปิดใช้งาน "' + (r.thName || r.id) + '" แล้ว') : ('ปิดรอบ "' + (r.thName || r.id) + '" แล้ว (ซ่อนจากระบบเช็กชื่อ)'), 'info');
+    showToast('เปลี่ยนสถานะการสแกนสำเร็จ', 'success');
 };
 
 window.openAddRoundModal = function() {
@@ -5536,27 +5822,27 @@ window.openAddRoundModal = function() {
         html: `
             <div class="text-left space-y-4 pt-2 font-sans text-xs">
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบกิจกรรม (ภาษาไทย) *</label>
-                    <input id="new-round-th" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" placeholder="เช่น รอบลงทะเบียนเช้า (Check-in)">
+                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบ (ภาษาไทย) *</label>
+                    <input id="new-round-th" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" placeholder="เช่น รอบลงทะเบียนเช้า">
                 </div>
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบกิจกรรม (English)</label>
-                    <input id="new-round-en" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" placeholder="e.g. Morning Check-in">
+                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบ (English)</label>
+                    <input id="new-round-en" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" placeholder="e.g. Morning Session">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1.5">หมายเหตุ</label>
-                    <input id="new-round-note" class="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-blue-500" placeholder="เช่น สแกนบัตรนักศึกษา ณ จุดตรวจ">
+                    <textarea id="new-round-note" rows="3" class="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-blue-500" placeholder="หมายเหตุเพิ่มเติม"></textarea>
                 </div>
             </div>
         `,
         width: '520px',
         showCancelButton: true,
-        confirmButtonText: 'บันทึกสร้างรอบ',
+        confirmButtonText: 'บันทึก',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#2563eb',
         preConfirm: () => {
             let th = document.getElementById('new-round-th')?.value.trim();
-            if (!th) return Swal.showValidationMessage('กรุณาระบุชื่อรอบกิจกรรม (ภาษาไทย)');
+            if (!th) return Swal.showValidationMessage('กรุณาระบุชื่อรอบ (ภาษาไทย)');
             return {
                 id: 'round_' + Date.now(),
                 thName: th,
@@ -5573,7 +5859,7 @@ window.openAddRoundModal = function() {
             renderMasterRoundsTab();
             renderMasterDropdowns();
             renderMasterDashboard();
-            showToast('สร้างรอบกิจกรรมเรียบร้อยแล้ว', 'success');
+            showToast('เพิ่มรอบกิจกรรมสำเร็จ', 'success');
         }
     });
 };
@@ -5590,20 +5876,16 @@ window.openEditRoundModal = function(roundId) {
         html: `
             <div class="text-left space-y-4 pt-2 font-sans text-xs">
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบกิจกรรม (ภาษาไทย) *</label>
-                    <input id="edit-round-th" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" value="${r.thName || r.id}">
+                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบ (ภาษาไทย) *</label>
+                    <input id="edit-round-th" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" value="${r.thName || ''}">
                 </div>
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบกิจกรรม (English)</label>
+                    <label class="block font-bold text-slate-700 mb-1.5">ชื่อรอบ (English)</label>
                     <input id="edit-round-en" class="w-full border border-slate-300 rounded-xl p-3 font-bold outline-none focus:border-blue-500" value="${r.enName || ''}">
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1.5">หมายเหตุ</label>
-                    <input id="edit-round-note" class="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-blue-500" value="${r.note || ''}">
-                </div>
-                <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
-                    <input type="checkbox" id="edit-round-open" ${r.isOpen !== false ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded">
-                    <label for="edit-round-open" class="font-bold text-slate-700">เปิดใช้งานรอบนี้ (แสดงในระบบเช็กชื่อ)</label>
+                    <textarea id="edit-round-note" rows="3" class="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-blue-500">${r.note || ''}</textarea>
                 </div>
             </div>
         `,
@@ -5614,12 +5896,11 @@ window.openEditRoundModal = function(roundId) {
         confirmButtonColor: '#2563eb',
         preConfirm: () => {
             let th = document.getElementById('edit-round-th')?.value.trim();
-            if (!th) return Swal.showValidationMessage('กรุณาระบุชื่อรอบกิจกรรม (ภาษาไทย)');
+            if (!th) return Swal.showValidationMessage('กรุณาระบุชื่อรอบ (ภาษาไทย)');
             return {
                 thName: th,
                 enName: document.getElementById('edit-round-en')?.value.trim() || '',
-                note: document.getElementById('edit-round-note')?.value.trim() || '',
-                isOpen: document.getElementById('edit-round-open')?.checked
+                note: document.getElementById('edit-round-note')?.value.trim() || ''
             };
         }
     }).then(res => {
@@ -5627,15 +5908,15 @@ window.openEditRoundModal = function(roundId) {
             r.thName = res.value.thName;
             r.enName = res.value.enName;
             r.note = res.value.note;
-            r.isOpen = res.value.isOpen;
             saveToLocal(true);
             renderMasterRoundsTab();
             renderMasterDropdowns();
             renderMasterDashboard();
-            showToast('อัปเดตรอบกิจกรรมเรียบร้อยแล้ว', 'success');
+            showToast('แก้ไขรอบกิจกรรมสำเร็จ', 'success');
         }
     });
 };
+
 window.deleteMasterRound = function(roundId) {
     if (currentUserRole === 'guest') return showToast('Staff ไม่มีสิทธิ์ลบรอบ', 'warning');
     Swal.fire({
@@ -5977,7 +6258,7 @@ window.addActivityAdmin = function(title) {
     let act = currentMasterActivity;
     if (!act) return;
     let rawUser = (document.getElementById('admin-user-input')?.value || '').trim();
-    if (!rawUser) return showToast('กรุณาระบุ Username หรือชื่อนักศึกษา', 'error');
+    if (!rawUser) return showToast('กรุณาระบุ Username ผู้ใช้งาน', 'error');
 
     let cleanId = rawUser.includes('(') ? rawUser.split('(')[1].replace(')', '').trim() : '';
     let stu = students.find(s => s.id === cleanId || s.name === rawUser);
@@ -6002,7 +6283,7 @@ window.addActivityAdmin = function(title) {
     document.getElementById('admin-user-input').value = '';
     document.getElementById('admin-phone-input').value = '';
     renderActivityAdmins(title);
-    showToast(`แต่งตั้ง "${targetName}" เป็นผู้ดูแลกิจกรรมเรียบร้อยแล้ว`, 'success');
+    showToast('เพิ่มผู้ดูแลสำเร็จ', 'success');
 };
 
 window.deleteActivityAdmin = function(title, index) {
@@ -6011,11 +6292,11 @@ window.deleteActivityAdmin = function(title, index) {
     let adminName = act.admins[index]?.user || '';
 
     Swal.fire({
-        title: `ถอดสิทธิ์ "${adminName}"?`,
-        text: 'เมื่อถอดสิทธิ์แล้ว บุคคลนี้จะไม่สามารถเข้าสู่หน้าจัดการกิจกรรมนี้ได้อีก',
+        title: 'ยืนยันการลบผู้ดูแล?',
+        text: 'คุณแน่ใจหรือไม่ที่จะลบผู้ดูแลท่านนี้ออกจากกิจกรรม การดำเนินการนี้ไม่สามารถย้อนกลับได้',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'ยืนยันถอดสิทธิ์',
+        confirmButtonText: 'ยืนยันการลบ',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#e11d48'
     }).then(r => {
@@ -6023,7 +6304,7 @@ window.deleteActivityAdmin = function(title, index) {
             act.admins.splice(index, 1);
             saveToLocal(true);
             renderActivityAdmins(title);
-            showToast('ถอดสิทธิ์เรียบร้อยแล้ว', 'success');
+            showToast('ลบผู้ดูแลสำเร็จ', 'success');
         }
     });
 };
@@ -6343,29 +6624,44 @@ window.editActivityModal = function(oldTitle) {
 
         <hr class="border-slate-200">
 
-        <!-- 3. การตั้งค่าสถานะและสิทธิ์ -->
+        <!-- 3. การตั้งค่าการมองเห็นและการเข้าถึง (Official SAMS RMUTI) -->
         <div>
-            <h4 class="font-bold text-blue-700 mb-2 text-xs flex items-center gap-1.5"><i class="fa-solid fa-sliders"></i> การตั้งค่าสถานะและสิทธิ์</h4>
+            <h4 class="font-bold text-blue-700 mb-2 text-xs flex items-center gap-1.5"><i class="fa-solid fa-sliders"></i> การตั้งค่าการมองเห็นและการเข้าถึง</h4>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label class="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
-                    <input type="checkbox" id="edit-act-visible" ${act.isVisible !== false ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded">
+                <label class="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition shadow-sm">
+                    <input type="checkbox" id="edit-act-open" ${act.isOpen !== false ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded mt-0.5">
                     <div>
-                        <span class="font-bold text-slate-800 block text-xs">แสดงในรายการ</span>
-                        <span class="text-[10px] text-slate-400">นศ. มองเห็นกิจกรรมนี้</span>
+                        <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                            <i class="fa-solid fa-user-plus text-emerald-500 text-xs"></i> เปิดรับสมัคร
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">อนุญาตให้นักศึกษาคลิกลงทะเบียนได้</p>
                     </div>
                 </label>
-                <label class="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
-                    <input type="checkbox" id="edit-act-open" ${act.isOpen !== false ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded">
+                <label class="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition shadow-sm">
+                    <input type="checkbox" id="edit-act-visible" ${act.isVisible !== false ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded mt-0.5">
                     <div>
-                        <span class="font-bold text-slate-800 block text-xs">เปิดรับสมัคร</span>
-                        <span class="text-[10px] text-slate-400">นศ. กดลงทะเบียนได้</span>
+                        <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                            <i class="fa-solid fa-eye text-blue-500 text-xs"></i> แสดงในรายการ
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">แสดงข้อมูลในหน้าเว็บไซต์รับสมัคร</p>
                     </div>
                 </label>
-                <label class="flex items-center gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
+                <label class="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition shadow-sm">
+                    <input type="checkbox" id="edit-act-across-campus" ${act.isAcrossCampus ? 'checked' : ''} class="w-4 h-4 text-orange-500 rounded mt-0.5">
+                    <div>
+                        <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                            <i class="fa-solid fa-earth-americas text-orange-500 text-xs"></i> รับข้ามวิทยาเขต
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">เปิดให้นักศึกษาจากวิทยาเขตอื่นสมัครได้</p>
+                    </div>
+                </label>
+            </div>
+            <div class="mt-2.5">
+                <label class="flex items-center space-x-3 p-3 bg-purple-50/60 border border-purple-200 rounded-xl cursor-pointer hover:bg-purple-100/50 transition">
                     <input type="checkbox" id="edit-act-cert" ${act.hasCertificate ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded">
                     <div>
-                        <span class="font-bold text-slate-800 block text-xs">มอบเกียรติบัตร</span>
-                        <span class="text-[10px] text-slate-400">สร้าง E-Certificate</span>
+                        <span class="font-bold text-purple-900 text-xs flex items-center gap-1.5"><i class="fa-solid fa-award text-purple-600"></i> มอบเกียรติบัตร (E-Certificate)</span>
+                        <span class="text-[10px] text-purple-700">ออกใบเกียรติบัตรดิจิทัลให้กับผู้ที่ผ่านกิจกรรม</span>
                     </div>
                 </label>
             </div>
@@ -6416,7 +6712,8 @@ window.editActivityModal = function(oldTitle) {
                 desc: document.getElementById('edit-act-desc')?.value || '',
                 hasCertificate: document.getElementById('edit-act-cert')?.checked,
                 isOpen: document.getElementById('edit-act-open')?.checked,
-                isVisible: document.getElementById('edit-act-visible')?.checked
+                isVisible: document.getElementById('edit-act-visible')?.checked,
+                isAcrossCampus: document.getElementById('edit-act-across-campus')?.checked || false
             };
         }
     }).then(res => {
