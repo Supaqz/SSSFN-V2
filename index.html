@@ -471,16 +471,8 @@
                                 <div><p class="text-[10px] font-bold text-slate-400">จำนวนที่เปิดรับ</p><p id="m-info-quota" class="font-bold text-slate-700 mt-0.5">-</p></div>
                             </div>
                             <div class="flex items-start gap-3">
-                                <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200 text-xs"><i class="fa-solid fa-building"></i></div>
-                                <div><p class="text-[10px] font-bold text-slate-400">หน่วยงานที่รับผิดชอบ</p><p id="m-info-dept" class="font-bold text-slate-700 mt-0.5">-</p></div>
-                            </div>
-                            <div class="flex items-start gap-3">
                                 <div class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200 text-xs"><i class="fa-solid fa-hashtag"></i></div>
                                 <div><p class="text-[10px] font-bold text-slate-400">ปีการศึกษา / ภาคเรียน</p><p id="m-info-term" class="font-bold text-slate-700 mt-0.5">-</p></div>
-                            </div>
-                            <div class="flex items-start gap-3">
-                                <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 border border-slate-200 text-xs"><i class="fa-solid fa-award"></i></div>
-                                <div><p class="text-[10px] font-bold text-slate-400">เงื่อนไขการลงทะเบียน</p><p id="m-info-cert" class="font-bold text-slate-700 mt-0.5">-</p></div>
                             </div>
                         </div>
                         <p id="m-info-created" class="text-[10px] text-slate-400 pt-2 border-t text-right">บันทึกข้อมูลเมื่อ: -</p>
@@ -661,7 +653,7 @@
                             <h4 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-basket-shopping text-blue-600"></i> ข้อมูลรอบลงทะเบียน</h4>
                             <p class="text-[11px] text-slate-400 mb-3">เลือกรอบที่ต้องการผูกกับ Geofence นี้</p>
                             <label class="block text-xs font-bold text-slate-700 mb-1">รอบลงทะเบียน *</label>
-                            <select id="m-qr-round-select" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none bg-white"></select>
+                            <select id="m-qr-round-select" onchange="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none bg-white"></select>
                         </div>
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <h4 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-clock text-blue-600"></i> ข้อกำหนด QR และ GPS</h4>
@@ -669,40 +661,54 @@
                             <div class="grid grid-cols-3 gap-3">
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">รัศมีการสแกน *</label>
-                                    <div class="relative"><input type="number" id="m-qr-radius" value="50" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-[10px] text-slate-400">เมตร</span></div>
+                                    <div class="relative"><input type="number" id="m-qr-radius" value="50" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-[10px] text-slate-400">เมตร</span></div>
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">เวลาเปลี่ยน Token *</label>
-                                    <div class="relative"><input type="number" id="m-qr-interval" value="15" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-[10px] text-slate-400">วินาที</span></div>
+                                    <div class="relative"><input type="number" id="m-qr-interval" value="15" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-[10px] text-slate-400">วินาที</span></div>
                                     <span class="text-[9px] text-slate-400 mt-1 block">* ขั้นต่ำที่แนะนำ 12 วิ</span>
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">ค่าความคลาดเคลื่อน GPS *</label>
-                                    <div class="relative"><input type="number" id="m-qr-error" value="20" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-[10px] text-slate-400">เมตร</span></div>
+                                    <div class="relative"><input type="number" id="m-qr-error" value="20" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-[10px] text-slate-400">เมตร</span></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3.5">
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                 <h4 class="text-xs font-bold text-slate-900 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> พื้นที่เช็กอิน (Geofence)</h4>
                                 <span class="bg-blue-50 text-blue-700 border border-blue-200/60 text-[10px] font-semibold px-2.5 py-0.5 rounded-full">GPS & Maps</span>
                             </div>
-                            <p class="text-[11px] text-slate-400 mb-4">กำหนดจุดศูนย์กลางและรัศมีสำหรับตรวจสอบตำแหน่งผู้ใช้งานเมื่อสแกน QR</p>
-                            <label class="block text-xs font-semibold text-slate-700 mb-2">ตำแหน่งศูนย์กลางเช็กอิน</label>
-                            <button type="button" onclick="openMapPicker()" id="btn-open-map-picker" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-3 rounded-xl text-xs shadow-xs hover:shadow transition flex items-center justify-center gap-2 mb-4 active:scale-[0.99]">
+                            <p class="text-[11px] text-slate-400 mb-3">กำหนดจุดศูนย์กลางและรัศมีสำหรับตรวจสอบตำแหน่งผู้ใช้งานเมื่อสแกน QR</p>
+                            <button type="button" onclick="openMapPicker()" id="btn-open-map-picker" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs shadow-xs hover:shadow transition flex items-center justify-center gap-2 active:scale-[0.99]">
                                 <i class="fa-solid fa-location-crosshairs text-sm"></i> ระบุตำแหน่งเช็กอินบนแผนที่
                             </button>
                         </div>
-                        <div id="m-qr-geo-box" class="border border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/60 transition">
-                            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-2.5">
-                                <i class="fa-solid fa-location-dot text-lg"></i>
+
+                        <!-- พิกัดศูนย์กลาง Lat/Lng -->
+                        <div class="grid grid-cols-2 gap-3 pt-1">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">ละติจูด (Latitude) *</label>
+                                <input type="text" id="m-qr-lat" placeholder="14.xxxxxx" oninput="if(typeof onCoordManualChange==='function')onCoordManualChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 bg-white focus:border-blue-500 outline-none">
                             </div>
-                            <p id="map-status-text" class="text-xs text-slate-600 font-semibold mb-1">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
-                            <p class="text-[11px] text-slate-400">กดปุ่ม "ระบุตำแหน่งเช็กอินบนแผนที่" ด้านบน เพื่อเลือกจุดศูนย์กลาง Geofence</p>
-                            <input type="hidden" id="m-qr-lat"><input type="hidden" id="m-qr-lng">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 mb-1">ลองจิจูด (Longitude) *</label>
+                                <input type="text" id="m-qr-lng" placeholder="102.xxxxxx" oninput="if(typeof onCoordManualChange==='function')onCoordManualChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 bg-white focus:border-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- กล่องแสดงสถานะ Geofence (แทนกล่องว่างเดิม) -->
+                        <div id="m-qr-geo-box" class="border border-slate-200 bg-slate-50/80 rounded-xl p-3 text-slate-500 text-xs flex items-center gap-2.5 transition">
+                            <div class="w-7 h-7 rounded-lg bg-slate-200/80 text-slate-500 flex items-center justify-center shrink-0 text-xs">
+                                <i class="fa-solid fa-map-pin"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p id="map-status-text" class="font-semibold text-slate-700 text-[11px] leading-tight">ยังไม่ได้กำหนดพิกัด</p>
+                                <p class="text-[10px] text-slate-400">กดปุ่มเลือกบนแผนที่ หรือกรอกพิกัด Latitude / Longitude</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -710,12 +716,27 @@
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h4 class="text-xs font-bold text-slate-800 mb-2">สรุปก่อนบันทึก</h4>
-                        <div class="space-y-1 text-[11px] text-slate-500 font-medium">
-                            <p><i class="fa-solid fa-circle text-[6px] text-slate-400 mr-1.5"></i> เลือกรอบลงทะเบียน</p>
-                            <p><i class="fa-solid fa-circle text-[6px] text-slate-400 mr-1.5"></i> กำหนดรัศมีสแกนมากกว่า 0 เมตร</p>
-                            <p><i class="fa-solid fa-circle text-[6px] text-slate-400 mr-1.5"></i> กำหนดเวลาเปลี่ยน QR token มากกว่า 0 วินาที</p>
-                            <p><i class="fa-solid fa-circle text-[6px] text-slate-400 mr-1.5"></i> กำหนดค่าความคลาดเคลื่อน GPS</p>
-                            <p><i class="fa-solid fa-circle text-[6px] text-slate-400 mr-1.5"></i> เลือกตำแหน่งศูนย์กลางเช็กอิน</p>
+                        <div class="space-y-1.5 text-[11px] font-medium" id="qr-summary-checklist">
+                            <p id="chk-item-round" class="flex items-center text-slate-400 transition-colors">
+                                <span id="chk-dot-round" class="mr-2"><i class="fa-solid fa-circle text-[6px] text-slate-300"></i></span>
+                                <span>เลือกรอบลงทะเบียน</span>
+                            </p>
+                            <p id="chk-item-radius" class="flex items-center text-slate-400 transition-colors">
+                                <span id="chk-dot-radius" class="mr-2"><i class="fa-solid fa-circle text-[6px] text-slate-300"></i></span>
+                                <span>กำหนดรัศมีสแกนมากกว่า 0 เมตร</span>
+                            </p>
+                            <p id="chk-item-interval" class="flex items-center text-slate-400 transition-colors">
+                                <span id="chk-dot-interval" class="mr-2"><i class="fa-solid fa-circle text-[6px] text-slate-300"></i></span>
+                                <span>กำหนดเวลาเปลี่ยน QR token มากกว่า 0 วินาที</span>
+                            </p>
+                            <p id="chk-item-error" class="flex items-center text-slate-400 transition-colors">
+                                <span id="chk-dot-error" class="mr-2"><i class="fa-solid fa-circle text-[6px] text-slate-300"></i></span>
+                                <span>กำหนดค่าความคลาดเคลื่อน GPS</span>
+                            </p>
+                            <p id="chk-item-geo" class="flex items-center text-slate-400 transition-colors">
+                                <span id="chk-dot-geo" class="mr-2"><i class="fa-solid fa-circle text-[6px] text-slate-300"></i></span>
+                                <span>เลือกตำแหน่งศูนย์กลางเช็กอิน</span>
+                            </p>
                         </div>
                     </div>
                     <button id="btn-save-qr-settings" onclick="saveQRSettings()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-8 py-3 rounded-xl text-xs shadow-md transition flex items-center gap-2">
@@ -739,7 +760,14 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs whitespace-nowrap">
                             <thead class="bg-slate-50 text-[11px] text-slate-500 border-b font-bold">
-                                <tr><th class="p-3.5">รอบลงทะเบียน</th><th class="p-3.5">Latitude</th><th class="p-3.5">Longitude</th><th class="p-3.5 text-center">Radius</th><th class="p-3.5 text-center">สถานะปัจจุบัน</th><th class="p-3.5 text-center">จัดการ</th></tr>
+                                <tr>
+                                    <th class="p-3.5 whitespace-nowrap min-w-[130px]">รอบลงทะเบียน</th>
+                                    <th class="p-3.5 whitespace-nowrap min-w-[100px]">Latitude</th>
+                                    <th class="p-3.5 whitespace-nowrap min-w-[100px]">Longitude</th>
+                                    <th class="p-3.5 text-center whitespace-nowrap min-w-[105px]">Radius</th>
+                                    <th class="p-3.5 text-center whitespace-nowrap min-w-[115px]">สถานะปัจจุบัน</th>
+                                    <th class="p-3.5 text-center whitespace-nowrap min-w-[340px]">จัดการ</th>
+                                </tr>
                             </thead>
                             <tbody id="m-qr-rules-table" class="divide-y divide-slate-100"></tbody>
                         </table>
@@ -795,12 +823,12 @@
                         <table class="w-full text-left text-xs whitespace-nowrap">
                             <thead class="bg-slate-50/80 text-[11px] text-slate-500 border-b border-slate-200 font-semibold uppercase tracking-wider">
                                 <tr>
-                                    <th class="p-3.5">รอบลงทะเบียน</th>
-                                    <th class="p-3.5">Latitude</th>
-                                    <th class="p-3.5">Longitude</th>
-                                    <th class="p-3.5 text-center">Radius</th>
-                                    <th class="p-3.5 text-center">สถานะปัจจุบัน</th>
-                                    <th class="p-3.5 text-center">จัดการ</th>
+                                    <th class="p-3.5 whitespace-nowrap min-w-[130px]">รอบลงทะเบียน</th>
+                                    <th class="p-3.5 whitespace-nowrap min-w-[100px]">Latitude</th>
+                                    <th class="p-3.5 whitespace-nowrap min-w-[100px]">Longitude</th>
+                                    <th class="p-3.5 text-center whitespace-nowrap min-w-[105px]">Radius</th>
+                                    <th class="p-3.5 text-center whitespace-nowrap min-w-[115px]">สถานะปัจจุบัน</th>
+                                    <th class="p-3.5 text-center whitespace-nowrap min-w-[280px]">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="m-qract-rules-table" class="divide-y divide-slate-100"></tbody>
@@ -875,10 +903,10 @@
                         <table class="w-full text-left text-xs whitespace-nowrap">
                             <thead class="bg-slate-50 border-b text-[11px] text-slate-500 font-bold uppercase tracking-wider">
                                 <tr>
-                                    <th class="p-4">รอบลงทะเบียน</th>
-                                    <th class="p-4 text-center">หมายเหตุ</th>
-                                    <th class="p-4 text-center w-28">สถานะการสแกน</th>
-                                    <th class="p-4 text-center w-24">จัดการ</th>
+                                    <th class="p-4 whitespace-nowrap min-w-[160px]">รอบลงทะเบียน</th>
+                                    <th class="p-4 text-center whitespace-nowrap min-w-[140px]">หมายเหตุ</th>
+                                    <th class="p-4 text-center whitespace-nowrap min-w-[140px]">สถานะการสแกน</th>
+                                    <th class="p-4 text-center whitespace-nowrap min-w-[110px]">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="master-rounds-list" class="divide-y divide-slate-100 bg-white"></tbody>
@@ -1411,20 +1439,14 @@
                 if (queueDoc.exists && queueDoc.data().payload) {
                     let fastData = JSON.parse(queueDoc.data().payload);
                     applyLoadedData(fastData); 
-                    console.log("🚀 อัปเดตหน้าจอด้วยข้อมูลใหม่สุดสำเร็จ!");
+                    console.log("🚀 อัปเดตหน้าจอด้วยข้อมูลใหม่สุดสำเร็จทันที!");
                 } else {
-                    console.log("⏳ คิวว่าง กำลังหน่วงเวลาดึงข้อมูลจาก Sheets...");
-                    let randomDelay = Math.floor(Math.random() * 2000) + 500;
-                    setTimeout(() => {
-                        if (typeof silentPullFromGS === "function") silentPullFromGS();
-                    }, randomDelay);
+                    console.log("⚡ ดึงข้อมูลทันทีจาก Sheets...");
+                    if (typeof silentPullFromGS === "function") silentPullFromGS();
                 }
             } catch (err) {
-                console.log("ดึงข้อมูล Firebase พลาด สลับไปใช้ Sheets แทน:", err);
-                let randomDelay = Math.floor(Math.random() * 2000) + 500;
-                setTimeout(() => {
-                    if (typeof silentPullFromGS === "function") silentPullFromGS();
-                }, randomDelay);
+                console.log("ดึงข้อมูล Firebase พลาด สลับไปใช้ Sheets ทันที:", err);
+                if (typeof silentPullFromGS === "function") silentPullFromGS();
             }
         }
     });
@@ -1739,12 +1761,36 @@ async function silentPullFromGS() {
 }
 
 async function pullFromGS() {
+    // 🌟 ดึงข้อมูลแบบทันที (Instant Pull):
+    // 1. ลองดึงจาก Firebase Sync Queue ทันทีแบบเรียลไทม์ (<150ms)
+    let fastPulled = false;
+    try {
+        if (typeof db !== 'undefined' && db) {
+            let queueDoc = await db.collection('syncQueue').doc('latest').get();
+            if (queueDoc.exists && queueDoc.data() && queueDoc.data().payload) {
+                let fastData = JSON.parse(queueDoc.data().payload);
+                applyLoadedData(fastData);
+                fastPulled = true;
+                showToast('ดึงข้อมูลล่าสุดเรียบร้อยทันที (Firebase Realtime)', 'success');
+            }
+        }
+    } catch (e) {
+        console.warn('Fast pull error:', e);
+    }
+
+    // 2. ถ้าดึงจากคิวแบบทันทีสำเร็จแล้ว ให้ซิงก์จาก Sheets ต่อในพื้นหลังแบบไม่บล็อกผู้ใช้
+    if (fastPulled) {
+        if (typeof silentPullFromGS === 'function') silentPullFromGS();
+        return;
+    }
+
+    // 3. ถ้าไม่มีคิวใน Firebase ให้ดึงจาก Apps Script โดยตรง
     Swal.fire({ title: 'กำลังดึงข้อมูลอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const result = await callBackend({ action: 'loadAll' });
         if (result && result.status === 'success') {
             applyLoadedData(result.data);
-            Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลจากหลังบ้านแล้ว', timer: 1500, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลจากหลังบ้านแล้ว', timer: 1200, showConfirmButton: false });
         } else {
             Swal.fire('ดึงข้อมูลไม่สำเร็จ', (result && result.message) || 'ตรวจสอบการเชื่อมต่อหรือเวอร์ชัน Apps Script', 'error');
         }
@@ -1842,6 +1888,8 @@ function applyLoadedData(d) {
                 if (typeof renderCheckinMapDisplay === 'function') renderCheckinMapDisplay();
                 if (typeof renderMasterRoundsTable === 'function') renderMasterRoundsTable();
                 if (typeof updateMasterHeaderStatusButtons === 'function') updateMasterHeaderStatusButtons();
+                if (typeof renderQRSettingsTab === 'function') renderQRSettingsTab();
+                if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
             }
         }
         // แก้ไขฟังก์ชัน saveToLocal
@@ -3980,12 +4028,8 @@ window.renderMasterDashboard = function() {
     if (typeEl) typeEl.innerText = act.type || 'กิจกรรมบังคับเลือก';
     let quotaEl = document.getElementById('m-info-quota');
     if (quotaEl) quotaEl.innerText = (act.maxParticipants > 0) ? `${act.maxParticipants} คน` : 'ไม่จำกัด';
-    let deptEl = document.getElementById('m-info-dept');
-    if (deptEl) deptEl.innerText = act.department || act.dept || 'องค์การนักศึกษา / แผนกวิชา';
     let termEl = document.getElementById('m-info-term');
     if (termEl) termEl.innerText = `${act.year || '-'}/${act.term || '-'}`;
-    let certEl = document.getElementById('m-info-cert');
-    if (certEl) certEl.innerText = act.hasCertificate ? 'มอบเกียรติบัตรดิจิทัล' : 'ไม่มีเกียรติบัตร';
     let createdEl = document.getElementById('m-info-created');
     if (createdEl) createdEl.innerText = `สร้างข้อมูลเมื่อ: ${act.createdAt || 'บันทึกในระบบ'}`;
 
@@ -4849,32 +4893,32 @@ window.renderQRSettingsTab = function() {
         let isActive = (rule.isActive !== false);
         rowsHtml += `
             <tr class="hover:bg-slate-50/80 transition">
-                <td class="p-3.5">
+                <td class="p-3.5 whitespace-nowrap min-w-[130px]">
                     <div class="font-bold text-slate-800 text-xs">${rule.roundName || 'ทั่วไป'}</div>
                     <div class="text-[10px] text-slate-400 font-mono mt-0.5">ID: ${rule.id || (idx + 35)}</div>
                 </td>
-                <td class="p-3.5 font-mono text-slate-700 text-xs">${rule.lat || '-'}</td>
-                <td class="p-3.5 font-mono text-slate-700 text-xs">${rule.lng || '-'}</td>
-                <td class="p-3.5 text-center">
-                    <span class="bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full text-xs border border-blue-100">${rule.radius || 50} เมตร</span>
+                <td class="p-3.5 font-mono text-slate-700 text-xs whitespace-nowrap min-w-[100px]">${rule.lat || '-'}</td>
+                <td class="p-3.5 font-mono text-slate-700 text-xs whitespace-nowrap min-w-[100px]">${rule.lng || '-'}</td>
+                <td class="p-3.5 text-center whitespace-nowrap min-w-[105px]">
+                    <span class="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-bold px-3 py-1 rounded-full text-xs border border-blue-200/80 whitespace-nowrap shrink-0">${rule.radius || 50} เมตร</span>
                 </td>
-                <td class="p-3.5 text-center">
-                    <span class="${isActive ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'} font-bold px-3 py-1 rounded-full text-xs border">
+                <td class="p-3.5 text-center whitespace-nowrap min-w-[115px]">
+                    <span class="inline-flex items-center justify-center ${isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} font-bold px-3 py-1 rounded-full text-xs border whitespace-nowrap shrink-0">
                         ${isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                     </span>
                 </td>
-                <td class="p-3.5 text-center">
-                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                        <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <td class="p-3.5 text-center whitespace-nowrap min-w-[340px]">
+                    <div class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0">
+                        <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="whitespace-nowrap shrink-0 border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Maps
                         </button>
-                        <button type="button" onclick="toggleQRRuleActive(${idx})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="toggleQRRuleActive(${idx})" class="whitespace-nowrap shrink-0 border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-power-off text-[11px] ${isActive ? 'text-emerald-600' : 'text-slate-400'}"></i> ${isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
                         </button>
-                        <button type="button" onclick="editQRRule(${idx})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="editQRRule(${idx})" class="whitespace-nowrap shrink-0 border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-solid fa-pen text-[11px]"></i> แก้ไขข้อมูล
                         </button>
-                        <button type="button" onclick="deleteQRRule(${idx})" class="border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="deleteQRRule(${idx})" class="whitespace-nowrap shrink-0 border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                             <i class="fa-regular fa-trash-can text-[11px]"></i> ลบข้อมูล
                         </button>
                     </div>
@@ -4883,6 +4927,7 @@ window.renderQRSettingsTab = function() {
         `;
     });
     tableEl.innerHTML = rowsHtml;
+    if (typeof updateQRSettingsChecklist === 'function') updateQRSettingsChecklist();
 };
 
 window.saveQRSettings = function() {
@@ -5039,43 +5084,96 @@ window.openExternalGoogleMap = function(lat, lng) {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
 };
 
+window.updateQRSettingsChecklist = function() {
+    const roundVal = document.getElementById('m-qr-round-select')?.value;
+    const isRoundDone = !!(roundVal && roundVal.trim() !== '');
+
+    const radiusVal = parseFloat(document.getElementById('m-qr-radius')?.value);
+    const isRadiusDone = (!isNaN(radiusVal) && radiusVal > 0);
+
+    const intervalVal = parseFloat(document.getElementById('m-qr-interval')?.value);
+    const isIntervalDone = (!isNaN(intervalVal) && intervalVal > 0);
+
+    const errorVal = parseFloat(document.getElementById('m-qr-error')?.value);
+    const isErrorDone = (!isNaN(errorVal) && errorVal >= 0);
+
+    const latVal = parseFloat(document.getElementById('m-qr-lat')?.value);
+    const lngVal = parseFloat(document.getElementById('m-qr-lng')?.value);
+    const isGeoDone = (!isNaN(latVal) && !isNaN(lngVal) && latVal !== 0 && lngVal !== 0);
+
+    const setItemState = (dotId, itemId, isDone) => {
+        const dotEl = document.getElementById(dotId);
+        const itemEl = document.getElementById(itemId);
+        if (dotEl) {
+            dotEl.innerHTML = isDone 
+                ? '<i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>' 
+                : '<i class="fa-solid fa-circle text-[6px] text-slate-300"></i>';
+        }
+        if (itemEl) {
+            if (isDone) {
+                itemEl.classList.remove('text-slate-400');
+                itemEl.classList.add('text-slate-700', 'font-semibold');
+            } else {
+                itemEl.classList.remove('text-slate-700', 'font-semibold');
+                itemEl.classList.add('text-slate-400');
+            }
+        }
+    };
+
+    setItemState('chk-dot-round', 'chk-item-round', isRoundDone);
+    setItemState('chk-dot-radius', 'chk-item-radius', isRadiusDone);
+    setItemState('chk-dot-interval', 'chk-item-interval', isIntervalDone);
+    setItemState('chk-dot-error', 'chk-item-error', isErrorDone);
+    setItemState('chk-dot-geo', 'chk-item-geo', isGeoDone);
+};
+
 window.updateGeofencePreviewCard = function(lat, lng, radius) {
     let geoBox = document.getElementById('m-qr-geo-box');
-    if (!geoBox) return;
+    let latInput = document.getElementById('m-qr-lat');
+    let lngInput = document.getElementById('m-qr-lng');
+    if (latInput && lat !== undefined && lat !== null) latInput.value = lat;
+    if (lngInput && lng !== undefined && lng !== null) lngInput.value = lng;
+
     let rad = radius || document.getElementById('m-qr-radius')?.value || 50;
-    if (lat && lng) {
-        geoBox.className = 'border border-blue-200 bg-blue-50/40 rounded-xl p-4 text-left transition';
-        geoBox.innerHTML = `
-            <div class="flex items-center justify-between mb-2.5">
-                <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> กำหนดพิกัดแล้ว พร้อมใช้งาน
-                </span>
-                <span class="text-[11px] text-slate-500 font-medium bg-white px-2 py-0.5 rounded border border-slate-200">รัศมี: ${rad} ม.</span>
-            </div>
-            <div class="bg-white border border-slate-200 rounded-lg p-2.5 mb-2 font-mono text-xs text-slate-800 flex items-center justify-between">
-                <div>
-                    <span class="text-slate-400 select-none mr-1">LAT:</span><span class="font-bold text-slate-900">${lat}</span>
-                    <span class="text-slate-300 mx-2">|</span>
-                    <span class="text-slate-400 select-none mr-1">LNG:</span><span class="font-bold text-slate-900">${lng}</span>
+    let curLat = (latInput && typeof latInput.value === 'string') ? latInput.value.trim() : (lat != null ? String(lat) : '');
+    let curLng = (lngInput && typeof lngInput.value === 'string') ? lngInput.value.trim() : (lng != null ? String(lng) : '');
+
+    if (geoBox) {
+        if (curLat && curLng && !isNaN(parseFloat(curLat)) && !isNaN(parseFloat(curLng))) {
+            geoBox.className = 'border border-emerald-200 bg-emerald-50/50 rounded-xl p-3 text-slate-700 text-xs transition';
+            geoBox.innerHTML = `
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="inline-flex items-center gap-1.5 text-emerald-700 text-[11px] font-bold">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> กำหนดพิกัด Geofence แล้ว
+                    </span>
+                    <button type="button" onclick="openExternalGoogleMap('${curLat}', '${curLng}')" class="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200" title="เปิดดูใน Google Maps">
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> <span class="text-[10px]">ดูบน Maps</span>
+                    </button>
                 </div>
-                <button type="button" onclick="openExternalGoogleMap(${lat}, ${lng})" class="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1 ml-2" title="เปิดดูใน Google Maps">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </button>
-            </div>
-            <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>ระบบจะตรวจสอบว่าอุปกรณ์ของนักศึกษาต้องอยู่ภายในรัศมี ${rad} เมตรจากจุดนี้</p>
-            <input type="hidden" id="m-qr-lat" value="${lat}"><input type="hidden" id="m-qr-lng" value="${lng}">
-        `;
-    } else {
-        geoBox.className = 'border border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/60 transition';
-        geoBox.innerHTML = `
-            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-2.5">
-                <i class="fa-solid fa-location-dot text-lg"></i>
-            </div>
-            <p id="map-status-text" class="text-xs text-slate-600 font-semibold mb-1">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
-            <p class="text-[11px] text-slate-400">กดปุ่ม "ระบุตำแหน่งเช็กอินบนแผนที่" ด้านบน เพื่อเลือกจุดศูนย์กลาง Geofence</p>
-            <input type="hidden" id="m-qr-lat"><input type="hidden" id="m-qr-lng">
-        `;
+                <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>พร้อมตรวจสอบผู้ใช้งานในรัศมี <span class="font-bold text-slate-800">${rad}</span> เมตร</p>
+            `;
+        } else {
+            geoBox.className = 'border border-slate-200 bg-slate-50/80 rounded-xl p-3 text-slate-500 text-xs flex items-center gap-2.5 transition';
+            geoBox.innerHTML = `
+                <div class="w-7 h-7 rounded-lg bg-slate-200/80 text-slate-500 flex items-center justify-center shrink-0 text-xs">
+                    <i class="fa-solid fa-map-pin"></i>
+                </div>
+                <div class="flex-1">
+                    <p id="map-status-text" class="font-semibold text-slate-700 text-[11px] leading-tight">ยังไม่ได้กำหนดพิกัด</p>
+                    <p class="text-[10px] text-slate-400">กดปุ่มเลือกบนแผนที่ หรือกรอกพิกัด Latitude / Longitude</p>
+                </div>
+            `;
+        }
     }
+    if (typeof updateQRSettingsChecklist === 'function') {
+        updateQRSettingsChecklist();
+    }
+};
+
+window.onCoordManualChange = function() {
+    let latVal = document.getElementById('m-qr-lat')?.value.trim();
+    let lngVal = document.getElementById('m-qr-lng')?.value.trim();
+    updateGeofencePreviewCard(latVal, lngVal);
 };
 
 window.applyPickerLocation = function(lat, lng, zoom = 17, label = '') {
@@ -5440,32 +5538,32 @@ window.renderQRActivityTab = function() {
         let ruleIsActive = (rule.isActive !== false);
         rowsHtml += `
             <tr class="hover:bg-slate-50/80 transition-colors">
-                <td class="p-3.5">
+                <td class="p-3.5 whitespace-nowrap min-w-[130px]">
                     <div class="font-bold text-slate-800 text-xs">${rule.roundName || 'ทั่วไป'}</div>
                     <div class="text-[10px] text-slate-400 font-mono mt-0.5">ID: ${rule.id || (idx + 35)}</div>
                 </td>
-                <td class="p-3.5 font-mono text-slate-700 text-xs">${rule.lat || '-'}</td>
-                <td class="p-3.5 font-mono text-slate-700 text-xs">${rule.lng || '-'}</td>
-                <td class="p-3.5 text-center">
-                    <span class="bg-blue-50 text-blue-700 font-semibold px-3 py-1 rounded-full text-xs border border-blue-200/60">${rule.radius || 50} เมตร</span>
+                <td class="p-3.5 font-mono text-slate-700 text-xs whitespace-nowrap min-w-[100px]">${rule.lat || '-'}</td>
+                <td class="p-3.5 font-mono text-slate-700 text-xs whitespace-nowrap min-w-[100px]">${rule.lng || '-'}</td>
+                <td class="p-3.5 text-center whitespace-nowrap min-w-[105px]">
+                    <span class="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-semibold px-3 py-1 rounded-full text-xs border border-blue-200/60 whitespace-nowrap shrink-0">${rule.radius || 50} เมตร</span>
                 </td>
-                <td class="p-3.5 text-center">
-                    <span class="${actIsActive && ruleIsActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} font-semibold px-3 py-1 rounded-full text-xs border">
+                <td class="p-3.5 text-center whitespace-nowrap min-w-[115px]">
+                    <span class="inline-flex items-center justify-center ${actIsActive && ruleIsActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} font-semibold px-3 py-1 rounded-full text-xs border whitespace-nowrap shrink-0">
                         ${!actIsActive ? 'ปิดตามกิจกรรม' : (ruleIsActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน')}
                     </span>
                 </td>
-                <td class="p-3.5 text-center">
-                    <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                        <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+                <td class="p-3.5 text-center whitespace-nowrap min-w-[280px]">
+                    <div class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0">
+                        <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="whitespace-nowrap shrink-0 border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Maps
                         </button>
-                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${rule.roundName}')` : `showToast('เปิดใช้งานคิวอาร์โค้ดได้เมื่อกิจกรรมอยู่ในสถานะเปิดใช้งาน', 'warning')`}" class="${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${rule.roundName}')` : `showToast('เปิดใช้งานคิวอาร์โค้ดได้เมื่อกิจกรรมอยู่ในสถานะเปิดใช้งาน', 'warning')`}" class="whitespace-nowrap shrink-0 ${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
                             <i class="fa-solid fa-qrcode text-xs"></i> QRCODE ${!actIsActive ? '<i class="fa-solid fa-lock text-[10px] text-amber-500 ml-0.5"></i>' : ''}
                         </button>
-                        <button type="button" onclick="editQRRule(${idx})" class="text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition" title="แก้ไขการตั้งค่ารอบนี้">
+                        <button type="button" onclick="editQRRule(${idx})" class="whitespace-nowrap shrink-0 text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition" title="แก้ไขการตั้งค่ารอบนี้">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        <button type="button" onclick="deleteQRRule(${idx})" class="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition" title="ลบ QRCODE รอบนี้">
+                        <button type="button" onclick="deleteQRRule(${idx})" class="whitespace-nowrap shrink-0 text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition" title="ลบ QRCODE รอบนี้">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
@@ -5740,6 +5838,7 @@ window.renderCheckinMapDisplay = function(showMap = false) {
 };
 
 // 10. จัดการรอบลงทะเบียน (Tab 6: รอบลงทะเบียน)
+window.renderMasterRoundsTable = function(...args) { return window.renderMasterRoundsTab(...args); };
 window.renderMasterRoundsTab = function() {
     if (!currentMasterActivity) return;
     let rounds = getMasterRounds();
@@ -5757,24 +5856,24 @@ window.renderMasterRoundsTab = function() {
         let isOpen = (r.isOpen !== false);
         rowsHtml += `
             <tr class="hover:bg-slate-50 transition text-xs border-b border-slate-100">
-                <td class="p-4">
+                <td class="p-4 whitespace-nowrap min-w-[160px]">
                     <p class="font-bold text-slate-800 text-sm">${r.thName || r.id}</p>
                     <p class="text-xs text-slate-400 mt-0.5">${r.enName || '-'}</p>
                 </td>
-                <td class="p-4 text-center text-slate-500 text-xs">${r.note || '-'}</td>
-                <td class="p-4 text-center">
-                    <button type="button" onclick="toggleRoundOpenStatus('${r.id}')" class="px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 mx-auto ${isOpen ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}">
-                        <i class="fa-solid fa-power-off text-[11px]"></i>
-                        ${isOpen ? 'เปิดสแกน' : 'ปิดสแกน'}
+                <td class="p-4 text-center text-slate-500 text-xs whitespace-nowrap min-w-[140px]">${r.note || '-'}</td>
+                <td class="p-4 text-center whitespace-nowrap min-w-[140px]">
+                    <button type="button" onclick="toggleRoundOpenStatus('${r.id}')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 transition shadow-xs ${isOpen ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'}">
+                        <i class="fa-solid fa-power-off text-[11px] shrink-0"></i>
+                        <span class="whitespace-nowrap leading-none">${isOpen ? 'เปิดสแกน' : 'ปิดสแกน'}</span>
                     </button>
                 </td>
-                <td class="p-4 text-center">
-                    <div class="flex items-center justify-center gap-2">
+                <td class="p-4 text-center whitespace-nowrap min-w-[110px]">
+                    <div class="inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0">
                         ${!isStaff ? `
-                            <button type="button" onclick="openEditRoundModal('${r.id}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition" title="แก้ไขรอบนี้">
+                            <button type="button" onclick="openEditRoundModal('${r.id}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition shrink-0" title="แก้ไขรอบนี้">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            <button type="button" onclick="deleteMasterRound('${r.id}')" class="text-rose-500 hover:bg-red-100 p-2 rounded-lg transition" title="ลบรอบนี้">
+                            <button type="button" onclick="deleteMasterRound('${r.id}')" class="text-rose-500 hover:bg-red-100 p-2 rounded-lg transition shrink-0" title="ลบรอบนี้">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         ` : '<span class="text-slate-300">-</span>'}
@@ -6467,20 +6566,10 @@ window.createActivityModal = function() {
 
         <hr class="border-slate-200">
 
-        <!-- 3. รายละเอียดและเกียรติบัตร -->
+        <!-- 3. รายละเอียดกิจกรรม -->
         <div>
             <label class="block font-bold text-slate-700 mb-1">รายละเอียดกิจกรรม</label>
             <textarea id="act-desc" rows="3" class="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-500" placeholder="ระบุวัตถุประสงค์ สถานที่ หรือการแต่งกาย"></textarea>
-            
-            <div class="mt-3">
-                <label class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
-                    <input type="checkbox" id="act-cert" checked class="w-4 h-4 text-blue-600 rounded">
-                    <div>
-                        <span class="font-bold text-slate-800 block text-xs">มอบเกียรติบัตรดิจิทัล</span>
-                        <span class="text-[10px] text-slate-400">สร้าง E-Certificate ให้นักศึกษาเมื่อผ่านกิจกรรม</span>
-                    </div>
-                </label>
-            </div>
         </div>
     </div>`;
 
@@ -6520,7 +6609,7 @@ window.createActivityModal = function() {
                 department: '',
                 maxParticipants: quota,
                 desc: document.getElementById('act-desc')?.value || '',
-                hasCertificate: document.getElementById('act-cert')?.checked,
+                hasCertificate: false,
                 isOpen: false,
                 isVisible: false,
                 isActive: false,
@@ -6627,7 +6716,7 @@ window.editActivityModal = function(oldTitle) {
         <!-- 3. การตั้งค่าการมองเห็นและการเข้าถึง (Official SAMS RMUTI) -->
         <div>
             <h4 class="font-bold text-blue-700 mb-2 text-xs flex items-center gap-1.5"><i class="fa-solid fa-sliders"></i> การตั้งค่าการมองเห็นและการเข้าถึง</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label class="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition shadow-sm">
                     <input type="checkbox" id="edit-act-open" ${act.isOpen !== false ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded mt-0.5">
                     <div>
@@ -6644,24 +6733,6 @@ window.editActivityModal = function(oldTitle) {
                             <i class="fa-solid fa-eye text-blue-500 text-xs"></i> แสดงในรายการ
                         </div>
                         <p class="text-[10px] text-slate-500 mt-0.5">แสดงข้อมูลในหน้าเว็บไซต์รับสมัคร</p>
-                    </div>
-                </label>
-                <label class="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition shadow-sm">
-                    <input type="checkbox" id="edit-act-across-campus" ${act.isAcrossCampus ? 'checked' : ''} class="w-4 h-4 text-orange-500 rounded mt-0.5">
-                    <div>
-                        <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                            <i class="fa-solid fa-earth-americas text-orange-500 text-xs"></i> รับข้ามวิทยาเขต
-                        </div>
-                        <p class="text-[10px] text-slate-500 mt-0.5">เปิดให้นักศึกษาจากวิทยาเขตอื่นสมัครได้</p>
-                    </div>
-                </label>
-            </div>
-            <div class="mt-2.5">
-                <label class="flex items-center space-x-3 p-3 bg-purple-50/60 border border-purple-200 rounded-xl cursor-pointer hover:bg-purple-100/50 transition">
-                    <input type="checkbox" id="edit-act-cert" ${act.hasCertificate ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded">
-                    <div>
-                        <span class="font-bold text-purple-900 text-xs flex items-center gap-1.5"><i class="fa-solid fa-award text-purple-600"></i> มอบเกียรติบัตร (E-Certificate)</span>
-                        <span class="text-[10px] text-purple-700">ออกใบเกียรติบัตรดิจิทัลให้กับผู้ที่ผ่านกิจกรรม</span>
                     </div>
                 </label>
             </div>
@@ -6710,10 +6781,10 @@ window.editActivityModal = function(oldTitle) {
                 actEnd: document.getElementById('edit-act-end')?.value || nDate,
                 maxParticipants: quota,
                 desc: document.getElementById('edit-act-desc')?.value || '',
-                hasCertificate: document.getElementById('edit-act-cert')?.checked,
+                hasCertificate: false,
                 isOpen: document.getElementById('edit-act-open')?.checked,
                 isVisible: document.getElementById('edit-act-visible')?.checked,
-                isAcrossCampus: document.getElementById('edit-act-across-campus')?.checked || false
+                isAcrossCampus: false
             };
         }
     }).then(res => {
@@ -8609,13 +8680,7 @@ window.openRegistrationModal = function(title) {
                      </div>
                  </div>
 
-                 <div class="flex items-center gap-3">
-                     <div class="w-9 h-9 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 font-bold shrink-0"><i class="fa-solid fa-certificate"></i></div>
-                     <div>
-                         <p class="text-[10px] text-slate-400 font-bold">เกียรติบัตร</p>
-                         <p class="text-xs font-bold text-slate-800">${act.hasCertificate ? 'มอบเกียรติบัตรดิจิทัล' : 'ไม่มีเกียรติบัตร'}</p>
-                     </div>
-                 </div>
+
              </div>
         </div>
 
