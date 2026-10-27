@@ -33,54 +33,112 @@
     .tab-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-    body { font-family: 'Prompt', sans-serif; background-color: #f0fdf4; color: #1e293b; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; border-bottom: 2px solid #047857; }
-        
-        /* 🌟 Playful 3D Style Classes 🌟 */
-        .playful-card {
-            background-color: white;
-            border: 2px solid #e2e8f0;
-            border-bottom-width: 8px;
-            border-radius: 1.5rem;
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .playful-card:hover {
-            border-bottom-width: 4px;
-            transform: translateY(4px);
-            border-color: #cbd5e1;
-        }
-        
-        .menu-active { background-color: #10b981 !important; color: white !important; font-weight: 900 !important; border-radius: 1rem !important; box-shadow: 0 4px 0 0 #047857 !important; transform: translateY(-2px); margin-bottom: 4px; }
-        .sidebar-open { transform: translateX(0%); }
-        .sidebar-closed { transform: translateX(-100%); }
-        @media (min-width: 768px) { .sidebar-closed { transform: translateX(0%); } }
-        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type="number"] { -moz-appearance: textfield; }
-        
-        /* 🌟 Modern Input Playful 🌟 */
-        .modern-input { 
-            width: 100%; padding: 0.75rem; 
-            border: 2px solid #cbd5e1; 
-            border-bottom-width: 4px;
-            border-radius: 1rem; margin-bottom: 0.75rem; outline: none; font-family: 'Prompt'; font-weight: bold;
-            transition: all 0.15s;
-        }
-        .modern-input:focus { 
-            border-color: #10b981; 
-            transform: translateY(2px);
-            border-bottom-width: 2px;
-        }
-        
-        .toggle-checkbox:checked { right: 0; border-color: #10b981; border-bottom-width: 2px; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
-        table td, table th { word-break: break-word; white-space: normal; vertical-align: middle; }
-        @keyframes slotSpin { 0% { transform: translateY(-20px); opacity: 0; } 50% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(20px); opacity: 0; } }
-        .animate-slot { animation: slotSpin 0.15s infinite linear; }
-        @media (min-width: 768px) {  
-            .desktop-sidebar-closed { margin-left: -16rem !important; }  
-        }
+    body { 
+        font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        background-color: #f8fafc; 
+        color: #0f172a; 
+        -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* 🌟 Executive Card & Inputs (Modern SaaS Design - Linear / Tailwind / Shadcn) 🌟 */
+    .playful-card, .executive-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .playful-card:hover, .executive-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+        transform: translateY(-1px);
+    }
+    
+    .menu-active { 
+        background-color: #eff6ff !important; 
+        color: #1d4ed8 !important; 
+        font-weight: 600 !important; 
+        border-radius: 0.75rem !important; 
+        border: 1px solid #dbeafe !important;
+        box-shadow: 0 1px 2px 0 rgba(29, 78, 216, 0.05) !important;
+    }
+    .sidebar-open { transform: translateX(0%); }
+    .sidebar-closed { transform: translateX(-100%); }
+    @media (min-width: 768px) { .sidebar-closed { transform: translateX(0%); } }
+    input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+    
+    .modern-input { 
+        width: 100%; 
+        padding: 0.625rem 0.875rem; 
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1; 
+        border-radius: 0.75rem; 
+        margin-bottom: 0.75rem; 
+        outline: none; 
+        font-family: 'Prompt', sans-serif; 
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #0f172a;
+        transition: all 0.15s ease-in-out;
+        box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
+    }
+    .modern-input:focus { 
+        border-color: #2563eb; 
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    
+    .toggle-checkbox:checked { right: 0; border-color: #2563eb; }
+    .toggle-checkbox:checked + .toggle-label { background-color: #2563eb; }
+    table td, table th { word-break: break-word; white-space: normal; vertical-align: middle; }
+    @keyframes slotSpin { 0% { transform: translateY(-20px); opacity: 0; } 50% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(20px); opacity: 0; } }
+    .animate-slot { animation: slotSpin 0.15s infinite linear; }
+    @media (min-width: 768px) {  
+        .desktop-sidebar-closed { margin-left: -16rem !important; }  
+    }
+
+    /* Modern SweetAlert2 UI (Clean SaaS Styling) */
+    .swal2-popup {
+        font-family: 'Prompt', sans-serif !important;
+        border-radius: 1.25rem !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+        padding: 1.5rem !important;
+    }
+    .swal2-title {
+        font-size: 1.125rem !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+    }
+    .swal2-html-container {
+        color: #475569 !important;
+        font-size: 0.875rem !important;
+        margin: 0.75rem 0 0 0 !important;
+    }
+    .swal2-actions {
+        gap: 0.5rem !important;
+        margin-top: 1.25rem !important;
+    }
+    .swal2-confirm {
+        border-radius: 0.75rem !important;
+        font-weight: 600 !important;
+        font-size: 0.8125rem !important;
+        padding: 0.625rem 1.25rem !important;
+        background-color: #2563eb !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+    }
+    .swal2-cancel {
+        border-radius: 0.75rem !important;
+        font-weight: 600 !important;
+        font-size: 0.8125rem !important;
+        padding: 0.625rem 1.25rem !important;
+        background-color: #64748b !important;
+    }
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
@@ -1736,8 +1794,9 @@ function applyLoadedData(d) {
             }
         }
         // แก้ไขฟังก์ชัน saveToLocal
+// แก้ไขฟังก์ชัน saveToLocal
 function saveToLocal(triggerSync = true) { 
-    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
+    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs }; 
     localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
     
     // 🌟 ให้นักศึกษา (guest) เซฟลงเครื่องตัวเองก็พอ ไม่ต้องดันขึ้นระบบใหญ่
@@ -1745,7 +1804,7 @@ function saveToLocal(triggerSync = true) {
         clearTimeout(syncTimeout); 
         syncTimeout = setTimeout(() => {
             if(!isSyncing) autoSyncToGS();
-        }, 100); // 🌟 แก้ตรงนี้: เปลี่ยนจาก 3000 เป็น 100 (ใช้เวลาแค่ 0.1 วินาทีในการส่งข้อมูลเข้าคิว Firebase)
+        }, 100); // 🌟 เปลี่ยนจาก 3000 เป็น 100 เพื่อให้ส่งขึ้น Firebase ทันทีที่กดปุ่ม
     } 
 }
         function loadFromLocal() {
@@ -3462,6 +3521,123 @@ function ensureLeafletLoaded(callback) {
 }
 
 
+window.updateOverviewEvalState = function() {
+    if (!currentMasterActivity) return;
+    let isActive = (currentMasterActivity.isActive !== false);
+    let hasSelected = window.actMasterSelectedIds && window.actMasterSelectedIds.size > 0;
+    let evalAlert = document.getElementById('m-overview-eval-alert');
+    let batchWrapper = document.getElementById('m-batch-actions-wrapper');
+
+    if (evalAlert) {
+        if (isActive && hasSelected) {
+            evalAlert.classList.remove('hidden');
+        } else {
+            evalAlert.classList.add('hidden');
+        }
+    }
+
+    if (batchWrapper) {
+        if (hasSelected) {
+            batchWrapper.classList.remove('opacity-0', 'pointer-events-none');
+            batchWrapper.classList.add('opacity-100');
+        } else {
+            batchWrapper.classList.add('opacity-0', 'pointer-events-none');
+            batchWrapper.classList.remove('opacity-100');
+        }
+    }
+
+    ['m-batch-btn-c', 'm-batch-btn-a', 'm-batch-btn-u', 'm-batch-btn-p'].forEach(btnId => {
+        let b = document.getElementById(btnId);
+        if (b) {
+            b.disabled = isActive;
+            b.classList.toggle('opacity-40', isActive);
+            b.classList.toggle('cursor-not-allowed', isActive);
+            b.title = isActive ? 'หากสถานะกิจกรรมยังทำงานอยู่จะไม่สามารถประเมินได้ กรุณาปิดการใช้งานเพื่อประเมิน' : '';
+        }
+    });
+};
+
+window.openCriteriaModal = function() {
+    if (!currentMasterActivity) return;
+    let act = currentMasterActivity;
+    let actLogs = activityLogs.filter(l => l.activityTitle === act.title);
+    let rounds = getMasterRounds();
+    let distinctIds = [...new Set(actLogs.map(l => l.studentId))];
+
+    Swal.fire({
+        title: '<div class="text-left font-bold text-violet-800 text-base flex items-center gap-2"><i class="fa-solid fa-filter text-violet-600"></i> กรองหลักเกณฑ์นักศึกษา</div>',
+        html: `
+            <div class="text-left text-xs space-y-4 font-sans mt-2">
+                <p class="text-slate-500">เลือกเงื่อนไขหลักเกณฑ์เพื่อคัดกรองนักศึกษาสำหรับการประเมินผลแบบกลุ่ม:</p>
+                
+                <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label class="font-bold text-slate-700 block mb-1">1. กรองตามระดับการศึกษา / หลักเกณฑ์:</label>
+                    <select id="criteria-degree-filter" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white focus:border-violet-500 outline-none">
+                        <option value="ALL">-- ทุกหลักเกณฑ์ --</option>
+                        <option value="BACHELOR">ปริญญาตรี 4-5 ปี</option>
+                        <option value="DIPLOMA">ปวส. (ประกาศนียบัตรวิชาชีพชั้นสูง)</option>
+                    </select>
+                </div>
+
+                <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label class="font-bold text-slate-700 block mb-1">2. กรองตามประวัติการเข้าร่วม:</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-1.5">
+                        <input type="radio" name="criteria-scan-filter" value="ALL" checked class="text-violet-600">
+                        <span>ทั้งหมด (ทั้งที่สแกนแล้วและยังไม่สแกน)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-1.5">
+                        <input type="radio" name="criteria-scan-filter" value="CHECKED_ALL" class="text-violet-600">
+                        <span>สแกนเช็กชื่อครบทุกรอบ (${rounds.length} รอบ)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                        <input type="radio" name="criteria-scan-filter" value="CHECKED_ANY" class="text-violet-600">
+                        <span>สแกนเช็กชื่ออย่างน้อย 1 รอบ</span>
+                    </label>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'เลือกตามหลักเกณฑ์นี้',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#7c3aed',
+        cancelButtonColor: '#64748b'
+    }).then(res => {
+        if (res.isConfirmed) {
+            let degFilter = document.getElementById('criteria-degree-filter')?.value || 'ALL';
+            let scanFilter = document.querySelector('input[name="criteria-scan-filter"]:checked')?.value || 'ALL';
+
+            window.actMasterSelectedIds.clear();
+
+            distinctIds.forEach(id => {
+                let stu = students.find(s => s.id === id) || { id: id };
+                let stuLogs = actLogs.filter(l => l.studentId === id && l.timeIn);
+                
+                let matchDeg = true;
+                if (degFilter === 'BACHELOR') {
+                    matchDeg = !stu.degree || stu.degree.includes('ตรี') || stu.degree.includes('Bachelor') || !stu.degree.includes('ปวส');
+                } else if (degFilter === 'DIPLOMA') {
+                    matchDeg = stu.degree && (stu.degree.includes('ปวส') || stu.degree.includes('อนุปริญญา'));
+                }
+
+                let matchScan = true;
+                if (scanFilter === 'CHECKED_ALL') {
+                    matchScan = rounds.every(r => stuLogs.some(l => l.roundName === (r.thName || r.id) || l.roundId === r.id));
+                } else if (scanFilter === 'CHECKED_ANY') {
+                    matchScan = stuLogs.length > 0;
+                }
+
+                if (matchDeg && matchScan) {
+                    window.actMasterSelectedIds.add(id);
+                }
+            });
+
+            filterMasterTable();
+            if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
+            showToast(`เลือกนักศึกษาตามหลักเกณฑ์แล้ว ${window.actMasterSelectedIds.size} คน`, 'info');
+        }
+    });
+};
+
 window.toggleActivityActiveStatus = function() {
     if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
@@ -3470,9 +3646,12 @@ window.toggleActivityActiveStatus = function() {
     saveToLocal(true);
     updateMasterHeaderActiveButton();
     updateTab2ActiveState();
+    if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
+    if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
+    if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
     if (typeof renderActivities === 'function') renderActivities();
     if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
-    showToast(currentMasterActivity.isActive ? 'เปิดการใช้งานกิจกรรมนี้แล้ว (ปลดล็อกระบบสแกนเช็กชื่อ)' : 'ปิดการใช้งานกิจกรรมนี้แล้ว (ล็อกระบบสแกนเช็กชื่อ)', currentMasterActivity.isActive ? 'success' : 'info');
+    showToast(currentMasterActivity.isActive ? 'เปิดการใช้งานกิจกรรมนี้แล้ว (ปลดล็อกระบบสแกนเช็กชื่อ)' : 'ปิดการใช้งานกิจกรรมนี้แล้ว (ล็อกระบบสแกน เพื่อเปิดให้ประเมินผลนักศึกษา)', currentMasterActivity.isActive ? 'success' : 'info');
 };
 
 window.updateMasterHeaderActiveButton = function() {
@@ -4319,6 +4498,17 @@ function stopWebcamScanner() {
 // ตัวประมวลผลการสแกน (หัวใจหลักของความถูกต้องและการบังคับสถานะ P)
 window.executeScanLogic = function(barcode, actTitle) {
     if (!currentMasterActivity) return;
+    
+    // ตรวจสอบว่ากิจกรรมเปิดใช้งานหรือไม่
+    if (currentMasterActivity.isActive === false) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'กิจกรรมปิดการใช้งานอยู่',
+            text: 'หากสถานะกิจกรรมยังไม่เปิดใช้งานจะไม่สามารถนำเข้าข้อมูลนักศึกษาได้ กรุณาเปิดใช้งานกิจกรรม',
+            confirmButtonColor: '#2563eb'
+        });
+    }
+
     let stuId = (barcode || '').trim();
     if (!stuId) return;
 
@@ -4328,7 +4518,7 @@ window.executeScanLogic = function(barcode, actTitle) {
         return Swal.fire({
             icon: 'warning',
             title: 'กรุณาเลือกรอบกิจกรรม',
-            text: 'ต้องเลือกรอบลงทะเบียน (ตะกร้าเช็กชื่อ) ก่อนเริ่มสแกน',
+            text: 'กรุณาเลือกรอบการลงทะเบียนก่อนทำการสแกน',
             confirmButtonColor: '#2563eb'
         });
     }
@@ -4346,36 +4536,7 @@ window.executeScanLogic = function(barcode, actTitle) {
         });
     }
 
-    // ตรวจสอบเงื่อนไขการเข้าร่วม (Conditions)
-    let cond = currentMasterActivity.conditions || {};
-    
-    // 1. ตรวจสอบเงื่อนไขระงับผู้ไม่ได้ลงทะเบียนผ่านเว็บ
-    if (cond.blockUnregistered) {
-        let hasReg = activityLogs.some(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
-        if (!hasReg) {
-            return Swal.fire({
-                icon: 'error',
-                title: 'สิทธิ์ถูกระงับ',
-                text: 'นักศึกษาไม่ได้ลงทะเบียนเข้าร่วมกิจกรรมผ่านหน้าเว็บล่วงหน้า',
-                confirmButtonColor: '#e11d48'
-            });
-        }
-    }
-
-    // 2. ตรวจสอบรหัสนำหน้า (ID Prefix)
-    if (cond.prefixes && cond.prefixes.length > 0) {
-        let matchPrefix = cond.prefixes.some(p => stu.id.startsWith(p));
-        if (matchPrefix) {
-            return Swal.fire({
-                icon: 'error',
-                title: 'สิทธิ์ถูกระงับตามเงื่อนไขรหัส',
-                text: `นักศึกษารหัส ${stu.id} อยู่ในกลุ่มที่ระงับสิทธิ์เข้าร่วม`,
-                confirmButtonColor: '#e11d48'
-            });
-        }
-    }
-
-    // 3. ตรวจสอบการสแกนซ้ำในรอบเดียวกัน
+    // ตรวจสอบการสแกนซ้ำในรอบเดียวกัน
     let existingLog = activityLogs.find(l => 
         l.studentId === stu.id && 
         l.activityTitle === currentMasterActivity.title && 
@@ -4391,35 +4552,55 @@ window.executeScanLogic = function(barcode, actTitle) {
         });
     }
 
-    // ตรวจสอบการแสดงพรีวิวและการยืนยันอัตโนมัติ
-    let showInfo = document.getElementById('hw-show-info')?.checked !== false;
-    let autoConfirm = document.getElementById('hw-auto-confirm')?.checked;
-    let autoConfirmSec = parseInt(document.getElementById('hw-confirm-seconds')?.value) || 3;
+    // ตรวจสอบตัวเลือกการแสดงผลและ Auto-Confirm
+    let showInfo = (document.getElementById('show-student-data') || document.getElementById('hw-show-info'))?.checked !== false;
+    let showPhoto = (document.getElementById('show-profile-image') || document.getElementById('hw-show-photo'))?.checked;
+    let autoConfirm = (document.getElementById('enable-auto-confirm') || document.getElementById('hw-auto-confirm'))?.checked;
+    let autoConfirmSec = parseInt((document.getElementById('auto-confirm-seconds') || document.getElementById('hw-confirm-seconds'))?.value) || 3;
 
     if (showInfo) {
         let timerInterval;
         Swal.fire({
-            title: '<div class="text-blue-900 font-bold text-base flex items-center justify-center gap-2"><i class="fa-solid fa-id-card text-blue-600"></i> ตรวจสอบข้อมูลก่อนยืนยัน</div>',
+            title: '<div class="text-left font-bold text-slate-900 text-lg leading-tight">ยืนยันข้อมูลนักศึกษา</div>',
             html: `
-                <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left mt-2 space-y-3 font-sans">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-lg shrink-0 shadow">
-                            ${getInitials(stu.name)}
-                        </div>
-                        <div>
-                            <p class="font-bold text-slate-900 text-base leading-tight">${stu.name}</p>
-                            <p class="text-xs text-blue-600 font-mono font-bold mt-0.5">${stu.id} | ห้อง ${stu.room || '-'}</p>
+                <div class="space-y-3 text-left font-sans mt-3">
+                    <!-- ข้อมูลนักศึกษา -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        ${showPhoto && stu.photo ? `
+                            <div class="flex justify-center mb-2">
+                                <img src="${stu.photo}" alt="Student Profile" class="w-20 h-20 rounded-full object-cover border-2 border-slate-300 shadow-sm">
+                            </div>
+                        ` : `
+                            <div class="flex justify-center mb-2">
+                                <div class="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">
+                                    ${getInitials(stu.name)}
+                                </div>
+                            </div>
+                        `}
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="col-span-1">
+                                <label class="text-[11px] font-semibold text-slate-500 block">รหัสนักศึกษา</label>
+                                <p class="font-bold text-slate-900 font-mono text-sm">${stu.id}</p>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="text-[11px] font-semibold text-slate-500 block">ชื่อ-นามสกุล</label>
+                                <p class="font-bold text-slate-900 text-sm truncate" title="${stu.name}">${stu.name}</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 text-xs">
-                        <p class="text-slate-600">รอบที่กำลังสแกน: <b class="text-blue-800">${selectedRound}</b></p>
-                        <p class="text-slate-600 mt-1">สถานะหลังบันทึก: <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">รอพิจารณา (P)</span></p>
-                    </div>
-                    ${autoConfirm ? `<div class="text-center text-xs font-bold text-slate-500 pt-1">กำลังบันทึกอัตโนมัติใน <b id="swal-countdown" class="text-blue-600 text-sm">${autoConfirmSec}</b> วินาที...</div>` : ''}
+
+                    <!-- Auto-Confirm Countdown -->
+                    ${autoConfirm && autoConfirmSec > 0 ? `
+                        <div class="text-center py-1">
+                            <p class="text-xs font-bold text-blue-600 flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-stopwatch animate-pulse"></i> ยืนยันอัตโนมัติใน <span id="swal-auto-countdown" class="text-sm font-black underline">${autoConfirmSec}</span> วินาที
+                            </p>
+                        </div>
+                    ` : ''}
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'ยืนยันบันทึกผล',
+            confirmButtonText: 'ยืนยัน',
             cancelButtonText: 'ยกเลิก',
             confirmButtonColor: '#2563eb',
             cancelButtonColor: '#64748b',
@@ -4427,7 +4608,7 @@ window.executeScanLogic = function(barcode, actTitle) {
             didOpen: () => {
                 if (autoConfirm) {
                     let secLeft = autoConfirmSec;
-                    let countdownEl = document.getElementById('swal-countdown');
+                    let countdownEl = document.getElementById('swal-auto-countdown');
                     timerInterval = setInterval(() => {
                         secLeft--;
                         if (countdownEl && secLeft >= 0) countdownEl.innerText = secLeft;
@@ -4472,7 +4653,7 @@ window.confirmScan = function(stuId, roundName) {
 
     saveToLocal(true);
 
-    // เสียงแจ้งเตือน Success สั้นๆ ผ่าน Web Audio API
+    // เสียงแจ้งเตือน Success สั้นๆ
     try {
         let ctx = new (window.AudioContext || window.webkitAudioContext)();
         let osc = ctx.createOscillator();
@@ -4684,6 +4865,45 @@ window.openExternalGoogleMap = function(lat, lng) {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
 };
 
+window.updateGeofencePreviewCard = function(lat, lng, radius) {
+    let geoBox = document.getElementById('m-qr-geo-box');
+    if (!geoBox) return;
+    let rad = radius || document.getElementById('m-qr-radius')?.value || 50;
+    if (lat && lng) {
+        geoBox.className = 'border border-blue-200 bg-blue-50/40 rounded-xl p-4 text-left transition';
+        geoBox.innerHTML = `
+            <div class="flex items-center justify-between mb-2.5">
+                <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-1 rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> กำหนดพิกัดแล้ว พร้อมใช้งาน
+                </span>
+                <span class="text-[11px] text-slate-500 font-medium bg-white px-2 py-0.5 rounded border border-slate-200">รัศมี: ${rad} ม.</span>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-lg p-2.5 mb-2 font-mono text-xs text-slate-800 flex items-center justify-between">
+                <div>
+                    <span class="text-slate-400 select-none mr-1">LAT:</span><span class="font-bold text-slate-900">${lat}</span>
+                    <span class="text-slate-300 mx-2">|</span>
+                    <span class="text-slate-400 select-none mr-1">LNG:</span><span class="font-bold text-slate-900">${lng}</span>
+                </div>
+                <button type="button" onclick="openExternalGoogleMap(${lat}, ${lng})" class="text-blue-600 hover:text-blue-700 text-xs font-semibold flex items-center gap-1 ml-2" title="เปิดดูใน Google Maps">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+            </div>
+            <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>ระบบจะตรวจสอบว่าอุปกรณ์ของนักศึกษาต้องอยู่ภายในรัศมี ${rad} เมตรจากจุดนี้</p>
+            <input type="hidden" id="m-qr-lat" value="${lat}"><input type="hidden" id="m-qr-lng" value="${lng}">
+        `;
+    } else {
+        geoBox.className = 'border border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/60 transition';
+        geoBox.innerHTML = `
+            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-2.5">
+                <i class="fa-solid fa-location-dot text-lg"></i>
+            </div>
+            <p id="map-status-text" class="text-xs text-slate-600 font-semibold mb-1">ยังไม่ได้ระบุตำแหน่งศูนย์กลาง</p>
+            <p class="text-[11px] text-slate-400">กดปุ่ม "ระบุตำแหน่งเช็กอินบนแผนที่" ด้านบน เพื่อเลือกจุดศูนย์กลาง Geofence</p>
+            <input type="hidden" id="m-qr-lat"><input type="hidden" id="m-qr-lng">
+        `;
+    }
+};
+
 window.applyPickerLocation = function(lat, lng, zoom = 17, label = '') {
     if (!window.pickerMap || !window.pickerMarker) return;
     let nLat = parseFloat(lat);
@@ -4692,12 +4912,15 @@ window.applyPickerLocation = function(lat, lng, zoom = 17, label = '') {
 
     window.pickerMap.setView([nLat, nLng], zoom);
     window.pickerMarker.setLatLng([nLat, nLng]);
+    if (window.pickerCircle) {
+        window.pickerCircle.setLatLng([nLat, nLng]);
+    }
     window.pickerSelectedLat = nLat.toFixed(6);
     window.pickerSelectedLng = nLng.toFixed(6);
 
     let coordText = document.getElementById('picker-coord-text');
     if (coordText) {
-        coordText.innerHTML = `<span class="text-blue-700 font-bold">${label ? label + ' &bull; ' : ''}พิกัด: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+        coordText.innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${label ? label + ' &bull; ' : ''}${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
     }
 };
 
@@ -4707,22 +4930,20 @@ window.searchMapLocation = function() {
     if (!q) return showToast('กรุณากรอกชื่อสถานที่หรือพิกัด', 'warning');
 
     let btn = document.getElementById('picker-search-btn');
-    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>';
 
-    // 1. ตรวจสอบว่ากรอกพิกัด lat, lng หรือไม่
     let coordsMatch = q.match(/^([-+]?[0-9]*\.?[0-9]+)[\s,]+([-+]?[0-9]*\.?[0-9]+)$/);
     if (coordsMatch) {
         let lat = parseFloat(coordsMatch[1]);
         let lng = parseFloat(coordsMatch[2]);
         if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-            if (btn) btn.innerHTML = 'ค้นหา';
-            window.applyPickerLocation(lat, lng, 17, 'พิกัดที่ค้นหา');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-magnifying-glass text-xs mr-1"></i> ค้นหา';
+            window.applyPickerLocation(lat, lng, 18, 'พิกัดที่ค้นหา');
             showToast('ระบุพิกัดสำเร็จ', 'success');
             return;
         }
     }
 
-    // 2. ค้นหาสถานที่ผ่าน OpenStreetMap Nominatim
     let searchUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(q);
     if (q.includes('มทร') || q.includes('ราชมงคล')) {
         searchUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent('มหาวิทยาลัยเทคโนโลยีราชมงคลอีสาน นครราชสีมา');
@@ -4731,61 +4952,47 @@ window.searchMapLocation = function() {
     fetch(searchUrl, { headers: { 'Accept': 'application/json' } })
         .then(res => res.json())
         .then(data => {
-            if (btn) btn.innerHTML = 'ค้นหา';
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-magnifying-glass text-xs mr-1"></i> ค้นหา';
             if (data && data.length > 0) {
                 let first = data[0];
-                let lat = parseFloat(first.lat);
-                let lng = parseFloat(first.lon);
-                let shortName = first.display_name.split(',')[0];
-                window.applyPickerLocation(lat, lng, 17, shortName);
-                showToast(`พบสถานที่: ${shortName}`, 'success');
+                window.applyPickerLocation(parseFloat(first.lat), parseFloat(first.lon), 18, first.display_name.split(',')[0]);
+                showToast(`พบสถานที่: ${first.display_name.split(',')[0]}`, 'success');
             } else {
-                showToast(`ไม่พบสถานที่ "${q}" ลองพิมพ์ชื่ออำเภอ/จังหวัดเพิ่มเติม หรือคลิกเลือกบนแผนที่`, 'info');
+                showToast(`ไม่พบสถานที่ "${q}" ลองคลิกเลือกบนแผนที่`, 'info');
             }
         })
         .catch(err => {
-            if (btn) btn.innerHTML = 'ค้นหา';
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-magnifying-glass text-xs mr-1"></i> ค้นหา';
             showToast('ค้นหาสถานที่ขัดข้อง กรุณาคลิกเลือกจุดบนแผนที่โดยตรง', 'warning');
         });
 };
 
 window.getCurrentGpsLocation = function() {
     let gpsBtn = document.getElementById('picker-gps-btn');
-    if (!navigator.geolocation) {
-        return showToast('เบราว์เซอร์หรืออุปกรณ์ของคุณไม่รองรับ GPS', 'error');
-    }
+    if (!navigator.geolocation) return showToast('ไม่สามารถเข้าถึงตำแหน่งของคุณได้ กรุณาอนุญาตสิทธิ์ก่อน', 'error');
 
     if (gpsBtn) {
         gpsBtn.disabled = true;
-        gpsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังดึงดาวเทียม GPS...';
+        gpsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังดึงตำแหน่ง GPS...';
     }
 
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             if (gpsBtn) {
                 gpsBtn.disabled = false;
-                gpsBtn.innerHTML = '<i class="fa-solid fa-crosshairs mr-1"></i> ดึง GPS ปัจจุบัน';
+                gpsBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs mr-1"></i> ใช้ตำแหน่ง GPS ปัจจุบัน';
             }
-            let lat = pos.coords.latitude;
-            let lng = pos.coords.longitude;
-            let acc = Math.round(pos.coords.accuracy || 0);
-
-            window.applyPickerLocation(lat, lng, 18, `GPS อุปกรณ์ (ความแม่นยำ ~${acc} ม.)`);
-            showToast(`ดึงตำแหน่ง GPS สำเร็จ (ความคลาดเคลื่อน ~${acc} เมตร)`, 'success');
+            window.applyPickerLocation(pos.coords.latitude, pos.coords.longitude, 18, `GPS อุปกรณ์ (ความแม่นยำ ~${Math.round(pos.coords.accuracy || 0)} ม.)`);
+            showToast('ดึงพิกัดปัจจุบันสำเร็จ', 'success');
         },
         (err) => {
             if (gpsBtn) {
                 gpsBtn.disabled = false;
-                gpsBtn.innerHTML = '<i class="fa-solid fa-crosshairs mr-1"></i> ดึง GPS ปัจจุบัน';
+                gpsBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs mr-1"></i> ใช้ตำแหน่ง GPS ปัจจุบัน';
             }
-            let msg = 'ไม่สามารถดึงตำแหน่ง GPS ได้: ';
-            if (err.code === 1) msg += 'กรุณาอนุญาตการเข้าถึงตำแหน่งที่ตั้ง (Location Permission) ในเบราว์เซอร์';
-            else if (err.code === 2) msg += 'ไม่พบสัญญาณดาวเทียมตำแหน่งที่ตั้ง';
-            else if (err.code === 3) msg += 'หมดเวลาการเชื่อมต่อ GPS กรุณาลองใหม่อีกครั้ง';
-            else msg += (err.message || '');
-            showToast(msg, 'warning');
+            showToast('ไม่สามารถเข้าถึงตำแหน่งของคุณได้ กรุณาอนุญาตสิทธิ์ตำแหน่ง หรือคลิกเลือกบนแผนที่', 'error');
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
 };
 
@@ -4797,7 +5004,7 @@ window.openMapPicker = function() {
         }
 
         let defaultLat = 14.986195;
-        let defaultLng = 102.118729; // มทร.อีสาน ศูนย์กลางฯ นครราชสีมา
+        let defaultLng = 102.118729; 
         let existingLat = parseFloat(document.getElementById('m-qr-lat')?.value);
         let existingLng = parseFloat(document.getElementById('m-qr-lng')?.value);
         if (!isNaN(existingLat) && !isNaN(existingLng) && existingLat !== 0) {
@@ -4805,98 +5012,92 @@ window.openMapPicker = function() {
             defaultLng = existingLng;
         }
 
+        let radiusInput = document.getElementById('m-qr-radius');
+        let currentRadius = parseFloat(radiusInput?.value);
+        if (isNaN(currentRadius) || currentRadius <= 0) currentRadius = 50;
+
         Swal.fire({
-            title: '<div class="text-left font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-blue-600"></i> ระบุตำแหน่งศูนย์กลางเช็กอินกิจกรรม</div>',
+            title: `
+                <div class="text-left font-sans w-full pb-1 border-b border-slate-100">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base border border-blue-100">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 leading-tight">กำหนดพิกัดศูนย์กลาง Geofence</h3>
+                                <p class="text-[11px] text-slate-500 font-normal">คลิกบนแผนที่ ลากหมุด หรือพิมพ์ค้นหาสถานที่เพื่อระบุจุดเช็กอิน</p>
+                            </div>
+                        </div>
+                        <span class="bg-blue-50 text-blue-700 border border-blue-200/80 text-[11px] px-3 py-1 rounded-full font-semibold shrink-0">
+                            รัศมี ${currentRadius} เมตร
+                        </span>
+                    </div>
+                </div>
+            `,
             html: `
-                <!-- Search & Quick Presets Toolbar -->
-                <div class="space-y-2 mb-2.5 text-xs font-sans text-left">
-                    <div class="flex gap-1.5">
+                <div class="space-y-2 mb-3 mt-3 text-xs font-sans text-left">
+                    <div class="flex gap-2">
                         <div class="relative flex-1">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input id="picker-search-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchMapLocation();}" placeholder="พิมพ์ชื่อสถานที่ เช่น มทร.อีสาน, หอประชุม หรือพิมพ์พิกัด..." class="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:border-blue-500">
+                            <input id="picker-search-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchMapLocation();}" placeholder="พิมพ์ชื่อสถานที่ หรือระบุพิกัด เช่น 14.986195, 102.118729 แล้วกด Enter..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/10 font-medium text-slate-800 placeholder-slate-400 bg-white">
                         </div>
-                        <button type="button" id="picker-search-btn" onclick="searchMapLocation()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg transition shrink-0">
-                            ค้นหา
+                        <button type="button" id="picker-search-btn" onclick="searchMapLocation()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl transition shrink-0 shadow-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i> ค้นหา
                         </button>
                     </div>
                     <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <span class="text-slate-400 font-bold">ปุ่มลัด:</span>
-                        <button type="button" onclick="applyPickerLocation(14.986195, 102.118729, 17, 'มทร.อีสาน นครราชสีมา')" class="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-md font-bold transition">
-                            <i class="fa-solid fa-graduation-cap mr-1"></i>มทร.อีสาน นครราชสีมา
+                        <span class="text-slate-400 font-medium">จุดแนะนำ:</span>
+                        <button type="button" onclick="applyPickerLocation(14.986195, 102.118729, 18, 'มทร.อีสาน นครราชสีมา (ศูนย์กลาง)')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-graduation-cap text-blue-600"></i> มทร.อีสาน นครราชสีมา
                         </button>
-                        <button type="button" onclick="applyPickerLocation(14.987250, 102.116800, 18, 'อาคารยิมเนเซียม / อาคารกิจกรรม')" class="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md font-bold transition">
-                            <i class="fa-solid fa-building mr-1"></i>อาคารยิมเนเซียม
+                        <button type="button" onclick="applyPickerLocation(14.987250, 102.116800, 18, 'อาคารยิมเนเซียม / อาคารกิจกรรม')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-building text-indigo-600"></i> อาคารยิมเนเซียม
+                        </button>
+                        <button type="button" onclick="applyPickerLocation(14.985650, 102.119200, 18, 'หอประชุมเฉลิมพระเกียรติฯ')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-landmark text-amber-600"></i> หอประชุมเฉลิมพระเกียรติ
                         </button>
                     </div>
                 </div>
 
-                <div id="picker-map-container" style="height: 380px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-300 mb-2.5"></div>
+                <div id="picker-map-container" style="height: 380px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-200 shadow-inner mb-3 overflow-hidden"></div>
                 
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs">
-                    <div id="picker-coord-text" class="font-mono text-slate-700 font-bold leading-tight">
-                        พิกัดที่เลือก: ${defaultLat.toFixed(6)}, ${defaultLng.toFixed(6)}
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs pt-1">
+                    <div id="picker-coord-text" class="font-mono text-slate-700 font-semibold leading-tight bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                        พิกัดที่เลือก: <span class="text-blue-700 font-bold">${defaultLat.toFixed(6)}, ${defaultLng.toFixed(6)}</span>
                     </div>
-                    <button type="button" id="picker-gps-btn" onclick="getCurrentGpsLocation()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-3 py-1.5 rounded-lg border border-emerald-300 transition flex items-center gap-1 shadow-sm shrink-0">
-                        <i class="fa-solid fa-crosshairs"></i> ดึง GPS ปัจจุบัน
+                    <button type="button" id="picker-gps-btn" onclick="getCurrentGpsLocation()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-3.5 py-1.5 rounded-lg border border-emerald-200 transition flex items-center gap-1.5 shadow-xs shrink-0">
+                        <i class="fa-solid fa-location-crosshairs text-emerald-600"></i> ใช้ตำแหน่ง GPS ปัจจุบัน
                     </button>
                 </div>
-                <div class="text-[11px] text-slate-400 mt-2 text-left">
-                    <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i>สามารถคลิกบนแผนที่หรือลากหมุดสีฟ้าเพื่อกำหนดจุดศูนย์กลางเช็กอินได้ทันที
-                </div>
             `,
-            width: '720px',
-            showCancelButton: true,
-            confirmButtonText: 'ใช้ตำแหน่งนี้',
-            cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#2563eb',
+            width: '780px', showCancelButton: true, confirmButtonText: '<i class="fa-solid fa-check mr-1.5"></i> ยืนยันตำแหน่งนี้', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#2563eb',
+            customClass: { popup: 'rounded-2xl p-5', confirmButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold shadow-sm', cancelButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold' },
             didOpen: () => {
                 try {
                     window.pickerMap = L.map('picker-map-container').setView([defaultLat, defaultLng], 17);
-                    
-                    const pickRoadmap = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                        maxZoom: 20,
-                        attribution: '&copy; Google Maps'
-                    });
-                    const pickSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                        maxZoom: 20,
-                        attribution: '&copy; Google Maps'
-                    });
+                    const pickRoadmap = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20 });
                     pickRoadmap.addTo(window.pickerMap);
-                    L.control.layers({ 'แผนที่ถนน (Google Maps)': pickRoadmap, 'แผนที่ดาวเทียม (Satellite)': pickSatellite }, null, { position: 'topright' }).addTo(window.pickerMap);
 
                     window.pickerMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(window.pickerMap);
-                    window.pickerSelectedLat = defaultLat.toFixed(6);
-                    window.pickerSelectedLng = defaultLng.toFixed(6);
+                    window.pickerCircle = L.circle([defaultLat, defaultLng], { radius: currentRadius, color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2, dashArray: '4, 4' }).addTo(window.pickerMap);
+
+                    window.pickerSelectedLat = defaultLat.toFixed(6); window.pickerSelectedLng = defaultLng.toFixed(6);
 
                     window.pickerMap.on('click', function(e) {
-                        window.pickerMarker.setLatLng(e.latlng);
-                        window.pickerSelectedLat = e.latlng.lat.toFixed(6);
-                        window.pickerSelectedLng = e.latlng.lng.toFixed(6);
-                        let coordText = document.getElementById('picker-coord-text');
-                        if (coordText) coordText.innerHTML = `<span class="text-blue-700 font-bold">พิกัดที่เลือก: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+                        window.pickerMarker.setLatLng(e.latlng); window.pickerCircle.setLatLng(e.latlng);
+                        window.pickerSelectedLat = e.latlng.lat.toFixed(6); window.pickerSelectedLng = e.latlng.lng.toFixed(6);
+                        document.getElementById('picker-coord-text').innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
                     });
 
                     window.pickerMarker.on('dragend', function(e) {
-                        let pos = e.target.getLatLng();
-                        window.pickerSelectedLat = pos.lat.toFixed(6);
-                        window.pickerSelectedLng = pos.lng.toFixed(6);
-                        let coordText = document.getElementById('picker-coord-text');
-                        if (coordText) coordText.innerHTML = `<span class="text-blue-700 font-bold">พิกัดที่เลือก: ${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+                        let pos = e.target.getLatLng(); window.pickerCircle.setLatLng(pos);
+                        window.pickerSelectedLat = pos.lat.toFixed(6); window.pickerSelectedLng = pos.lng.toFixed(6);
+                        document.getElementById('picker-coord-text').innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
                     });
 
-                    setTimeout(() => { if (window.pickerMap) window.pickerMap.invalidateSize(); }, 200);
                     setTimeout(() => { if (window.pickerMap) window.pickerMap.invalidateSize(); }, 500);
-                } catch(err) {
-                    console.error('Picker map init error:', err);
-                }
-            },
-            willClose: () => {
-                if (window.pickerMap) {
-                    try { window.pickerMap.remove(); } catch(e){}
-                    window.pickerMap = null;
-                }
+                } catch(err) {}
             },
             preConfirm: () => {
                 if (!window.pickerMarker) return false;
@@ -4905,18 +5106,13 @@ window.openMapPicker = function() {
             }
         }).then(r => {
             if (r.isConfirmed && r.value) {
-                let latEl = document.getElementById('m-qr-lat');
-                let lngEl = document.getElementById('m-qr-lng');
-                if (latEl) latEl.value = r.value.lat;
-                if (lngEl) lngEl.value = r.value.lng;
-                let statusText = document.getElementById('map-status-text');
-                if (statusText) {
-                    statusText.innerText = `พิกัด: ${r.value.lat}, ${r.value.lng}`;
-                    statusText.className = 'text-xs text-emerald-600 font-bold';
+                let latEl = document.getElementById('m-qr-lat'); let lngEl = document.getElementById('m-qr-lng');
+                if (latEl) latEl.value = r.value.lat; if (lngEl) lngEl.value = r.value.lng;
+                
+                if (typeof updateGeofencePreviewCard === 'function') {
+                    updateGeofencePreviewCard(r.value.lat, r.value.lng, currentRadius);
                 }
-                let geoBox = document.getElementById('m-qr-geo-box');
-                if (geoBox) geoBox.className = 'border-2 border-emerald-300 rounded-xl p-6 text-center bg-emerald-50/40';
-                showToast('ระบุพิกัดเรียบร้อยแล้ว', 'success');
+                showToast('ระบุพิกัดศูนย์กลาง Geofence เรียบร้อยแล้ว', 'success');
             }
         });
     });
