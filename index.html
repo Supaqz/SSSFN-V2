@@ -1661,8 +1661,7 @@
         <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
     <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwlh_dKnnyBVyjmnsv8_yfij5ll2oZB_Mw9W3kAUE3_9u3nz8qtzL1dkC6_ma2_UR7ylQ/exec";
-
+    const API_URL = "https://script.google.com/macros/s/AKfycbwlh_dKnnyBVyjmnsv8_yfij5ll2oZB_Mw9W3kAUE3_9u3nz8qtzL1dkC6_ma2_UR7ylQ/exec
     // 🌟 🌟 🌟 วางโค้ด Firebase ขั้นตอนที่ 2 แทรกตรงนี้ครับ 🌟 🌟 🌟
     const firebaseConfig = {
       apiKey: "AIzaSyCUKWOibjCub6mLiwaSb0ZwPf-9YtxxwYA",
@@ -1688,6 +1687,8 @@
     let hasLocalChanges = false;
     let lastServerSnapshot = null;
     let initialLocalSnapshot = null;
+    let realtimeRetryAttempt = 0;
+    let realtimePullRetryAttempt = 0;
 
     function notifyFirebaseUpdate() {
         const signalRef = db.collection('systemSignals').doc('lastUpdate');
@@ -2123,6 +2124,13 @@ function mergeRealtimeValue_(base, local, server, basePresent = true, localPrese
     return result.present ? result.value : undefined;
 }
 
+function scheduleRealtimeSaveRetry_() {
+    const baseDelay = Math.min(3000 * Math.pow(2, realtimeRetryAttempt), 60000);
+    const jitter = Math.floor(Math.random() * 1500);
+    realtimeRetryAttempt = Math.min(realtimeRetryAttempt + 1, 5);
+    setTimeout(() => autoSyncToGS(false), baseDelay + jitter);
+}
+
 async function autoSyncToGS(showStatus = false) {
     if (isSyncing || remotePullInProgress) {
         syncQueued = true;
@@ -2151,6 +2159,13 @@ async function autoSyncToGS(showStatus = false) {
     try {
         const result = await callBackend({ action: 'saveDelta', changes });
         if (!result || result.status !== 'success') throw new Error((result && result.message) || 'หลังบ้านปฏิเสธการบันทึก');
+        realtimeRetryAttempt = 0;
+
+        // Publish the realtime signal after Apps Script has returned and released its write lock.
+        if (typeof notifyFirebaseUpdate === 'function') {
+            try { await notifyFirebaseUpdate(); }
+            catch (signalError) { console.warn('Realtime signal publish failed:', signalError); }
+        }
 
         // Read the canonical merged state so this tab and every other tab converge on the same data.
         const loadResult = await callBackend({ action: 'loadAll' });
@@ -2178,13 +2193,13 @@ async function autoSyncToGS(showStatus = false) {
             pendingRemotePull = false;
             syncQueued = false;
             setTimeout(() => silentPullFromGS(), 120);
-            if (saveFailed && hasLocalChanges) setTimeout(() => autoSyncToGS(false), 3000);
+            if (saveFailed && hasLocalChanges) scheduleRealtimeSaveRetry_();
         } else if (syncQueued) {
             syncQueued = false;
             setTimeout(() => autoSyncToGS(false), 120);
         } else if (saveFailed && hasLocalChanges) {
-            // Retry with backoff rather than flooding Apps Script on a network failure.
-            setTimeout(() => autoSyncToGS(false), 3000);
+            // Backoff + jitter avoids every open tab retrying at the same instant.
+            scheduleRealtimeSaveRetry_();
         }
     }
 }
@@ -2194,6 +2209,16 @@ function startBackgroundSyncWorker() { return; }
 
 async function pushToGS() {
     return autoSyncToGS(true);
+}
+
+function scheduleRealtimePullRetry_() {
+    const baseDelay = Math.min(700 * Math.pow(2, realtimePullRetryAttempt), 15000);
+    const jitter = Math.floor(Math.random() * 1200);
+    realtimePullRetryAttempt = Math.min(realtimePullRetryAttempt + 1, 5);
+    setTimeout(() => {
+        if (!isSyncing && !remotePullInProgress) silentPullFromGS();
+        else pendingRemotePull = true;
+    }, baseDelay + jitter);
 }
 
 async function silentPullFromGS(showStatus = false) {
@@ -2212,10 +2237,14 @@ async function silentPullFromGS(showStatus = false) {
         applyLoadedData(reconciled, serverState);
         hasLocalChanges = buildRealtimeChanges_(serverState, captureCurrentRealtimeData_()).length > 0;
         pullSucceeded = true;
+        realtimePullRetryAttempt = 0;
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว', timer: 1100, showConfirmButton: false });
         return { status: 'success' };
     } catch (error) {
         console.error('Load Error:', error);
+        if (String(error && error.message || '').includes('กำลังบันทึก') || String(error && error.message || '').toLowerCase().includes('busy')) {
+            scheduleRealtimePullRetry_();
+        }
         if (showStatus && typeof Swal !== 'undefined') Swal.fire('ดึงข้อมูลไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อ', 'error');
         return { status: 'error', message: error.message };
     } finally {
@@ -2319,7 +2348,7 @@ function saveToLocal(triggerSync = true) {
         syncTimeout = setTimeout(() => {
             if (isSyncing || remotePullInProgress) syncQueued = true;
             else autoSyncToGS(false);
-        }, 150);
+        }, 600);
     }
 }
         function loadFromLocal() {
