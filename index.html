@@ -1677,52 +1677,69 @@
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.firestore();
 
+    // Firebase is a lightweight notification channel only. Google Sheets remains the canonical store.
+    const realtimeClientId = 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    let isSyncing = false;
+    let syncQueued = false;
+    let firstSignalSnapshot = true;
+    let remoteSignalTimer = null;
+    let remotePullInProgress = false;
+    let pendingRemotePull = false;
+    let hasLocalChanges = false;
+    let lastServerSnapshot = null;
+    let initialLocalSnapshot = null;
+
     function notifyFirebaseUpdate() {
-        db.collection('systemSignals').doc('lastUpdate').set({
+        const signalRef = db.collection('systemSignals').doc('lastUpdate');
+        const withSource = {
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            message: "อัปเดตข้อมูลแล้ว"
-        }).catch(err => console.log("Firebase Error:", err));
+            message: 'อัปเดตข้อมูลแล้ว',
+            source: realtimeClientId
+        };
+        return signalRef.set(withSource).catch(err => {
+            // Some existing Firestore rules may only allow timestamp/message; retry without source.
+            console.warn('Firebase signal with source was rejected; retrying compatibility format:', err);
+            return signalRef.set({
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                message: 'อัปเดตข้อมูลแล้ว'
+            }).catch(fallbackError => {
+                console.warn('Firebase realtime signal failed:', fallbackError);
+                return false;
+            });
+        });
     }
 
-    let isFirstLoad = true;
-    db.collection('systemSignals').doc('lastUpdate').onSnapshot(async (doc) => {
-        if (isFirstLoad) { 
-            isFirstLoad = false; 
-            try {
-                let queueDoc = await db.collection('syncQueue').doc('latest').get();
-                if (queueDoc.exists && queueDoc.data().payload) {
-                    let fastData = JSON.parse(queueDoc.data().payload);
-                    applyLoadedData(fastData); 
-                    console.log("🚀 โหลดข้อมูลล่าสุดจาก Firebase สำเร็จทันทีตั้งแต่เริ่มเปิดเว็บ!");
-                    if (typeof checkUrlCheckin === 'function') checkUrlCheckin();
-                }
-            } catch(e) { console.warn("Initial Firebase load failed:", e); }
-            return; 
+    db.collection('systemSignals').doc('lastUpdate').onSnapshot((doc) => {
+        if (firstSignalSnapshot) {
+            firstSignalSnapshot = false;
+            return;
         }
-        
-        // 🌟 ลบเงื่อนไข !Swal.isVisible() ออก เพื่อให้ระบบซิงก์ได้ตลอดเวลาแม้จะเปิดป๊อปอัปอยู่
-        if (!isSyncing) {
-            console.log("⚡ Firebase กริ่งดัง! กำลังอัปเดตหน้าจอแบบ Real-time...");
-            try {
-                let queueDoc = await db.collection('syncQueue').doc('latest').get();
-                
-                if (queueDoc.exists && queueDoc.data().payload) {
-                    let fastData = JSON.parse(queueDoc.data().payload);
-                    applyLoadedData(fastData); 
-                    console.log("🚀 อัปเดตหน้าจอด้วยข้อมูลใหม่สุดสำเร็จทันที!");
-                } else {
-                    console.log("⚡ ดึงข้อมูลทันทีจาก Sheets...");
-                    if (typeof silentPullFromGS === "function") silentPullFromGS();
-                }
-            } catch (err) {
-                console.log("ดึงข้อมูล Firebase พลาด สลับไปใช้ Sheets ทันที:", err);
-                if (typeof silentPullFromGS === "function") silentPullFromGS();
-            }
+        const signal = doc && doc.exists ? (doc.data() || {}) : {};
+        // Ignore this browser's own notification; it already reconciles with the server after save.
+        if (signal.source && signal.source === realtimeClientId) return;
+
+        if (isSyncing || remotePullInProgress) {
+            pendingRemotePull = true;
+            return;
         }
+        clearTimeout(remoteSignalTimer);
+        remoteSignalTimer = setTimeout(() => {
+            if (typeof silentPullFromGS === 'function') silentPullFromGS();
+        }, 120);
+    }, (error) => console.warn('Firebase realtime listener error:', error));
+
+    window.addEventListener('focus', () => {
+        if (!isSyncing && !remotePullInProgress) silentPullFromGS();
     });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !isSyncing && !remotePullInProgress) silentPullFromGS();
+    });
+
         // 🌟 ฟังก์ชันตัวช่วยส่งข้อมูลไป Google Sheets (ย้ายมา GitHub ต้องใช้ตัวนี้)
 async function callBackend(payload) {
     try {
+        if (!payload || typeof payload !== 'object') payload = {};
+        if (!payload.clientId && typeof realtimeClientId !== 'undefined') payload.clientId = realtimeClientId;
         // 🌟 แนบ authToken อัตโนมัติสำหรับการยืนยันตัวตนแอดมิน
         if (window.currentAuthToken && !payload.authToken) {
             payload.authToken = window.currentAuthToken;
@@ -1754,7 +1771,7 @@ async function callBackend(payload) {
 
         let syncTimeout; let html5QrcodeScanner = null; let autoRefreshInterval; 
         let quickTargetId = ''; let quickScanner = null;
-        let isSyncing = false; let syncQueued = false; let randomPool = []; let currentDetailActivityTitle = '';
+        let randomPool = []; let currentDetailActivityTitle = '';
 
         function openQuickScan(targetId) { quickTargetId = targetId; document.getElementById('quick-scan-modal').classList.remove('hidden'); quickScanner = new Html5QrcodeScanner("quick-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false); quickScanner.render((decodedText) => { let el = document.getElementById(quickTargetId); if(el) { el.value = formatIdSearch(decodedText); el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('keyup')); } closeQuickScan(); }, (err) => {}); }
         function closeQuickScan() { document.getElementById('quick-scan-modal').classList.add('hidden'); if(quickScanner) { quickScanner.clear().catch(e => console.log(e)); quickScanner = null; } }
@@ -1898,190 +1915,324 @@ window.renderMasterDropdowns = window.renderMasterDropdowns || renderMasterDropd
     }); 
 }
 
-       // ================= เปลี่ยนการอัปเดตอัตโนมัติให้ส่งเข้า Firebase Queue ก่อน (เร็วปรี๊ด 0.1 วิ) =================
-async function autoSyncToGS() {
-    if (students.length === 0 && rooms.length === 0 && expenses.length === 0) return;
+// ================= Realtime sync: changed records -> Apps Script -> Google Sheets =================
+const REALTIME_COLLECTIONS = [
+    'users', 'rooms', 'students', 'txHistory', 'fundRounds',
+    'fundPayments', 'expenses', 'activityLogs', 'timeLogs'
+];
 
-    let dbData = {
-        appSettings, users, rooms, students, txHistory,
-        fundRounds, fundPayments, expenses, activityLogs, timeLogs
-    };
+function stableRealtimeJson_(value) {
+    if (value === undefined) return '"__undefined__"';
+    if (value === null || typeof value !== 'object') {
+        const encoded = JSON.stringify(value);
+        return encoded === undefined ? '"__undefined__"' : encoded;
+    }
+    if (Array.isArray(value)) return '[' + value.map(stableRealtimeJson_).join(',') + ']';
+    return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + stableRealtimeJson_(value[key])).join(',') + '}';
+}
 
-    isSyncing = true;
-    try {
-        // 🌟 ดึงข้อมูลคิวล่าสุดจาก Firebase ก่อนเซ็ต เพื่อผสาน activityLogs ป้องกันบันทึกทับกันเมื่อมีผู้ใช้เช็กอินพร้อมกัน
-        try {
-            let latestDoc = await db.collection('syncQueue').doc('latest').get();
-            if (latestDoc.exists && latestDoc.data().payload) {
-                let remoteData = JSON.parse(latestDoc.data().payload);
-                if (remoteData.activityLogs && Array.isArray(remoteData.activityLogs)) {
-                    let logMap = new Map();
-                    remoteData.activityLogs.forEach(l => {
-                        let k = (String(l.studentId).replace(/-/g,'').trim()) + '||' + l.activityTitle + '||' + (l.roundName || '');
-                        logMap.set(k, l);
-                    });
-                    activityLogs.forEach(l => {
-                        let k = (String(l.studentId).replace(/-/g,'').trim()) + '||' + l.activityTitle + '||' + (l.roundName || '');
-                        logMap.set(k, l);
-                    });
-                    dbData.activityLogs = Array.from(logMap.values());
-                    activityLogs = dbData.activityLogs;
-                }
-            }
-        } catch(merr) {
-            console.warn("Queue merge warning:", merr);
-        }
+function cloneRealtimeValue_(value) {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+}
 
-        // 🌟 บันทึกก้อนข้อมูลล่าสุดลง Firebase ฝากไว้ในคิว (ทำงานเสร็จในเสี้ยววินาที)
-        await db.collection('syncQueue').doc('latest').set({
-            payload: JSON.stringify(dbData),
-            status: 'PENDING', // กำหนดสถานะว่ารอส่งไป Sheet
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+function realtimeEntityKey_(collection, item) {
+    const str = value => String(value == null ? '' : value).trim();
+    if (item === null || item === undefined) return 'null:' + str(item);
+    if (typeof item !== 'object') return 'value:' + str(item);
+
+    if (collection === 'users' && item.user != null) return 'user:' + str(item.user).toLowerCase();
+    if (collection === 'rooms') return 'room:' + str(item.room != null ? item.room : (item.name != null ? item.name : item));
+    if (collection === 'students' && item.id != null) return 'student:' + str(item.id).replace(/-/g, '');
+    if (collection === 'fundRounds' && item.id != null) return 'round:' + str(normalizeRoundIdFrontend(item.id));
+    if (collection === 'fundPayments' && item.studentId != null && item.roundId != null) {
+        return 'payment:' + str(normalizeRoundIdFrontend(item.roundId)) + ':' + str(item.studentId).replace(/-/g, '');
+    }
+    if (collection === 'expenses' && item.id != null && item.id !== '') return 'expense:' + str(item.id);
+    if (collection === 'activityLogs' && item.studentId != null && item.activityTitle != null) {
+        return 'activity:' + str(item.studentId).replace(/-/g, '') + ':' + str(item.activityTitle) + ':' + str(item.roundName);
+    }
+    if (collection === 'timeLogs' && (item.id != null || item.studentId != null)) {
+        return 'time:' + str(item.date) + ':' + str(item.id != null ? item.id : item.studentId).replace(/-/g, '');
+    }
+    if (collection === 'txHistory') {
+        if (item.id != null && item.id !== '') return 'txid:' + str(item.id);
+        return 'tx:' + [item.date, item.name, item.type, item.amt, item.user].map(str).join('|');
+    }
+    if (item.id != null && item.id !== '') return 'id:' + str(item.id);
+    if (item.uid != null && item.uid !== '') return 'uid:' + str(item.uid);
+    if (item.key != null && item.key !== '') return 'key:' + str(item.key);
+    if (item.title != null && item.title !== '') return 'title:' + str(item.title);
+    if (item.activityTitle != null && item.activityTitle !== '') return 'activityTitle:' + str(item.activityTitle);
+    if (item.user != null && item.user !== '') return 'user:' + str(item.user).toLowerCase();
+    if (item.name != null && item.name !== '') return 'name:' + str(item.name);
+    return 'json:' + stableRealtimeJson_(item);
+}
+
+function realtimeArrayEntries_(collection, list) {
+    const counts = new Map();
+    return (Array.isArray(list) ? list : []).map(item => {
+        const rootKey = realtimeEntityKey_(collection, item);
+        const count = counts.get(rootKey) || 0;
+        counts.set(rootKey, count + 1);
+        return { key: rootKey + '#' + count, value: item };
+    });
+}
+
+function snapshotRealtimeData_(source) {
+    const d = source || {};
+    return cloneRealtimeValue_({
+        appSettings: d.appSettings && typeof d.appSettings === 'object' ? d.appSettings : {},
+        users: Array.isArray(d.users) ? d.users : [],
+        rooms: Array.isArray(d.rooms) ? d.rooms : [],
+        students: Array.isArray(d.students) ? d.students : [],
+        txHistory: Array.isArray(d.txHistory) ? d.txHistory : [],
+        fundRounds: Array.isArray(d.fundRounds) ? d.fundRounds : [],
+        fundPayments: Array.isArray(d.fundPayments) ? d.fundPayments : [],
+        expenses: Array.isArray(d.expenses) ? d.expenses : [],
+        activityLogs: Array.isArray(d.activityLogs) ? d.activityLogs : [],
+        timeLogs: Array.isArray(d.timeLogs) ? d.timeLogs : []
+    });
+}
+
+function captureCurrentRealtimeData_() {
+    return snapshotRealtimeData_({ appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs });
+}
+
+function buildRealtimeChanges_(baseline, current) {
+    if (!baseline || !current) return [];
+    const changes = [];
+    if (stableRealtimeJson_(baseline.appSettings || {}) !== stableRealtimeJson_(current.appSettings || {})) {
+        changes.push({
+            collection: 'appSettings', op: 'mergeObject', basePresent: true,
+            base: cloneRealtimeValue_(baseline.appSettings || {}),
+            value: cloneRealtimeValue_(current.appSettings || {})
         });
-        
-        console.log("🔥 ฝากข้อมูลลง Firebase Queue สำเร็จ! (รอหุ่นยนต์ส่งไป Sheet)");
-
-        // เคาะระฆังบอกเครื่องอื่นว่ามีอัปเดต
-        if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
-
-    } catch (error) {
-        console.error("Firebase Queue Error:", error);
-        // แผนสำรอง: ถ้า Firebase พังหรือข้อมูลใหญ่เกิน 1MB ให้ส่งตรงเข้า Sheet แทน
-        callBackend({ action: 'saveAll', data: dbData });
-    } finally {
-        isSyncing = false;
     }
-}
-// ================= หุ่นยนต์หลังบ้าน: คอยดึงข้อมูลจาก Firebase ไปส่ง Google Sheets =================
-let isProcessingQueue = false;
-let syncWorkerTimer = null;
+    REALTIME_COLLECTIONS.forEach(collection => {
+        const beforeEntries = realtimeArrayEntries_(collection, baseline[collection]);
+        const afterEntries = realtimeArrayEntries_(collection, current[collection]);
+        const before = new Map(beforeEntries.map(entry => [entry.key, entry.value]));
+        const after = new Map(afterEntries.map(entry => [entry.key, entry.value]));
+        const afterPositions = new Map(afterEntries.map((entry, position) => [entry.key, position]));
 
-function startBackgroundSyncWorker() {
-    // ให้หุ่นยนต์ทำงานเฉพาะบัญชีแอดมินเท่านั้น
-    if (currentUserRole === 'guest') {
-        if (syncWorkerTimer) {
-            clearInterval(syncWorkerTimer);
-            syncWorkerTimer = null;
-        }
-        return;
-    }
-
-    // ป้องกันการสร้าง setInterval ซ้ำซ้อน
-    if (syncWorkerTimer) return;
-
-    // ตั้งเวลาให้หุ่นยนต์ตื่นมาเช็คคิวทุกๆ 8 วินาที
-    syncWorkerTimer = setInterval(async () => {
-        if (isProcessingQueue) return;
-
-        try {
-            // เช็คว่ามีคิว PENDING ค้างอยู่ไหม
-            let doc = await db.collection('syncQueue').doc('latest').get();
-            
-            if (doc.exists && doc.data().status === 'PENDING') {
-                isProcessingQueue = true;
-                console.log("⚙️ หุ่นยนต์พบข้อมูลในคิว! กำลังนำไปบันทึกลง Google Sheets...");
-                
-                // เปลี่ยนสถานะเป็น PROCESSING เพื่อกันไม่ให้แอดมินเครื่องอื่นดึงข้อมูลก้อนนี้ไปทำซ้ำ
-                await db.collection('syncQueue').doc('latest').update({ status: 'PROCESSING' });
-
-                let dbData = JSON.parse(doc.data().payload);
-                
-                // ส่งข้อมูลจริงไปบันทึกที่ Google Sheets (กระบวนการนี้กินเวลา 2-5 วิ แต่ผู้ใช้จะไม่รู้สึกกระตุกแล้ว)
-                let result = await callBackend({ action: 'saveAll', data: dbData, authToken: window.currentAuthToken || '' });
-
-                if (result && result.status === 'success') {
-                    // ถ้ายัดลง Sheet สำเร็จ ให้ลบคิวนี้ทิ้งจาก Firebase
-                    await db.collection('syncQueue').doc('latest').delete();
-                    console.log("✅ หุ่นยนต์บันทึกลง Google Sheets สำเร็จแล้ว!");
-                } else {
-                    // ถ้าบันทึกไม่สำเร็จ ให้คืนสถานะเป็น PENDING ไว้รอส่งใหม่รอบถัดไป
-                    await db.collection('syncQueue').doc('latest').update({ status: 'PENDING' });
-                }
+        before.forEach((value, key) => {
+            if (!after.has(key)) {
+                changes.push({ collection, key, op: 'delete', basePresent: true, base: cloneRealtimeValue_(value) });
             }
-        } catch (error) {
-            console.error("Background Sync Error:", error);
-            isProcessingQueue = false;
-        } finally {
-            isProcessingQueue = false;
-        }
-    }, 8000); // 8000 มิลลิวินาที = 8 วินาที
+        });
+        after.forEach((value, key) => {
+            if (!before.has(key)) {
+                changes.push({ collection, key, op: 'upsert', basePresent: false, position: afterPositions.get(key), value: cloneRealtimeValue_(value) });
+            } else if (stableRealtimeJson_(before.get(key)) !== stableRealtimeJson_(value)) {
+                changes.push({ collection, key, op: 'upsert', basePresent: true, base: cloneRealtimeValue_(before.get(key)), value: cloneRealtimeValue_(value) });
+            }
+        });
+    });
+    return changes;
 }
-// ================= บันทึกข้อมูลบังคับแบบ Manual =================
-async function pushToGS() {
-    if (isSyncing) return Swal.fire({icon: 'info', title: 'ระบบกำลังทำงานอยู่', timer: 1800, showConfirmButton: false});
-    
-    isSyncing = true;
-    Swal.fire({ title: 'กำลังบันทึกลง Sheet...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    try {
-        const dbData = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs };
-        const result = await callBackend({ action: 'saveAll', data: dbData });
 
-        if (result && result.status === 'success') {
-            // เคลียร์คิวใน Firebase ทิ้งด้วยเพราะเซฟเข้า Sheet ปัจจุบันสุดแล้ว
-            await db.collection('syncQueue').doc('latest').delete().catch(e=>{}); 
-            
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกข้อมูลสำเร็จ', showConfirmButton: false, timer: 1500 });
-            if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
-        } else {
-            Swal.fire('บันทึกไม่สำเร็จ', result.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+function mergeRealtimeState_(base, local, server, basePresent, localPresent, serverPresent, collection) {
+    const equal = (a, b) => stableRealtimeJson_(a) === stableRealtimeJson_(b);
+    if (!localPresent && !serverPresent) return { present: false };
+    if (!localPresent) {
+        if (!basePresent) return { present: serverPresent, value: cloneRealtimeValue_(server) };
+        if (serverPresent && equal(server, base)) return { present: false };
+        return { present: serverPresent, value: cloneRealtimeValue_(server) };
+    }
+    if (!serverPresent) {
+        if (!basePresent) return { present: true, value: cloneRealtimeValue_(local) };
+        if (equal(local, base)) return { present: false };
+        // Server-side deletion wins over editing a stale copy of a deleted record.
+        return { present: false };
+    }
+
+    if (!basePresent) {
+        if (equal(local, server)) return { present: true, value: cloneRealtimeValue_(local) };
+        if (local && server && typeof local === 'object' && typeof server === 'object' && !Array.isArray(local) && !Array.isArray(server)) {
+            const out = {};
+            const keys = new Set([...Object.keys(local), ...Object.keys(server)]);
+            keys.forEach(key => {
+                const result = mergeRealtimeState_(undefined, local[key], server[key], false,
+                    Object.prototype.hasOwnProperty.call(local, key), Object.prototype.hasOwnProperty.call(server, key), key);
+                if (result.present) out[key] = result.value;
+            });
+            return { present: true, value: out };
         }
+        // Same-key additions from two clients conflict; the latest request wins for that value.
+        return { present: true, value: cloneRealtimeValue_(local) };
+    }
+
+    if (equal(local, base)) return { present: true, value: cloneRealtimeValue_(server) };
+    if (equal(server, base)) return { present: true, value: cloneRealtimeValue_(local) };
+    if (equal(local, server)) return { present: true, value: cloneRealtimeValue_(local) };
+
+    if (Array.isArray(base) && Array.isArray(local) && Array.isArray(server)) {
+        const bm = new Map(realtimeArrayEntries_(collection, base).map(entry => [entry.key, entry.value]));
+        const lm = new Map(realtimeArrayEntries_(collection, local).map(entry => [entry.key, entry.value]));
+        const sm = new Map(realtimeArrayEntries_(collection, server).map(entry => [entry.key, entry.value]));
+        const mergedByKey = new Map();
+        const allKeys = new Set([...sm.keys(), ...lm.keys(), ...bm.keys()]);
+        allKeys.forEach(key => {
+          const result = mergeRealtimeState_(bm.get(key), lm.get(key), sm.get(key), bm.has(key), lm.has(key), sm.has(key), collection);
+          if (result.present) mergedByKey.set(key, result.value);
+        });
+
+        // Keep the server's order, placing local-only additions beside their local neighbors.
+        const orderedKeys = [...sm.keys()].filter(key => mergedByKey.has(key));
+        const localEntries = realtimeArrayEntries_(collection, local);
+        localEntries.forEach((entry, localIndex) => {
+          if (!mergedByKey.has(entry.key) || orderedKeys.includes(entry.key)) return;
+          let insertAt = -1;
+          for (let n = localIndex + 1; n < localEntries.length; n++) {
+            const nextIndex = orderedKeys.indexOf(localEntries[n].key);
+            if (nextIndex >= 0) { insertAt = nextIndex; break; }
+          }
+          if (insertAt < 0) {
+            for (let n = localIndex - 1; n >= 0; n--) {
+              const previousIndex = orderedKeys.indexOf(localEntries[n].key);
+              if (previousIndex >= 0) { insertAt = previousIndex + 1; break; }
+            }
+          }
+          if (insertAt < 0) orderedKeys.push(entry.key);
+          else orderedKeys.splice(insertAt, 0, entry.key);
+        });
+        return { present: true, value: orderedKeys.map(key => mergedByKey.get(key)) };
+    }
+
+    if (base && local && server && !Array.isArray(base) && !Array.isArray(local) && !Array.isArray(server) &&
+        typeof base === 'object' && typeof local === 'object' && typeof server === 'object') {
+        const out = {};
+        const keys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(server)]);
+        keys.forEach(key => {
+            const result = mergeRealtimeState_(base[key], local[key], server[key],
+                Object.prototype.hasOwnProperty.call(base, key),
+                Object.prototype.hasOwnProperty.call(local, key),
+                Object.prototype.hasOwnProperty.call(server, key), key);
+            if (result.present) out[key] = result.value;
+        });
+        return { present: true, value: out };
+    }
+
+    // Conflict on the same scalar field: the most recently processed write wins.
+    return { present: true, value: cloneRealtimeValue_(local) };
+}
+
+function mergeRealtimeValue_(base, local, server, basePresent = true, localPresent = true, serverPresent = true, collection = 'root') {
+    const result = mergeRealtimeState_(base, local, server, basePresent, localPresent, serverPresent, collection);
+    return result.present ? result.value : undefined;
+}
+
+async function autoSyncToGS(showStatus = false) {
+    if (isSyncing || remotePullInProgress) {
+        syncQueued = true;
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'กำลังบันทึกข้อมูลอยู่', text: 'ระบบจะส่งการแก้ไขล่าสุดต่ออัตโนมัติ', timer: 1600, showConfirmButton: false });
+        return { status: 'queued' };
+    }
+    if (!lastServerSnapshot) {
+        syncQueued = true;
+        await silentPullFromGS();
+        return { status: 'queued', message: 'กำลังโหลดข้อมูลหลักก่อนซิงก์' };
+    }
+
+    const submittedState = captureCurrentRealtimeData_();
+    const baseline = cloneRealtimeValue_(lastServerSnapshot);
+    const changes = buildRealtimeChanges_(baseline, submittedState);
+    if (!changes.length) {
+        hasLocalChanges = false;
+        syncQueued = false;
+        return { status: 'success', message: 'ไม่มีข้อมูลใหม่ที่ต้องบันทึก' };
+    }
+
+    isSyncing = true;
+    syncQueued = false;
+    let saveFailed = false;
+    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const result = await callBackend({ action: 'saveDelta', changes });
+        if (!result || result.status !== 'success') throw new Error((result && result.message) || 'หลังบ้านปฏิเสธการบันทึก');
+
+        // Read the canonical merged state so this tab and every other tab converge on the same data.
+        const loadResult = await callBackend({ action: 'loadAll' });
+        if (!loadResult || loadResult.status !== 'success' || !loadResult.data) {
+            throw new Error((loadResult && loadResult.message) || 'บันทึกแล้ว แต่โหลดข้อมูลยืนยันกลับมาไม่สำเร็จ');
+        }
+        const serverState = snapshotRealtimeData_(loadResult.data);
+        const currentAfterRequest = captureCurrentRealtimeData_();
+        const reconciled = mergeRealtimeValue_(submittedState, currentAfterRequest, serverState, true, true, true, 'root');
+        applyLoadedData(reconciled, serverState);
+        hasLocalChanges = buildRealtimeChanges_(serverState, captureCurrentRealtimeData_()).length > 0;
+
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกข้อมูลและซิงก์เรียลไทม์แล้ว', showConfirmButton: false, timer: 1500 });
+        return { status: 'success' };
     } catch (error) {
-        Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+        saveFailed = true;
+        hasLocalChanges = true;
+        console.error('Realtime save failed:', error);
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire('บันทึกไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
+        return { status: 'error', message: error.message };
     } finally {
         isSyncing = false;
+        if (pendingRemotePull) {
+            // Reconcile first; the three-way merge keeps any unsaved local edits.
+            pendingRemotePull = false;
+            syncQueued = false;
+            setTimeout(() => silentPullFromGS(), 120);
+            if (saveFailed && hasLocalChanges) setTimeout(() => autoSyncToGS(false), 3000);
+        } else if (syncQueued) {
+            syncQueued = false;
+            setTimeout(() => autoSyncToGS(false), 120);
+        } else if (saveFailed && hasLocalChanges) {
+            // Retry with backoff rather than flooding Apps Script on a network failure.
+            setTimeout(() => autoSyncToGS(false), 3000);
+        }
     }
 }
-async function silentPullFromGS() {
-    if (isSyncing) return;
+
+// Kept as a compatibility shim for any older inline handler; no polling worker is used.
+function startBackgroundSyncWorker() { return; }
+
+async function pushToGS() {
+    return autoSyncToGS(true);
+}
+
+async function silentPullFromGS(showStatus = false) {
+    if (isSyncing) { pendingRemotePull = true; return; }
+    if (remotePullInProgress) { pendingRemotePull = true; return; }
+    remotePullInProgress = true;
+    let pullSucceeded = false;
+    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังดึงข้อมูลล่าสุด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const result = await callBackend({ action: 'loadAll' });
-        if (result && result.status === 'success' && !isSyncing) {
-            applyLoadedData(result.data);
-        } else {
-            console.error('ดึงข้อมูลจากหลังบ้านไม่สำเร็จ:', result && result.message);
-        }
+        if (!result || result.status !== 'success' || !result.data) throw new Error((result && result.message) || 'ดึงข้อมูลจากหลังบ้านไม่สำเร็จ');
+        const serverState = snapshotRealtimeData_(result.data);
+        const localState = captureCurrentRealtimeData_();
+        const baseState = lastServerSnapshot || initialLocalSnapshot || localState;
+        const reconciled = mergeRealtimeValue_(baseState, localState, serverState, true, true, true, 'root');
+        applyLoadedData(reconciled, serverState);
+        hasLocalChanges = buildRealtimeChanges_(serverState, captureCurrentRealtimeData_()).length > 0;
+        pullSucceeded = true;
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว', timer: 1100, showConfirmButton: false });
+        return { status: 'success' };
     } catch (error) {
         console.error('Load Error:', error);
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire('ดึงข้อมูลไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อ', 'error');
+        return { status: 'error', message: error.message };
+    } finally {
+        remotePullInProgress = false;
+        if (pendingRemotePull) {
+            pendingRemotePull = false;
+            syncQueued = false;
+            setTimeout(() => silentPullFromGS(), 120);
+        } else if (pullSucceeded && (syncQueued || hasLocalChanges)) {
+            syncQueued = false;
+            setTimeout(() => autoSyncToGS(false), 120);
+        }
     }
 }
 
 async function pullFromGS() {
-    // 🌟 ดึงข้อมูลแบบทันที (Instant Pull):
-    // 1. ลองดึงจาก Firebase Sync Queue ทันทีแบบเรียลไทม์ (<150ms)
-    let fastPulled = false;
-    try {
-        if (typeof db !== 'undefined' && db) {
-            let queueDoc = await db.collection('syncQueue').doc('latest').get();
-            if (queueDoc.exists && queueDoc.data() && queueDoc.data().payload) {
-                let fastData = JSON.parse(queueDoc.data().payload);
-                applyLoadedData(fastData);
-                fastPulled = true;
-                showToast('ดึงข้อมูลล่าสุดเรียบร้อยทันที (Firebase Realtime)', 'success');
-            }
-        }
-    } catch (e) {
-        console.warn('Fast pull error:', e);
-    }
-
-    // 2. ถ้าดึงจากคิวแบบทันทีสำเร็จแล้ว ให้ซิงก์จาก Sheets ต่อในพื้นหลังแบบไม่บล็อกผู้ใช้
-    if (fastPulled) {
-        if (typeof silentPullFromGS === 'function') silentPullFromGS();
-        return;
-    }
-
-    // 3. ถ้าไม่มีคิวใน Firebase ให้ดึงจาก Apps Script โดยตรง
-    Swal.fire({ title: 'กำลังดึงข้อมูลอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    try {
-        const result = await callBackend({ action: 'loadAll' });
-        if (result && result.status === 'success') {
-            applyLoadedData(result.data);
-            Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลจากหลังบ้านแล้ว', timer: 1200, showConfirmButton: false });
-        } else {
-            Swal.fire('ดึงข้อมูลไม่สำเร็จ', (result && result.message) || 'ตรวจสอบการเชื่อมต่อหรือเวอร์ชัน Apps Script', 'error');
-        }
-    } catch (error) {
-        Swal.fire('ดึงข้อมูลไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อ', 'error');
-    }
+    return silentPullFromGS(true);
 }
 
 function normalizeRoundIdFrontend(value) {
@@ -2095,144 +2246,81 @@ function normalizeStudentIdKeyFrontend(value) {
     return String(value == null ? "" : value).replace(/-/g, "").trim();
 }
 
-function applyLoadedData(d) {
-    appSettings = d.appSettings || appSettings;
-    if (!appSettings.activities) appSettings.activities = [];
-    users = d.users || users;
-    rooms = d.rooms || rooms;
+function applyLoadedData(d, serverBaselineOverride) {
+    if (!d || typeof d !== 'object') return;
+    if (serverBaselineOverride || d) lastServerSnapshot = snapshotRealtimeData_(serverBaselineOverride || d);
+
+    appSettings = d.appSettings && typeof d.appSettings === 'object' ? d.appSettings : appSettings;
+    if (!Array.isArray(appSettings.activities)) appSettings.activities = [];
+    users = Array.isArray(d.users) ? d.users : users;
+    rooms = Array.isArray(d.rooms) ? d.rooms : rooms;
     students = Array.isArray(d.students) ? d.students.map(s => ({
         ...s,
-        id: String(s.id == null ? "" : s.id).trim()
+        id: String(s.id == null ? '' : s.id).trim()
     })) : students;
-    txHistory = d.txHistory || txHistory;
+    txHistory = Array.isArray(d.txHistory) ? d.txHistory : txHistory;
     fundRounds = Array.isArray(d.fundRounds) ? d.fundRounds.map(r => ({
         ...r,
         id: normalizeRoundIdFrontend(r.id),
         amt: Number(r.amt) || 0
     })) : fundRounds;
-            
-            // 🌟 ป้องกันยอดเงินหายตอนดึงข้อมูลจากชีต!
-            if (d.fundPayments) {
-                let newPayments = [];
-                d.fundPayments.forEach(serverP => {
-                    const roundKey = normalizeRoundIdFrontend(serverP.roundId);
-                    const studentKey = normalizeStudentIdKeyFrontend(serverP.studentId);
-                    const localP = fundPayments.find(lp =>
-                        normalizeRoundIdFrontend(lp.roundId) === roundKey &&
-                        normalizeStudentIdKeyFrontend(lp.studentId) === studentKey
-                    );
-                    const round = fundRounds.find(r => normalizeRoundIdFrontend(r.id) === roundKey);
-                    const rAmt = round ? (Number(round.amt) || 0) : 0;
-                    const status = String(serverP.status || 'ยังไม่ชำระ');
 
-                    let finalPaidAmt = 0;
-                    if (serverP.paidAmt !== undefined && serverP.paidAmt !== null && Number.isFinite(Number(serverP.paidAmt))) {
-                        finalPaidAmt = Number(serverP.paidAmt);
-                    } else if (status.includes('จ่ายแล้ว')) {
-                        finalPaidAmt = rAmt;
-                    } else if (localP) {
-                        finalPaidAmt = (status === 'ยังไม่ชำระ' || status === 'ตีกลับ') ? 0 : (Number(localP.paidAmt) || 0);
-                    }
-                    if (status.includes('จ่ายแล้ว') && finalPaidAmt <= 0) finalPaidAmt = rAmt;
+    if (Array.isArray(d.fundPayments)) {
+        fundPayments = d.fundPayments.map(serverP => {
+            const roundKey = normalizeRoundIdFrontend(serverP.roundId);
+            const studentKey = normalizeStudentIdKeyFrontend(serverP.studentId);
+            const round = fundRounds.find(r => normalizeRoundIdFrontend(r.id) === roundKey);
+            const roundAmount = round ? (Number(round.amt) || 0) : 0;
+            const status = String(serverP.status || 'ยังไม่ชำระ');
+            let paidAmount = Number(serverP.paidAmt);
+            if (!Number.isFinite(paidAmount)) paidAmount = status.includes('จ่ายแล้ว') ? roundAmount : 0;
+            if (status.includes('จ่ายแล้ว') && paidAmount <= 0) paidAmount = roundAmount;
+            const canonicalStudent = students.find(s => normalizeStudentIdKeyFrontend(s.id) === studentKey);
+            return {
+                ...serverP,
+                roundId: roundKey,
+                studentId: canonicalStudent ? canonicalStudent.id : String(serverP.studentId == null ? '' : serverP.studentId).trim(),
+                status,
+                paidAmt: paidAmount
+            };
+        });
+    }
+    expenses = Array.isArray(d.expenses) ? d.expenses : expenses;
+    activityLogs = Array.isArray(d.activityLogs) ? d.activityLogs : activityLogs;
+    timeLogs = Array.isArray(d.timeLogs) ? d.timeLogs : timeLogs;
 
-                    const canonicalStudent = students.find(s =>
-                        normalizeStudentIdKeyFrontend(s.id) === studentKey
-                    );
-                    newPayments.push({
-                        ...serverP,
-                        roundId: roundKey,
-                        studentId: canonicalStudent ? canonicalStudent.id : String(serverP.studentId == null ? '' : serverP.studentId).trim(),
-                        status,
-                        paidAmt: finalPaidAmt,
-                        // 🌟 ป้องกันข้อมูลเวลา/ผู้รับเงิน/เลขที่ใบเสร็จหายจากการโดน Sheet ดึงทับ
-                        paidDate: serverP.paidDate || (localP ? localP.paidDate : ""),
-                        paidBy: serverP.paidBy || (localP ? localP.paidBy : ""),
-                        receiptRef: localP ? localP.receiptRef : "",
-                        qrUnlocked: localP ? localP.qrUnlocked : false
-                    });
-                });
-                fundPayments = newPayments;
-            } else {
-                fundPayments = fundPayments;
-            }
-            
-            expenses = d.expenses || [];
-            
-            // 🌟 Smart Merge ป้องกันสถานะผลการประเมิน (C, U), คะแนน และเวลาออก (timeOut) หายตอนซิงก์จาก Sheet
-            if (Array.isArray(d.activityLogs) && d.activityLogs.length > 0) {
-                let mergedLogs = [];
-                let localMap = new Map();
-                (activityLogs || []).forEach(l => {
-                    let k = (String(l.studentId).replace(/-/g,'').trim()) + '||' + l.activityTitle + '||' + (l.roundName || '');
-                    localMap.set(k, l);
-                });
+    saveToLocal(false);
+    refreshAll();
 
-                d.activityLogs.forEach(serverL => {
-                    let k = (String(serverL.studentId).replace(/-/g,'').trim()) + '||' + serverL.activityTitle + '||' + (serverL.roundName || '');
-                    let localL = localMap.get(k);
+    // Refresh any open activity-administration panel after canonical data is applied.
+    const adminMasterCard = document.getElementById('admin-activity-master-card');
+    const isMasterActive = adminMasterCard && !adminMasterCard.classList.contains('hidden');
+    if (isMasterActive && typeof currentMasterActivity !== 'undefined' && currentMasterActivity) {
+        const freshAct = (appSettings.activities || []).find(a => a.title === currentMasterActivity.title);
+        if (freshAct) currentMasterActivity = freshAct;
+        if (typeof filterMasterTable === 'function') filterMasterTable();
+        if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
+        if (typeof renderCheckinMapDisplay === 'function') renderCheckinMapDisplay();
+        if (typeof renderMasterRoundsTable === 'function') renderMasterRoundsTable();
+        if (typeof updateMasterHeaderStatusButtons === 'function') updateMasterHeaderStatusButtons();
+        if (typeof renderQRSettingsTab === 'function') renderQRSettingsTab();
+        if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
+    }
+}
+        // Keep a local cache for fast page startup, but always reconcile it with server data.
+function saveToLocal(triggerSync = true) {
+    const cache = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs };
+    try { localStorage.setItem('SSSfnDB', JSON.stringify(cache)); }
+    catch (error) { console.warn('บันทึกแคชในเครื่องไม่สำเร็จ:', error); }
 
-                    if (localL) {
-                        let finalStatus = (localL.status === 'C' || localL.status === 'U') ? localL.status : (serverL.status || localL.status || 'P');
-                        let finalScore = (localL.score !== undefined && localL.score !== null) ? localL.score : (serverL.score || 0);
-                        let finalTimeIn = (serverL.timeIn && serverL.timeIn !== '-') ? serverL.timeIn : (localL.timeIn || '-');
-                        let finalTimeOut = (serverL.timeOut && serverL.timeOut !== '-') ? serverL.timeOut : (localL.timeOut || '-');
-
-                        mergedLogs.push({
-                            ...localL,
-                            ...serverL,
-                            status: finalStatus,
-                            score: finalScore,
-                            timeIn: finalTimeIn,
-                            timeOut: finalTimeOut
-                        });
-                        localMap.delete(k);
-                    } else {
-                        mergedLogs.push(serverL);
-                    }
-                });
-
-                localMap.forEach(remainL => {
-                    mergedLogs.push(remainL);
-                });
-
-                activityLogs = mergedLogs;
-            } else if (Array.isArray(d.activityLogs) && d.activityLogs.length === 0 && activityLogs.length > 0) {
-                activityLogs = activityLogs;
-            } else if (d.activityLogs) {
-                activityLogs = d.activityLogs;
-            }
-
-            timeLogs = d.timeLogs || []; 
-            saveToLocal(false); 
-            refreshAll();
-
-            // 🌟 ซิงก์หน้าจอศูนย์จัดการกิจกรรมแอดมินแบบ Real-time ทันที
-            let adminMasterCard = document.getElementById('admin-activity-master-card');
-            let isMasterActive = adminMasterCard && !adminMasterCard.classList.contains('hidden');
-            if (isMasterActive && typeof currentMasterActivity !== 'undefined' && currentMasterActivity) {
-                let freshAct = (appSettings.activities || []).find(a => a.title === currentMasterActivity.title);
-                if (freshAct) currentMasterActivity = freshAct;
-                if (typeof filterMasterTable === 'function') filterMasterTable();
-                if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
-                if (typeof renderCheckinMapDisplay === 'function') renderCheckinMapDisplay();
-                if (typeof renderMasterRoundsTable === 'function') renderMasterRoundsTable();
-                if (typeof updateMasterHeaderStatusButtons === 'function') updateMasterHeaderStatusButtons();
-                if (typeof renderQRSettingsTab === 'function') renderQRSettingsTab();
-                if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
-            }
-        }
-        // แก้ไขฟังก์ชัน saveToLocal
-function saveToLocal(triggerSync = true) { 
-    let db = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs }; 
-    localStorage.setItem('SSSfnDB', JSON.stringify(db)); 
-    
-    // 🌟 ให้นักศึกษา (guest) เซฟลงเครื่องตัวเองก็พอ ไม่ต้องดันขึ้นระบบใหญ่
-    if(triggerSync) { 
-        clearTimeout(syncTimeout); 
+    if (triggerSync) {
+        hasLocalChanges = true;
+        clearTimeout(syncTimeout);
         syncTimeout = setTimeout(() => {
-            if(!isSyncing) autoSyncToGS();
-        }, 100); // 🌟 แก้ตรงนี้: เปลี่ยนจาก 3000 เป็น 100 (ใช้เวลาแค่ 0.1 วินาทีในการส่งข้อมูลเข้าคิว Firebase)
-    } 
+            if (isSyncing || remotePullInProgress) syncQueued = true;
+            else autoSyncToGS(false);
+        }, 150);
+    }
 }
         function loadFromLocal() {
     try {
@@ -2701,15 +2789,14 @@ function openPublicSlipModal(targetRoundId = null) {
         } 
     });
 }
-        document.addEventListener('DOMContentLoaded', () => { 
-    loadFromLocal(); 
-    document.getElementById('checkDate').valueAsDate = new Date(); 
-    refreshAll(); 
-    applyRoleUI(); 
-    silentPullFromGS(); 
-    
-    // 🌟 เริ่มการทำงานของหุ่นยนต์ส่งข้อมูลหลังบ้าน (หน่วง 5 วิก่อนเริ่ม เพื่อให้เว็บโหลดเสร็จก่อน)
-    setTimeout(startBackgroundSyncWorker, 5000);
+        document.addEventListener('DOMContentLoaded', () => {
+    loadFromLocal();
+    const checkDateEl = document.getElementById('checkDate');
+    if (checkDateEl) checkDateEl.valueAsDate = new Date();
+    refreshAll();
+    applyRoleUI();
+    initialLocalSnapshot = captureCurrentRealtimeData_();
+    silentPullFromGS();
     setTimeout(() => {
         if (typeof checkUrlCheckin === 'function') checkUrlCheckin();
     }, 500);
