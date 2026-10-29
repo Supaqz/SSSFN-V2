@@ -1712,24 +1712,41 @@
         });
     }
 
-    db.collection('systemSignals').doc('lastUpdate').onSnapshot((doc) => {
-        if (firstSignalSnapshot) {
-            firstSignalSnapshot = false;
-            return;
-        }
-        const signal = doc && doc.exists ? (doc.data() || {}) : {};
-        // Ignore this browser's own notification; it already reconciles with the server after save.
-        if (signal.source && signal.source === realtimeClientId) return;
-
+    // Coalesce server notifications into one authoritative read. The listener only signals;
+    // canonical data still comes from Apps Script reading Firebase Primary.
+    function requestRealtimeCanonicalRefresh_(reason, delayMs = 160) {
         if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
             pendingRemotePull = true;
             return;
         }
         clearTimeout(remoteSignalTimer);
         remoteSignalTimer = setTimeout(() => {
-            if (typeof silentPullFromGS === 'function') silentPullFromGS();
-        }, 120);
-    }, (error) => console.warn('Firebase realtime listener error:', error));
+            remoteSignalTimer = null;
+            if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
+                pendingRemotePull = true;
+                return;
+            }
+            if (typeof silentPullFromGS === 'function') {
+                Promise.resolve(silentPullFromGS()).then(result => {
+                    if (result && result.status === 'error') scheduleRealtimePullRetry_();
+                }).catch(error => {
+                    console.warn('Authoritative realtime refresh failed (' + reason + '):', error);
+                    scheduleRealtimePullRetry_();
+                });
+            }
+        }, Math.max(0, Number(delayMs) || 0));
+    }
+
+    db.collection('systemSignals').doc('lastUpdate').onSnapshot((doc) => {
+        if (firstSignalSnapshot) {
+            firstSignalSnapshot = false;
+            return; // startup load supplies the initial canonical state
+        }
+        const signal = doc && doc.exists ? (doc.data() || {}) : {};
+        // Ignore only our own signal. Backend mutations use a server source and must refresh this tab.
+        if (signal.source && signal.source === realtimeClientId) return;
+        requestRealtimeCanonicalRefresh_('systemSignals/lastUpdate', 120);
+    }, (error) => console.error('Firebase systemSignals listener failed; realtime refresh is degraded:', error));
 
 
     // Fast shared staging queue: browsers apply pending deltas immediately; Apps Script persists them later.
@@ -1843,11 +1860,25 @@
             }
             const data = doc.data() || {};
             const status = String(data.status || '').toUpperCase();
-            if (status === 'ERROR' || status === 'CANCELLED' || status === 'DONE') {
+            if (status === 'ERROR' || status === 'CANCELLED') {
+                stagedRealtimeEvents_.delete(id);
+                // This tab may have applied the mutation optimistically. Remove its dedupe marker
+                // and reconcile against canonical Firebase Primary so failed writes cannot stay on screen.
+                appliedRealtimeEventIds_.delete(id);
+                console.error('Realtime mutation did not commit:', id, data.lastError || status);
+                requestRealtimeCanonicalRefresh_('syncQueue/' + status, 180);
+                return;
+            }
+            if (status === 'DONE') {
                 stagedRealtimeEvents_.delete(id);
                 return;
             }
             if (!['PENDING', 'PROCESSING', 'PRIMARY_COMMITTED', 'BACKUP_PENDING', 'BACKUP_ERROR'].includes(status)) return;
+            // BACKUP_PENDING/BACKUP_ERROR means primary should already be committed. Re-read it to
+            // reconcile optimistic state, even for the originating browser whose delta is deduped.
+            if (change.type === 'modified' && (status === 'BACKUP_PENDING' || status === 'BACKUP_ERROR')) {
+                requestRealtimeCanonicalRefresh_('syncQueue/' + status, 180);
+            }
             if (appliedRealtimeEventIds_.has(id)) return;
             let envelope;
             try { envelope = JSON.parse(String(data.payload || '{}')); }
@@ -2259,29 +2290,63 @@ function mergeRealtimeValue_(base, local, server, basePresent = true, localPrese
     return result.present ? result.value : undefined;
 }
 
+let realtimeWorkerRunningV12_ = false;
+let realtimeWorkerAgainV12_ = false;
+let realtimeWorkerRetryTimerV12_ = null;
+
 function kickRealtimeQueueWorker_() {
-    setTimeout(() => {
-        callBackend({ action: 'processRealtimeQueue' }).then(result => {
-            if (result && result.status === 'busy') {
-                setTimeout(() => callBackend({ action: 'processRealtimeQueue' }).then(r => {
-                    if (r && r.status === 'success') {
-                        setTimeout(() => callBackend({ action: 'processSheetsBackup' }).catch(() => {}), 250);
-                    }
-                }).catch(() => {}), 1200 + Math.floor(Math.random() * 1000));
-            } else if (result && result.status === 'error') {
-                console.warn('Primary Firebase queue worker returned an error:', result.message);
-            } else if (result && result.status === 'success') {
-                // Retry transient primary write failures once; the minute trigger is the durable fallback.
-                if (Number(result.failed || 0) > 0) {
-                    setTimeout(() => callBackend({ action: 'processRealtimeQueue' }).catch(() => {}), 1500 + Math.floor(Math.random() * 800));
-                }
-                // Google Sheets backup is a separate task; never delay realtime UI on it.
-                setTimeout(() => callBackend({ action: 'processSheetsBackup' }).then(backup => {
-                    if (backup && backup.status === 'error') console.warn('Sheets backup will retry:', backup.message);
-                }).catch(error => console.warn('Could not start Sheets backup:', error)), 250);
-            }
-        }).catch(error => console.warn('Could not kick primary Firebase worker; trigger will retry:', error));
-    }, 0);
+    if (realtimeWorkerRunningV12_) {
+        realtimeWorkerAgainV12_ = true;
+        return;
+    }
+    if (realtimeWorkerRetryTimerV12_) return;
+    realtimeWorkerRetryTimerV12_ = setTimeout(() => runRealtimeQueueWorkerV12_(0), 0);
+}
+
+async function runRealtimeQueueWorkerV12_(attempt) {
+    realtimeWorkerRetryTimerV12_ = null;
+    if (realtimeWorkerRunningV12_) {
+        realtimeWorkerAgainV12_ = true;
+        return;
+    }
+    realtimeWorkerRunningV12_ = true;
+    let shouldRetry = false;
+    let shouldBackup = false;
+    let detail = '';
+    try {
+        const result = await callBackend({ action: 'processRealtimeQueue' });
+        if (result && result.status === 'success') {
+            shouldBackup = true;
+            shouldRetry = Number(result.failed || 0) > 0;
+            if (shouldRetry) detail = 'มีรายการคิวที่ยังบันทึกไม่สำเร็จ';
+        } else {
+            shouldRetry = true;
+            detail = String((result && result.message) || (result && result.status) || 'ไม่ได้รับผลยืนยันจาก worker');
+            console.warn('Primary Firebase queue worker returned an error:', detail);
+        }
+    } catch (error) {
+        shouldRetry = true;
+        detail = error && error.message ? error.message : String(error);
+        console.warn('Could not kick primary Firebase worker; retrying:', detail);
+    } finally {
+        realtimeWorkerRunningV12_ = false;
+        if (shouldBackup) {
+            // Backup is deliberately separate; it must never block foreground realtime rendering.
+            setTimeout(() => callBackend({ action: 'processSheetsBackup' }).then(backup => {
+                if (backup && backup.status === 'error') console.warn('Sheets backup will retry:', backup.message);
+            }).catch(error => console.warn('Could not start Sheets backup:', error)), 250);
+        }
+        if (shouldRetry && attempt < 5) {
+            const delay = Math.min(900 * Math.pow(2, attempt), 12000) + Math.floor(Math.random() * 500);
+            realtimeWorkerRetryTimerV12_ = setTimeout(() => runRealtimeQueueWorkerV12_(attempt + 1), delay);
+        } else if (shouldRetry) {
+            console.error('Realtime queue worker exhausted client retries:', detail);
+            requestRealtimeCanonicalRefresh_('worker-exhausted', 300);
+        } else if (realtimeWorkerAgainV12_) {
+            realtimeWorkerAgainV12_ = false;
+            kickRealtimeQueueWorker_();
+        }
+    }
 }
 
 function scheduleRealtimeSaveRetry_() {
@@ -2524,7 +2589,9 @@ function applyLoadedData(d, serverBaselineOverride) {
     const adminMasterCard = document.getElementById('admin-activity-master-card');
     const isMasterActive = adminMasterCard && !adminMasterCard.classList.contains('hidden');
     if (isMasterActive && typeof currentMasterActivity !== 'undefined' && currentMasterActivity) {
-        const freshAct = (appSettings.activities || []).find(a => a.title === currentMasterActivity.title);
+        const currentActivityKey = String(currentMasterActivity.ref || currentMasterActivity.id || '').trim();
+        const freshAct = (appSettings.activities || []).find(a => currentActivityKey && String(a && (a.ref || a.id) || '').trim() === currentActivityKey)
+            || (appSettings.activities || []).find(a => String(a && a.title || '') === String(currentMasterActivity.title || ''));
         if (freshAct) currentMasterActivity = freshAct;
         if (typeof filterMasterTable === 'function') filterMasterTable();
         if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
