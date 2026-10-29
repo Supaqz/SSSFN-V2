@@ -1731,6 +1731,135 @@
         }, 120);
     }, (error) => console.warn('Firebase realtime listener error:', error));
 
+
+    // Fast shared staging queue: browsers apply pending deltas immediately; Apps Script persists them later.
+    // Queue documents contain only one mutation event (not a full database snapshot), preventing latest-writer overwrite.
+    const stagedRealtimeEvents_ = new Map();
+    const appliedRealtimeEventIds_ = new Set();
+    let applyingStagedRealtimeEvent_ = false;
+
+    function applyRealtimeChangesToSnapshot_(sourceState, changes) {
+        const state = snapshotRealtimeData_(sourceState || {});
+        (Array.isArray(changes) ? changes : []).forEach(change => {
+            if (!change || typeof change !== 'object') return;
+            if (change.collection === 'appSettings' && change.op === 'mergeObject') {
+                state.appSettings = mergeRealtimeValue_(change.base || {}, change.value || {}, state.appSettings || {}, true, true, true, 'appSettings') || {};
+                return;
+            }
+            const collection = String(change.collection || '');
+            if (!REALTIME_COLLECTIONS.includes(collection) || !Array.isArray(state[collection])) return;
+            const entries = realtimeArrayEntries_(collection, state[collection]);
+            const index = entries.findIndex(entry => entry.key === String(change.key));
+            if (change.op === 'delete') {
+                if (index < 0) return;
+                const current = state[collection][index];
+                // Respect local edits; apply a queued delete only when its base record is still present unchanged.
+                if (!change.basePresent || stableRealtimeJson_(current) === stableRealtimeJson_(change.base)) {
+                    state[collection].splice(index, 1);
+                }
+                return;
+            }
+            if (change.op !== 'upsert') return;
+            if (index < 0) {
+                // If a record existed in the event's base but is absent now, don't resurrect a server-side deletion.
+                if (change.basePresent) return;
+                const pos = Number(change.position);
+                const safePos = Number.isInteger(pos) ? Math.max(0, Math.min(pos, state[collection].length)) : state[collection].length;
+                state[collection].splice(safePos, 0, cloneRealtimeValue_(change.value));
+            } else {
+                // Three-way merge lets a currently edited local field survive a simultaneous remote change.
+                state[collection][index] = mergeRealtimeValue_(change.base, change.value, state[collection][index],
+                    !!change.basePresent, true, true, collection);
+            }
+        });
+        const roomSet = new Set((state.rooms || []).map(String));
+        (state.students || []).forEach(stu => { if (stu && stu.room) roomSet.add(String(stu.room)); });
+        state.rooms = Array.from(roomSet);
+        return state;
+    }
+
+    function stagedMutationTime_(entry) {
+        const ts = entry && entry.createdAt;
+        if (ts && typeof ts.toMillis === 'function') return ts.toMillis();
+        if (ts && typeof ts.toDate === 'function') return ts.toDate().getTime();
+        const parsed = Date.parse(ts || '');
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function applyPendingStagedRealtimeEvents_() {
+        if (applyingStagedRealtimeEvent_ || !lastServerSnapshot || isSyncing || remotePullInProgress || activityFlagSaveInProgress) return;
+        applyingStagedRealtimeEvent_ = true;
+        try {
+            const ordered = Array.from(stagedRealtimeEvents_.entries()).sort((a, b) => {
+                const timeDiff = stagedMutationTime_(a[1]) - stagedMutationTime_(b[1]);
+                return timeDiff || String(a[0]).localeCompare(String(b[0]));
+            });
+            for (const [mutationId, event] of ordered) {
+                if (appliedRealtimeEventIds_.has(mutationId)) {
+                    stagedRealtimeEvents_.delete(mutationId);
+                    continue;
+                }
+                if (event.sourceClientId && event.sourceClientId === realtimeClientId) {
+                    appliedRealtimeEventIds_.add(mutationId);
+                    stagedRealtimeEvents_.delete(mutationId);
+                    continue;
+                }
+                const changes = Array.isArray(event.changes) ? event.changes : [];
+                if (!changes.length) {
+                    appliedRealtimeEventIds_.add(mutationId);
+                    stagedRealtimeEvents_.delete(mutationId);
+                    continue;
+                }
+                const baseline = cloneRealtimeValue_(lastServerSnapshot);
+                const current = captureCurrentRealtimeData_();
+                const nextBaseline = applyRealtimeChangesToSnapshot_(baseline, changes);
+                // Merge the staged baseline into the live state so unsent edits in this browser survive.
+                const nextCurrent = mergeRealtimeValue_(baseline, current, nextBaseline, true, true, true, 'root');
+                applyLoadedData(nextCurrent, nextBaseline);
+                hasLocalChanges = buildRealtimeChanges_(nextBaseline, captureCurrentRealtimeData_()).length > 0;
+                appliedRealtimeEventIds_.add(mutationId);
+                stagedRealtimeEvents_.delete(mutationId);
+            }
+            // Bound the per-tab dedupe cache for long-running kiosk/student sessions.
+            if (appliedRealtimeEventIds_.size > 2000) {
+                const newest = Array.from(appliedRealtimeEventIds_).slice(-1000);
+                appliedRealtimeEventIds_.clear();
+                newest.forEach(id => appliedRealtimeEventIds_.add(id));
+            }
+        } catch (error) {
+            console.warn('Could not apply staged realtime mutation:', error);
+        } finally {
+            applyingStagedRealtimeEvent_ = false;
+        }
+    }
+
+    db.collection('syncQueue').where('kind', '==', 'realtimeDelta').onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach(change => {
+            const doc = change.doc;
+            const id = doc.id;
+            const data = doc.data() || {};
+            const status = String(data.status || '').toUpperCase();
+            if (status === 'ERROR' || status === 'CANCELLED') {
+                stagedRealtimeEvents_.delete(id);
+                return;
+            }
+            if (!['PENDING', 'PROCESSING'].includes(status)) return;
+            if (appliedRealtimeEventIds_.has(id)) return;
+            let envelope;
+            try { envelope = JSON.parse(String(data.payload || '{}')); }
+            catch (error) { console.warn('Invalid realtime queue payload:', id, error); return; }
+            if (!Array.isArray(envelope.changes)) return;
+            stagedRealtimeEvents_.set(id, {
+                changes: envelope.changes,
+                sourceClientId: String(envelope.sourceClientId || data.sourceClientId || ''),
+                createdAt: data.createdAt || null
+            });
+        });
+        applyPendingStagedRealtimeEvents_();
+    }, (error) => {
+        console.warn('Realtime staging queue listener failed; normal server sync remains available:', error);
+    });
+
     window.addEventListener('focus', () => {
         if (!isSyncing && !remotePullInProgress) silentPullFromGS();
     });
@@ -2126,6 +2255,18 @@ function mergeRealtimeValue_(base, local, server, basePresent = true, localPrese
     return result.present ? result.value : undefined;
 }
 
+function kickRealtimeQueueWorker_() {
+    setTimeout(() => {
+        callBackend({ action: 'processRealtimeQueue' }).then(result => {
+            if (result && result.status === 'busy') {
+                setTimeout(() => callBackend({ action: 'processRealtimeQueue' }).catch(() => {}), 1800 + Math.floor(Math.random() * 1200));
+            } else if (result && result.status === 'error') {
+                console.warn('Background queue worker returned an error:', result.message);
+            }
+        }).catch(error => console.warn('Could not kick background queue worker; trigger will retry:', error));
+    }, 0);
+}
+
 function scheduleRealtimeSaveRetry_() {
     const baseDelay = Math.min(3000 * Math.pow(2, realtimeRetryAttempt), 60000);
     const jitter = Math.floor(Math.random() * 1500);
@@ -2136,13 +2277,13 @@ function scheduleRealtimeSaveRetry_() {
 async function autoSyncToGS(showStatus = false) {
     if (isSyncing || remotePullInProgress) {
         syncQueued = true;
-        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'กำลังบันทึกข้อมูลอยู่', text: 'ระบบจะส่งการแก้ไขล่าสุดต่ออัตโนมัติ', timer: 1600, showConfirmButton: false });
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'กำลังฝากข้อมูลเข้าคิว', text: 'ระบบจะส่งการแก้ไขล่าสุดต่อให้อัตโนมัติ', timer: 1600, showConfirmButton: false });
         return { status: 'queued' };
     }
     if (!lastServerSnapshot) {
         syncQueued = true;
         await silentPullFromGS();
-        return { status: 'queued', message: 'กำลังโหลดข้อมูลหลักก่อนซิงก์' };
+        return { status: 'queued', message: 'กำลังโหลดข้อมูลหลักก่อนฝากคิว' };
     }
 
     const submittedState = captureCurrentRealtimeData_();
@@ -2157,52 +2298,81 @@ async function autoSyncToGS(showStatus = false) {
     isSyncing = true;
     syncQueued = false;
     let saveFailed = false;
-    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังฝากข้อมูลเข้าคิวกลาง...', text: 'หน้าจออื่นจะรับการเปลี่ยนแปลงทันที ส่วน Google Sheets จะบันทึกตามลำดับเบื้องหลัง', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-        const result = await callBackend({ action: 'saveDelta', changes });
-        if (!result || result.status !== 'success') throw new Error((result && result.message) || 'หลังบ้านปฏิเสธการบันทึก');
+        const mutationId = 'rt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 14);
+        const envelope = {
+            mutationId,
+            sourceClientId: realtimeClientId,
+            createdAtClient: new Date().toISOString(),
+            changes
+        };
+        const payloadText = JSON.stringify(envelope);
+        if (payloadText.length > 700000) throw new Error('ข้อมูลการเปลี่ยนแปลงมีขนาดใหญ่เกินคิว Firebase จะใช้การบันทึกตรงแทน');
+
+        // Stage first. Other open browsers listen to this document and apply its delta immediately.
+        await db.collection('syncQueue').doc(mutationId).set({
+            kind: 'realtimeDelta',
+            status: 'PENDING',
+            payload: payloadText,
+            sourceClientId: realtimeClientId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Treat the staged state as the next local baseline, so the same delta is not enqueued repeatedly.
+        lastServerSnapshot = cloneRealtimeValue_(submittedState);
+        const currentAfterStage = captureCurrentRealtimeData_();
+        hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, currentAfterStage).length > 0;
         realtimeRetryAttempt = 0;
+        appliedRealtimeEventIds_.add(mutationId); // This browser already displays its own optimistic edit.
 
-        // Publish the realtime signal after Apps Script has returned and released its write lock.
-        if (typeof notifyFirebaseUpdate === 'function') {
-            try { await notifyFirebaseUpdate(); }
-            catch (signalError) { console.warn('Realtime signal publish failed:', signalError); }
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire({
+            toast: true, position: 'top-end', icon: 'success',
+            title: 'อัปเดตหน้าจอแล้ว • กำลังบันทึกลง Sheet',
+            text: 'ข้อมูลถูกฝากเข้าคิวกลางแล้ว', showConfirmButton: false, timer: 1800
+        });
+
+        // Kick one background queue worker without making the visible update wait for Google Sheets.
+        // A one-minute Apps Script trigger is the durable fallback if this browser closes or the kick fails.
+        kickRealtimeQueueWorker_();
+        return { status: 'staged', mutationId };
+    } catch (stageError) {
+        console.warn('Could not stage realtime mutation; falling back to direct backend save:', stageError);
+        // Compatibility fallback: still persist changes if Firebase rules/quota reject queue writes.
+        try {
+            const result = await callBackend({ action: 'saveDelta', changes });
+            if (!result || result.status !== 'success') throw new Error((result && result.message) || stageError.message || 'หลังบ้านปฏิเสธการบันทึก');
+            if (typeof notifyFirebaseUpdate === 'function') await notifyFirebaseUpdate();
+            const loadResult = await callBackend({ action: 'loadAll' });
+            if (loadResult && loadResult.status === 'success' && loadResult.data) {
+                const serverState = snapshotRealtimeData_(loadResult.data);
+                applyLoadedData(serverState, serverState);
+                hasLocalChanges = false;
+            } else {
+                lastServerSnapshot = cloneRealtimeValue_(submittedState);
+                hasLocalChanges = false;
+            }
+            return { status: 'success', fallback: true };
+        } catch (error) {
+            saveFailed = true;
+            hasLocalChanges = true;
+            console.error('Realtime staging/save failed:', error);
+            if (showStatus && typeof Swal !== 'undefined') Swal.fire('บันทึกไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
+            return { status: 'error', message: error.message };
         }
-
-        // Read the canonical merged state so this tab and every other tab converge on the same data.
-        const loadResult = await callBackend({ action: 'loadAll' });
-        if (!loadResult || loadResult.status !== 'success' || !loadResult.data) {
-            throw new Error((loadResult && loadResult.message) || 'บันทึกแล้ว แต่โหลดข้อมูลยืนยันกลับมาไม่สำเร็จ');
-        }
-        const serverState = snapshotRealtimeData_(loadResult.data);
-        const currentAfterRequest = captureCurrentRealtimeData_();
-        const reconciled = mergeRealtimeValue_(submittedState, currentAfterRequest, serverState, true, true, true, 'root');
-        applyLoadedData(reconciled, serverState);
-        hasLocalChanges = buildRealtimeChanges_(serverState, captureCurrentRealtimeData_()).length > 0;
-
-        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'บันทึกข้อมูลและซิงก์เรียลไทม์แล้ว', showConfirmButton: false, timer: 1500 });
-        return { status: 'success' };
-    } catch (error) {
-        saveFailed = true;
-        hasLocalChanges = true;
-        console.error('Realtime save failed:', error);
-        if (showStatus && typeof Swal !== 'undefined') Swal.fire('บันทึกไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
-        return { status: 'error', message: error.message };
     } finally {
         isSyncing = false;
         if (pendingRemotePull) {
-            // Reconcile first; the three-way merge keeps any unsaved local edits.
             pendingRemotePull = false;
             syncQueued = false;
             setTimeout(() => silentPullFromGS(), 120);
             if (saveFailed && hasLocalChanges) scheduleRealtimeSaveRetry_();
-        } else if (syncQueued) {
+        } else if (syncQueued || hasLocalChanges) {
             syncQueued = false;
-            setTimeout(() => autoSyncToGS(false), 120);
-        } else if (saveFailed && hasLocalChanges) {
-            // Backoff + jitter avoids every open tab retrying at the same instant.
-            scheduleRealtimeSaveRetry_();
+            setTimeout(() => autoSyncToGS(false), 250);
         }
+        setTimeout(() => applyPendingStagedRealtimeEvents_(), 0);
     }
 }
 
@@ -2259,6 +2429,7 @@ async function silentPullFromGS(showStatus = false) {
         return { status: isExpectedBusy ? 'busy' : 'error', message: error.message };
     } finally {
         remotePullInProgress = false;
+        setTimeout(() => applyPendingStagedRealtimeEvents_(), 0);
         if (pendingRemotePull) {
             pendingRemotePull = false;
             syncQueued = false;
@@ -4774,7 +4945,7 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
         return showToast('ฟิลด์สถานะกิจกรรมไม่ถูกต้อง', 'error');
     }
     if (activityFlagSaveInProgress) {
-        return showToast('กำลังบันทึกสถานะกิจกรรมนี้อยู่ กรุณารอสักครู่', 'info');
+        return showToast('กำลังส่งสถานะกิจกรรมเข้าคิว กรุณารอสักครู่', 'info');
     }
 
     const activity = currentMasterActivity;
@@ -4787,34 +4958,43 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
 
     activityFlagSaveInProgress = true;
     activity[flagName] = desiredValue;
-    saveToLocal(false); // optimistic UI only; do not submit a stale full-state delta for this flag
+    saveToLocal(false); // Optimistic update; other browsers receive the staged event from Firestore.
     refreshActivityFlagUI_(flagName);
-    showToast('กำลังบันทึกสถานะกิจกรรม...', 'info');
+    showToast('กำลังฝากสถานะกิจกรรมเข้าคิวกลาง...', 'info');
 
     try {
         const result = await callBackend({
-            action: 'setActivityFlag',
+            action: 'stageActivityFlag',
             activityTitle: activityTitle,
             activityRef: activityRef,
             flagName: flagName,
             flagValue: desiredValue
         });
-        if (!result || result.status !== 'success') {
-            throw new Error((result && result.message) || 'หลังบ้านไม่สามารถบันทึกสถานะได้');
+        if (!result || result.status !== 'staged') {
+            throw new Error((result && result.message) || 'หลังบ้านไม่สามารถฝากสถานะเข้าคิวได้');
         }
 
-        // Ensure this browser also converges on the canonical state. A listener notification
-        // may have arrived while the save was running, so coalesce it into this pull.
-        pendingRemotePull = false;
-        await silentPullFromGS();
-        showToast(successMessage, successType || 'success');
+        // Advance only this one flag in the staging baseline, retaining unrelated unsaved local changes.
+        const newBaseline = cloneRealtimeValue_(lastServerSnapshot || captureCurrentRealtimeData_());
+        if (!newBaseline.appSettings || typeof newBaseline.appSettings !== 'object') newBaseline.appSettings = {};
+        if (!Array.isArray(newBaseline.appSettings.activities)) newBaseline.appSettings.activities = [];
+        let baselineActivity = -1;
+        if (activityRef) baselineActivity = newBaseline.appSettings.activities.findIndex(a => String(a && (a.ref || a.id) || '').trim() === activityRef);
+        if (baselineActivity < 0) baselineActivity = newBaseline.appSettings.activities.findIndex(a => String(a && a.title || '').trim() === activityTitle);
+        if (baselineActivity >= 0) newBaseline.appSettings.activities[baselineActivity][flagName] = desiredValue;
+        lastServerSnapshot = newBaseline;
+        hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, captureCurrentRealtimeData_()).length > 0;
+        if (hasLocalChanges) syncQueued = true;
+
+        showToast('อัปเดตหน้าจอแล้ว • กำลังบันทึกสถานะลง Google Sheets', 'info');
+        kickRealtimeQueueWorker_();
     } catch (error) {
         activity[flagName] = oldValue;
         saveToLocal(false);
         refreshActivityFlagUI_(flagName);
-        console.error('Activity status save failed:', error);
+        console.error('Activity status staging failed:', error);
         const flagSaveError = String(error && error.message || '');
-        showToast('บันทึกสถานะไม่สำเร็จ: ' + (flagSaveError || 'กรุณาลองใหม่'), 'error');
+        showToast('ส่งสถานะเข้าคิวไม่สำเร็จ: ' + (flagSaveError || 'กรุณาลองใหม่'), 'error');
         if (flagSaveError.includes('เซสชันหมดอายุ') || flagSaveError.includes('ไม่มีสิทธิ์')) {
             window.currentAuthToken = '';
             try {
@@ -4839,6 +5019,7 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
             syncQueued = false;
             setTimeout(() => autoSyncToGS(false), 150);
         }
+        setTimeout(() => applyPendingStagedRealtimeEvents_(), 0);
     }
 }
 
