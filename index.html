@@ -1702,26 +1702,34 @@
 
     // Deprecated compatibility shim. Authoritative mutations now publish a small realtimeEvents
     // document; writing lastUpdate from every browser edit triggered redundant full-state reads.
+    // อัปเดตเอกสาร systemSignals เพื่อกระตุ้นให้ทุก Client ทราบว่ามีการเปลี่ยนแปลง
     function notifyFirebaseUpdate() {
-        return Promise.resolve(true);
+        if (!db) return Promise.resolve(true);
+        return db.collection('systemSignals').doc('lastUpdate').set({
+            source: realtimeClientId,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(e => console.warn('Firebase signal failed:', e));
     }
 
     // Coalesce server notifications into one authoritative read. The listener only signals;
     // canonical data still comes from Apps Script reading Firebase Primary.
     function requestRealtimeCanonicalRefresh_(reason, delayMs = 900) {
-        // Queue deltas already update all connected tabs. Use a full Primary read only
-        // for non-queue backend changes or recovery, and coalesce bursts into one read.
         if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
             pendingRemotePull = true;
             return;
         }
         clearTimeout(remoteSignalTimer);
+        
+        // เช็คว่าเป็นอัปเดตด่วนจากระบบหรือไม่ เพื่อให้ข้าม Cooldown 60 วินาที
+        const isUrgent = String(reason).includes('lastUpdate') || String(reason).includes('realtime-event') || String(reason).includes('slip-upload');
         const sinceLastPull = Date.now() - lastSuccessfulCanonicalPullAtV13;
-        const cooldownWait = lastSuccessfulCanonicalPullAtV13
+        const cooldownWait = (lastSuccessfulCanonicalPullAtV13 && !isUrgent)
             ? Math.max(0, CANONICAL_PULL_MIN_INTERVAL_MS_V14 - sinceLastPull)
             : 0;
+            
         const clientJitter = 250 + Math.floor(Math.random() * 1250);
         const waitMs = Math.max(Math.max(0, Number(delayMs) || 0), cooldownWait) + clientJitter;
+        
         remoteSignalTimer = setTimeout(() => {
             remoteSignalTimer = null;
             if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
@@ -1729,7 +1737,8 @@
                 return;
             }
             if (typeof silentPullFromGS === 'function') {
-                Promise.resolve(silentPullFromGS(false, false)).then(result => {
+                // ส่งตัวแปร force = isUrgent ไปบังคับให้ดึงข้อมูลทันที
+                Promise.resolve(silentPullFromGS(false, isUrgent)).then(result => {
                     if (result && result.status === 'error') scheduleRealtimePullRetry_(result.message || reason);
                 }).catch(error => {
                     console.warn('Authoritative realtime refresh failed (' + reason + '):', error);
@@ -1746,13 +1755,15 @@
         }
         const signal = doc && doc.exists ? (doc.data() || {}) : {};
         const source = String(signal.source || '');
-        // Queue deltas are already consumed by the syncQueue listener. These sources only
-        // indicate queue persistence/backup bookkeeping and must not trigger a full DB read.
+        
         if (source === realtimeClientId) return;
-        if (source === 'realtime-event' || source.indexOf('realtime-event:') === 0) return;
+        
+        // ลบเงื่อนไขที่บล็อก 'realtime-event' ทิ้ง เพื่อให้อนุญาตการอัปเดตจาก GAS
         if (source === 'realtime-queue-worker' || source === 'firebase-primary-backed-up') return;
-        requestRealtimeCanonicalRefresh_('systemSignals/lastUpdate:' + source, 900);
-    }, (error) => console.error('Firebase systemSignals listener failed; realtime refresh is degraded:', error));
+        
+        // เรียกใช้งานรีเฟรชข้อมูลเมื่อมีการกระตุ้น
+        requestRealtimeCanonicalRefresh_('systemSignals/lastUpdate:' + source, 500);
+    }, (error) => console.error('Firebase systemSignals listener failed:', error));
 
 
     // Fast shared staging queue: browsers apply pending deltas immediately; Apps Script persists them later.
@@ -1883,11 +1894,8 @@
         }
     }
 
-    // Listen to immutable per-mutation event docs, not worker-status docs.
-    // Worker updates to syncQueue (PROCESSING/BACKUP_PENDING/etc.) used to trigger several reads
-    // per mutation on every connected browser. Events expire after ~2 minutes and are never status-patched on success.
-    const realtimeEventCutoffV14 = firebase.firestore.Timestamp.fromDate(new Date(Date.now() - REALTIME_EVENT_RETENTION_MS_V14));
-    db.collection('realtimeEvents').where('createdAt', '>=', realtimeEventCutoffV14).onSnapshot((snapshot) => {
+    // แก้ไขปัญหาเวลาเครื่องคอมพิวเตอร์นักศึกษาเดินไม่ตรงกับเซิร์ฟเวอร์ โดยเปลี่ยนมาดึง 30 รายการล่าสุดแทน
+    db.collection('realtimeEvents').orderBy('createdAt', 'desc').limit(30).onSnapshot((snapshot) => {
         snapshot.docChanges().forEach((change) => {
             const doc = change.doc;
             const id = doc.id;
@@ -1902,14 +1910,13 @@
             if (status === 'ERROR' || status === 'CANCELLED') {
                 stagedRealtimeEvents_.delete(id);
                 appliedRealtimeEventIds_.delete(id);
-                console.error('Realtime mutation did not commit:', id, data.lastError || status);
                 requestRealtimeCanonicalRefresh_('realtimeEvents/' + status, 250);
                 return;
             }
             if (appliedRealtimeEventIds_.has(id)) return;
             let envelope;
             try { envelope = JSON.parse(String(data.payload || '{}')); }
-            catch (error) { console.warn('Invalid realtime event payload:', id, error); return; }
+            catch (error) { return; }
             if (!Array.isArray(envelope.changes)) return;
             stagedRealtimeEvents_.set(id, {
                 changes: envelope.changes,
@@ -1919,7 +1926,7 @@
         });
         applyPendingStagedRealtimeEvents_();
     }, (error) => {
-        console.warn('Realtime events listener failed; canonical refresh is available as recovery:', error);
+        console.warn('Realtime events listener failed:', error);
     });
 
     // Full state is not polled on focus/visibility. Use explicit refresh for recovery; realtimeEvents handles live changes.
