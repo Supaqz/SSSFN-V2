@@ -4980,15 +4980,32 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
     showToast('กำลังฝากสถานะกิจกรรมเข้าคิวกลาง...', 'info');
 
     try {
-        const result = await callBackend({
+        const stagePayload = {
             action: 'stageActivityFlag',
             activityTitle: activityTitle,
             activityRef: activityRef,
             flagName: flagName,
             flagValue: desiredValue
-        });
+        };
+        let result = null;
+        let lastBusyMessage = '';
+        // Busy is a transient concurrency response, not a permanent failure.
+        // Retry briefly before reverting the optimistic UI state.
+        for (let attempt = 0; attempt < 4; attempt++) {
+            result = await callBackend(Object.assign({}, stagePayload));
+            if (result && result.status === 'staged') break;
+            const responseMessage = String(result && result.message || '');
+            const isBusy = !!(result && result.status === 'busy') ||
+                /กำลังบันทึกข้อมูล|กำลังประมวลผล|ลองอ่านอีกครั้ง|ลองอีกครั้ง|\bbusy\b/i.test(responseMessage);
+            if (!isBusy || attempt === 3) break;
+            lastBusyMessage = responseMessage;
+            const delay = Math.min(900 * Math.pow(2, attempt), 5000) + Math.floor(Math.random() * 250);
+            showToast('ฐานข้อมูลกำลังบันทึกข้อมูลของผู้ใช้อื่น ระบบจะลองส่งสถานะอีกครั้ง...', 'info');
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
         if (!result || result.status !== 'staged') {
-            throw new Error((result && result.message) || 'หลังบ้านไม่สามารถฝากสถานะเข้าคิวได้');
+            const message = String(result && result.message || lastBusyMessage || 'หลังบ้านไม่สามารถฝากสถานะเข้าคิวได้');
+            throw new Error(message);
         }
 
         // Advance only this one flag in the staging baseline, retaining unrelated unsaved local changes.
