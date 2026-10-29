@@ -2213,11 +2213,15 @@ async function pushToGS() {
     return autoSyncToGS(true);
 }
 
+let realtimePullRetryTimer = null;
 function scheduleRealtimePullRetry_() {
+    // รวมการ retry หลายสัญญาณให้เหลือ timer เดียว เพื่อลดการเรียก loadAll ถี่เกินไป
+    if (realtimePullRetryTimer) return;
     const baseDelay = Math.min(700 * Math.pow(2, realtimePullRetryAttempt), 15000);
     const jitter = Math.floor(Math.random() * 1200);
     realtimePullRetryAttempt = Math.min(realtimePullRetryAttempt + 1, 5);
-    setTimeout(() => {
+    realtimePullRetryTimer = setTimeout(() => {
+        realtimePullRetryTimer = null;
         if (!isSyncing && !remotePullInProgress) silentPullFromGS();
         else pendingRemotePull = true;
     }, baseDelay + jitter);
@@ -2243,18 +2247,23 @@ async function silentPullFromGS(showStatus = false) {
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว', timer: 1100, showConfirmButton: false });
         return { status: 'success' };
     } catch (error) {
-        console.error('Load Error:', error);
-        if (String(error && error.message || '').includes('กำลังบันทึก') || String(error && error.message || '').toLowerCase().includes('busy')) {
+        const errorMessage = String(error && error.message || '');
+        const isExpectedBusy = errorMessage.includes('กำลังบันทึก') || errorMessage.toLowerCase().includes('busy');
+        if (isExpectedBusy) {
+            // Busy means another write is in progress, not a fatal load failure.
             scheduleRealtimePullRetry_();
+        } else {
+            console.error('Load Error:', error);
         }
         if (showStatus && typeof Swal !== 'undefined') Swal.fire('ดึงข้อมูลไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อ', 'error');
-        return { status: 'error', message: error.message };
+        return { status: isExpectedBusy ? 'busy' : 'error', message: error.message };
     } finally {
         remotePullInProgress = false;
         if (pendingRemotePull) {
             pendingRemotePull = false;
             syncQueued = false;
-            setTimeout(() => silentPullFromGS(), 120);
+            if (pullSucceeded) setTimeout(() => silentPullFromGS(), 120);
+            else scheduleRealtimePullRetry_();
         } else if (pullSucceeded && (syncQueued || hasLocalChanges)) {
             syncQueued = false;
             setTimeout(() => autoSyncToGS(false), 120);
@@ -2402,9 +2411,15 @@ function saveToLocal(triggerSync = true) {
             const session = JSON.parse(sess);
             currentUserRole = session.role || 'guest';
             currentUsername = session.user || '';
+            // สำคัญ: คืนค่า backend token กลับมาด้วยเมื่อรีโหลดหน้าเว็บ
+            // มิฉะนั้น UI ยังดูเหมือนเป็นแอดมิน แต่คำสั่ง setActivityFlag จะถูกหลังบ้านปฏิเสธ
+            window.currentAuthToken = String(session.token || '');
         } catch (error) {
+            window.currentAuthToken = '';
             console.error('อ่าน session ไม่สำเร็จ:', error);
         }
+    } else {
+        window.currentAuthToken = '';
     }
 }
 
@@ -2908,10 +2923,10 @@ function switchPage(pageId) {
                     Swal.fire({ title: 'กำลังตรวจสอบสิทธิ์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     try {
                         const res = await callBackend({ action: 'login', user: r.value.u, pass: r.value.p });
-                        if (res && res.status === 'success') {
+                        if (res && res.status === 'success' && res.token) {
                             currentUserRole = res.role;
                             currentUsername = res.user;
-                            window.currentAuthToken = res.token || '';
+                            window.currentAuthToken = res.token;
                             localStorage.setItem('sssfn_session', JSON.stringify({ user: res.user, role: res.role, token: res.token }));
                             Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 1200 });
                             applyRoleUI();
@@ -2919,23 +2934,15 @@ function switchPage(pageId) {
                             switchPage(res.role === 'treasurer' ? 'fin-fund' : 'admin-db');
                             return;
                         }
+                        // ห้าม fallback ไปล็อกอินแอดมินเฉพาะในเครื่อง เพราะจะไม่มี auth token
+                        // และการเปลี่ยนสถานะสำคัญต้องได้รับการยืนยันจากหลังบ้านจริง
+                        Swal.fire('เข้าสู่ระบบไม่สำเร็จ', (res && res.message) || 'หลังบ้านไม่สามารถยืนยันตัวตนได้ กรุณาตรวจสอบ URL และบัญชีผู้ใช้', 'error');
+                        return;
                     } catch(loginErr) {
-                        console.warn('Backend login fallback to local check:', loginErr);
+                        console.error('Backend login failed:', loginErr);
+                        Swal.fire('เชื่อมต่อหลังบ้านไม่สำเร็จ', 'ไม่สามารถยืนยันตัวตนกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่', 'error');
+                        return;
                     }
-
-                    // ตรวจสอบแบบ Local Fallback
-                    const found = users.find(x => x.user === r.value.u && (x.pass === r.value.p || (!x.pass && r.value.p === '1234'))); 
-                    if(found) { 
-                        currentUserRole = found.role; 
-                        currentUsername = found.user; 
-                        localStorage.setItem('sssfn_session', JSON.stringify({ user: found.user, role: found.role })); 
-                        Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 1200 }); 
-                        applyRoleUI(); 
-                        startBackgroundSyncWorker();
-                        switchPage(found.role === 'treasurer' ? 'fin-fund' : 'admin-db'); 
-                    } else { 
-                        Swal.fire('เข้าสู่ระบบไม่สำเร็จ', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error'); 
-                    } 
                 } 
             }); 
         }
@@ -4753,6 +4760,16 @@ window.updateOverviewEvalState = function() {
 // Other open browsers are notified by Apps Script only after SystemDB has been written.
 async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, successType) {
     if (!currentMasterActivity) return;
+    if (!window.currentAuthToken) {
+        showToast('เซสชันแอดมินนี้ไม่มีโทเคนจากหลังบ้าน กรุณาเข้าสู่ระบบแอดมินด้วยชื่อผู้ใช้และรหัสผ่านใหม่', 'error');
+        Swal.fire({
+            icon: 'warning',
+            title: 'ต้องเข้าสู่ระบบแอดมินใหม่',
+            text: 'เซสชันนี้ไม่สามารถยืนยันสิทธิ์กับหลังบ้านได้ กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านของระบบ',
+            confirmButtonText: 'เข้าสู่ระบบใหม่'
+        }).then(result => { if (result.isConfirmed) promptLogin(); });
+        return;
+    }
     if (!['isActive', 'isOpen', 'isVisible'].includes(flagName)) {
         return showToast('ฟิลด์สถานะกิจกรรมไม่ถูกต้อง', 'error');
     }
@@ -4796,7 +4813,22 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
         saveToLocal(false);
         refreshActivityFlagUI_(flagName);
         console.error('Activity status save failed:', error);
-        showToast('บันทึกสถานะไม่สำเร็จ: ' + (error.message || 'กรุณาลองใหม่'), 'error');
+        const flagSaveError = String(error && error.message || '');
+        showToast('บันทึกสถานะไม่สำเร็จ: ' + (flagSaveError || 'กรุณาลองใหม่'), 'error');
+        if (flagSaveError.includes('เซสชันหมดอายุ') || flagSaveError.includes('ไม่มีสิทธิ์')) {
+            window.currentAuthToken = '';
+            try {
+                const savedSession = JSON.parse(localStorage.getItem('sssfn_session') || '{}');
+                delete savedSession.token;
+                localStorage.setItem('sssfn_session', JSON.stringify(savedSession));
+            } catch (sessionError) {}
+            Swal.fire({
+                icon: 'warning',
+                title: 'เซสชันหมดอายุ',
+                text: 'กรุณาเข้าสู่ระบบแอดมินใหม่ ก่อนเปลี่ยนสถานะกิจกรรม',
+                confirmButtonText: 'เข้าสู่ระบบใหม่'
+            }).then(result => { if (result.isConfirmed) promptLogin(); });
+        }
     } finally {
         activityFlagSaveInProgress = false;
         if (pendingRemotePull) {
