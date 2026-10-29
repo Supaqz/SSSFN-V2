@@ -1690,6 +1690,7 @@
     let initialLocalSnapshot = null;
     let realtimeRetryAttempt = 0;
     let realtimePullRetryAttempt = 0;
+    let activityFlagSaveInProgress = false;
 
     function notifyFirebaseUpdate() {
         const signalRef = db.collection('systemSignals').doc('lastUpdate');
@@ -1720,7 +1721,7 @@
         // Ignore this browser's own notification; it already reconciles with the server after save.
         if (signal.source && signal.source === realtimeClientId) return;
 
-        if (isSyncing || remotePullInProgress) {
+        if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
             pendingRemotePull = true;
             return;
         }
@@ -4748,20 +4749,89 @@ window.updateOverviewEvalState = function() {
     });
 };
 
-window.toggleActivityActiveStatus = function() {
+// Save high-impact activity flags directly to the canonical server record first.
+// Other open browsers are notified by Apps Script only after SystemDB has been written.
+async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, successType) {
+    if (!currentMasterActivity) return;
+    if (!['isActive', 'isOpen', 'isVisible'].includes(flagName)) {
+        return showToast('ฟิลด์สถานะกิจกรรมไม่ถูกต้อง', 'error');
+    }
+    if (activityFlagSaveInProgress) {
+        return showToast('กำลังบันทึกสถานะกิจกรรมนี้อยู่ กรุณารอสักครู่', 'info');
+    }
+
+    const activity = currentMasterActivity;
+    const activityTitle = String(activity.title || '').trim();
+    const activityRef = String(activity.ref || activity.id || '').trim();
+    const oldValue = activity[flagName] !== false;
+    const desiredValue = Boolean(nextValue);
+    if (!activityTitle) return showToast('ไม่พบชื่อกิจกรรมสำหรับบันทึก', 'error');
+    if (oldValue === desiredValue) return;
+
+    activityFlagSaveInProgress = true;
+    activity[flagName] = desiredValue;
+    saveToLocal(false); // optimistic UI only; do not submit a stale full-state delta for this flag
+    refreshActivityFlagUI_(flagName);
+    showToast('กำลังบันทึกสถานะกิจกรรม...', 'info');
+
+    try {
+        const result = await callBackend({
+            action: 'setActivityFlag',
+            activityTitle: activityTitle,
+            activityRef: activityRef,
+            flagName: flagName,
+            flagValue: desiredValue
+        });
+        if (!result || result.status !== 'success') {
+            throw new Error((result && result.message) || 'หลังบ้านไม่สามารถบันทึกสถานะได้');
+        }
+
+        // Ensure this browser also converges on the canonical state. A listener notification
+        // may have arrived while the save was running, so coalesce it into this pull.
+        pendingRemotePull = false;
+        await silentPullFromGS();
+        showToast(successMessage, successType || 'success');
+    } catch (error) {
+        activity[flagName] = oldValue;
+        saveToLocal(false);
+        refreshActivityFlagUI_(flagName);
+        console.error('Activity status save failed:', error);
+        showToast('บันทึกสถานะไม่สำเร็จ: ' + (error.message || 'กรุณาลองใหม่'), 'error');
+    } finally {
+        activityFlagSaveInProgress = false;
+        if (pendingRemotePull) {
+            pendingRemotePull = false;
+            setTimeout(() => silentPullFromGS(), 100);
+        }
+        if (syncQueued && !isSyncing && !remotePullInProgress) {
+            syncQueued = false;
+            setTimeout(() => autoSyncToGS(false), 150);
+        }
+    }
+}
+
+function refreshActivityFlagUI_(flagName) {
+    if (flagName === 'isActive') {
+        if (typeof updateMasterHeaderActiveButton === 'function') updateMasterHeaderActiveButton();
+        if (typeof updateTab2ActiveState === 'function') updateTab2ActiveState();
+        if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
+        if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
+        if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
+    } else if (flagName === 'isOpen') {
+        if (typeof updateMasterHeaderOpenButton === 'function') updateMasterHeaderOpenButton();
+    } else if (flagName === 'isVisible') {
+        if (typeof updateMasterHeaderVisibleButton === 'function') updateMasterHeaderVisibleButton();
+    }
+    if (typeof renderActivities === 'function') renderActivities();
+}
+
+window.toggleActivityActiveStatus = async function() {
     if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
-
-    currentMasterActivity.isActive = (currentMasterActivity.isActive !== false ? false : true);
-    saveToLocal(true);
-    updateMasterHeaderActiveButton();
-    updateTab2ActiveState();
-    if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
-    if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
-    if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
-    if (typeof renderActivities === 'function') renderActivities();
-    if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
-    showToast(currentMasterActivity.isActive ? 'เปิดการใช้งานกิจกรรมนี้แล้ว (ปลดล็อกระบบสแกนเช็กชื่อ)' : 'ปิดการใช้งานกิจกรรมนี้แล้ว (ล็อกระบบสแกน เพื่อเปิดให้ประเมินผลนักศึกษา)', currentMasterActivity.isActive ? 'success' : 'info');
+    const nextValue = currentMasterActivity.isActive === false;
+    return persistCurrentActivityFlag_('isActive', nextValue,
+        nextValue ? 'เปิดการใช้งานกิจกรรมนี้แล้ว (ปลดล็อกระบบสแกนเช็กชื่อ)' : 'ปิดการใช้งานกิจกรรมนี้แล้ว (ล็อกระบบสแกน เพื่อเปิดให้ประเมินผลนักศึกษา)',
+        nextValue ? 'success' : 'info');
 };
 
 window.updateMasterHeaderActiveButton = function() {
@@ -4838,15 +4908,13 @@ window.toggleQuotaInput = function(val, boxId) {
     }
 };
 
-window.toggleActivityOpenStatus = function() {
+window.toggleActivityOpenStatus = async function() {
     if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
-
-    currentMasterActivity.isOpen = (currentMasterActivity.isOpen !== false ? false : true);
-    saveToLocal(true);
-    updateMasterHeaderOpenButton();
-    if (typeof renderActivities === 'function') renderActivities();
-    showToast(currentMasterActivity.isOpen ? 'เปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาสามารถลงทะเบียนได้)' : 'ปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาไม่สามารถลงทะเบียนได้)', 'info');
+    const nextValue = currentMasterActivity.isOpen === false;
+    return persistCurrentActivityFlag_('isOpen', nextValue,
+        nextValue ? 'เปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาสามารถลงทะเบียนได้)' : 'ปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาไม่สามารถลงทะเบียนได้)',
+        'info');
 };
 
 window.updateMasterHeaderOpenButton = function() {
@@ -4863,15 +4931,13 @@ window.updateMasterHeaderOpenButton = function() {
     }
 };
 
-window.toggleActivityVisibleStatus = function() {
+window.toggleActivityVisibleStatus = async function() {
     if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
-
-    currentMasterActivity.isVisible = (currentMasterActivity.isVisible === false ? true : false);
-    saveToLocal(true);
-    updateMasterHeaderVisibleButton();
-    if (typeof renderActivities === 'function') renderActivities();
-    showToast(currentMasterActivity.isVisible ? 'เปิดแสดงกิจกรรมนี้ในรายการของนักศึกษาแล้ว' : 'ซ่อนกิจกรรมนี้จากรายการของนักศึกษาแล้ว', 'info');
+    const nextValue = currentMasterActivity.isVisible === false;
+    return persistCurrentActivityFlag_('isVisible', nextValue,
+        nextValue ? 'เปิดแสดงกิจกรรมนี้ในรายการของนักศึกษาแล้ว' : 'ซ่อนกิจกรรมนี้จากรายการของนักศึกษาแล้ว',
+        'info');
 };
 
 window.updateMasterHeaderVisibleButton = function() {
