@@ -1677,7 +1677,7 @@
     if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.firestore();
 
-    // Firebase is a lightweight notification channel only. Google Sheets remains the canonical store.
+    // Firebase is the primary database. Apps Script reads/writes its canonical record store; Google Sheets is an asynchronous backup.
     const realtimeClientId = 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
     let isSyncing = false;
     let syncQueued = false;
@@ -1837,13 +1837,17 @@
         snapshot.docChanges().forEach(change => {
             const doc = change.doc;
             const id = doc.id;
-            const data = doc.data() || {};
-            const status = String(data.status || '').toUpperCase();
-            if (status === 'ERROR' || status === 'CANCELLED') {
+            if (change.type === 'removed') {
                 stagedRealtimeEvents_.delete(id);
                 return;
             }
-            if (!['PENDING', 'PROCESSING'].includes(status)) return;
+            const data = doc.data() || {};
+            const status = String(data.status || '').toUpperCase();
+            if (status === 'ERROR' || status === 'CANCELLED' || status === 'DONE') {
+                stagedRealtimeEvents_.delete(id);
+                return;
+            }
+            if (!['PENDING', 'PROCESSING', 'PRIMARY_COMMITTED', 'BACKUP_PENDING', 'BACKUP_ERROR'].includes(status)) return;
             if (appliedRealtimeEventIds_.has(id)) return;
             let envelope;
             try { envelope = JSON.parse(String(data.payload || '{}')); }
@@ -2259,11 +2263,24 @@ function kickRealtimeQueueWorker_() {
     setTimeout(() => {
         callBackend({ action: 'processRealtimeQueue' }).then(result => {
             if (result && result.status === 'busy') {
-                setTimeout(() => callBackend({ action: 'processRealtimeQueue' }).catch(() => {}), 1800 + Math.floor(Math.random() * 1200));
+                setTimeout(() => callBackend({ action: 'processRealtimeQueue' }).then(r => {
+                    if (r && r.status === 'success') {
+                        setTimeout(() => callBackend({ action: 'processSheetsBackup' }).catch(() => {}), 250);
+                    }
+                }).catch(() => {}), 1200 + Math.floor(Math.random() * 1000));
             } else if (result && result.status === 'error') {
-                console.warn('Background queue worker returned an error:', result.message);
+                console.warn('Primary Firebase queue worker returned an error:', result.message);
+            } else if (result && result.status === 'success') {
+                // Retry transient primary write failures once; the minute trigger is the durable fallback.
+                if (Number(result.failed || 0) > 0) {
+                    setTimeout(() => callBackend({ action: 'processRealtimeQueue' }).catch(() => {}), 1500 + Math.floor(Math.random() * 800));
+                }
+                // Google Sheets backup is a separate task; never delay realtime UI on it.
+                setTimeout(() => callBackend({ action: 'processSheetsBackup' }).then(backup => {
+                    if (backup && backup.status === 'error') console.warn('Sheets backup will retry:', backup.message);
+                }).catch(error => console.warn('Could not start Sheets backup:', error)), 250);
             }
-        }).catch(error => console.warn('Could not kick background queue worker; trigger will retry:', error));
+        }).catch(error => console.warn('Could not kick primary Firebase worker; trigger will retry:', error));
     }, 0);
 }
 
@@ -2298,7 +2315,7 @@ async function autoSyncToGS(showStatus = false) {
     isSyncing = true;
     syncQueued = false;
     let saveFailed = false;
-    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังฝากข้อมูลเข้าคิวกลาง...', text: 'หน้าจออื่นจะรับการเปลี่ยนแปลงทันที ส่วน Google Sheets จะบันทึกตามลำดับเบื้องหลัง', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังบันทึกลง Firebase...', text: 'Firebase เป็นฐานข้อมูลหลัก ส่วน Google Sheets จะถูกสำรองเบื้องหลัง', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const mutationId = 'rt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 14);
         const envelope = {
@@ -2329,8 +2346,8 @@ async function autoSyncToGS(showStatus = false) {
 
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({
             toast: true, position: 'top-end', icon: 'success',
-            title: 'อัปเดตหน้าจอแล้ว • กำลังบันทึกลง Sheet',
-            text: 'ข้อมูลถูกฝากเข้าคิวกลางแล้ว', showConfirmButton: false, timer: 1800
+            title: 'อัปเดตข้อมูลหลักแล้ว',
+            text: 'ข้อมูลเข้า Firebase แล้ว และจะสำรองลง Google Sheets เบื้องหลัง', showConfirmButton: false, timer: 1800
         });
 
         // Kick one background queue worker without making the visible update wait for Google Sheets.
@@ -4986,7 +5003,7 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
         hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, captureCurrentRealtimeData_()).length > 0;
         if (hasLocalChanges) syncQueued = true;
 
-        showToast('อัปเดตหน้าจอแล้ว • กำลังบันทึกสถานะลง Google Sheets', 'info');
+        showToast('อัปเดตสถานะในคิว Firebase แล้ว • กำลังบันทึกข้อมูลหลัก', 'info');
         kickRealtimeQueueWorker_();
     } catch (error) {
         activity[flagName] = oldValue;
@@ -9853,7 +9870,7 @@ function viewSlipPopup(url) {
                     renderFundTable(); // รีเฟรชตาราง
                     renderHomeDirectory();
                     if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
-                    autoSyncToGS(); // แจ้งเครื่องอื่นหลังบันทึก Sheets สำเร็จ
+                    autoSyncToGS(); // แจ้งเครื่องอื่นหลังบันทึก Firebase สำเร็จ
                     
                     Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกรับเงินสำเร็จ!', showConfirmButton:false, timer:1500});
                 }
