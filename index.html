@@ -1691,6 +1691,12 @@
     let realtimeRetryAttempt = 0;
     let realtimePullRetryAttempt = 0;
     let activityFlagSaveInProgress = false;
+    // Full canonical reads are a recovery path, not the primary realtime transport.
+    // Queue deltas are applied from onSnapshot; cap full reads to protect Firestore quotas.
+    const CANONICAL_PULL_MIN_INTERVAL_MS_V13 = 8000;
+    const FOREGROUND_REFRESH_STALE_MS_V13 = 60000;
+    let lastSuccessfulCanonicalPullAtV13 = 0;
+    let lastCanonicalPullErrorV13 = '';
 
     function notifyFirebaseUpdate() {
         const signalRef = db.collection('systemSignals').doc('lastUpdate');
@@ -1714,12 +1720,20 @@
 
     // Coalesce server notifications into one authoritative read. The listener only signals;
     // canonical data still comes from Apps Script reading Firebase Primary.
-    function requestRealtimeCanonicalRefresh_(reason, delayMs = 160) {
+    function requestRealtimeCanonicalRefresh_(reason, delayMs = 900) {
+        // Queue deltas already update all connected tabs. Use a full Primary read only
+        // for non-queue backend changes or recovery, and coalesce bursts into one read.
         if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
             pendingRemotePull = true;
             return;
         }
         clearTimeout(remoteSignalTimer);
+        const sinceLastPull = Date.now() - lastSuccessfulCanonicalPullAtV13;
+        const cooldownWait = lastSuccessfulCanonicalPullAtV13
+            ? Math.max(0, CANONICAL_PULL_MIN_INTERVAL_MS_V13 - sinceLastPull)
+            : 0;
+        const clientJitter = 250 + Math.floor(Math.random() * 1250);
+        const waitMs = Math.max(Math.max(0, Number(delayMs) || 0), cooldownWait) + clientJitter;
         remoteSignalTimer = setTimeout(() => {
             remoteSignalTimer = null;
             if (isSyncing || remotePullInProgress || activityFlagSaveInProgress) {
@@ -1727,14 +1741,14 @@
                 return;
             }
             if (typeof silentPullFromGS === 'function') {
-                Promise.resolve(silentPullFromGS()).then(result => {
-                    if (result && result.status === 'error') scheduleRealtimePullRetry_();
+                Promise.resolve(silentPullFromGS(false, false)).then(result => {
+                    if (result && result.status === 'error') scheduleRealtimePullRetry_(result.message || reason);
                 }).catch(error => {
                     console.warn('Authoritative realtime refresh failed (' + reason + '):', error);
-                    scheduleRealtimePullRetry_();
+                    scheduleRealtimePullRetry_(error && error.message ? error.message : reason);
                 });
             }
-        }, Math.max(0, Number(delayMs) || 0));
+        }, waitMs);
     }
 
     db.collection('systemSignals').doc('lastUpdate').onSnapshot((doc) => {
@@ -1743,9 +1757,12 @@
             return; // startup load supplies the initial canonical state
         }
         const signal = doc && doc.exists ? (doc.data() || {}) : {};
-        // Ignore only our own signal. Backend mutations use a server source and must refresh this tab.
-        if (signal.source && signal.source === realtimeClientId) return;
-        requestRealtimeCanonicalRefresh_('systemSignals/lastUpdate', 120);
+        const source = String(signal.source || '');
+        // Queue deltas are already consumed by the syncQueue listener. These sources only
+        // indicate queue persistence/backup bookkeeping and must not trigger a full DB read.
+        if (source === realtimeClientId) return;
+        if (source === 'realtime-queue-worker' || source === 'firebase-primary-backed-up') return;
+        requestRealtimeCanonicalRefresh_('systemSignals/lastUpdate:' + source, 900);
     }, (error) => console.error('Firebase systemSignals listener failed; realtime refresh is degraded:', error));
 
 
@@ -1874,11 +1891,9 @@
                 return;
             }
             if (!['PENDING', 'PROCESSING', 'PRIMARY_COMMITTED', 'BACKUP_PENDING', 'BACKUP_ERROR'].includes(status)) return;
-            // BACKUP_PENDING/BACKUP_ERROR means primary should already be committed. Re-read it to
-            // reconcile optimistic state, even for the originating browser whose delta is deduped.
-            if (change.type === 'modified' && (status === 'BACKUP_PENDING' || status === 'BACKUP_ERROR')) {
-                requestRealtimeCanonicalRefresh_('syncQueue/' + status, 180);
-            }
+            // BACKUP_PENDING/BACKUP_ERROR means Primary already committed. All tabs already
+            // applied this event from the queue payload; re-reading every record here causes
+            // an N-clients x N-events Firestore read burst, so only error/cancel recovery reloads.
             if (appliedRealtimeEventIds_.has(id)) return;
             let envelope;
             try { envelope = JSON.parse(String(data.payload || '{}')); }
@@ -1895,11 +1910,15 @@
         console.warn('Realtime staging queue listener failed; normal server sync remains available:', error);
     });
 
-    window.addEventListener('focus', () => {
-        if (!isSyncing && !remotePullInProgress) silentPullFromGS();
-    });
+    function refreshIfCanonicalStateIsStaleV13_(reason) {
+        if (document.hidden || isSyncing || remotePullInProgress) return;
+        if (!lastSuccessfulCanonicalPullAtV13 || Date.now() - lastSuccessfulCanonicalPullAtV13 >= FOREGROUND_REFRESH_STALE_MS_V13) {
+            requestRealtimeCanonicalRefresh_(reason, 700);
+        }
+    }
+    window.addEventListener('focus', () => refreshIfCanonicalStateIsStaleV13_('focus-resume'));
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && !isSyncing && !remotePullInProgress) silentPullFromGS();
+        if (!document.hidden) refreshIfCanonicalStateIsStaleV13_('visibility-resume');
     });
 
         // 🌟 ฟังก์ชันตัวช่วยส่งข้อมูลไป Google Sheets (ย้ายมา GitHub ต้องใช้ตัวนี้)
@@ -2293,6 +2312,8 @@ function mergeRealtimeValue_(base, local, server, basePresent = true, localPrese
 let realtimeWorkerRunningV12_ = false;
 let realtimeWorkerAgainV12_ = false;
 let realtimeWorkerRetryTimerV12_ = null;
+let realtimeBackupKickTimerV13_ = null;
+let realtimeBackupLastKickAtV13_ = 0;
 
 function kickRealtimeQueueWorker_() {
     if (realtimeWorkerRunningV12_) {
@@ -2301,6 +2322,25 @@ function kickRealtimeQueueWorker_() {
     }
     if (realtimeWorkerRetryTimerV12_) return;
     realtimeWorkerRetryTimerV12_ = setTimeout(() => runRealtimeQueueWorkerV12_(0), 0);
+}
+
+function scheduleSheetsBackupKickV13_() {
+    // Debounce Sheets backups across repeated local edits. The minute trigger remains the
+    // durable fallback, while Primary/queue listeners continue updating the UI immediately.
+    if (realtimeBackupKickTimerV13_) return;
+    const minIntervalMs = 30000;
+    const elapsed = Date.now() - realtimeBackupLastKickAtV13_;
+    const waitMs = Math.max(900, minIntervalMs - elapsed) + Math.floor(Math.random() * 1500);
+    realtimeBackupKickTimerV13_ = setTimeout(async () => {
+        realtimeBackupKickTimerV13_ = null;
+        realtimeBackupLastKickAtV13_ = Date.now();
+        try {
+            const backup = await callBackend({ action: 'processSheetsBackup' });
+            if (backup && backup.status === 'error') console.warn('Sheets backup will retry on the maintenance trigger:', backup.message);
+        } catch (error) {
+            console.warn('Could not start Sheets backup; maintenance trigger will retry:', error && error.message ? error.message : error);
+        }
+    }, waitMs);
 }
 
 async function runRealtimeQueueWorkerV12_(attempt) {
@@ -2330,14 +2370,13 @@ async function runRealtimeQueueWorkerV12_(attempt) {
         console.warn('Could not kick primary Firebase worker; retrying:', detail);
     } finally {
         realtimeWorkerRunningV12_ = false;
-        if (shouldBackup) {
-            // Backup is deliberately separate; it must never block foreground realtime rendering.
-            setTimeout(() => callBackend({ action: 'processSheetsBackup' }).then(backup => {
-                if (backup && backup.status === 'error') console.warn('Sheets backup will retry:', backup.message);
-            }).catch(error => console.warn('Could not start Sheets backup:', error)), 250);
-        }
+        if (shouldBackup) scheduleSheetsBackupKickV13_();
         if (shouldRetry && attempt < 5) {
-            const delay = Math.min(900 * Math.pow(2, attempt), 12000) + Math.floor(Math.random() * 500);
+            const quotaLimited = /HTTP 429|quota exceeded|RESOURCE_EXHAUSTED/i.test(detail);
+            const baseDelay = quotaLimited
+                ? Math.min(30000 * Math.pow(2, attempt), 300000)
+                : Math.min(3000 * Math.pow(2, attempt), 30000);
+            const delay = baseDelay + Math.floor(Math.random() * Math.min(15000, Math.max(1000, baseDelay * 0.2)));
             realtimeWorkerRetryTimerV12_ = setTimeout(() => runRealtimeQueueWorkerV12_(attempt + 1), delay);
         } else if (shouldRetry) {
             console.error('Realtime queue worker exhausted client retries:', detail);
@@ -2466,24 +2505,40 @@ async function pushToGS() {
 }
 
 let realtimePullRetryTimer = null;
-function scheduleRealtimePullRetry_() {
-    // รวมการ retry หลายสัญญาณให้เหลือ timer เดียว เพื่อลดการเรียก loadAll ถี่เกินไป
+function scheduleRealtimePullRetry_(reason) {
     if (realtimePullRetryTimer) return;
-    const baseDelay = Math.min(700 * Math.pow(2, realtimePullRetryAttempt), 15000);
-    const jitter = Math.floor(Math.random() * 1200);
+    const message = String(reason && reason.message ? reason.message : (reason || lastCanonicalPullErrorV13 || ''));
+    const quotaLimited = /HTTP 429|Quota exceeded|RESOURCE_EXHAUSTED|quota exceeded/i.test(message);
+    // Firestore quota responses need a long backoff; fast retries amplify the quota incident.
+    const baseDelay = quotaLimited
+        ? Math.min(30000 * Math.pow(2, realtimePullRetryAttempt), 300000)
+        : Math.min(3000 * Math.pow(2, realtimePullRetryAttempt), 30000);
+    const jitter = Math.floor(Math.random() * Math.min(15000, Math.max(1000, baseDelay * 0.2)));
     realtimePullRetryAttempt = Math.min(realtimePullRetryAttempt + 1, 5);
     realtimePullRetryTimer = setTimeout(() => {
         realtimePullRetryTimer = null;
-        if (!isSyncing && !remotePullInProgress) silentPullFromGS();
-        else pendingRemotePull = true;
+        if (!isSyncing && !remotePullInProgress && !document.hidden) {
+            silentPullFromGS(false, false);
+        } else {
+            // Don't run a parallel pull while another action is active. A later signal or
+            // foreground-resume check will pick up the change; keep only one retry timer.
+            scheduleRealtimePullRetry_(message);
+        }
     }, baseDelay + jitter);
 }
 
-async function silentPullFromGS(showStatus = false) {
-    if (isSyncing) { pendingRemotePull = true; return; }
-    if (remotePullInProgress) { pendingRemotePull = true; return; }
+async function silentPullFromGS(showStatus = false, force = false) {
+    if (isSyncing || remotePullInProgress) {
+        if (force) pendingRemotePull = true;
+        return { status: 'busy', message: 'มีการอ่าน/เขียนข้อมูลอยู่แล้ว' };
+    }
+    const now = Date.now();
+    if (!force && lastSuccessfulCanonicalPullAtV13 && now - lastSuccessfulCanonicalPullAtV13 < CANONICAL_PULL_MIN_INTERVAL_MS_V13) {
+        return { status: 'throttled', message: 'รวมคำขออ่านข้อมูลเพื่อลดการใช้โควตา Firestore' };
+    }
     remotePullInProgress = true;
     let pullSucceeded = false;
+    let quotaFailure = false;
     if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังดึงข้อมูลล่าสุด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const result = await callBackend({ action: 'loadAll' });
@@ -2495,37 +2550,48 @@ async function silentPullFromGS(showStatus = false) {
         applyLoadedData(reconciled, serverState);
         hasLocalChanges = buildRealtimeChanges_(serverState, captureCurrentRealtimeData_()).length > 0;
         pullSucceeded = true;
+        lastSuccessfulCanonicalPullAtV13 = Date.now();
+        lastCanonicalPullErrorV13 = '';
         realtimePullRetryAttempt = 0;
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลล่าสุดแล้ว', timer: 1100, showConfirmButton: false });
         return { status: 'success' };
     } catch (error) {
         const errorMessage = String(error && error.message || '');
+        lastCanonicalPullErrorV13 = errorMessage;
         const isExpectedBusy = errorMessage.includes('กำลังบันทึก') || errorMessage.toLowerCase().includes('busy');
+        quotaFailure = /HTTP 429|Quota exceeded|RESOURCE_EXHAUSTED|quota exceeded/i.test(errorMessage);
         if (isExpectedBusy) {
-            // Busy means another write is in progress, not a fatal load failure.
-            scheduleRealtimePullRetry_();
+            scheduleRealtimePullRetry_(errorMessage);
+        } else if (quotaFailure) {
+            console.warn('Firestore read quota reached; canonical pull is backing off:', errorMessage);
+            scheduleRealtimePullRetry_(errorMessage);
         } else {
             console.error('Load Error:', error);
+            if (/HTTP 5\d\d|Failed to fetch|NetworkError|temporarily unavailable/i.test(errorMessage)) scheduleRealtimePullRetry_(errorMessage);
         }
-        if (showStatus && typeof Swal !== 'undefined') Swal.fire('ดึงข้อมูลไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อ', 'error');
-        return { status: isExpectedBusy ? 'busy' : 'error', message: error.message };
+        if (showStatus && typeof Swal !== 'undefined') {
+            const title = quotaFailure ? 'ระบบกำลังโหลดข้อมูลหนาแน่น' : 'ดึงข้อมูลไม่สำเร็จ';
+            const message = quotaFailure ? 'การอ่านฐานข้อมูลจะลองใหม่โดยเว้นช่วง เพื่อลดการใช้โควตา' : (error.message || 'ตรวจสอบการเชื่อมต่อ');
+            Swal.fire(title, message, quotaFailure ? 'warning' : 'error');
+        }
+        return { status: isExpectedBusy ? 'busy' : 'error', message: errorMessage };
     } finally {
         remotePullInProgress = false;
         setTimeout(() => applyPendingStagedRealtimeEvents_(), 0);
         if (pendingRemotePull) {
             pendingRemotePull = false;
-            syncQueued = false;
-            if (pullSucceeded) setTimeout(() => silentPullFromGS(), 120);
-            else scheduleRealtimePullRetry_();
+            // Coalesce signals arriving during the read instead of immediately issuing another full read.
+            if (pullSucceeded) requestRealtimeCanonicalRefresh_('pending-remote-pull', 1000);
+            else if (!quotaFailure && !realtimePullRetryTimer) scheduleRealtimePullRetry_(lastCanonicalPullErrorV13);
         } else if (pullSucceeded && (syncQueued || hasLocalChanges)) {
             syncQueued = false;
-            setTimeout(() => autoSyncToGS(false), 120);
+            setTimeout(() => autoSyncToGS(false), 250);
         }
     }
 }
 
 async function pullFromGS() {
-    return silentPullFromGS(true);
+    return silentPullFromGS(true, true);
 }
 
 function normalizeRoundIdFrontend(value) {
