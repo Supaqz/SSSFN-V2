@@ -2523,13 +2523,13 @@ function scheduleRealtimeSaveRetry_() {
 async function autoSyncToGS(showStatus = false) {
     if (isSyncing || remotePullInProgress) {
         syncQueued = true;
-        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'กำลังฝากข้อมูลเข้าคิว', text: 'ระบบจะส่งการแก้ไขล่าสุดต่อให้อัตโนมัติ', timer: 1600, showConfirmButton: false });
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'กำลังบันทึกข้อมูล', text: 'ระบบจะส่งการแก้ไขล่าสุดให้อัตโนมัติ', timer: 1600, showConfirmButton: false });
         return { status: 'queued' };
     }
     if (!lastServerSnapshot) {
         syncQueued = true;
         await silentPullFromGS();
-        return { status: 'queued', message: 'กำลังโหลดข้อมูลหลักก่อนฝากคิว' };
+        return { status: 'queued', message: 'กำลังโหลดข้อมูลหลักก่อนบันทึก' };
     }
 
     const submittedState = captureCurrentRealtimeData_();
@@ -2544,62 +2544,44 @@ async function autoSyncToGS(showStatus = false) {
     isSyncing = true;
     syncQueued = false;
     let saveFailed = false;
-    if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังบันทึกลง Firebase...', text: 'Firebase เป็นฐานข้อมูลหลัก ส่วน Google Sheets จะถูกสำรองเบื้องหลัง', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    if (showStatus && typeof Swal !== 'undefined') Swal.fire({
+        title: 'กำลังบันทึกการเปลี่ยนแปลง...',
+        text: 'กำลังบันทึกเฉพาะรายการที่เปลี่ยนลง Firebase ส่วน Google Sheets จะสำรองภายหลัง',
+        allowOutsideClick: false, didOpen: () => Swal.showLoading()
+    });
     try {
-        const mutationId = 'rt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 14);
-        const envelope = {
-            mutationId,
-            sourceClientId: realtimeClientId,
-            createdAtClient: new Date().toISOString(),
-            changes
-        };
-        const payloadText = JSON.stringify(envelope);
-        if (payloadText.length > 700000) throw new Error('ข้อมูลการเปลี่ยนแปลงมีขนาดใหญ่เกินคิว Firebase จะใช้การบันทึกตรงแทน');
-
-        // Write one worker job only. The backend creates the realtime event after the
-        // Firebase Primary mutation commits, then notifies clients over Pusher.
-        const queueDoc = db.collection('syncQueue').doc(mutationId);
-        const stagedAt = firebase.firestore.FieldValue.serverTimestamp();
-        await queueDoc.set({
-            kind: 'realtimeDelta', status: 'PENDING', payload: payloadText,
-            sourceClientId: realtimeClientId, createdAt: stagedAt,
-            updatedAt: stagedAt, attempts: 0
+        // IMPORTANT: send only the changed records to Apps Script. The server writes the
+        // affected Firebase documents, publishes one committed delta event, and signals Pusher.
+        // The browser no longer writes syncQueue first, avoiding an extra Firestore write and
+        // preventing queue quota/rules errors from blocking a real mutation.
+        const result = await callBackend({
+            action: 'saveDelta',
+            changes: changes,
+            clientId: realtimeClientId
         });
+        if (!result || result.status !== 'success') {
+            throw new Error((result && result.message) || 'หลังบ้านไม่สามารถบันทึกการเปลี่ยนแปลงลง Firebase ได้');
+        }
 
-        // Treat the staged state as the next local baseline, so the same delta is not enqueued repeatedly.
+        // Commit succeeded. Keep local optimistic UI, update the local baseline only to the
+        // state submitted by this tab, and retain any edits made while the request was in flight.
         lastServerSnapshot = cloneRealtimeValue_(submittedState);
-        const currentAfterStage = captureCurrentRealtimeData_();
-        hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, currentAfterStage).length > 0;
+        const currentAfterSave = captureCurrentRealtimeData_();
+        hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, currentAfterSave).length > 0;
         realtimeRetryAttempt = 0;
-        appliedRealtimeEventIds_.add(mutationId); // This browser already displays its own optimistic edit.
-
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({
             toast: true, position: 'top-end', icon: 'success',
-            title: 'อัปเดตข้อมูลหลักแล้ว',
-            text: 'ข้อมูลเข้า Firebase แล้ว และจะสำรองลง Google Sheets เบื้องหลัง', showConfirmButton: false, timer: 1800
+            title: 'บันทึกข้อมูลแล้ว',
+            text: 'Firebase บันทึกเฉพาะรายการที่เปลี่ยนแล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher • สำรองชีตเบื้องหลัง',
+            showConfirmButton: false, timer: 1900
         });
-
-        // Kick one background queue worker without making the visible update wait for Google Sheets.
-        // A one-minute Apps Script trigger is the durable fallback if this browser closes or the kick fails.
-        kickRealtimeQueueWorker_(mutationId);
-        return { status: 'staged', mutationId };
-    } catch (stageError) {
-        console.warn('Could not stage realtime mutation; falling back to direct backend save:', stageError);
-        // Compatibility fallback: still persist changes if Firebase rules/quota reject queue writes.
-        try {
-            const result = await callBackend({ action: 'saveDelta', changes });
-            if (!result || result.status !== 'success') throw new Error((result && result.message) || stageError.message || 'หลังบ้านปฏิเสธการบันทึก');
-            // The backend publishes this successful delta through Pusher after committing Primary.
-            lastServerSnapshot = cloneRealtimeValue_(submittedState);
-            hasLocalChanges = false;
-            return { status: 'success', fallback: true };
-        } catch (error) {
-            saveFailed = true;
-            hasLocalChanges = true;
-            console.error('Realtime staging/save failed:', error);
-            if (showStatus && typeof Swal !== 'undefined') Swal.fire('บันทึกไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
-            return { status: 'error', message: error.message };
-        }
+        return { status: 'success', changedRecords: Number(result.changedRecords) || 0, realtimeEventId: result.realtimeEventId || '' };
+    } catch (error) {
+        saveFailed = true;
+        hasLocalChanges = true;
+        console.error('Incremental Firebase save failed:', error);
+        if (showStatus && typeof Swal !== 'undefined') Swal.fire('บันทึกไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
+        return { status: 'error', message: error.message || String(error) };
     } finally {
         isSyncing = false;
         if (pendingRemotePull) {
@@ -5195,8 +5177,8 @@ window.updateOverviewEvalState = function() {
     });
 };
 
-// Save high-impact activity flags directly to the canonical server record first.
-// Other open browsers are notified by Apps Script only after SystemDB has been written.
+// Save high-impact activity flags directly to the canonical Firebase record.
+// Other open browsers receive a committed delta through Pusher after the write succeeds.
 async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, successType) {
     if (!currentMasterActivity) return;
     if (!window.currentAuthToken) {
@@ -5226,9 +5208,9 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
 
     activityFlagSaveInProgress = true;
     activity[flagName] = desiredValue;
-    saveToLocal(false); // Optimistic update; other browsers receive the staged event from Firestore.
+    saveToLocal(false); // Optimistic update; server commits the changed Firebase record before Pusher notification.
     refreshActivityFlagUI_(flagName);
-    showToast('กำลังฝากสถานะกิจกรรมเข้าคิวกลาง...', 'info');
+    showToast('กำลังบันทึกสถานะกิจกรรมลง Firebase...', 'info');
 
     try {
         const stagePayload = {
@@ -5244,7 +5226,7 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
         // Retry briefly before reverting the optimistic UI state.
         for (let attempt = 0; attempt < 4; attempt++) {
             result = await callBackend(Object.assign({}, stagePayload));
-            if (result && result.status === 'staged') break;
+            if (result && (result.status === 'staged' || result.status === 'success')) break;
             const responseMessage = String(result && result.message || '');
             const isBusy = !!(result && result.status === 'busy') ||
                 /กำลังบันทึกข้อมูล|กำลังประมวลผล|ลองอ่านอีกครั้ง|ลองอีกครั้ง|\bbusy\b/i.test(responseMessage);
@@ -5254,8 +5236,8 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
             showToast('ฐานข้อมูลกำลังบันทึกข้อมูลของผู้ใช้อื่น ระบบจะลองส่งสถานะอีกครั้ง...', 'info');
             await new Promise(resolve => setTimeout(resolve, delay));
         }
-        if (!result || result.status !== 'staged') {
-            const message = String(result && result.message || lastBusyMessage || 'หลังบ้านไม่สามารถฝากสถานะเข้าคิวได้');
+        if (!result || (result.status !== 'staged' && result.status !== 'success')) {
+            const message = String(result && result.message || lastBusyMessage || 'หลังบ้านไม่สามารถบันทึกสถานะกิจกรรมได้');
             throw new Error(message);
         }
 
@@ -5271,15 +5253,14 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
         hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, captureCurrentRealtimeData_()).length > 0;
         if (hasLocalChanges) syncQueued = true;
 
-        showToast('อัปเดตสถานะในคิว Firebase แล้ว • กำลังบันทึกข้อมูลหลัก', 'info');
-        kickRealtimeQueueWorker_(result.mutationId);
+        showToast('บันทึกสถานะกิจกรรมลง Firebase แล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher', 'success');
     } catch (error) {
         activity[flagName] = oldValue;
         saveToLocal(false);
         refreshActivityFlagUI_(flagName);
-        console.error('Activity status staging failed:', error);
+        console.error('Activity status save failed:', error);
         const flagSaveError = String(error && error.message || '');
-        showToast('ส่งสถานะเข้าคิวไม่สำเร็จ: ' + (flagSaveError || 'กรุณาลองใหม่'), 'error');
+        showToast('บันทึกสถานะกิจกรรมไม่สำเร็จ: ' + (flagSaveError || 'กรุณาลองใหม่'), 'error');
         if (flagSaveError.includes('เซสชันหมดอายุ') || flagSaveError.includes('ไม่มีสิทธิ์')) {
             window.currentAuthToken = '';
             try {
