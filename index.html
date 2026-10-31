@@ -4,7 +4,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริการนักศึกษา SSSFN v15.4.12</title>
+    <title>ระบบบริการนักศึกษา SSSFN v15.4.17</title>
     <link rel="icon" type="image/png" href="logo-2.png">
     <link rel="apple-touch-icon" href="logo-2.png">
 
@@ -4370,10 +4370,19 @@ function renderHomeDirectory() {
            return renderHomeDirectory();
        }
 
-       let sbName = document.getElementById('sidebar-name');
-       if(sbName) sbName.innerText = s.name.replace(/(นาย|นางสาว|นาง)/g, '').trim(); 
-       if(sbId) sbId.innerText = s.id; 
-       if(sbAvatar) { sbAvatar.innerText = getInitials(s.name); sbAvatar.className = "w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md"; }
+       // v15.4.17: declare all sidebar references locally before using them.
+       // In v15.4.16 sbId/sbAvatar were referenced without declarations, which threw
+       // ReferenceError after Google authentication and made login appear to fail.
+       const sbName = document.getElementById('sidebar-name');
+       const sbId = document.getElementById('sidebar-id');
+       const sbAvatar = document.getElementById('sidebar-avatar');
+       const studentDisplayName = String(s.name || s.id || 'นักศึกษา').replace(/(นาย|นางสาว|นาง)/g, '').trim();
+       if (sbName) sbName.innerText = studentDisplayName;
+       if (sbId) sbId.innerText = String(s.id || '');
+       if (sbAvatar) {
+           sbAvatar.innerText = getInitials(studentDisplayName);
+           sbAvatar.className = "w-10 h-10 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-md";
+       }
 
        let alerts = []; 
        let totalDebt = 0;
