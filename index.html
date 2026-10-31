@@ -5944,7 +5944,7 @@ window.renderMasterDashboard = function() {
     let quota = act.maxParticipants || 0;
     let totalRegistered = distinctStudents.length;
     // จำนวนผู้ลงทะเบียนผ่านเว็บไซต์นับแยก ไม่รวมการสแกน/จัดเข้ารอบ
-    let webRegisteredStudents = [...new Set(actLogs.filter(l => isWebRegistrationOnlyLog_(l)).map(l => normalizeActivityStudentId_(l.studentId))).filter(Boolean)];
+    let webRegisteredStudents = [...new Set(actLogs.filter(l => isWebRegistrationOnlyLog_(l)).map(l => normalizeActivityStudentId_(l.studentId)).filter(Boolean))];
     let webRegisteredCount = webRegisteredStudents.length;
 
     // เช็กอิน/ประเมินผลนับจากข้อมูลรอบเท่านั้น
