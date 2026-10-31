@@ -3755,26 +3755,22 @@ window.seedRandomRegistrations = function(actTitle, count = 5) {
         { id: '68152110006-7', name: 'ปิยะวัฒน์ สมบัติ', room: 'สคบ.1' }
     ];
 
-    let rounds = (act.rounds && act.rounds.length > 0) ? act.rounds : [{ id: 'R1', thName: 'ทั่วไป' }];
     let added = 0;
     let shuffled = pool.sort(() => 0.5 - Math.random());
 
     for (let stu of shuffled) {
         if (added >= count) break;
-        let cleanId = String(stu.id).replace(/-/g, '').trim();
-        let exists = activityLogs.some(l => String(l.studentId).replace(/-/g, '').trim() === cleanId && l.activityTitle === act.title);
+        let cleanId = normalizeActivityStudentId_(stu.id);
+        let exists = hasActivityWebRegistration_(stu.id, act.title);
         if (!exists) {
-            let assignedRound = rounds[Math.floor(Math.random() * rounds.length)];
-            let roundName = assignedRound.thName || assignedRound.name || assignedRound.id || 'ทั่วไป';
             let randomCode = 'REG-' + Math.floor(100000 + Math.random() * 900000);
             activityLogs.unshift({
                 studentId: stu.id,
                 activityTitle: act.title,
-                roundName: roundName,
-                timeIn: 'จองสิทธิ์ล่วงหน้า',
-                timeOut: null,
-                status: 'P',
+                webRegistrationOnly: true,
                 isWebReg: true,
+                registeredAt: getNow(),
+                status: 'P',
                 regId: randomCode
             });
             added++;
@@ -4376,7 +4372,7 @@ function renderHomeDirectory() {
        if (appSettings.activities) {
            appSettings.activities.forEach(act => {
                if (act.isOpen && act.status !== 'รออนุมัติ') {
-                   let hasRegistered = activityLogs.find(l => l.studentId === s.id && l.activityTitle === act.title);
+                   let hasRegistered = hasActivityWebRegistration_(s.id, act.title);
                    if (!hasRegistered) {
                        alerts.push(`
                        <div class="relative bg-white border border-slate-200 border-l-4 border-l-purple-500 p-4 rounded-xl mb-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all overflow-hidden group">
@@ -4801,6 +4797,48 @@ function getActivityRegistrationWindow_(activity, now = new Date()) {
     };
 }
 
+// แยกข้อมูลลงทะเบียนผ่านเว็บออกจากข้อมูลรอบเช็กอิน
+// รองรับข้อมูลเดิม: isWebReg + timeIn='จองสิทธิ์ล่วงหน้า' ถือเป็น Web Registration แบบเก่า
+function isWebRegistrationOnlyLog_(log) {
+    if (!log || typeof log !== 'object') return false;
+    if (log.webRegistrationOnly === true) return true;
+    const isWebReg = log.isWebReg === true || log.isWebReg === 'true' || log.isWebReg === 1;
+    const timeIn = String(log.timeIn == null ? '' : log.timeIn).trim();
+    return isWebReg && (!timeIn || timeIn === '-' || timeIn === 'จองสิทธิ์ล่วงหน้า');
+}
+
+function normalizeActivityStudentId_(value) {
+    return String(value == null ? '' : value).replace(/-/g, '').trim();
+}
+
+function getActivityWebRegistrationLog_(studentId, activityTitle) {
+    const cleanId = normalizeActivityStudentId_(studentId);
+    return (activityLogs || []).find(log =>
+        normalizeActivityStudentId_(log.studentId) === cleanId &&
+        log.activityTitle === activityTitle &&
+        isWebRegistrationOnlyLog_(log)
+    ) || null;
+}
+
+function hasActivityWebRegistration_(studentId, activityTitle) {
+    return !!getActivityWebRegistrationLog_(studentId, activityTitle);
+}
+
+function getActivityRoundLogs_(logs) {
+    return (logs || []).filter(log =>
+        !isWebRegistrationOnlyLog_(log) &&
+        !!String(log.roundId || log.roundName || '').trim()
+    );
+}
+
+function getActivityWebRegistrationCount_(activityTitle) {
+    const ids = new Set((activityLogs || [])
+        .filter(log => log && log.activityTitle === activityTitle && isWebRegistrationOnlyLog_(log))
+        .map(log => normalizeActivityStudentId_(log.studentId))
+        .filter(Boolean));
+    return ids.size;
+}
+
 let currentActSubTab = 'all'; // 'all', 'my', 'managed'
 
 function switchActSubTab(tab) {
@@ -4901,20 +4939,20 @@ function renderActivities() {
 
         let actHtml = '';
         filtered.forEach(act => {
-            let count = activityLogs.filter(l => l.activityTitle === act.title).length;
+            let actLogsForCard = activityLogs.filter(l => l.activityTitle === act.title);
+            let webRegCount = getActivityWebRegistrationCount_(act.title);
             let isOpen = getActivityRegistrationWindow_(act).isOpen;
             let totalMax = act.maxParticipants > 0 ? act.maxParticipants : 0;
-            let countDisplay = totalMax > 0 ? `${count} / ${totalMax}` : `${count} คน`;
+            let countDisplay = totalMax > 0 ? `${webRegCount} / ${totalMax}` : `${webRegCount} คนลงทะเบียนเว็บ`;
 
-            let myLog = null;
-            if (currentUserRole === 'guest' && myId) {
-                myLog = activityLogs.find(l => l.studentId === myId && l.activityTitle === act.title);
-            }
+            let myWebReg = currentUserRole === 'guest' && myId ? getActivityWebRegistrationLog_(myId, act.title) : null;
+            let myRoundLogs = currentUserRole === 'guest' && myId ? getActivityRoundLogs_(actLogsForCard.filter(l => normalizeActivityStudentId_(l.studentId) === normalizeActivityStudentId_(myId))) : [];
 
-            let badge = act.status === 'รออนุมัติ' ? `<span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full">รออนุมัติ</span>` : 
-                        myLog ? `<span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full"><i class="fa-solid fa-check-circle mr-1"></i>ลงทะเบียนแล้ว</span>` : 
-                        isOpen ? `<span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">เปิดรับสมัคร</span>` : 
-                        `<span class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1 rounded-full">ปิดรับสมัคร</span>`;
+            let badge = act.status === 'รออนุมัติ' ? `<span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">รออนุมัติ</span>` :
+                        myWebReg ? `<span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap"><i class="fa-solid fa-check-circle mr-1"></i>ลงทะเบียนผ่านเว็บแล้ว</span>` :
+                        myRoundLogs.length ? `<span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap"><i class="fa-solid fa-user-check mr-1"></i>มีข้อมูลเข้าร่วม</span>` :
+                        isOpen ? `<span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">เปิดรับสมัคร</span>` :
+                        `<span class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">ปิดรับสมัคร</span>`;
 
             let adminBtn = ''; let appBtn = '';
             let isActAdmin = false;
@@ -4923,7 +4961,7 @@ function renderActivities() {
             }
 
             if (currentUserRole !== 'guest') {
-                adminBtn = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="absolute top-3 right-3 text-slate-400 hover:text-rose-500 transition p-2 z-10 rounded-lg hover:bg-rose-50" aria-label="ลบรายการ"><i class="fa-solid fa-trash"></i></button>`;
+                adminBtn = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="shrink-0 text-slate-400 hover:text-rose-600 transition p-2 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-100" aria-label="ลบกิจกรรม ${act.title}" title="ลบกิจกรรม"><i class="fa-solid fa-trash-can"></i></button>`;
                 if (act.status === 'รออนุมัติ' && currentUserRole !== 'treasurer') {
                     appBtn = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">อนุมัติกิจกรรมนี้</button>`;
                 }
@@ -4935,8 +4973,13 @@ function renderActivities() {
             if (currentUserRole === 'guest') {
                 if (isActAdmin) {
                     guestBtn = `<div class="bg-amber-50 p-3 mt-4 text-center rounded-b-xl border-t border-amber-100 text-xs font-bold text-amber-800 hover:bg-amber-100 transition"><i class="fa-solid fa-user-shield mr-1"></i> พื้นที่จัดการกิจกรรม (Staff) &rarr;</div>`;
-                } else if (myLog) {
-                    guestBtn = `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนสำเร็จ (รอบ: ${myLog.roundName || 'ทั่วไป'}) &rarr;</div>`;
+                } else if (myWebReg) {
+                    let attendedRounds = [...new Set(myRoundLogs.map(l => l.roundName || l.roundId).filter(Boolean))];
+                    let participationText = attendedRounds.length ? ` • รอบเช็กอิน: ${attendedRounds.join(', ')}` : ' • ยังไม่ได้จัดรอบเช็กอิน';
+                    guestBtn = `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนผ่านเว็บแล้ว${participationText} &rarr;</div>`;
+                } else if (myRoundLogs.length) {
+                    let attendedRounds = [...new Set(myRoundLogs.map(l => l.roundName || l.roundId).filter(Boolean))];
+                    guestBtn = `<div class="bg-blue-50 p-3 mt-4 text-center rounded-b-xl border-t border-blue-100 text-xs font-bold text-blue-700 hover:bg-blue-100 transition">มีประวัติเข้าร่วม${attendedRounds.length ? ` • รอบ: ${attendedRounds.join(', ')}` : ''} &rarr;</div>`;
                 } else {
                     guestBtn = `<div class="bg-slate-50 p-3 mt-4 text-center rounded-b-xl border-t border-slate-100 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition">ดูรายละเอียดและลงทะเบียน &rarr;</div>`;
                 }
@@ -4944,17 +4987,16 @@ function renderActivities() {
 
             actHtml += `
             <div onclick="event.stopPropagation(); ${clickAction}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition flex flex-col h-full cursor-pointer relative overflow-hidden group">
-                ${adminBtn}
                 <div class="p-5 flex-1 flex flex-col">
-                    <div class="min-w-0 pr-9 mb-2">
-                        <h3 class="font-bold text-slate-800 text-base leading-snug break-words group-hover:text-blue-600 transition">${act.title}</h3>
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-3 min-w-0">
+                        <h3 class="font-bold text-slate-800 text-base leading-snug break-words group-hover:text-blue-600 transition flex-1 min-w-[140px]">${act.title}</h3>
+                        <div class="shrink-0 flex items-center gap-1">${badge}${adminBtn}</div>
                     </div>
-                    <div class="mb-3 flex flex-wrap items-center gap-2">${badge}</div>
                     <div class="inline-block bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded mb-4 w-max max-w-full break-all">${act.ref ? act.ref : 'กิจกรรม / เลือกเข้าร่วม'}</div>
                     <div class="space-y-2 text-xs text-slate-600 mt-auto">
                         <div class="flex justify-between"><span class="font-bold text-slate-400">ปี/เทอม:</span><span class="font-bold">${act.year}/${act.term}</span></div>
                         <div class="flex justify-between"><span class="font-bold text-slate-400">วันจัดกิจกรรม:</span><span class="font-bold">${act.date}</span></div>
-                        <div class="flex justify-between items-end mt-4 pt-3 border-t border-slate-100"><span class="font-bold text-slate-400 text-xs">จำนวนผู้เข้าร่วม</span><span class="font-bold text-sm text-slate-800">${countDisplay}</span></div>
+                        <div class="flex justify-between items-end mt-4 pt-3 border-t border-slate-100"><span class="font-bold text-slate-400 text-xs">ลงทะเบียนผ่านเว็บ</span><span class="font-bold text-sm text-slate-800">${countDisplay}</span></div>
                     </div>
                     ${appBtn}
                 </div>
@@ -4997,21 +5039,27 @@ function renderActivities() {
         let myCardsMobileHtml = '';
 
         myActs.forEach(act => {
-            let logs = activityLogs.filter(l => l.studentId === myId && l.activityTitle === act.title);
-            let latestLog = logs[logs.length - 1] || {};
+            let logs = activityLogs.filter(l => normalizeActivityStudentId_(l.studentId) === normalizeActivityStudentId_(myId) && l.activityTitle === act.title);
+            let roundLogs = getActivityRoundLogs_(logs);
+            let latestRoundLog = roundLogs[0] || {};
+            let webRegLog = getActivityWebRegistrationLog_(myId, act.title);
+            let latestLog = latestRoundLog.status ? latestRoundLog : (webRegLog || latestRoundLog);
             
             let statusBadge = '';
             if (latestLog.status === 'C') {
                 statusBadge = '<span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-circle-check"></i> ผ่าน (C)</span>';
             } else if (latestLog.status === 'U') {
                 statusBadge = '<span class="bg-rose-100 text-rose-800 font-bold px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-circle-xmark"></i> ไม่ผ่าน (U)</span>';
-            } else if (latestLog.timeIn && latestLog.timeIn !== '-') {
+            } else if (latestRoundLog.timeIn && latestRoundLog.timeIn !== '-') {
                 statusBadge = '<span class="bg-blue-100 text-blue-800 font-bold px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-check"></i> เข้าร่วมแล้ว</span>';
+            } else if (webRegLog) {
+                statusBadge = '<span class="bg-purple-100 text-purple-800 font-bold px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-globe"></i> ลงทะเบียนผ่านเว็บแล้ว</span>';
             } else {
-                statusBadge = '<span class="bg-purple-100 text-purple-800 font-bold px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-ticket"></i> ลงทะเบียนแล้ว</span>';
+                statusBadge = '<span class="bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-xs inline-flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-clipboard-check"></i> มีข้อมูลกิจกรรม</span>';
             }
 
-            let roundNames = logs.map(l => l.roundName || 'รอบทั่วไป').join(', ');
+            let roundNames = [...new Set(roundLogs.map(l => l.roundName || l.roundId).filter(Boolean))].join(', ');
+            let roundSummary = roundNames ? `รอบที่เข้าร่วม: ${roundNames}` : (webRegLog ? 'ลงทะเบียนผ่านเว็บแล้ว • ยังไม่ได้จัดรอบเช็กอิน' : 'ยังไม่มีข้อมูลรอบเช็กอิน');
             let scoreText = latestLog.score != null ? latestLog.score : (act.points || 3);
             let refCode = act.ref || 'ACT-' + (act.year || 68);
 
@@ -5024,7 +5072,7 @@ function renderActivities() {
                 <td class="p-3.5 align-middle">
                     <p class="font-bold text-slate-800 text-sm hover:text-blue-600 cursor-pointer" onclick="openRegistrationModal('${act.title}')">${act.title}</p>
                     <p class="text-[11px] text-slate-400 mt-0.5">${act.titleEng || ''} ${act.date ? ' • จัดวันที่ ' + act.date : ''}</p>
-                    <p class="text-[11px] text-purple-600 font-bold mt-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> รอบที่เข้าร่วม: ${roundNames}</p>
+                    <p class="text-[11px] text-purple-600 font-bold mt-1"><i class="fa-solid fa-clock-rotate-left mr-1"></i> ${roundSummary}</p>
                 </td>
                 <td class="p-3.5 align-middle text-center font-bold text-slate-700 whitespace-nowrap font-mono">
                     ${act.year || '2568'}/${act.term || '1'}
@@ -5064,7 +5112,7 @@ function renderActivities() {
                     </p>
                     <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-xs">
                         <span class="text-purple-600 font-bold text-[11px] truncate max-w-[200px]">
-                            <i class="fa-solid fa-clock-rotate-left mr-1"></i>${roundNames}
+                            <i class="fa-solid fa-clock-rotate-left mr-1"></i>${roundSummary}
                         </span>
                         <span class="font-bold text-emerald-600 text-xs whitespace-nowrap">
                             +${scoreText} คะแนน
@@ -5138,7 +5186,7 @@ function renderActivities() {
         let managedCardsMobileHtml = '';
 
         managedActs.forEach(act => {
-            let count = activityLogs.filter(l => l.activityTitle === act.title).length;
+            let count = new Set(activityLogs.filter(l => l.activityTitle === act.title).map(l => normalizeActivityStudentId_(l.studentId)).filter(Boolean)).size;
             let totalMax = act.maxParticipants > 0 ? act.maxParticipants : 0;
             let countText = totalMax > 0 ? `${count} / ${totalMax} คน` : `${count} คน`;
             let refCode = act.ref || 'ACT-' + (act.year || 68);
@@ -5791,19 +5839,18 @@ window.renderMasterDashboard = function() {
 
     // คำนวณสถิติ 4 การ์ด
     let actLogs = activityLogs.filter(l => l.activityTitle === act.title);
-    let distinctStudents = [...new Set(actLogs.map(l => l.studentId))];
+    let roundLogs = getActivityRoundLogs_(actLogs);
+    let distinctStudents = [...new Set(roundLogs.map(l => l.studentId))];
     let quota = act.maxParticipants || 0;
     let totalRegistered = distinctStudents.length;
-    // จำนวนผู้ที่ลงทะเบียนผ่านเว็บไซต์จริง แยกจากการเพิ่มชื่อ/เช็กชื่อโดยเจ้าหน้าที่
-    let webRegisteredStudents = [...new Set(actLogs.filter(l => l && (l.isWebReg === true || l.isWebReg === 'true' || l.isWebReg === 1)).map(l => String(l.studentId || '')))].filter(Boolean);
+    // จำนวนผู้ลงทะเบียนผ่านเว็บไซต์นับแยก ไม่รวมการสแกน/จัดเข้ารอบ
+    let webRegisteredStudents = [...new Set(actLogs.filter(l => isWebRegistrationOnlyLog_(l)).map(l => normalizeActivityStudentId_(l.studentId))).filter(Boolean)];
     let webRegisteredCount = webRegisteredStudents.length;
 
-    // นักศึกษาที่เช็คอินแล้ว (มี timeIn)
-    let checkedInStudents = [...new Set(actLogs.filter(l => l.timeIn).map(l => l.studentId))];
-    // นักศึกษาที่ผ่านการประเมิน (สถานะ A หรือ C)
-    let passedStudents = [...new Set(actLogs.filter(l => l.status === 'A' || l.status === 'C').map(l => l.studentId))];
-    // นักศึกษาที่รอพิจารณา (สถานะ P หรือ ไม่มีสถานะ)
-    let pendingStudents = [...new Set(actLogs.filter(l => l.status === 'P' || !l.status).map(l => l.studentId))];
+    // เช็กอิน/ประเมินผลนับจากข้อมูลรอบเท่านั้น
+    let checkedInStudents = [...new Set(roundLogs.filter(l => l.timeIn && l.timeIn !== '-').map(l => l.studentId))];
+    let passedStudents = [...new Set(roundLogs.filter(l => l.status === 'A' || l.status === 'C').map(l => l.studentId))];
+    let pendingStudents = [...new Set(roundLogs.filter(l => l.status === 'P' || !l.status).map(l => l.studentId))];
 
     let quotaPercent = quota > 0 ? Math.min(100, Math.round((totalRegistered / quota) * 100)) : 100;
     let checkinPercent = totalRegistered > 0 ? Math.min(100, Math.round((checkedInStudents.length / totalRegistered) * 100)) : 0;
@@ -5911,14 +5958,14 @@ window.filterMasterTable = function() {
             studentMap[log.studentId] = {
                 student: stu,
                 logs: [],
-                webRegTime: log.isWebReg ? (log.timeIn || '-') : '-',
+                webRegTime: isWebRegistrationOnlyLog_(log) ? (log.registeredAt || (log.timeIn && log.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? log.timeIn : '-')) : '-',
                 status: log.status || 'P',
                 regId: log.regId || null
             };
         }
         studentMap[log.studentId].logs.push(log);
         if (log.regId && !studentMap[log.studentId].regId) studentMap[log.studentId].regId = log.regId;
-        if (log.isWebReg && log.timeIn) studentMap[log.studentId].webRegTime = log.timeIn;
+        if (isWebRegistrationOnlyLog_(log)) studentMap[log.studentId].webRegTime = log.registeredAt || (log.timeIn && log.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? log.timeIn : '-');
         if (log.status && log.status !== 'P') studentMap[log.studentId].status = log.status;
     });
 
@@ -6432,7 +6479,7 @@ window.executeScanLogic = function(barcode, actTitle) {
     
     // 1. ตรวจสอบเงื่อนไขระงับผู้ไม่ได้ลงทะเบียนผ่านเว็บ
     if (cond.blockUnregistered) {
-        let hasReg = activityLogs.some(l => l.studentId === stu.id && l.activityTitle === currentMasterActivity.title);
+        let hasReg = hasActivityWebRegistration_(stu.id, currentMasterActivity.title);
         if (!hasReg) {
             return Swal.fire({
                 icon: 'error',
@@ -8183,8 +8230,9 @@ window.exportActivityToCSV = function() {
     distinctIds.forEach((sId, idx) => {
         let s = students.find(x => x.id === sId) || { name: 'ไม่พบชื่อ', room: '-', major: '', degree: '' };
         let sLogs = parts.filter(l => l.studentId === sId);
-        let webLog = sLogs.find(l => l.isWebReg && l.timeIn);
-        let webTime = webLog ? formatDisplayDate(webLog.timeIn) : '-';
+        let webLog = sLogs.find(l => isWebRegistrationOnlyLog_(l));
+        let rawWebTime = webLog ? (webLog.registeredAt || (webLog.timeIn && webLog.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? webLog.timeIn : '-')) : '-';
+        let webTime = rawWebTime !== '-' ? formatDisplayDate(rawWebTime) : '-';
         let degree = s.degree || s.level || (s.room ? 'ห้อง ' + s.room : 'ปริญญาตรี 4-5 ปี');
         let status = (sLogs.find(l => l.status && l.status !== 'P') || sLogs[0] || {}).status || 'P';
 
@@ -11143,11 +11191,11 @@ window.openRegistrationModal = function(title) {
 
     let existingLog = null;
     if (currentUserRole === 'guest' && stuId) {
-        existingLog = activityLogs.find(l => l.studentId === stuId && l.activityTitle === title);
+        existingLog = getActivityWebRegistrationLog_(stuId, title);
     }
 
     let quota = act.maxParticipants || 0;
-    let registeredCount = activityLogs.filter(l => l.activityTitle === title).length;
+    let registeredCount = getActivityWebRegistrationCount_(title);
     let quotaDisplay = quota > 0 ? `${registeredCount} / ${quota} คน` : 'ไม่จำกัดจำนวน';
     let isFull = (quota > 0 && registeredCount >= quota);
 
@@ -11159,12 +11207,13 @@ window.openRegistrationModal = function(title) {
             <div class="bg-emerald-50 text-emerald-700 font-bold py-3.5 rounded-xl mb-3 flex flex-col sm:flex-row items-center justify-center gap-2 border border-emerald-200 shadow-sm text-center">
                 <div class="flex items-center gap-1.5">
                     <i class="fa-solid fa-circle-check text-lg text-emerald-600"></i>
-                    <span>คุณได้ลงทะเบียนเข้าร่วมกิจกรรมนี้แล้ว (รอบ: ${existingLog.roundName || 'ทั่วไป'})</span>
+                    <span>คุณลงทะเบียนผ่านเว็บไซต์แล้ว</span>
                 </div>
-                <span class="bg-emerald-100/90 text-emerald-800 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border border-emerald-300">รหัสคิว: ${existingLog.regId || ('REG-' + String(existingLog.studentId).slice(-4))}</span>
+                <span class="text-xs font-medium text-emerald-700">ยังไม่ได้จัดรอบเช็กอิน (รอบจะใช้ตอนสแกนเข้าร่วมกิจกรรม)</span>
+                <span class="bg-emerald-100/90 text-emerald-800 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border border-emerald-300">รหัสลงทะเบียนเว็บ: ${existingLog.regId || ('REG-' + String(existingLog.studentId).slice(-4))}</span>
             </div>
             <button type="button" onclick="promptCancelReg('${act.title}')" class="w-full bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
-                <i class="fa-solid fa-user-xmark"></i> ยกเลิกการเข้าร่วมกิจกรรม
+                <i class="fa-solid fa-user-xmark"></i> ยกเลิกการลงทะเบียนผ่านเว็บ
             </button>
             <p class="text-xs text-slate-400 mt-2">สามารถยกเลิกได้เฉพาะในช่วงเวลาที่ระบบเปิดรับสมัครเท่านั้น</p>
         `;
@@ -11183,7 +11232,7 @@ window.openRegistrationModal = function(title) {
     if (openRounds.length > 0) {
         roundsSectionHtml = `
             <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center gap-1.5"><i class="fa-solid fa-clock text-blue-600"></i> รอบกิจกรรมที่เปิดให้เลือกลงทะเบียน</h4>
+                <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center gap-1.5"><i class="fa-solid fa-clock text-blue-600"></i> รอบสำหรับสแกนเช็กอินหน้างาน (ไม่ใช่การจองรอบผ่านเว็บ)</h4>
                 <div class="space-y-1.5">
                     ${openRounds.map(r => `
                         <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
@@ -11281,60 +11330,65 @@ window.openRegistrationModal = function(title) {
 window.promptConfirmReg = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
+    const registrationWindow = getActivityRegistrationWindow_(act);
+    if (!registrationWindow.isOpen) {
+        return Swal.fire({ icon: 'warning', title: 'ยังไม่อยู่ในช่วงรับสมัคร', text: registrationWindow.beforeStart ? 'ยังไม่ถึงวันและเวลาเปิดรับสมัคร' : 'หมดช่วงเวลารับสมัครแล้ว', confirmButtonColor: '#2563eb' });
+    }
 
     Swal.fire({
         html: `
         <div class="text-left mt-2 font-sans">
-            <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-4 border border-blue-100 shadow-sm"><i class="fas fa-check"></i></div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">ยืนยันการลงทะเบียนกิจกรรม</h2>
-            <p class="text-sm text-slate-600 mb-5">คุณต้องการเข้าร่วมกิจกรรมนี้ใช่หรือไม่? เมื่อยืนยันแล้วระบบจะบันทึกรายชื่อของคุณทันที</p>
+            <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-4 border border-blue-100 shadow-sm"><i class="fas fa-globe"></i></div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">ยืนยันการลงทะเบียนผ่านเว็บไซต์</h2>
+            <p class="text-sm text-slate-600 mb-5">การกดยืนยันนี้จะบันทึกเฉพาะการลงทะเบียนผ่านเว็บไซต์เท่านั้น <b>ไม่จองคิวและไม่เลือกหรือผูกกับรอบกิจกรรม</b> รอบกิจกรรมจะใช้สำหรับสแกนนักศึกษาเข้าร่วมหน้างาน</p>
             <div class="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 text-sm leading-relaxed font-bold flex gap-3 shadow-inner">
                 <i class="fas fa-thumbtack text-rose-500 mt-1 text-lg"></i>
                 <p>${act.title}</p>
             </div>
         </div>
         `,
-        showCancelButton: true, confirmButtonText: 'ยืนยันการลงทะเบียน', cancelButtonText: 'กลับไปคิดดูอีกที',
-        confirmButtonColor: '#111827', cancelButtonColor: '#ffffff', reverseButtons: true,
-        customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: '!text-slate-600 border border-slate-300 shadow-sm rounded-xl px-6 py-3 font-bold hover:bg-slate-50' },
-        preConfirm: () => {
-            let defaultRound = (act.rounds && act.rounds.length > 0) ? (act.rounds[0].thName || act.rounds[0].name || act.rounds[0].id || 'ทั่วไป') : 'ทั่วไป';
-            return defaultRound;
-        }
+        showCancelButton: true, confirmButtonText: 'ยืนยันลงทะเบียนผ่านเว็บ', cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#111827', cancelButtonColor: '#64748b', reverseButtons: true,
+        customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: 'rounded-xl px-6 py-3 font-bold' }
     }).then((res) => {
-        if (res.isConfirmed) {
-            let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-            if (!stuId) {
-                showToast('กรุณาเข้าสู่ระบบก่อนลงทะเบียน', 'warning');
-                return promptStudentLogin();
-            }
-            let cleanStuId = String(stuId).replace(/-/g, '').trim();
-            let alreadyReg = activityLogs.find(l => String(l.studentId).replace(/-/g, '').trim() === cleanStuId && l.activityTitle === act.title);
-            
-            if (!alreadyReg) {
-                let randomRegId = 'REG-' + Math.floor(100000 + Math.random() * 900000);
-                activityLogs.unshift({ 
-                    studentId: stuId, 
-                    activityTitle: act.title, 
-                    roundName: res.value || 'ทั่วไป', 
-                    timeIn: 'จองสิทธิ์ล่วงหน้า', 
-                    timeOut: null,
-                    status: 'P',
-                    isWebReg: true,
-                    regId: randomRegId
-                });
-                saveToLocal(true); 
-                
-                if(typeof renderActivities === 'function') renderActivities();
-                if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
-                if(typeof filterMasterTable === 'function' && currentMasterActivity?.title === act.title) filterMasterTable();
-                if(typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === act.title) renderMasterDashboard();
-            }
-            
-            Swal.fire({ icon: 'success', title: 'ลงทะเบียนสำเร็จ!', text: 'ระบบได้บันทึกรายชื่อเข้าร่วมกิจกรรมของคุณแล้ว', confirmButtonColor: '#10b981', timer: 1500 }).then(() => {
-                openRegistrationModal(act.title);
-            });
+        if (!res.isConfirmed) return;
+        let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+        if (!stuId) {
+            showToast('กรุณาเข้าสู่ระบบก่อนลงทะเบียน', 'warning');
+            return promptStudentLogin();
         }
+        const currentWindow = getActivityRegistrationWindow_(act);
+        if (!currentWindow.isOpen) {
+            return Swal.fire({ icon: 'warning', title: 'ปิดรับสมัครแล้ว', text: 'ช่วงเวลารับสมัครไม่เปิดอยู่ในขณะนี้', confirmButtonColor: '#2563eb' });
+        }
+        if (hasActivityWebRegistration_(stuId, act.title)) {
+            return Swal.fire({ icon: 'info', title: 'ลงทะเบียนผ่านเว็บแล้ว', text: 'บัญชีนี้ลงทะเบียนผ่านเว็บไซต์สำหรับกิจกรรมนี้แล้ว โดยยังไม่ได้จองรอบ', confirmButtonColor: '#2563eb' });
+        }
+        const quota = Number(act.maxParticipants) || 0;
+        const registeredCount = getActivityWebRegistrationCount_(act.title);
+        if (quota > 0 && registeredCount >= quota) {
+            return Swal.fire({ icon: 'warning', title: 'จำนวนผู้ลงทะเบียนครบแล้ว', text: `ลงทะเบียนผ่านเว็บไซต์ครบ ${quota} คนแล้ว`, confirmButtonColor: '#2563eb' });
+        }
+
+        const randomRegId = 'REG-' + Math.floor(100000 + Math.random() * 900000);
+        activityLogs.unshift({
+            studentId: stuId,
+            activityTitle: act.title,
+            webRegistrationOnly: true,
+            isWebReg: true,
+            registeredAt: getNow(),
+            status: 'P',
+            regId: randomRegId
+        });
+        saveToLocal(true);
+        if (typeof renderActivities === 'function') renderActivities();
+        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+        if (typeof filterMasterTable === 'function' && currentMasterActivity?.title === act.title) filterMasterTable();
+        if (typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === act.title) renderMasterDashboard();
+
+        Swal.fire({ icon: 'success', title: 'ลงทะเบียนผ่านเว็บไซต์สำเร็จ!', text: 'บันทึกการลงทะเบียนเว็บแล้ว ยังไม่มีการจองหรือกำหนดรอบกิจกรรม', confirmButtonColor: '#10b981', timer: 1800 }).then(() => {
+            openRegistrationModal(act.title);
+        });
     });
 };
 
@@ -11450,9 +11504,11 @@ window.processStudentQRCheckin = function(data, source) {
 
     // ฟังก์ชันบันทึกข้อมูลเช็กอิน
     const doSaveCheckin = (userLat, userLng, distText) => {
-        let existingBooking = activityLogs.find(l => 
-            String(l.studentId).replace(/-/g, '').trim() === cleanStuId && 
-            l.activityTitle === data.act
+        let existingBooking = activityLogs.find(l =>
+            normalizeActivityStudentId_(l.studentId) === cleanStuId &&
+            l.activityTitle === data.act &&
+            !isWebRegistrationOnlyLog_(l) &&
+            String(l.roundName || l.roundId || '').trim() === String(data.round || '').trim()
         );
 
         let randomRegId = existingBooking?.regId || ('REG-' + Math.floor(100000 + Math.random() * 900000));
@@ -11462,7 +11518,9 @@ window.processStudentQRCheckin = function(data, source) {
             if (data.round) existingBooking.roundName = data.round;
             if (userLat) { existingBooking.lat = userLat; existingBooking.lng = userLng; }
             existingBooking.status = 'P';
-            existingBooking.isWebReg = true;
+            existingBooking.isCheckin = true;
+            existingBooking.isWebReg = false;
+            existingBooking.webRegistrationOnly = false;
             if (!existingBooking.regId) existingBooking.regId = randomRegId;
         } else {
             activityLogs.unshift({
@@ -11474,7 +11532,9 @@ window.processStudentQRCheckin = function(data, source) {
                 timeIn: nowStr,
                 timeOut: null,
                 status: 'P',
-                isWebReg: true,
+                isCheckin: true,
+                isWebReg: false,
+                webRegistrationOnly: false,
                 regId: randomRegId
             });
         }
@@ -11710,7 +11770,7 @@ window.promptCancelReg = function(title) {
         <div class="text-left mt-2">
             <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-2xl mb-4 border border-rose-100 shadow-sm"><i class="fas fa-exclamation"></i></div>
             <h2 class="text-2xl font-bold text-slate-800 mb-2">ยืนยันการยกเลิกการลงทะเบียน</h2>
-            <p class="text-sm text-slate-600 mb-5">คุณแน่ใจหรือไม่ที่จะยกเลิกการลงทะเบียน? คุณอาจเสียสิทธิ์ในการเข้าร่วมหากที่นั่งเต็มในภายหลัง</p>
+            <p class="text-sm text-slate-600 mb-5">คุณแน่ใจหรือไม่ที่จะยกเลิกเฉพาะการลงทะเบียนผ่านเว็บไซต์? ประวัติการสแกนและข้อมูลรอบกิจกรรมจะไม่ถูกลบ</p>
             <div class="bg-rose-50/70 border border-rose-100 p-4 rounded-xl text-rose-800 text-sm leading-relaxed font-bold flex gap-3 shadow-inner">
                 <i class="fas fa-exclamation-triangle text-amber-500 mt-1 text-lg"></i>
                 <p>${title}</p>
@@ -11725,14 +11785,18 @@ window.promptCancelReg = function(title) {
             let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
             let cleanStuId = String(stuId).replace(/-/g, '').trim();
             
-            activityLogs = activityLogs.filter(l => !(String(l.studentId).replace(/-/g, '').trim() === cleanStuId && l.activityTitle === title));
-            saveToLocal(); 
+            activityLogs = activityLogs.filter(l => !(
+                normalizeActivityStudentId_(l.studentId) === cleanStuId &&
+                l.activityTitle === title &&
+                isWebRegistrationOnlyLog_(l)
+            ));
+            saveToLocal(true);
             
             // 🌟 อัปเดตเฉพาะหน้าจอ UI ไม่ให้ไปดึงเน็ตมาทับ!
             if(typeof renderActivities === 'function') renderActivities();
             if(typeof updateSidebarBadges === 'function') updateSidebarBadges();
             
-            Swal.fire({ icon: 'success', title: 'ยกเลิกสำเร็จ', text: 'ระบบได้ลบรายชื่อของคุณออกจากกิจกรรมนี้แล้ว', confirmButtonColor: '#10b981', timer: 1500 }).then(() => {
+            Swal.fire({ icon: 'success', title: 'ยกเลิกสำเร็จ', text: 'ยกเลิกการลงทะเบียนผ่านเว็บแล้ว โดยประวัติรอบเช็กอินยังคงอยู่', confirmButtonColor: '#10b981', timer: 1500 }).then(() => {
                 openRegistrationModal(title); 
             });
         }
@@ -11758,7 +11822,7 @@ window.updateSidebarBadges = function() {
         if (appSettings.activities) {
             appSettings.activities.forEach(act => {
                 if (act.isOpen && act.status !== 'รออนุมัติ') {
-                    let hasReg = activityLogs.find(l => l.studentId === window.currentGuestStuId && l.activityTitle === act.title);
+                    let hasReg = hasActivityWebRegistration_(window.currentGuestStuId, act.title);
                     if (!hasReg) unregActs++;
                 }
             });
