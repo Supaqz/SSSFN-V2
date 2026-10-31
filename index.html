@@ -464,21 +464,21 @@
         <!-- Header Section (Sticky) -->
         <header class="shrink-0 shadow-lg bg-[#0b1739] border-b border-blue-900/40 text-white">
             <!-- Top Bar: Minimal Back Button + Activity Active Status + Ref + Subtitle -->
-            <div class="px-5 py-3 border-b border-slate-800/80 flex items-center justify-between gap-3">
-                <div class="flex items-center gap-2.5 flex-wrap">
-                    <!-- ปุ่มกลับแบบมินิมอล มุมฝั่งซ้าย -->
-                    <button onclick="closeActivityMaster()" class="text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 hover:bg-slate-800/80 border border-slate-700/60" title="กลับไปหน้ารวมกิจกรรม">
+            <div class="px-4 sm:px-5 py-3 border-b border-slate-800/80 flex flex-wrap items-center gap-2.5 min-w-0">
+                <div class="flex flex-wrap items-center gap-2.5 min-w-0 w-full">
+                    <!-- แถบหัวข้อยืดหยุ่น: ปุ่ม/รหัส/ประเภทจะขึ้นบรรทัดใหม่บนจอแคบ ไม่ทับกัน -->
+                    <button onclick="closeActivityMaster()" class="shrink-0 whitespace-nowrap text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 hover:bg-slate-800/80 border border-slate-700/60" title="กลับไปหน้ารวมกิจกรรม">
                         <i class="fa-solid fa-arrow-left"></i> กลับ
                     </button>
                     <!-- ปุ่มเปิด/ปิดการใช้งานกิจกรรม (สำหรับเปิดให้สแกนเช็กชื่อหน้างาน ตามรูป) -->
-                    <button id="master-header-toggle-btn" onclick="toggleActivityActiveStatus()" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-700" title="สลับเปิด/ปิดการใช้งานกิจกรรมสำหรับเช็กชื่อ">
+                    <button id="master-header-toggle-btn" onclick="toggleActivityActiveStatus()" class="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-700" title="สลับเปิด/ปิดการใช้งานกิจกรรมสำหรับเช็กชื่อ">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span>
                         <span id="master-header-active-text">ปิดการใช้งาน</span>
                     </button>
                     <!-- รหัสกิจกรรมอ้างอิง -->
-                    <span id="master-header-ref" class="bg-blue-900/50 text-blue-300 text-xs px-3 py-1 rounded-full border border-blue-700/50 font-mono font-bold tracking-wider">ACT-2569</span>
+                    <span id="master-header-ref" class="shrink-0 whitespace-nowrap bg-blue-900/50 text-blue-300 text-xs px-3 py-1 rounded-full border border-blue-700/50 font-mono font-bold tracking-wider">ACT-2569</span>
                     <!-- ประเภทกิจกรรม -->
-                    <span id="master-header-type" class="text-xs text-slate-300 font-medium">กิจกรรมทั่วไป</span>
+                    <span id="master-header-type" class="min-w-0 break-words text-xs text-slate-300 font-medium">กิจกรรมทั่วไป</span>
                 </div>
             </div>
 
@@ -1664,7 +1664,7 @@
     <script data-api-url="https://script.google.com/macros/s/AKfycbwlh_dKnnyBVyjmnsv8_yfij5ll2oZB_Mw9W3kAUE3_9u3nz8qtzL1dkC6_ma2_UR7ylQ/exec" data-pusher-key="a1faa9f3e07af21e4a44" data-pusher-cluster="ap1">
     const API_URL = document.currentScript.dataset.apiUrl;
     // Public Pusher app key only; never put the Pusher app secret in browser code.
-    const PUSHER_KEY_V15 = document.currentScript.dataset.pusherKey || 'YOUR_PUSHER_KEY';
+    const PUSHER_KEY_V15 = document.currentScript.dataset.pusherKey || 'a1faa9f3e07af21e4a44';
     const PUSHER_CLUSTER_V15 = document.currentScript.dataset.pusherCluster || 'ap1';
 
     // 🌟 🌟 🌟 วางโค้ด Firebase ขั้นตอนที่ 2 แทรกตรงนี้ครับ 🌟 🌟 🌟
@@ -1884,7 +1884,7 @@
     let pusherDeltaReadQueuedV15_ = false;
     let pusherSignalRetryTimerV15_ = null;
     let pusherDeltaRetryAttemptV15_ = 0;
-    // v15.3: coalesce generic/no-eventId notifications into one event query per burst.
+    // v15.4: coalesce generic/no-eventId notifications into one event query per burst.
     let pusherGenericSignalTimerV153_ = null;
     let pusherGenericSignalLatestV153_ = null;
 
@@ -2016,12 +2016,58 @@
         }
     }
 
+    // v15.4: activity status is small, non-financial metadata. Carry it in the Pusher
+    // signal so peer browsers can update immediately even when Firestore document Reads are exhausted.
+    function applyActivityFlagSignalV154_(notice) {
+        const meta = notice && notice.activityFlag;
+        if (!meta || !['isActive', 'isOpen', 'isVisible'].includes(String(meta.flagName || ''))) return false;
+        const flagName = String(meta.flagName);
+        const flagValue = meta.flagValue === true;
+        const activityRef = String(meta.activityRef || '').trim();
+        const activityTitle = String(meta.activityTitle || '').trim();
+        if (!activityRef && !activityTitle) return false;
+
+        const matchesActivity = (activity) => {
+            if (!activity) return false;
+            const identity = String(activity.ref || activity.id || '').trim();
+            if (activityRef && identity === activityRef) return true;
+            return !!activityTitle && String(activity.title || '').trim() === activityTitle;
+        };
+        const patchState = (state) => {
+            const list = state && state.appSettings && Array.isArray(state.appSettings.activities)
+                ? state.appSettings.activities : [];
+            const target = list.find(matchesActivity);
+            if (!target) return false;
+            target[flagName] = flagValue;
+            return true;
+        };
+
+        const updatedLive = patchState({ appSettings: appSettings });
+        // Keep the local reconciliation baseline aligned so this remote status update is not
+        // mistaken for an unsaved local edit on the next normal synchronization.
+        if (lastServerSnapshot) patchState(lastServerSnapshot);
+        if (!updatedLive) return false;
+
+        const currentRef = String(currentMasterActivity && (currentMasterActivity.ref || currentMasterActivity.id) || '').trim();
+        const currentTitle = String(currentMasterActivity && currentMasterActivity.title || '').trim();
+        if (currentMasterActivity && ((activityRef && currentRef === activityRef) || (!activityRef && activityTitle && currentTitle === activityTitle) || (activityTitle && currentTitle === activityTitle))) {
+            const fresh = (appSettings.activities || []).find(matchesActivity);
+            if (fresh) currentMasterActivity = fresh;
+        }
+        saveToLocal(false);
+        if (typeof refreshActivityFlagUI_ === 'function') refreshActivityFlagUI_(flagName);
+        else if (typeof renderActivities === 'function') renderActivities();
+        if (notice.eventId) appliedRealtimeEventIds_.add(String(notice.eventId));
+        console.log('Pusher activity status applied without Firestore read:', flagName, flagValue);
+        return true;
+    }
+
     function startPusherRealtimeV15_() {
         if (typeof Pusher === 'undefined') {
             console.error('Pusher library did not load; real-time updates are unavailable.');
             return;
         }
-        if (!PUSHER_KEY_V15 || PUSHER_KEY_V15 === 'YOUR_PUSHER_KEY') {
+        if (!PUSHER_KEY_V15) {
             console.warn('ตั้งค่า data-pusher-key ใน index.html ก่อนใช้งาน Pusher real-time');
             return;
         }
@@ -2035,6 +2081,14 @@
             if (notice.eventId && notice.sourceClientId && notice.sourceClientId === realtimeClientId && notice.canonicalRefresh !== true) {
                 console.log('Pusher echo ignored for this browser:', notice.eventId);
                 appliedRealtimeEventIds_.add(String(notice.eventId));
+                return;
+            }
+            // Activity toggles are safely represented by a small status-only signal. Apply them
+            // directly on peer devices; do not make a Firestore event read just to obtain a boolean.
+            if (applyActivityFlagSignalV154_(notice)) {
+                if (notice.canonicalRefresh === true && String(notice.storageMode || '').toUpperCase() === 'SHEETS') {
+                    requestRealtimeCanonicalRefresh_('sheets-fallback-mode', 50);
+                }
                 return;
             }
             console.log('Pusher received SSSFN update signal:', notice.eventId || 'generic');
@@ -4841,7 +4895,7 @@ function renderActivities() {
             }
 
             if (currentUserRole !== 'guest') {
-                adminBtn = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition px-2 py-1 z-10" aria-label="ลบรายการ"><i class="fa-solid fa-trash"></i></button>`;
+                adminBtn = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="absolute top-3 right-3 text-slate-400 hover:text-rose-500 transition p-2 z-10 rounded-lg hover:bg-rose-50" aria-label="ลบรายการ"><i class="fa-solid fa-trash"></i></button>`;
                 if (act.status === 'รออนุมัติ' && currentUserRole !== 'treasurer') {
                     appBtn = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">อนุมัติกิจกรรมนี้</button>`;
                 }
@@ -4864,8 +4918,11 @@ function renderActivities() {
             <div onclick="event.stopPropagation(); ${clickAction}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition flex flex-col h-full cursor-pointer relative overflow-hidden group">
                 ${adminBtn}
                 <div class="p-5 flex-1 flex flex-col">
-                    <div class="flex justify-between items-start mb-3"><h3 class="font-bold text-slate-800 text-base leading-tight pr-6 group-hover:text-blue-600 transition">${act.title}</h3><div class="shrink-0 ml-2">${badge}</div></div>
-                    <div class="inline-block bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded mb-4 w-max">${act.ref ? act.ref : 'กิจกรรม / เลือกเข้าร่วม'}</div>
+                    <div class="min-w-0 pr-9 mb-2">
+                        <h3 class="font-bold text-slate-800 text-base leading-snug break-words group-hover:text-blue-600 transition">${act.title}</h3>
+                    </div>
+                    <div class="mb-3 flex flex-wrap items-center gap-2">${badge}</div>
+                    <div class="inline-block bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded mb-4 w-max max-w-full break-all">${act.ref ? act.ref : 'กิจกรรม / เลือกเข้าร่วม'}</div>
                     <div class="space-y-2 text-xs text-slate-600 mt-auto">
                         <div class="flex justify-between"><span class="font-bold text-slate-400">ปี/เทอม:</span><span class="font-bold">${act.year}/${act.term}</span></div>
                         <div class="flex justify-between"><span class="font-bold text-slate-400">วันจัดกิจกรรม:</span><span class="font-bold">${act.date}</span></div>
@@ -5709,6 +5766,9 @@ window.renderMasterDashboard = function() {
     let distinctStudents = [...new Set(actLogs.map(l => l.studentId))];
     let quota = act.maxParticipants || 0;
     let totalRegistered = distinctStudents.length;
+    // จำนวนผู้ที่ลงทะเบียนผ่านเว็บไซต์จริง แยกจากการเพิ่มชื่อ/เช็กชื่อโดยเจ้าหน้าที่
+    let webRegisteredStudents = [...new Set(actLogs.filter(l => l && (l.isWebReg === true || l.isWebReg === 'true' || l.isWebReg === 1)).map(l => String(l.studentId || '')))].filter(Boolean);
+    let webRegisteredCount = webRegisteredStudents.length;
 
     // นักศึกษาที่เช็คอินแล้ว (มี timeIn)
     let checkedInStudents = [...new Set(actLogs.filter(l => l.timeIn).map(l => l.studentId))];
@@ -5744,21 +5804,26 @@ window.renderMasterDashboard = function() {
                 </div>
             </div>
 
-            <!-- การ์ด 2: ลงทะเบียนผ่านเว็บ -->
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                <div class="flex justify-between items-start mb-2">
+            <!-- การ์ด 2: ลงทะเบียนผ่านเว็บ (นับเฉพาะรายการ isWebReg) -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between min-w-0">
+                <div class="flex justify-between items-start gap-2 mb-2">
                     <span class="text-xs font-bold text-slate-500">ลงทะเบียนผ่านเว็บ</span>
-                    <span class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-xs"><i class="fa-solid fa-globe"></i></span>
+                    <span class="shrink-0 p-1.5 rounded-lg bg-indigo-50 text-indigo-600 text-xs"><i class="fa-solid fa-globe"></i></span>
                 </div>
-                <div>
+                <div class="min-w-0">
                     <div class="flex items-baseline gap-2 mb-2">
-                        <span class="text-2xl font-black text-indigo-600">${distinctStudents.length}</span>
+                        <span class="text-2xl font-black text-indigo-600">${webRegisteredCount}</span>
                         <span class="text-xs text-slate-400 font-bold">คน</span>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-1">
-                        <div class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 100%"></div>
+                    ${quota > 0 ? `
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-1" role="progressbar" aria-valuenow="${Math.min(100, Math.round((webRegisteredCount / quota) * 100))}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: ${Math.min(100, Math.round((webRegisteredCount / quota) * 100))}%"></div>
                     </div>
-                    <span class="text-xs font-bold text-indigo-600">ลงทะเบียนสำเร็จในระบบ</span>
+                    <span class="text-xs font-bold text-indigo-600">${Math.min(100, Math.round((webRegisteredCount / quota) * 100))}% ของโควตา</span>
+                    ` : `
+                    <span class="text-xs font-bold text-indigo-600">${webRegisteredCount > 0 ? 'ลงทะเบียนสำเร็จในระบบ' : 'ยังไม่มีผู้ลงทะเบียนผ่านเว็บ'}</span>
+                    <span class="block text-[11px] text-slate-400 mt-1">ไม่จำกัดจำนวนผู้เข้าร่วม</span>
+                    `}
                 </div>
             </div>
         `;
