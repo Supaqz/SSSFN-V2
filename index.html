@@ -4948,8 +4948,28 @@ function isActivityAssignedToCurrentUser_(activity) {
     const identity = getCurrentActivityIdentity_();
     return activity.admins.some(admin => {
         if (!admin) return false;
-        const values = [admin.user, admin.username, admin.id, admin.email, admin.studentId];
-        return values.some(value => identity.keys.has(normalizeActivityAccessKey_(value)) ||
+        const values = [admin.user, admin.username, admin.id, admin.email, admin.studentId,
+            admin.name, admin.displayName, admin.adminName];
+        // Direct match against every known identifier of the signed-in account.
+        if (values.some(value => identity.keys.has(normalizeActivityAccessKey_(value)) ||
+            identity.ids.has(normalizeActivityAccessId_(value)))) return true;
+
+        // Legacy records may contain only the administrator's display name.
+        // Resolve that name against the registered admin account and compare its canonical username/email/id.
+        const assignedAccount = (users || []).find(u => {
+            if (!u) return false;
+            const accountValues = [u.user, u.name, u.email, u.id, u.studentId];
+            return values.some(value => {
+                const key = normalizeActivityAccessKey_(value);
+                const id = normalizeActivityAccessId_(value);
+                return !!key && accountValues.some(candidate => normalizeActivityAccessKey_(candidate) === key) ||
+                    !!id && accountValues.some(candidate => normalizeActivityAccessId_(candidate) === id);
+            });
+        });
+        if (!assignedAccount) return false;
+        const canonicalValues = [assignedAccount.user, assignedAccount.name, assignedAccount.email,
+            assignedAccount.id, assignedAccount.studentId];
+        return canonicalValues.some(value => identity.keys.has(normalizeActivityAccessKey_(value)) ||
             identity.ids.has(normalizeActivityAccessId_(value)));
     });
 }
@@ -8280,9 +8300,13 @@ window.addActivityAdmin = function(title) {
     else if (dashId) cleanId = dashId[1].trim();
     else if (/^[0-9][0-9-]{5,}$/.test(rawUser)) cleanId = rawUser;
     let stu = students.find(s => normalizeActivityStudentId_(s.id) === normalizeActivityStudentId_(cleanId) || (!cleanId && normalizeActivityAccessKey_(s.name) === normalizeActivityAccessKey_(rawUser)));
-    let systemUser = (users || []).find(u => normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(rawUser) ||
-        (cleanId && normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(cleanId)) ||
-        normalizeActivityAccessKey_(u && u.name) === normalizeActivityAccessKey_(rawUser)) || null;
+    const rawAdminKey = normalizeActivityAccessKey_(rawUser.replace(/\s*\([^()]*\)\s*$/, '').trim());
+    let systemUser = (users || []).find(u => {
+        if (!u) return false;
+        const accountValues = [u.user, u.name, u.email, u.id, u.studentId];
+        return accountValues.some(value => normalizeActivityAccessKey_(value) === rawAdminKey) ||
+            (!!cleanId && accountValues.some(value => normalizeActivityAccessId_(value) === normalizeActivityAccessId_(cleanId)));
+    }) || null;
     let targetName = stu ? stu.name : (systemUser ? (systemUser.name || systemUser.user) : (rawUser.includes(' (') ? rawUser.split(' (')[0].trim() : rawUser));
     let targetUsername = systemUser ? String(systemUser.user || '') : (!stu ? cleanId || rawUser : '');
     let targetId = stu ? stu.id : (systemUser && systemUser.id ? systemUser.id : cleanId);
