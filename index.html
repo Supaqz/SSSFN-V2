@@ -3371,6 +3371,11 @@ window.toggleSidebar = function() {
 }
 function switchPage(pageId) {
     currentView = pageId;
+    // v15.4.3: students enter the registration page on the public activity list.
+    // The "managed" tab is only for activities explicitly assigned to them as staff.
+    if (pageId === 'activity' && currentUserRole === 'guest' && typeof switchActSubTab === 'function') {
+        switchActSubTab('all');
+    }
     if (typeof closeActivityMaster === "function") { try { closeActivityMaster(); } catch(e) { console.warn(e); } }
     
     // 1. ซ่อนทุกหน้า และเคลียร์สีเมนู
@@ -4772,6 +4777,30 @@ function showToast(message, type = 'success') {
 }
 
 // ------------------------------------------------------------
+// v15.4.3: registration dates are independent from the actual event date.
+// Blank regEnd means there is no automatic registration deadline; isOpen is the manual switch.
+function getActivityRegistrationWindow_(activity, now = new Date()) {
+    const parseLocal = (value) => {
+        if (!value) return null;
+        const raw = String(value).trim();
+        const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+        const date = match
+            ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0), Number(match[6] || 0))
+            : new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const start = parseLocal(activity && activity.regStart);
+    const end = parseLocal(activity && activity.regEnd);
+    if (end) end.setHours(23, 59, 59, 999);
+    const beforeStart = !!(start && now < start);
+    const afterEnd = !!(end && now > end);
+    return {
+        beforeStart,
+        afterEnd,
+        isOpen: !!(activity && activity.isOpen !== false && !beforeStart && !afterEnd)
+    };
+}
+
 let currentActSubTab = 'all'; // 'all', 'my', 'managed'
 
 function switchActSubTab(tab) {
@@ -4848,16 +4877,15 @@ function renderActivities() {
         
         if (currentUserRole === 'guest') {
             filtered = filtered.filter(a => {
-                let hasReg = activityLogs.some(l => l.studentId === myId && l.activityTitle === a.title);
-                let eDate = new Date(a.date); eDate.setHours(23, 59, 59, 999);
-                let isOver = new Date() > eDate;
-                
+                const normalizeId = value => String(value || '').replace(/-/g, '').trim();
+                let hasReg = activityLogs.some(l => normalizeId(l.studentId) === normalizeId(myId) && l.activityTitle === a.title);
                 let isActAdmin = a.admins && a.admins.some(admin => admin.user === myName || admin.user === myId);
-                if (isActAdmin) return true; 
+                if (isActAdmin) return true;
 
+                // The student list is controlled by approval + the explicit "show in list" switch.
+                // Do not hide a visible activity just because its event date is earlier than today.
                 if (hasReg) return a.status === 'อนุมัติแล้ว';
-                if (a.isVisible === false) return false;
-                return a.status === 'อนุมัติแล้ว' && !isOver;
+                return a.isVisible !== false && a.status === 'อนุมัติแล้ว';
             });
         }
 
@@ -4874,7 +4902,7 @@ function renderActivities() {
         let actHtml = '';
         filtered.forEach(act => {
             let count = activityLogs.filter(l => l.activityTitle === act.title).length;
-            let isOpen = act.isOpen !== false;
+            let isOpen = getActivityRegistrationWindow_(act).isOpen;
             let totalMax = act.maxParticipants > 0 ? act.maxParticipants : 0;
             let countDisplay = totalMax > 0 ? `${count} / ${totalMax}` : `${count} คน`;
 
@@ -8140,103 +8168,43 @@ function renderActivityAdmins(title) {
     listEl.innerHTML = rowsHtml;
 }
 
-// 15. ส่งออกข้อมูล Excel (.xlsx) เป็นข้อความ
+// 15. ส่งออกข้อมูล CSV
 window.exportActivityToCSV = function() {
-    // ส่งออกเป็น .xlsx จริง และบังคับให้หัวตาราง/ข้อมูล/สถานะเป็นข้อความ (String)
-    // เพื่อไม่ให้ Excel แปลงรหัสนักศึกษาเป็นตัวเลขหรือแสดงรหัสสถานะภายใน (A/C/U/P)
-    const title = currentMasterActivity ? String(currentMasterActivity.title || '') : '';
-    const parts = activityLogs.filter(l => l.activityTitle === title);
-    if (parts.length === 0) {
-        return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วมในกิจกรรมนี้', 'info');
-    }
-    if (!window.XLSX || !window.XLSX.utils || typeof window.XLSX.writeFile !== 'function') {
-        return Swal.fire('ไม่สามารถส่งออก Excel ได้', 'ไม่พบไลบรารี Excel กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่', 'error');
-    }
+    let title = currentMasterActivity ? currentMasterActivity.title : '';
+    let parts = activityLogs.filter(l => l.activityTitle === title);
+    if (parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วมในกิจกรรมนี้', 'info');
 
-    try {
-        const roundsRaw = getMasterRounds();
-        const rounds = Array.isArray(roundsRaw) ? roundsRaw : [];
-        const distinctIds = [...new Set(parts.map(p => String(p.studentId == null ? '' : p.studentId).trim()).filter(Boolean))];
+    let rounds = getMasterRounds();
+    let distinctIds = [...new Set(parts.map(p => p.studentId))];
 
-        // หัวตารางเป็นข้อความภาษาไทยตามรูปแบบที่แสดงในระบบ
-        const headers = [
-            'ลำดับ',
-            'รหัสนักศึกษา',
-            'ชื่อ-นามสกุล',
-            'ลงทะเบียนผ่านเว็บ',
-            ...rounds.map(r => String((r && (r.thName || r.id)) || 'รอบกิจกรรม')),
-            'สถานะการประเมิน'
-        ];
-        const rows = [headers];
-        const toText = value => value === null || value === undefined || value === '' ? '-' : String(value);
-        const statusLabels = {
-            'A': 'ผ่านกิจกรรม (A)',
-            'C': 'ผ่านกิจกรรม (C)',
-            'U': 'ไม่ผ่านกิจกรรม (U)',
-            'P': 'รอพิจารณา (P)'
-        };
+    let roundHeaders = rounds.map(r => r.thName || r.id).join(',');
+    let csv = "\uFEFFลำดับ,รหัสนักศึกษา,ชื่อ-นามสกุล,สาขา/ห้อง,หลักสูตร,ลงทะเบียนเว็บ," + (roundHeaders ? roundHeaders + "," : "") + "สถานะประเมิน\n";
 
-        distinctIds.forEach((studentId, idx) => {
-            const s = students.find(x => String(x.id == null ? '' : x.id).trim() === studentId) || {
-                name: 'ไม่พบชื่อ', room: '-', major: '', dept: '', degree: ''
-            };
-            const sLogs = parts.filter(l => String(l.studentId == null ? '' : l.studentId).trim() === studentId);
-            const webLog = sLogs.find(l => l.isWebReg && l.timeIn);
-            const webTime = webLog ? formatDisplayDate(webLog.timeIn) : '-';
-            const rawStatus = (sLogs.find(l => l.status && String(l.status).toUpperCase() !== 'P') || sLogs[0] || {}).status || 'P';
-            const statusKey = String(rawStatus).trim().toUpperCase();
-            const statusText = statusLabels[statusKey] || toText(rawStatus);
+    distinctIds.forEach((sId, idx) => {
+        let s = students.find(x => x.id === sId) || { name: 'ไม่พบชื่อ', room: '-', major: '', degree: '' };
+        let sLogs = parts.filter(l => l.studentId === sId);
+        let webLog = sLogs.find(l => l.isWebReg && l.timeIn);
+        let webTime = webLog ? formatDisplayDate(webLog.timeIn) : '-';
+        let degree = s.degree || s.level || (s.room ? 'ห้อง ' + s.room : 'ปริญญาตรี 4-5 ปี');
+        let status = (sLogs.find(l => l.status && l.status !== 'P') || sLogs[0] || {}).status || 'P';
 
-            const roundTexts = rounds.map(r => {
-                const roundName = String((r && (r.thName || r.id)) || '');
-                const roundId = r && r.id != null ? String(r.id) : '';
-                const rLog = sLogs.find(l =>
-                    (String(l.roundName || '') === roundName || String(l.roundId || '') === roundId) && l.timeIn
-                );
-                return rLog ? toText(formatDisplayDate(rLog.timeIn)) : '-';
-            });
+        let roundTimes = rounds.map(r => {
+            let rLog = sLogs.find(l => (l.roundName === (r.thName || r.id) || l.roundId === r.id) && l.timeIn);
+            return rLog ? formatDisplayDate(rLog.timeIn) : '-';
+        }).join('","');
 
-            rows.push([
-                String(idx + 1),
-                toText(studentId),
-                toText(s.name),
-                toText(webTime),
-                ...roundTexts,
-                toText(statusText)
-            ]);
-        });
+        let roundColStr = rounds.length > 0 ? `"${roundTimes}",` : '';
+        csv += `"${idx + 1}","${sId}","${s.name || ''}","${s.major || s.room || '-'}","${degree}","${webTime}",${roundColStr}"${status}"\n`;
+    });
 
-        const XLSX = window.XLSX;
-        const worksheet = XLSX.utils.aoa_to_sheet(rows, { cellDates: false });
-
-        // บังคับทุกเซลล์ (รวมเลขลำดับ/รหัส/วันที่) ให้เป็นชนิดข้อความจริง
-        Object.keys(worksheet).forEach(address => {
-            if (address.charAt(0) === '!') return;
-            const cell = worksheet[address];
-            cell.t = 's';
-            cell.v = String(cell.v == null ? '' : cell.v);
-            cell.z = '@';
-            delete cell.f;
-        });
-
-        const lastColumn = XLSX.utils.encode_col(headers.length - 1);
-        const lastRow = rows.length;
-        worksheet['!autofilter'] = { ref: `A1:${lastColumn}${lastRow}` };
-        worksheet['!cols'] = [
-            { wch: 8 }, { wch: 20 }, { wch: 32 }, { wch: 23 },
-            ...rounds.map(() => ({ wch: 23 })),
-            { wch: 25 }
-        ];
-
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'รายชื่อผู้เข้าร่วม');
-        const safeTitle = (title || 'กิจกรรม').replace(/[\\/:*?"<>|]/g, '_').trim() || 'กิจกรรม';
-        XLSX.writeFile(workbook, `${safeTitle}_participants.xlsx`, { bookType: 'xlsx', cellStyles: true });
-        showToast('ดาวน์โหลดไฟล์ Excel (.xlsx) เรียบร้อยแล้ว โดยรหัสนักศึกษา วันที่ และสถานะเป็นข้อความ', 'success');
-    } catch (error) {
-        console.error('Export Excel failed:', error);
-        Swal.fire('ส่งออก Excel ไม่สำเร็จ', error && error.message ? error.message : String(error), 'error');
-    }
+    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `${title}_participants.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('ดาวน์โหลดไฟล์ CSV เรียบร้อยแล้ว', 'success');
 };
 // 16. แบบฟอร์มสร้างกิจกรรมใหม่ (ตรงตามรูป 023211.png)
 window.createActivityModal = function() {
@@ -11164,15 +11132,12 @@ window.openRegistrationModal = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
 
-    let today = new Date(); today.setHours(0, 0, 0, 0);
-    let regEndDate = act.regEnd ? new Date(act.regEnd) : new Date(act.date);
-    regEndDate.setHours(23, 59, 59, 999);
-    
-    let isStillOpen = (act.isOpen !== false) && (today <= regEndDate);
+    const registrationWindow = getActivityRegistrationWindow_(act);
+    let isStillOpen = registrationWindow.isOpen;
     let badgeClass = isStillOpen 
         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500' 
         : 'bg-rose-500/20 text-rose-400 border-rose-500';
-    let badgeText = isStillOpen ? 'เปิดรับสมัคร' : 'ปิดรับสมัครแล้ว';
+    let badgeText = registrationWindow.beforeStart ? 'ยังไม่เปิดรับสมัคร' : (isStillOpen ? 'เปิดรับสมัคร' : 'ปิดรับสมัครแล้ว');
 
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
 
