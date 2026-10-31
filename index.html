@@ -1721,7 +1721,8 @@
         }
         clearTimeout(remoteSignalTimer);
         const sinceLastPull = Date.now() - lastSuccessfulCanonicalPullAtV13;
-        const cooldownWait = lastSuccessfulCanonicalPullAtV13
+        const isSheetsFallbackRefresh = String(reason || '') === 'sheets-fallback-mode';
+        const cooldownWait = !isSheetsFallbackRefresh && lastSuccessfulCanonicalPullAtV13
             ? Math.max(0, CANONICAL_PULL_MIN_INTERVAL_MS_V14 - sinceLastPull)
             : 0;
         const clientJitter = 250 + Math.floor(Math.random() * 1250);
@@ -1883,6 +1884,9 @@
     let pusherDeltaReadQueuedV15_ = false;
     let pusherSignalRetryTimerV15_ = null;
     let pusherDeltaRetryAttemptV15_ = 0;
+    // v15.3: coalesce generic/no-eventId notifications into one event query per burst.
+    let pusherGenericSignalTimerV153_ = null;
+    let pusherGenericSignalLatestV153_ = null;
 
     function decodePusherRealtimeEventV15_(event) {
         if (!event || typeof event !== 'object') return null;
@@ -1926,6 +1930,12 @@
     }
 
     async function fetchPusherRealtimeDeltaV15_(signal) {
+        // When Firestore quota is exhausted, Pusher explicitly says the canonical store is Sheets.
+        // Skip Firestore realtimeEvents reads and immediately pull the current Sheets snapshot.
+        if (signal && signal.canonicalRefresh === true && String(signal.storageMode || '').toUpperCase() === 'SHEETS') {
+            requestRealtimeCanonicalRefresh_(String(signal.storageMode || '').toUpperCase() === 'SHEETS' ? 'sheets-fallback-mode' : 'pusher-canonical-refresh', 50);
+            return;
+        }
         if (pusherDeltaReadInProgressV15_) {
             pusherDeltaReadQueuedV15_ = true;
             return;
@@ -1944,14 +1954,14 @@
                     querySucceeded = true;
                 } else if (one && one.status === 'pending') {
                     // Rare race/old queue: follow with the recent-event query instead of a full database read.
-                    const sinceMs = Math.max(0, (Date.parse(lastPusherEventCursorV15_) || (Date.now() - 120000)) - 5000);
+                    const sinceMs = Math.max(0, (Date.parse(lastPusherEventCursorV15_) || (Date.now() - 120000)) - 1000);
                     const many = await callBackend({ action: 'getRealtimeEventsSince', since: new Date(sinceMs).toISOString(), limit: 100 });
                     if (!many || many.status !== 'success') throw new Error((many && many.message) || 'อ่าน realtime events ไม่สำเร็จ');
                     applyPusherRealtimeEventsV15_(many.data || []);
                     eventCount += (many.data || []).length;
                     querySucceeded = true;
                 } else if (one && one.status === 'not_found') {
-                    const sinceMs = Math.max(0, (Date.parse(lastPusherEventCursorV15_) || (Date.now() - 120000)) - 5000);
+                    const sinceMs = Math.max(0, (Date.parse(lastPusherEventCursorV15_) || (Date.now() - 120000)) - 1000);
                     const many = await callBackend({ action: 'getRealtimeEventsSince', since: new Date(sinceMs).toISOString(), limit: 100 });
                     if (!many || many.status !== 'success') throw new Error((many && many.message) || 'อ่าน realtime events ไม่สำเร็จ');
                     applyPusherRealtimeEventsV15_(many.data || []);
@@ -1964,7 +1974,7 @@
                     throw new Error((one && one.message) || 'อ่าน realtime event ไม่สำเร็จ');
                 }
             } else {
-                const sinceMs = Math.max(0, (Date.parse(lastPusherEventCursorV15_) || (Date.now() - 120000)) - 5000);
+                const sinceMs = Math.max(0, (Date.parse(lastPusherEventCursorV15_) || (Date.now() - 120000)) - 1000);
                 const many = await callBackend({ action: 'getRealtimeEventsSince', since: new Date(sinceMs).toISOString(), limit: 100 });
                 if (!many || many.status !== 'success') throw new Error((many && many.message) || 'อ่าน realtime events ไม่สำเร็จ');
                 applyPusherRealtimeEventsV15_(many.data || []);
@@ -1980,6 +1990,12 @@
                 }
             }
         } catch (error) {
+            const pusherErrorMessage = String(error && error.message || error);
+            if (/HTTP\s*429|Quota exceeded|RESOURCE_EXHAUSTED|quota exceeded/i.test(pusherErrorMessage)) {
+                console.warn('Firestore realtime event quota reached; switching canonical pull to Sheets fallback:', pusherErrorMessage);
+                requestRealtimeCanonicalRefresh_('sheets-fallback-mode', 50);
+                return;
+            }
             console.warn('Pusher signal received but delta retrieval failed; will retry without full-state polling:', error);
             if (!pusherSignalRetryTimerV15_) {
                 const baseDelay = Math.min(5000 * Math.pow(2, pusherDeltaRetryAttemptV15_), 120000);
@@ -2022,7 +2038,21 @@
                 return;
             }
             console.log('Pusher received SSSFN update signal:', notice.eventId || 'generic');
-            fetchPusherRealtimeDeltaV15_(notice);
+            if (notice.eventId || (notice.canonicalRefresh === true && String(notice.storageMode || '').toUpperCase() === 'SHEETS')) {
+                fetchPusherRealtimeDeltaV15_(notice);
+            } else {
+                // Generic legacy signals contain no event id. A short debounce means several
+                // writes arriving together cause one catch-up query, not one query per signal.
+                pusherGenericSignalLatestV153_ = notice;
+                if (!pusherGenericSignalTimerV153_) {
+                    pusherGenericSignalTimerV153_ = setTimeout(() => {
+                        pusherGenericSignalTimerV153_ = null;
+                        const latestNotice = pusherGenericSignalLatestV153_ || {};
+                        pusherGenericSignalLatestV153_ = null;
+                        fetchPusherRealtimeDeltaV15_(latestNotice);
+                    }, 450);
+                }
+            }
         });
         pusher.connection.bind('error', function (error) {
             console.warn('Pusher connection error:', error);
@@ -2569,13 +2599,16 @@ async function autoSyncToGS(showStatus = false) {
         const currentAfterSave = captureCurrentRealtimeData_();
         hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, currentAfterSave).length > 0;
         realtimeRetryAttempt = 0;
+        const savedMode = String(result.storageMode || 'FIREBASE').toUpperCase();
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({
             toast: true, position: 'top-end', icon: 'success',
-            title: 'บันทึกข้อมูลแล้ว',
-            text: 'Firebase บันทึกเฉพาะรายการที่เปลี่ยนแล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher • สำรองชีตเบื้องหลัง',
-            showConfirmButton: false, timer: 1900
+            title: savedMode === 'SHEETS' ? 'บันทึกผ่าน Google Sheets ชั่วคราว' : 'บันทึกข้อมูลแล้ว',
+            text: savedMode === 'SHEETS'
+                ? 'Firebase เต็มโควตา • บันทึกลงชีตสำรองแล้ว • ระบบจะนำคิวกลับ Firebase หลังโควตาพร้อม'
+                : 'Firebase บันทึกเฉพาะรายการที่เปลี่ยนแล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher • สำรองชีตเบื้องหลัง',
+            showConfirmButton: false, timer: 2600
         });
-        return { status: 'success', changedRecords: Number(result.changedRecords) || 0, realtimeEventId: result.realtimeEventId || '' };
+        return { status: 'success', changedRecords: Number(result.changedRecords) || 0, realtimeEventId: result.realtimeEventId || '', storageMode: savedMode };
     } catch (error) {
         saveFailed = true;
         hasLocalChanges = true;
@@ -5253,7 +5286,9 @@ async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, 
         hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, captureCurrentRealtimeData_()).length > 0;
         if (hasLocalChanges) syncQueued = true;
 
-        showToast('บันทึกสถานะกิจกรรมลง Firebase แล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher', 'success');
+        showToast(result.storageMode === 'SHEETS'
+            ? 'Firebase เต็มโควตา: บันทึกสถานะลง Google Sheets ชั่วคราวแล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher'
+            : 'บันทึกสถานะกิจกรรมลง Firebase แล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher', 'success');
     } catch (error) {
         activity[flagName] = oldValue;
         saveToLocal(false);
