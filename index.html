@@ -8140,43 +8140,103 @@ function renderActivityAdmins(title) {
     listEl.innerHTML = rowsHtml;
 }
 
-// 15. ส่งออกข้อมูล CSV
+// 15. ส่งออกข้อมูล Excel (.xlsx) เป็นข้อความ
 window.exportActivityToCSV = function() {
-    let title = currentMasterActivity ? currentMasterActivity.title : '';
-    let parts = activityLogs.filter(l => l.activityTitle === title);
-    if (parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วมในกิจกรรมนี้', 'info');
+    // ส่งออกเป็น .xlsx จริง และบังคับให้หัวตาราง/ข้อมูล/สถานะเป็นข้อความ (String)
+    // เพื่อไม่ให้ Excel แปลงรหัสนักศึกษาเป็นตัวเลขหรือแสดงรหัสสถานะภายใน (A/C/U/P)
+    const title = currentMasterActivity ? String(currentMasterActivity.title || '') : '';
+    const parts = activityLogs.filter(l => l.activityTitle === title);
+    if (parts.length === 0) {
+        return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วมในกิจกรรมนี้', 'info');
+    }
+    if (!window.XLSX || !window.XLSX.utils || typeof window.XLSX.writeFile !== 'function') {
+        return Swal.fire('ไม่สามารถส่งออก Excel ได้', 'ไม่พบไลบรารี Excel กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่', 'error');
+    }
 
-    let rounds = getMasterRounds();
-    let distinctIds = [...new Set(parts.map(p => p.studentId))];
+    try {
+        const roundsRaw = getMasterRounds();
+        const rounds = Array.isArray(roundsRaw) ? roundsRaw : [];
+        const distinctIds = [...new Set(parts.map(p => String(p.studentId == null ? '' : p.studentId).trim()).filter(Boolean))];
 
-    let roundHeaders = rounds.map(r => r.thName || r.id).join(',');
-    let csv = "\uFEFFลำดับ,รหัสนักศึกษา,ชื่อ-นามสกุล,สาขา/ห้อง,หลักสูตร,ลงทะเบียนเว็บ," + (roundHeaders ? roundHeaders + "," : "") + "สถานะประเมิน\n";
+        // หัวตารางเป็นข้อความภาษาไทยตามรูปแบบที่แสดงในระบบ
+        const headers = [
+            'ลำดับ',
+            'รหัสนักศึกษา',
+            'ชื่อ-นามสกุล',
+            'ลงทะเบียนผ่านเว็บ',
+            ...rounds.map(r => String((r && (r.thName || r.id)) || 'รอบกิจกรรม')),
+            'สถานะการประเมิน'
+        ];
+        const rows = [headers];
+        const toText = value => value === null || value === undefined || value === '' ? '-' : String(value);
+        const statusLabels = {
+            'A': 'ผ่านกิจกรรม (A)',
+            'C': 'ผ่านกิจกรรม (C)',
+            'U': 'ไม่ผ่านกิจกรรม (U)',
+            'P': 'รอพิจารณา (P)'
+        };
 
-    distinctIds.forEach((sId, idx) => {
-        let s = students.find(x => x.id === sId) || { name: 'ไม่พบชื่อ', room: '-', major: '', degree: '' };
-        let sLogs = parts.filter(l => l.studentId === sId);
-        let webLog = sLogs.find(l => l.isWebReg && l.timeIn);
-        let webTime = webLog ? formatDisplayDate(webLog.timeIn) : '-';
-        let degree = s.degree || s.level || (s.room ? 'ห้อง ' + s.room : 'ปริญญาตรี 4-5 ปี');
-        let status = (sLogs.find(l => l.status && l.status !== 'P') || sLogs[0] || {}).status || 'P';
+        distinctIds.forEach((studentId, idx) => {
+            const s = students.find(x => String(x.id == null ? '' : x.id).trim() === studentId) || {
+                name: 'ไม่พบชื่อ', room: '-', major: '', dept: '', degree: ''
+            };
+            const sLogs = parts.filter(l => String(l.studentId == null ? '' : l.studentId).trim() === studentId);
+            const webLog = sLogs.find(l => l.isWebReg && l.timeIn);
+            const webTime = webLog ? formatDisplayDate(webLog.timeIn) : '-';
+            const rawStatus = (sLogs.find(l => l.status && String(l.status).toUpperCase() !== 'P') || sLogs[0] || {}).status || 'P';
+            const statusKey = String(rawStatus).trim().toUpperCase();
+            const statusText = statusLabels[statusKey] || toText(rawStatus);
 
-        let roundTimes = rounds.map(r => {
-            let rLog = sLogs.find(l => (l.roundName === (r.thName || r.id) || l.roundId === r.id) && l.timeIn);
-            return rLog ? formatDisplayDate(rLog.timeIn) : '-';
-        }).join('","');
+            const roundTexts = rounds.map(r => {
+                const roundName = String((r && (r.thName || r.id)) || '');
+                const roundId = r && r.id != null ? String(r.id) : '';
+                const rLog = sLogs.find(l =>
+                    (String(l.roundName || '') === roundName || String(l.roundId || '') === roundId) && l.timeIn
+                );
+                return rLog ? toText(formatDisplayDate(rLog.timeIn)) : '-';
+            });
 
-        let roundColStr = rounds.length > 0 ? `"${roundTimes}",` : '';
-        csv += `"${idx + 1}","${sId}","${s.name || ''}","${s.major || s.room || '-'}","${degree}","${webTime}",${roundColStr}"${status}"\n`;
-    });
+            rows.push([
+                String(idx + 1),
+                toText(studentId),
+                toText(s.name),
+                toText(webTime),
+                ...roundTexts,
+                toText(statusText)
+            ]);
+        });
 
-    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `${title}_participants.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('ดาวน์โหลดไฟล์ CSV เรียบร้อยแล้ว', 'success');
+        const XLSX = window.XLSX;
+        const worksheet = XLSX.utils.aoa_to_sheet(rows, { cellDates: false });
+
+        // บังคับทุกเซลล์ (รวมเลขลำดับ/รหัส/วันที่) ให้เป็นชนิดข้อความจริง
+        Object.keys(worksheet).forEach(address => {
+            if (address.charAt(0) === '!') return;
+            const cell = worksheet[address];
+            cell.t = 's';
+            cell.v = String(cell.v == null ? '' : cell.v);
+            cell.z = '@';
+            delete cell.f;
+        });
+
+        const lastColumn = XLSX.utils.encode_col(headers.length - 1);
+        const lastRow = rows.length;
+        worksheet['!autofilter'] = { ref: `A1:${lastColumn}${lastRow}` };
+        worksheet['!cols'] = [
+            { wch: 8 }, { wch: 20 }, { wch: 32 }, { wch: 23 },
+            ...rounds.map(() => ({ wch: 23 })),
+            { wch: 25 }
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'รายชื่อผู้เข้าร่วม');
+        const safeTitle = (title || 'กิจกรรม').replace(/[\\/:*?"<>|]/g, '_').trim() || 'กิจกรรม';
+        XLSX.writeFile(workbook, `${safeTitle}_participants.xlsx`, { bookType: 'xlsx', cellStyles: true });
+        showToast('ดาวน์โหลดไฟล์ Excel (.xlsx) เรียบร้อยแล้ว โดยรหัสนักศึกษา วันที่ และสถานะเป็นข้อความ', 'success');
+    } catch (error) {
+        console.error('Export Excel failed:', error);
+        Swal.fire('ส่งออก Excel ไม่สำเร็จ', error && error.message ? error.message : String(error), 'error');
+    }
 };
 // 16. แบบฟอร์มสร้างกิจกรรมใหม่ (ตรงตามรูป 023211.png)
 window.createActivityModal = function() {
