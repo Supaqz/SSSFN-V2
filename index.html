@@ -4,7 +4,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริการนักศึกษา SSSFN v15.4.11</title>
+    <title>ระบบบริการนักศึกษา SSSFN v15.4.12</title>
     <link rel="icon" type="image/png" href="logo-2.png">
     <link rel="apple-touch-icon" href="logo-2.png">
 
@@ -2173,7 +2173,7 @@ async function callBackend(payload) {
         let users = []; // บัญชีผู้ใช้ต้องมาจากฐานข้อมูลจริงเท่านั้น ไม่สร้าง admin/1234 สำรองในเบราว์เซอร์
         let rooms = []; let students = []; let txHistory = []; let fundRounds = []; let fundPayments = []; let expenses = []; let activityLogs = []; let timeLogs = [];
 
-        let syncTimeout; let html5QrcodeScanner = null; let autoRefreshInterval; 
+        let syncTimeout; let syncWorkerTimer = null; let html5QrcodeScanner = null; let autoRefreshInterval; 
         let quickTargetId = ''; let quickScanner = null;
         let randomPool = []; let currentDetailActivityTitle = '';
 
@@ -2768,7 +2768,37 @@ async function silentPullFromGS(showStatus = false, force = false) {
         const errorMessage = String(error && error.message || '');
         lastCanonicalPullErrorV13 = errorMessage;
         const isExpectedBusy = errorMessage.includes('กำลังบันทึก') || errorMessage.toLowerCase().includes('busy');
+        const isAuthFailure = /ไม่มีเซสชัน|ไม่มีสิทธิ์สำหรับข้อมูลกิจกรรม|เซสชันหมดอายุ|token.*หมดอายุ|unauthorized|forbidden|HTTP 401|HTTP 403/i.test(errorMessage);
         quotaFailure = /HTTP 429|Quota exceeded|RESOURCE_EXHAUSTED|quota exceeded/i.test(errorMessage);
+
+        // An expired/revoked admin token should not leave the login page under a modal
+        // backdrop or keep retrying the protected loadAll endpoint indefinitely.
+        if (isAuthFailure && window.currentAuthToken) {
+            console.warn('Admin session expired or was revoked; returning to public login view.');
+            clearExpiredAdminSessionV15412_();
+            try {
+                const publicResult = await callBackend({
+                    action: 'loadPublicData',
+                    studentAuthToken: window.currentStudentAuthToken || sessionStorage.getItem('sssfn_student_auth_token') || ''
+                });
+                if (publicResult && publicResult.status === 'success' && publicResult.data) {
+                    const publicState = snapshotRealtimeData_(publicResult.data);
+                    applyLoadedData(publicState, publicState);
+                    pullSucceeded = true;
+                    lastSuccessfulCanonicalPullAtV13 = Date.now();
+                    lastCanonicalPullErrorV13 = '';
+                    realtimePullRetryAttempt = 0;
+                }
+            } catch (publicError) {
+                console.warn('Public data refresh after session reset was not available:', publicError);
+            }
+            clearStaleLoginOverlayV15412_();
+            if (showStatus && typeof Swal !== 'undefined') {
+                Swal.fire({ toast:true, position:'top-end', icon:'info', title:'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่', showConfirmButton:false, timer:2600 });
+            }
+            return { status: 'session-expired', message: 'เซสชันเจ้าหน้าที่หมดอายุหรือถูกยกเลิก ระบบกลับสู่หน้าล็อกอินแล้ว' };
+        }
+
         if (isExpectedBusy) {
             scheduleRealtimePullRetry_(errorMessage);
         } else if (quotaFailure) {
@@ -4114,6 +4144,58 @@ function showRoomCashTransferBreakdownModal() {
     });
 }
 
+function clearStaleLoginOverlayV15412_() {
+    // The login view is the page itself, not a SweetAlert modal. A leftover SweetAlert
+    // backdrop can dim the whole page (especially the white branding panel) after an
+    // expired admin session or an interrupted loading dialog.
+    try {
+        if (window.Swal && typeof Swal.close === 'function') Swal.close();
+    } catch (error) {
+        console.warn('Could not close stale login overlay:', error);
+    }
+    try {
+        document.querySelectorAll('.swal2-container').forEach(container => container.remove());
+        document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+        document.documentElement.classList.remove('swal2-shown');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    } catch (error) {
+        console.warn('Could not reset login backdrop styles:', error);
+    }
+}
+
+function clearExpiredAdminSessionV15412_() {
+    // Do not turn an invalid admin token into a local admin session. Clear it and return
+    // to the public/student entry point; the backend remains responsible for auth checks.
+    window.currentAuthToken = '';
+    localStorage.removeItem('sssfn_session');
+    currentUserRole = 'guest';
+    currentUsername = '';
+    if (!window.currentStudentAuthToken) {
+        window.currentGuestStuId = null;
+        localStorage.removeItem('sssfn_guest_id');
+    }
+    try {
+        if (typeof syncWorkerTimer !== 'undefined' && syncWorkerTimer) {
+            clearInterval(syncWorkerTimer);
+            syncWorkerTimer = null;
+        }
+    } catch (error) {
+        console.warn('Could not stop legacy sync timer:', error);
+    }
+    try {
+        clearTimeout(syncTimeout);
+        syncQueued = false;
+    } catch (error) {}
+    try {
+        clearStaleLoginOverlayV15412_();
+        if (typeof applyRoleUI === 'function') applyRoleUI();
+        else if (typeof refreshAll === 'function') refreshAll();
+    } catch (error) {
+        console.warn('Could not refresh public login view:', error);
+    }
+}
+
 function renderHomeDirectory() {
     let roomFilterEl = document.getElementById('home-room-filter');
     let searchEl = document.getElementById('home-search'); 
@@ -4140,6 +4222,9 @@ function renderHomeDirectory() {
     if (isGuest) {
         // 1. ถ้ายังไม่ได้ล็อกอิน (สร้างหน้าจอล็อกอินแบบ RMUTI SAMS)
         if (!window.currentGuestStuId) {
+            // v15.4.12: remove an orphaned SweetAlert backdrop so the login card/white panel
+            // are not dimmed after an auth/session error.
+            clearStaleLoginOverlayV15412_();
             // ซ่อนองค์ประกอบที่ไม่จำเป็นสำหรับหน้าล็อกอิน
             document.querySelector('aside').classList.add('hidden');
             document.querySelector('header').classList.add('hidden');
@@ -8266,6 +8351,9 @@ function renderActivityAdmins(title) {
     }
 
     let isStaff = !canEditActivity_(currentMasterActivity);
+    // v15.4.13: Define roster-management permission in this function's scope.
+    // Only the activity owner or global leader can add/remove assigned admins.
+    const canEditRoster = canManageActivityAdmins_(act);
     let rowsHtml = '';
     act.admins.forEach((admin, i) => {
         let initial = (admin.user || 'A').charAt(0).toUpperCase();
