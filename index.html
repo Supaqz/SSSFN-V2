@@ -4,7 +4,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริการนักศึกษา SSSFN</title>
+    <title>ระบบบริการนักศึกษา SSSFN v15.4.11</title>
     <link rel="icon" type="image/png" href="logo-2.png">
     <link rel="apple-touch-icon" href="logo-2.png">
 
@@ -170,6 +170,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
 </head>
+<!-- SSSFN v15.4.11: security, activity scope, slip privacy, expense handlers, XLSX export -->
 <body class="flex h-screen overflow-hidden text-slate-800">
 
     <div class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200/80 z-40 flex items-center px-4 shadow-xs gap-4">
@@ -2144,6 +2145,9 @@ async function callBackend(payload) {
         if (window.currentAuthToken && !payload.authToken) {
             payload.authToken = window.currentAuthToken;
         }
+        if (window.currentStudentAuthToken && !payload.studentAuthToken) {
+            payload.studentAuthToken = window.currentStudentAuthToken;
+        }
         let res = await fetch(API_URL, {
             method: 'POST',
             // สำคัญ: ใช้ text/plain เพื่อป้องกันเบราว์เซอร์ส่ง Preflight OPTIONS request ซึ่งจะทำให้ติด CORS
@@ -2166,7 +2170,7 @@ async function callBackend(payload) {
 }
         let currentView = 'home'; let currentUserRole = 'guest'; let currentUsername = '';
         let appSettings = { showPublicAttendance: true, notifyAttendance: true, notifySlip: true, notifyActivity: true, activities: [] };
-        let users = [{ user: 'admin', pass: '1234', role: 'leader', refId: '' }];
+        let users = []; // บัญชีผู้ใช้ต้องมาจากฐานข้อมูลจริงเท่านั้น ไม่สร้าง admin/1234 สำรองในเบราว์เซอร์
         let rooms = []; let students = []; let txHistory = []; let fundRounds = []; let fundPayments = []; let expenses = []; let activityLogs = []; let timeLogs = [];
 
         let syncTimeout; let html5QrcodeScanner = null; let autoRefreshInterval; 
@@ -2628,6 +2632,7 @@ async function autoSyncToGS(showStatus = false) {
     isSyncing = true;
     syncQueued = false;
     let saveFailed = false;
+    let authBlocked = false;
     if (showStatus && typeof Swal !== 'undefined') Swal.fire({
         title: 'กำลังบันทึกการเปลี่ยนแปลง...',
         text: 'กำลังบันทึกเฉพาะรายการที่เปลี่ยนลง Firebase ส่วน Google Sheets จะสำรองภายหลัง',
@@ -2666,17 +2671,32 @@ async function autoSyncToGS(showStatus = false) {
     } catch (error) {
         saveFailed = true;
         hasLocalChanges = true;
+        const saveErrorMessage = String(error && error.message || error || '');
+        authBlocked = /ไม่มีเซสชันผู้ดูแลที่ตรวจสอบได้|เซสชันหมดอายุ|ไม่มีสิทธิ์แก้ไขข้อมูลหลัก|กรุณาเข้าสู่ระบบใหม่|admin session|unauthori[sz]ed/i.test(saveErrorMessage);
         console.error('Incremental Firebase save failed:', error);
-        if (showStatus && typeof Swal !== 'undefined') Swal.fire('บันทึกไม่สำเร็จ', error.message || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
-        return { status: 'error', message: error.message || String(error) };
+        if (authBlocked) {
+            // Keep the pending local diff, but never retry an invalid session in a loop.
+            syncQueued = false;
+            Swal.fire({
+                icon: 'warning',
+                title: 'เซสชันเจ้าหน้าที่หมดอายุหรือไม่ตรงกับหลังบ้าน',
+                text: 'การแก้ไขยังไม่ได้บันทึกลงฐานข้อมูล กรุณาเข้าสู่ระบบใหม่ แล้วระบบจะลองส่งรายการที่ค้างอีกครั้ง',
+                confirmButtonText: 'เข้าสู่ระบบใหม่',
+                showCancelButton: true,
+                cancelButtonText: 'ภายหลัง'
+            }).then(result => { if (result.isConfirmed) promptLogin(); });
+        } else if (showStatus && typeof Swal !== 'undefined') {
+            Swal.fire('บันทึกไม่สำเร็จ', saveErrorMessage || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
+        }
+        return { status: 'error', message: saveErrorMessage };
     } finally {
         isSyncing = false;
         if (pendingRemotePull) {
             pendingRemotePull = false;
             syncQueued = false;
             setTimeout(() => silentPullFromGS(), 120);
-            if (saveFailed && hasLocalChanges) scheduleRealtimeSaveRetry_();
-        } else if (syncQueued || hasLocalChanges) {
+            if (saveFailed && hasLocalChanges && !authBlocked) scheduleRealtimeSaveRetry_();
+        } else if ((syncQueued || hasLocalChanges) && !authBlocked) {
             syncQueued = false;
             setTimeout(() => autoSyncToGS(false), 250);
         }
@@ -2728,7 +2748,9 @@ async function silentPullFromGS(showStatus = false, force = false) {
     let quotaFailure = false;
     if (showStatus && typeof Swal !== 'undefined') Swal.fire({ title: 'กำลังดึงข้อมูลล่าสุด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-        const result = await callBackend({ action: 'loadAll' });
+        const result = window.currentAuthToken
+            ? await callBackend({ action: 'loadAll' })
+            : await callBackend({ action: 'loadPublicData', studentId: window.currentGuestStuId || localStorage.getItem('sssfn_guest_id') || '' });
         if (!result || result.status !== 'success' || !result.data) throw new Error((result && result.message) || 'ดึงข้อมูลจากหลังบ้านไม่สำเร็จ');
         const serverState = snapshotRealtimeData_(result.data);
         const localState = captureCurrentRealtimeData_();
@@ -2922,6 +2944,7 @@ function saveToLocal(triggerSync = true) {
             // สำคัญ: คืนค่า backend token กลับมาด้วยเมื่อรีโหลดหน้าเว็บ
             // มิฉะนั้น UI ยังดูเหมือนเป็นแอดมิน แต่คำสั่ง setActivityFlag จะถูกหลังบ้านปฏิเสธ
             window.currentAuthToken = String(session.token || '');
+            window.currentStudentAuthToken = '';
         } catch (error) {
             window.currentAuthToken = '';
             console.error('อ่าน session ไม่สำเร็จ:', error);
@@ -3445,6 +3468,8 @@ function switchPage(pageId) {
                             applyRoleUI();
                             startBackgroundSyncWorker();
                             switchPage(res.role === 'treasurer' ? 'fin-fund' : 'admin-db');
+                            // Retry only the retained diff after a newly signed backend token is issued.
+                            if (hasLocalChanges) setTimeout(() => autoSyncToGS(false), 700);
                             return;
                         }
                         // ห้าม fallback ไปล็อกอินแอดมินเฉพาะในเครื่อง เพราะจะไม่มี auth token
@@ -3464,6 +3489,8 @@ function switchPage(pageId) {
             currentUserRole = 'guest'; 
             currentUsername = ''; 
             window.currentAuthToken = '';
+            window.currentStudentAuthToken = '';
+            sessionStorage.removeItem('sssfn_student_auth_token');
             localStorage.removeItem('sssfn_session'); 
             if (syncWorkerTimer) {
                 clearInterval(syncWorkerTimer);
@@ -3574,182 +3601,98 @@ function decodeJwtResponse(token) {
 }
 
 async function handleGoogleCredentialResponse(response) {
-    const responsePayload = decodeJwtResponse(response.credential);
-    const userEmail = responsePayload.email;
-    
-    // 1. ตรวจสอบว่าเป็นแอดมินหรือไม่
-    const adminUser = users.find(u => String(u.email || '').trim().toLowerCase() === String(userEmail || '').trim().toLowerCase() || String(u.user || '').trim().toLowerCase() === String(userEmail || '').trim().toLowerCase()); 
-    if (adminUser) {
-        // Verify Google's ID token on Apps Script before granting an administrator session.
-        try {
-            const authResult = await callBackend({ action: 'loginGoogleAdmin', credential: response.credential });
-            if (!authResult || authResult.status !== 'success' || !authResult.token) {
-                throw new Error((authResult && authResult.message) || 'ไม่สามารถยืนยันบัญชีผู้ดูแลจาก Google ได้');
-            }
-            currentUserRole = authResult.role;
-            currentUsername = authResult.user;
-            window.currentAuthToken = authResult.token;
-            localStorage.setItem('sssfn_session', JSON.stringify({user: authResult.user, role: authResult.role, token: authResult.token, email: userEmail}));
-            Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับแอดมิน: ${userEmail}`, showConfirmButton: false, timer: 1500});
+    const credential = String(response && response.credential || '');
+    if (!credential) return Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูลจาก Google', text: 'กรุณาลองเข้าสู่ระบบอีกครั้ง' });
+
+    // ให้หลังบ้านตรวจ Google ID Token และตัดสินว่าเป็นเจ้าหน้าที่หรือนักศึกษาจากฐานข้อมูลจริง
+    try {
+        const adminResult = await callBackend({ action: 'loginGoogleAdmin', credential: credential });
+        if (adminResult && adminResult.status === 'success' && adminResult.token) {
+            currentUserRole = adminResult.role;
+            currentUsername = adminResult.user;
+            window.currentAuthToken = adminResult.token;
+            window.currentStudentAuthToken = '';
+            sessionStorage.removeItem('sssfn_student_auth_token');
+            window.currentGuestStuId = null;
+            localStorage.removeItem('sssfn_guest_id');
+            localStorage.setItem('sssfn_session', JSON.stringify({ user: adminResult.user, role: adminResult.role, token: adminResult.token, email: adminResult.email || '' }));
+            Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับ ${adminResult.email || adminResult.user}`, showConfirmButton: false, timer: 1300 });
             applyRoleUI();
-            switchPage(authResult.role === 'treasurer' ? 'fin-fund' : 'admin-db');
-        } catch (authError) {
-            console.error('Google administrator verification failed:', authError);
-            Swal.fire({icon: 'error', title: 'ยืนยันบัญชีผู้ดูแลไม่สำเร็จ', text: String(authError.message || authError)});
+            await silentPullFromGS(false, true);
+            switchPage(adminResult.role === 'treasurer' ? 'fin-fund' : 'admin-db');
+            return;
         }
-        return;
+    } catch (error) {
+        console.warn('Google admin login did not match; checking student account.', error);
     }
 
-    // 2. ตรวจสอบว่าเป็นนักศึกษา (ที่เคยผูกอีเมลไว้แล้ว) หรือไม่
-    const stu = students.find(s => s.email === userEmail);
-    if (stu) {
-        // 🌟 ล็อกอินเข้าใช้งานด้วยบัญชี Google ที่ผูกไว้ทันที
-        window.currentGuestStuId = stu.id; 
-        localStorage.setItem('sssfn_guest_id', stu.id);
+    try {
+        const studentResult = await callBackend({ action: 'loginGoogleStudent', credential: credential });
+        if (studentResult && studentResult.status === 'needs_link' && studentResult.email) {
+            await promptLinkAccount(studentResult.email, credential);
+            return;
+        }
+        if (!studentResult || studentResult.status !== 'success' || !studentResult.studentAuthToken || !studentResult.studentId) {
+            throw new Error((studentResult && studentResult.message) || 'อีเมลนี้ยังไม่ได้ผูกกับบัญชีนักศึกษาในระบบ');
+        }
+        window.currentAuthToken = '';
+        window.currentStudentAuthToken = studentResult.studentAuthToken;
+        sessionStorage.setItem('sssfn_student_auth_token', studentResult.studentAuthToken);
+        window.currentGuestStuId = studentResult.studentId;
         currentUserRole = 'guest';
+        currentUsername = '';
+        localStorage.removeItem('sssfn_session');
+        localStorage.setItem('sssfn_guest_id', studentResult.studentId);
+        await silentPullFromGS(false, true);
         applyRoleUI();
         refreshAll();
-
-        let pending = window.pendingQRCheckin || null;
-        if (!pending) {
-            try { pending = JSON.parse(sessionStorage.getItem('pendingQRCheckin') || 'null'); } catch(e){}
-        }
-
-        if (pending && pending.act) {
-            window.pendingQRCheckin = null;
-            try { sessionStorage.removeItem('pendingQRCheckin'); } catch(e){}
-            switchPage('activity');
-            processStudentQRCheckin(pending, 'url');
-        } else {
-            switchPage('home');
-        }
-
-        Swal.fire({
-            icon: 'success',
-            title: 'เข้าสู่ระบบสำเร็จ',
-            html: '<div class="text-sm text-slate-600 font-sans mt-1">ยินดีต้อนรับ <b>' + (stu.name || stu.id) + '</b><br><span class="text-xs text-slate-400 font-mono">(' + userEmail + ')</span></div>',
-            showConfirmButton: false,
-            timer: 1500
-        });
-        return;
+        switchPage('home');
+        Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1400 });
+    } catch (error) {
+        console.error('Google student login failed:', error);
+        Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: String(error.message || error) + ' กรุณาติดต่อผู้ดูแลเพื่อผูกอีเมลกับรหัสนักศึกษาก่อน' });
     }
-
-    // 3. ถ้าเป็นอีเมลใหม่ ไม่เคยมีในระบบ -> เด้งหน้าต่างขอรหัส + PDPA
-    promptLinkAccount(userEmail);
 }
 
 // 🌟 ฟังก์ชันขอรหัสนักศึกษาและยืนยัน PDPA
-function promptLinkAccount(email) {
-    let html = `
-    <div class="text-left text-sm space-y-4 mt-2">
-        <div class="bg-blue-50 text-blue-700 p-4 rounded-xl border border-blue-200 shadow-inner">
-            <p class="font-bold mb-1 text-base"><i class="fas fa-link"></i> ผูกบัญชีครั้งแรก</p>
-            <p class="text-xs">อีเมล <b>${email}</b> ยังไม่ได้ผูกกับรหัสนักศึกษาในระบบ SSSFN<br>กรุณากรอกรหัสของคุณเพื่อเชื่อมต่อข้อมูลครับ</p>
-        </div>
-        
-        <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">รหัสนักศึกษา (12 หลัก) *</label>
-            <div class="relative">
-                <i class="fas fa-id-card absolute left-3 top-3 text-slate-400"></i>
-                <input id="link-stu-id" class="w-full pl-10 pr-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-emerald-500 transition font-bold text-slate-800 tracking-widest" placeholder="เช่น 68152110001-2" oninput="this.value = formatIdSearch(this.value)">
-            </div>
-        </div>
-        
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-100 transition" onclick="document.getElementById('pdpa-consent').click()">
-            <label class="flex items-start gap-3 cursor-pointer pointer-events-none">
-                <input type="checkbox" id="pdpa-consent" class="mt-1 w-5 h-5 text-emerald-600 rounded border-slate-300 pointer-events-auto">
-                <span class="text-xs text-slate-600 leading-relaxed">
-                    <b class="text-slate-800 text-xs">ความยินยอมเก็บข้อมูลส่วนบุคคล (PDPA)</b><br>
-                    ข้าพเจ้ายินยอมให้ระบบ SSSFN เก็บรวบรวมและใช้อีเมล <u>${email}</u> เพื่อวัตถุประสงค์ในการเข้าสู่ระบบ, การส่งใบเสร็จรับเงิน (E-Receipt), และการแจ้งเตือนข้อมูลที่เกี่ยวข้องกับกิจกรรม/การเงินของห้องเรียนเท่านั้น
-                </span>
-            </label>
-        </div>
-    </div>`;
-
-    Swal.fire({
-        title: 'ยืนยันตัวตน',
-        html: html,
-        confirmButtonText: 'ยอมรับและผูกบัญชี',
-        confirmButtonColor: '#059669',
-        showCancelButton: true,
-        cancelButtonText: 'ยกเลิก',
-        customClass: { confirmButton: 'rounded-xl px-5', cancelButton: 'rounded-xl px-5' },
-        preConfirm: () => {
-            let stId = document.getElementById('link-stu-id').value.trim();
-            let pdpa = document.getElementById('pdpa-consent').checked;
-            
-            if (!stId) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษาครับ');
-            if (!pdpa) return Swal.showValidationMessage('กรุณาติ๊กยอมรับเงื่อนไข PDPA ก่อนครับ');
-            
-            let cleanId = formatIdSearch(stId);
-            let stu = students.find(s => s.id === cleanId || s.id.replace(/-/g,'') === cleanId.replace(/-/g,''));
-            
-            if (!stu) return Swal.showValidationMessage('ไม่พบรหัสนักศึกษานี้ในระบบ');
-            
-            // เช็คว่ารหัสนี้เคยมีอีเมลผูกไว้ก่อนหน้าแล้วหรือไม่
-            let isOverride = false;
-            if (stu.email && stu.email.trim() !== '') {
-                isOverride = true;
-            }
-            
-            return { stu: stu, email: email, isOverride: isOverride };
-        }
-    }).then((res) => {
-        if (res.isConfirmed) {
-            let stu = res.value.stu;
-            let newEmail = res.value.email;
-            
-            if (res.value.isOverride) {
-                Swal.fire({
-                    title: 'พบอีเมลเดิมในระบบ',
-                    html: `รหัส <b>${stu.id}</b> มีการผูกกับอีเมล <b class="text-slate-500">${stu.email}</b> ไว้อยู่แล้ว<br><br>คุณต้องการเปลี่ยนมาใช้อีเมล <b class="text-emerald-600">${newEmail}</b> แทนใช่หรือไม่?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'ใช่, อัปเดตอีเมลใหม่',
-                    confirmButtonColor: '#059669',
-                    cancelButtonText: 'ยกเลิก'
-                }).then((overrideRes) => {
-                    if (overrideRes.isConfirmed) executeEmailLinking(stu, newEmail);
-                });
-            } else {
-                executeEmailLinking(stu, newEmail);
-            }
+async function promptLinkAccount(email, googleCredential) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const result = await Swal.fire({
+        title: 'ผูกบัญชี Google กับรหัสนักศึกษา',
+        html: `<div class="text-left text-sm space-y-3"><div class="bg-blue-50 text-blue-800 p-3 rounded-xl border border-blue-200">อีเมล <b>${normalizedEmail}</b> ยังไม่พบในทะเบียนนักศึกษา กรุณายืนยันข้อมูลให้ตรงกับทะเบียนก่อนผูกบัญชี</div><label class="block text-xs font-bold">รหัสนักศึกษา</label><input id="link-stu-id" class="swal2-input !mx-0 !w-full" placeholder="เช่น 68152110001-2"><label class="block text-xs font-bold">เบอร์โทรศัพท์ 4 ตัวท้ายตามทะเบียน</label><input id="link-phone-last4" class="swal2-input !mx-0 !w-full" inputmode="numeric" maxlength="4" placeholder="4 ตัวท้าย"><label class="flex gap-2 items-start text-xs text-slate-600"><input type="checkbox" id="pdpa-consent" class="mt-1"><span>ข้าพเจ้ายินยอมให้ผูกอีเมลนี้กับรหัสนักศึกษาของข้าพเจ้าเพื่อเข้าสู่ระบบและใช้บริการ SSSFN</span></label><p class="text-[11px] text-amber-700">หากทะเบียนไม่มีเบอร์โทรศัพท์หรือมีอีเมลอื่นผูกอยู่แล้ว กรุณาติดต่อหัวหน้าระบบ</p></div>`, 
+        showCancelButton:true, confirmButtonText:'ยืนยันและผูกบัญชี', cancelButtonText:'ยกเลิก', confirmButtonColor:'#059669',
+        preConfirm:() => {
+            const id = String(document.getElementById('link-stu-id')?.value || '').trim();
+            const phoneLast4 = String(document.getElementById('link-phone-last4')?.value || '').replace(/\D/g,'');
+            const consent = !!document.getElementById('pdpa-consent')?.checked;
+            if (!id) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษา');
+            if (phoneLast4.length !== 4) return Swal.showValidationMessage('กรุณากรอกเบอร์โทรศัพท์ 4 ตัวท้าย');
+            if (!consent) return Swal.showValidationMessage('กรุณายอมรับเงื่อนไขก่อนผูกบัญชี');
+            return { studentId:formatIdSearch(id), phoneLast4:phoneLast4, pdpaConsent:consent };
         }
     });
+    if (!result.isConfirmed || !result.value) return;
+    await executeEmailLinking(result.value.studentId, normalizedEmail, googleCredential, result.value.pdpaConsent, result.value.phoneLast4);
 }
 
-// 🌟 ฟังก์ชันส่งคำสั่งบันทึกอีเมลไปที่ Google Sheets
-async function executeEmailLinking(stu, email) {
-    Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    
-    // ยิง API ไปหลังบ้านเพื่อให้บันทึกอีเมลลงในชีตของห้องนั้นๆ
-    let result = await callBackend({
-        action: 'linkEmail',
-        studentId: stu.id,
-        room: stu.room,
-        email: email
-    });
-
-    if (result.status === 'success') {
-        // อัปเดตข้อมูลในหน่วยความจำหน้าเว็บ
-        stu.email = email;
-        saveToLocal(false); // เซฟลง LocalStorage ไม่ต้องดันข้อมูลขยะขึ้น
-        
-        Swal.fire({
-            icon: 'success',
-            title: 'ผูกบัญชีสำเร็จ!',
-            text: 'ระบบได้บันทึกอีเมลของคุณเรียบร้อยแล้ว',
-            confirmButtonColor: '#059669',
-            timer: 2000,
-            showConfirmButton: false
-        }).then(() => {
-            // พาเข้าสู่ระบบทันที
-            showStudentSelectionModal(stu);
-        });
-    } else {
-        Swal.fire('ข้อผิดพลาด', result.message || 'ไม่สามารถผูกบัญชีได้', 'error');
+async function executeEmailLinking(studentId, email, googleCredential, pdpaConsent, phoneLast4) {
+    Swal.fire({ title:'กำลังตรวจสอบและผูกบัญชี...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    const result = await callBackend({ action:'linkEmail', studentId:String(studentId || ''), phoneLast4:String(phoneLast4 || ''), credential:String(googleCredential || ''), pdpaConsent:pdpaConsent === true });
+    if (!result || result.status !== 'success' || !result.studentAuthToken) {
+        return Swal.fire('ผูกบัญชีไม่สำเร็จ', (result && result.message) || 'ไม่สามารถผูกบัญชีได้', 'error');
     }
+    window.currentAuthToken = '';
+    window.currentStudentAuthToken = result.studentAuthToken;
+    sessionStorage.setItem('sssfn_student_auth_token', result.studentAuthToken);
+    window.currentGuestStuId = result.studentId;
+    localStorage.setItem('sssfn_guest_id', result.studentId);
+    currentUserRole = 'guest'; currentUsername = '';
+    localStorage.removeItem('sssfn_session');
+    await silentPullFromGS(false, true);
+    applyRoleUI(); refreshAll(); switchPage('home');
+    Swal.fire({ icon:'success', title:'ผูกบัญชีสำเร็จ', text:'ยืนยันตัวตนด้วย Google แล้ว สามารถลงทะเบียน สแกน และส่งสลิปได้', timer:1800, showConfirmButton:false });
 }
+
 
 // ================= ระบบเข้าสู่ระบบของนักศึกษา (RMUTI Style) =================
 window.seedRandomRegistrations = function(actTitle, count = 5) {
@@ -3825,12 +3768,12 @@ function promptStudentLogin() {
             <div class="mb-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-center">
                 <p class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-center gap-1.5"><i class="fa-brands fa-google text-rose-500"></i> ล็อกอินด้วยบัญชี Google ที่บันทึกไว้</p>
                 <div id="modal-google-btn" class="flex justify-center min-h-[38px]"></div>
-                <p class="text-[11px] text-slate-400 mt-1.5">หากเคยผูกบัญชีไว้ ระบบจะเข้าสู่ระบบให้อัตโนมัติทันที</p>
+                <p class="text-[11px] text-slate-400 mt-1.5">ต้องใช้อีเมล Google ที่ผูกกับรหัสนักศึกษาเพื่อยืนยันตัวตนและใช้การลงทะเบียน / สแกน / ส่งสลิป</p>
             </div>
 
             <div class="relative flex py-1 items-center mb-3">
                 <div class="flex-grow border-t border-slate-200"></div>
-                <span class="flex-shrink mx-3 text-xs text-slate-400 font-bold">หรือกรอกรหัสนักศึกษาโดยตรง</span>
+                <span class="flex-shrink mx-3 text-xs text-slate-400 font-bold">หรือกรอกรหัสเพื่อดูข้อมูลเท่านั้น</span>
                 <div class="flex-grow border-t border-slate-200"></div>
             </div>
 
@@ -3840,7 +3783,7 @@ function promptStudentLogin() {
             </div>
             <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
                 <span>ตัวอย่าง: <a href="javascript:void(0)" onclick="if(document.getElementById('login-stu-id')){document.getElementById('login-stu-id').value='68152110087-3';}" class="text-purple-600 underline font-mono font-bold">68152110087-3</a></span>
-                <button type="button" onclick="randomFillStudentId()" class="text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition shadow-sm"><i class="fas fa-dice"></i> สุ่มรหัสไอดี</button>
+                <span class="text-[10px] text-amber-600 font-semibold">โหมดนี้ไม่สามารถลงทะเบียน สแกน หรือส่งสลิปได้</span>
             </div>
         </div>`,
         showCancelButton: true, 
@@ -3871,6 +3814,8 @@ function promptStudentLogin() {
         if(res.isConfirmed && res.value) {
             // 🌟 เข้าระบบโดยตรงทันที ไม่ต้องกดปุ่มยืนยันซ้ำสองรอบ
             window.currentGuestStuId = res.value.id; 
+            window.currentStudentAuthToken = '';
+            try { sessionStorage.removeItem('sssfn_student_auth_token'); } catch (ignore) {}
             localStorage.setItem('sssfn_guest_id', res.value.id);
             currentUserRole = 'guest';
             applyRoleUI();
@@ -3892,8 +3837,8 @@ function promptStudentLogin() {
 
             Swal.fire({
                 icon: 'success',
-                title: 'เข้าสู่ระบบสำเร็จ',
-                html: '<div class="text-sm text-slate-600 font-sans mt-1">ยินดีต้อนรับ <b>' + (res.value.name || res.value.id) + '</b></div>',
+                title: 'เข้าสู่โหมดดูข้อมูล',
+                html: '<div class="text-sm text-slate-600 font-sans mt-1">ยินดีต้อนรับ <b>' + (res.value.name || res.value.id) + '</b><br><span class="text-amber-600">การลงทะเบียน สแกน และส่งสลิป ต้องยืนยันด้วย Google</span></div>',
                 showConfirmButton: false,
                 timer: 1500
             });
@@ -3903,6 +3848,7 @@ function promptStudentLogin() {
 
 // 🌟 1. สั่งให้ระบบเช็คความจำตอนเปิดเว็บ (วางไว้นอกฟังก์ชัน)
 window.currentGuestStuId = localStorage.getItem('sssfn_guest_id') || null;
+window.currentStudentAuthToken = sessionStorage.getItem('sssfn_student_auth_token') || '';
 
 // 🌟 1. ฟังก์ชันเลือกรหัสนักศึกษา (แก้ให้รีเฟรชทุกหน้าตอนล็อกอินสำเร็จ)
 function showStudentSelectionModal(stu) {
@@ -4251,7 +4197,7 @@ function renderHomeDirectory() {
                         </div>
 
                         <div class="mt-6 pt-3 border-t border-slate-800 flex justify-center">
-                            <button onclick="localStorage.removeItem('sssfn_session'); localStorage.removeItem('sssfn_guest_id'); location.reload();" class="text-xs text-slate-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-sign-out-alt"></i> Clear session</button>
+                            <button onclick="localStorage.removeItem('sssfn_session'); localStorage.removeItem('sssfn_guest_id'); window.currentAuthToken=''; window.currentStudentAuthToken=''; sessionStorage.removeItem('sssfn_student_auth_token'); location.reload();" class="text-xs text-slate-500 hover:text-white transition flex items-center gap-1"><i class="fas fa-sign-out-alt"></i> Clear session</button>
                         </div>
                     </div>
 
@@ -4268,10 +4214,13 @@ function renderHomeDirectory() {
             // สั่งให้วาดปุ่ม Google
             setTimeout(() => {
                 if(typeof google !== 'undefined' && google.accounts) {
-                    google.accounts.id.initialize({
-                        client_id: "890404917484-07hsh7mdnkmau2btju1sklgt6av5g09m.apps.googleusercontent.com", 
-                        callback: handleGoogleCredentialResponse
-                    });
+                    if (!window.__sssfnGsiInitializedV1548) {
+                        google.accounts.id.initialize({
+                            client_id: "890404917484-07hsh7mdnkmau2btju1sklgt6av5g09m.apps.googleusercontent.com",
+                            callback: handleGoogleCredentialResponse
+                        });
+                        window.__sssfnGsiInitializedV1548 = true;
+                    }
                     google.accounts.id.renderButton(
                         document.getElementById("google-btn-container"),
                         { theme: "outline", size: "large", text: "continue_with", shape: "pill", width: 250 }
@@ -4870,7 +4819,7 @@ function switchActSubTab(tab) {
 
 // v15.4.5: Activity-level permissions. Global leader sees all; others see only owned/assigned activities.
 function isActivityLeader_() {
-    return currentUserRole === 'leader' || currentUserRole === 'admin';
+    return currentUserRole === 'leader';
 }
 function normalizeActivityAccessKey_(value) {
     return String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
@@ -4908,7 +4857,9 @@ function isActivityOwner_(activity) {
         identity.ids.has(normalizeActivityAccessId_(value)));
 }
 function isActivityAssignedToCurrentUser_(activity) {
-    if (!activity || !Array.isArray(activity.admins)) return false;
+    if (!activity) return false;
+    if (activity.__assignedToCurrentStudent === true && currentUserRole === 'guest' && !!window.currentStudentAuthToken) return true;
+    if (!Array.isArray(activity.admins)) return false;
     const identity = getCurrentActivityIdentity_();
     return activity.admins.some(admin => {
         if (!admin) return false;
@@ -4929,8 +4880,27 @@ function canManageActivityAdmins_(activity) {
     return !!activity && (isActivityLeader_() || isActivityOwner_(activity));
 }
 function canEditActivity_(activity) {
-    // Student accounts assigned as Staff retain the existing scan-only interface.
-    return currentUserRole !== 'guest' && canManageActivity_(activity);
+    // Activity owners and assigned admins can manage their activity. Student staff need a verified Google token.
+    if (!activity || !canManageActivity_(activity)) return false;
+    if (currentUserRole === 'guest') return !!window.currentStudentAuthToken && isActivityAssignedToCurrentUser_(activity);
+    return true;
+}
+function ensureActivityWriteSessionV1546_() {
+    if (!currentMasterActivity || !canEditActivity_(currentMasterActivity)) {
+        showToast('บัญชีนี้ไม่มีสิทธิ์จัดการกิจกรรมนี้ หรือยังไม่ได้ยืนยันบัญชี Google', 'error');
+        return false;
+    }
+    if (window.currentAuthToken) return true;
+    if (currentUserRole === 'guest' && window.currentStudentAuthToken && isActivityAssignedToCurrentUser_(currentMasterActivity)) return true;
+    Swal.fire({
+        icon: 'warning',
+        title: 'ต้องยืนยันตัวตนใหม่',
+        text: 'กรุณาเข้าสู่ระบบ Google ที่ได้รับมอบหมายเป็นผู้ดูแลกิจกรรม หรือเข้าสู่ระบบเจ้าหน้าที่ใหม่',
+        confirmButtonText: 'เข้าสู่ระบบใหม่',
+        showCancelButton: true,
+        cancelButtonText: 'ยกเลิก'
+    }).then(result => { if (result.isConfirmed) promptLogin(); });
+    return false;
 }
 function canViewActivityInManagementList_(activity) {
     if (!activity) return false;
@@ -5433,13 +5403,14 @@ window.updateOverviewEvalState = function() {
 // Other open browsers receive a committed delta through Pusher after the write succeeds.
 async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, successType) {
     if (!currentMasterActivity) return;
-    if (!canManageActivity_(currentMasterActivity) || currentUserRole === 'guest') return showToast('ไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรมนี้', 'error');
-    if (!window.currentAuthToken) {
-        showToast('เซสชันแอดมินนี้ไม่มีโทเคนจากหลังบ้าน กรุณาเข้าสู่ระบบแอดมินด้วยชื่อผู้ใช้และรหัสผ่านใหม่', 'error');
+    const isAssignedStudentManager = currentUserRole === 'guest' && !!window.currentStudentAuthToken && isActivityAssignedToCurrentUser_(currentMasterActivity);
+    if (!canManageActivity_(currentMasterActivity) || (currentUserRole === 'guest' && !isAssignedStudentManager)) return showToast('ไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรมนี้', 'error');
+    if (!window.currentAuthToken && !isAssignedStudentManager) {
+        showToast('เซสชันเจ้าหน้าที่ไม่มีโทเคน กรุณาเข้าสู่ระบบใหม่', 'error');
         Swal.fire({
             icon: 'warning',
-            title: 'ต้องเข้าสู่ระบบแอดมินใหม่',
-            text: 'เซสชันนี้ไม่สามารถยืนยันสิทธิ์กับหลังบ้านได้ กรุณาเข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านของระบบ',
+            title: 'ต้องยืนยันเข้าสู่ระบบใหม่',
+            text: 'กรุณาเข้าสู่ระบบเจ้าหน้าที่ หรือใช้บัญชี Google ที่ได้รับแต่งตั้งเป็นผู้ดูแลกิจกรรม',
             confirmButtonText: 'เข้าสู่ระบบใหม่'
         }).then(result => { if (result.isConfirmed) promptLogin(); });
         return;
@@ -5560,8 +5531,8 @@ function refreshActivityFlagUI_(flagName) {
 }
 
 window.toggleActivityActiveStatus = async function() {
-    if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
+    if (currentUserRole === 'guest' && !canEditActivity_(currentMasterActivity)) return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     const nextValue = currentMasterActivity.isActive === false;
     return persistCurrentActivityFlag_('isActive', nextValue,
         nextValue ? 'เปิดการใช้งานกิจกรรมนี้แล้ว (ปลดล็อกระบบสแกนเช็กชื่อ)' : 'ปิดการใช้งานกิจกรรมนี้แล้ว (ล็อกระบบสแกน เพื่อเปิดให้ประเมินผลนักศึกษา)',
@@ -5643,8 +5614,8 @@ window.toggleQuotaInput = function(val, boxId) {
 };
 
 window.toggleActivityOpenStatus = async function() {
-    if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
+    if (currentUserRole === 'guest' && !canEditActivity_(currentMasterActivity)) return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     const nextValue = currentMasterActivity.isOpen === false;
     return persistCurrentActivityFlag_('isOpen', nextValue,
         nextValue ? 'เปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาสามารถลงทะเบียนได้)' : 'ปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาไม่สามารถลงทะเบียนได้)',
@@ -5666,8 +5637,8 @@ window.updateMasterHeaderOpenButton = function() {
 };
 
 window.toggleActivityVisibleStatus = async function() {
-    if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     if (!currentMasterActivity) return;
+    if (currentUserRole === 'guest' && !canEditActivity_(currentMasterActivity)) return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     const nextValue = currentMasterActivity.isVisible === false;
     return persistCurrentActivityFlag_('isVisible', nextValue,
         nextValue ? 'เปิดแสดงกิจกรรมนี้ในรายการของนักศึกษาแล้ว' : 'ซ่อนกิจกรรมนี้จากรายการของนักศึกษาแล้ว',
@@ -5754,7 +5725,7 @@ window.loadActivityMasterData = function(title) {
     if (pointsBadge) pointsBadge.innerText = `${currentMasterActivity.points || 0} แต้ม`;
 
     // 🌟 ตรวจสอบสิทธิ์ Staff: ถ้าเป็น guest ให้จำกัดสิทธิ์ทันที
-    let isStaff = (currentUserRole === 'guest');
+    let isStaff = !canEditActivity_(currentMasterActivity);
 
     // v15.4.5: delegated admins may manage their activity but cannot appoint other admins.
     const adminTab = document.getElementById('mtab-content-admins');
@@ -5940,17 +5911,17 @@ window.renderMasterDashboard = function() {
     // คำนวณสถิติ 4 การ์ด
     let actLogs = activityLogs.filter(l => l.activityTitle === act.title);
     let roundLogs = getActivityRoundLogs_(actLogs);
-    let distinctStudents = [...new Set(roundLogs.map(l => l.studentId))];
+    let distinctStudents = Array.from(new Set(roundLogs.map(l => l.studentId)));
     let quota = act.maxParticipants || 0;
     let totalRegistered = distinctStudents.length;
     // จำนวนผู้ลงทะเบียนผ่านเว็บไซต์นับแยก ไม่รวมการสแกน/จัดเข้ารอบ
-    let webRegisteredStudents = [...new Set(actLogs.filter(l => isWebRegistrationOnlyLog_(l)).map(l => normalizeActivityStudentId_(l.studentId)).filter(Boolean))];
+    let webRegisteredStudents = Array.from(new Set(actLogs.filter(l => isWebRegistrationOnlyLog_(l)).map(l => normalizeActivityStudentId_(l.studentId)).filter(Boolean)));
     let webRegisteredCount = webRegisteredStudents.length;
 
     // เช็กอิน/ประเมินผลนับจากข้อมูลรอบเท่านั้น
-    let checkedInStudents = [...new Set(roundLogs.filter(l => l.timeIn && l.timeIn !== '-').map(l => l.studentId))];
-    let passedStudents = [...new Set(roundLogs.filter(l => l.status === 'A' || l.status === 'C').map(l => l.studentId))];
-    let pendingStudents = [...new Set(roundLogs.filter(l => l.status === 'P' || !l.status).map(l => l.studentId))];
+    let checkedInStudents = Array.from(new Set(roundLogs.filter(l => l.timeIn && l.timeIn !== '-').map(l => l.studentId)));
+    let passedStudents = Array.from(new Set(roundLogs.filter(l => l.status === 'A' || l.status === 'C').map(l => l.studentId)));
+    let pendingStudents = Array.from(new Set(roundLogs.filter(l => l.status === 'P' || !l.status).map(l => l.studentId)));
 
     let quotaPercent = quota > 0 ? Math.min(100, Math.round((totalRegistered / quota) * 100)) : 100;
     let checkinPercent = totalRegistered > 0 ? Math.min(100, Math.round((checkedInStudents.length / totalRegistered) * 100)) : 0;
@@ -6082,7 +6053,7 @@ window.filterMasterTable = function() {
         );
     }
 
-    let isStaff = (currentUserRole === 'guest');
+    let isStaff = !canEditActivity_(currentMasterActivity);
     let totalItems = participantList.length;
     let totalPages = Math.ceil(totalItems / ACT_MASTER_PAGE_SIZE) || 1;
     if (actMasterCurrentPage > totalPages) actMasterCurrentPage = totalPages;
@@ -6389,9 +6360,10 @@ window.toggleSingleMasterCheck = function(stuId, cb) {
 
 // จัดการแบบกลุ่ม (Batch Action - Official SAMS RMUTI)
 window.executeBatchAction = function(action) {
-    if (currentUserRole === 'guest') {
-        return showToast('Staff ไม่มีสิทธิ์ปรับเปลี่ยนสถานะนักศึกษา', 'warning');
-    }
+    const isDelegatedStudent = currentUserRole === 'guest' && !!window.currentStudentAuthToken && canEditActivity_(currentMasterActivity);
+    if (currentUserRole === 'guest' && !isDelegatedStudent) return showToast('Staff ไม่มีสิทธิ์ปรับเปลี่ยนสถานะนักศึกษา', 'warning');
+    if (isDelegatedStudent && action === 'REMOVE') return showToast('ผู้ดูแลนักศึกษาไม่มีสิทธิ์ลบประวัติของผู้อื่น', 'warning');
+    if (isDelegatedStudent && !ensureActivityWriteSessionV1546_()) return;
     if (!window.actMasterSelectedIds || window.actMasterSelectedIds.size === 0) {
         return showToast('กรุณาติ๊กเลือกรายชื่อนักศึกษาอย่างน้อย 1 คน', 'warning');
     }
@@ -7738,7 +7710,9 @@ window.renderCheckinMapDisplay = function(showMap = false) {
 // 10. จัดการรอบลงทะเบียน (Tab 6: รอบลงทะเบียน)
 window.renderMasterRoundsTable = function(...args) { return window.renderMasterRoundsTab(...args); };
 window.renderMasterRoundsTab = function() {
-    if (!currentMasterActivity) return;
+    const act = currentMasterActivity;
+    if (!act) return;
+    const canEditRounds = canEditActivity_(act);
     let rounds = getMasterRounds();
     let listEl = document.getElementById('master-rounds-list');
     if (!listEl) return;
@@ -7767,7 +7741,7 @@ window.renderMasterRoundsTab = function() {
                 </td>
                 <td class="p-4 text-center whitespace-nowrap min-w-[110px]">
                     <div class="inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0">
-                        ${!isStaff ? `
+                        ${canEditRounds ? `
                             <button type="button" onclick="openEditRoundModal('${r.id}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition shrink-0" title="แก้ไขรอบนี้" aria-label="แก้ไขรายการ">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
@@ -7784,8 +7758,8 @@ window.renderMasterRoundsTab = function() {
 };
 
 window.toggleRoundOpenStatus = function(roundId) {
-    if (currentUserRole === 'guest') return showToast('Staff ไม่มีสิทธิ์จัดการรอบกิจกรรม', 'warning');
-    if (!currentMasterActivity || !currentMasterActivity.rounds) return;
+    if (!ensureActivityWriteSessionV1546_()) return;
+    if (!currentMasterActivity.rounds) return;
     let r = currentMasterActivity.rounds.find(x => x.id === roundId);
     if (!r) return;
 
@@ -7798,22 +7772,7 @@ window.toggleRoundOpenStatus = function(roundId) {
 };
 
 window.openAddRoundModal = function() {
-    if (currentUserRole === 'guest') {
-        Swal.fire({
-            title: 'ต้องเข้าสู่ระบบผู้ดูแลระบบ',
-            text: 'ฟังก์ชันจัดการรอบกิจกรรมสำหรับผู้ดูแลระบบ (Admin) เท่านั้น ต้องการเข้าสู่ระบบหรือไม่?',
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonText: 'เข้าสู่ระบบผู้ดูแล',
-            cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#2563eb'
-        }).then(r => {
-            if (r.isConfirmed && typeof promptLogin === 'function') {
-                promptLogin();
-            }
-        });
-        return;
-    }
+    if (!ensureActivityWriteSessionV1546_()) return;
     Swal.fire({
         title: '<div class="text-left font-bold text-slate-800 text-lg border-b pb-3">เพิ่มรอบกิจกรรมใหม่</div>',
         html: `
@@ -7862,9 +7821,7 @@ window.openAddRoundModal = function() {
 };
 
 window.openEditRoundModal = function(roundId) {
-    if (currentUserRole === 'guest') {
-        return showToast('Staff ไม่มีสิทธิ์จัดการรอบกิจกรรม', 'warning');
-    }
+    if (!ensureActivityWriteSessionV1546_()) return;
     let r = (currentMasterActivity.rounds || []).find(x => x.id === roundId);
     if (!r) return;
 
@@ -7915,7 +7872,7 @@ window.openEditRoundModal = function(roundId) {
 };
 
 window.deleteMasterRound = function(roundId) {
-    if (currentUserRole === 'guest') return showToast('Staff ไม่มีสิทธิ์ลบรอบ', 'warning');
+    if (!ensureActivityWriteSessionV1546_()) return;
     Swal.fire({
         title: 'ลบรอบกิจกรรมนี้?',
         text: 'ประวัติการสแกนในรอบนี้อาจไม่แสดงผล',
@@ -8062,6 +8019,7 @@ window.resetIndividualSearch = function() {
 
 window.importMasterSingle = function(stuId) {
     if (!currentMasterActivity) return;
+    if (!ensureActivityWriteSessionV1546_()) return;
     if (currentMasterActivity.isActive === false) {
         return Swal.fire({
             icon: 'warning',
@@ -8080,14 +8038,17 @@ window.importMasterSingle = function(stuId) {
     activityLogs.unshift({
         studentId: stuId,
         activityTitle: currentMasterActivity.title,
+        activityRef: currentMasterActivity.ref || currentMasterActivity.id || '',
+        roundId: round,
         roundName: round,
+        isCheckin: true,
         timeIn: getNow() + ' (นำเข้ารายคน)',
         timeOut: null,
         status: 'P',
-        staffUser: currentUsername || 'Staff'
+        staffUser: currentUsername || window.currentGuestStuId || 'Staff'
     });
 
-    txHistory.unshift({
+    if (currentUserRole !== 'guest') txHistory.unshift({
         date: getNow(),
         name: `นำเข้ารายคน: ${stuId} (${round})`,
         type: 'ระบบ',
@@ -8103,6 +8064,7 @@ window.importMasterSingle = function(stuId) {
 // 13. นำเข้านักศึกษารายกลุ่ม (Tab 9: นำเข้า นศ. กลุ่ม)
 window.executeBulkImportStudents = function() {
     if (!currentMasterActivity) return;
+    if (!ensureActivityWriteSessionV1546_()) return;
     if (currentMasterActivity.isActive === false) {
         return Swal.fire({
             icon: 'warning',
@@ -8142,17 +8104,20 @@ window.executeBulkImportStudents = function() {
         activityLogs.unshift({
             studentId: stu.id,
             activityTitle: currentMasterActivity.title,
+            activityRef: currentMasterActivity.ref || currentMasterActivity.id || '',
+            roundId: round,
             roundName: round,
+            isCheckin: true,
             timeIn: getNow() + ' (นำเข้ากลุ่ม)',
             timeOut: null,
             status: 'P',
-            staffUser: currentUsername || 'Staff'
+            staffUser: currentUsername || window.currentGuestStuId || 'Staff'
         });
         successCount++;
     });
 
     if (successCount > 0) {
-        txHistory.unshift({
+        if (currentUserRole !== 'guest') txHistory.unshift({
             date: getNow(),
             name: `นำเข้ากลุ่ม: ${successCount} คน (${round})`,
             type: 'ระบบ',
@@ -8206,8 +8171,10 @@ window.loadAdminUserOptions = function() {
 window.autoFillAdminPhone = function() {
     let inputVal = (document.getElementById('admin-user-input')?.value || '').trim();
     if (!inputVal) return;
-    let cleanId = inputVal.includes('(') ? inputVal.split('(')[1].replace(')', '').trim() : inputVal;
-    let stu = students.find(s => s.id === cleanId || s.name === inputVal);
+    const parenId = inputVal.match(/\(([^()]*)\)\s*$/);
+    const dashId = inputVal.match(/^([0-9][0-9-]{5,})\s+-\s+/);
+    let cleanId = parenId ? parenId[1].trim() : (dashId ? dashId[1].trim() : inputVal);
+    let stu = students.find(s => normalizeActivityStudentId_(s.id) === normalizeActivityStudentId_(cleanId) || s.name === inputVal);
     if (stu && stu.phone) {
         let phoneInput = document.getElementById('admin-phone-input');
         if (phoneInput && !phoneInput.value) phoneInput.value = stu.phone;
@@ -8221,8 +8188,13 @@ window.addActivityAdmin = function(title) {
     let rawUser = (document.getElementById('admin-user-input')?.value || '').trim();
     if (!rawUser) return showToast('กรุณาระบุ Username ผู้ใช้งาน', 'error');
 
-    let cleanId = rawUser.includes('(') ? rawUser.split('(')[1].replace(')', '').trim() : '';
-    let stu = students.find(s => s.id === cleanId || s.name === rawUser);
+    let cleanId = '';
+    const parenId = rawUser.match(/\(([^()]*)\)\s*$/);
+    const dashId = rawUser.match(/^([0-9][0-9-]{5,})\s+-\s+/);
+    if (parenId) cleanId = parenId[1].trim();
+    else if (dashId) cleanId = dashId[1].trim();
+    else if (/^[0-9][0-9-]{5,}$/.test(rawUser)) cleanId = rawUser;
+    let stu = students.find(s => normalizeActivityStudentId_(s.id) === normalizeActivityStudentId_(cleanId) || (!cleanId && normalizeActivityAccessKey_(s.name) === normalizeActivityAccessKey_(rawUser)));
     let systemUser = (users || []).find(u => normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(rawUser) ||
         (cleanId && normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(cleanId)) ||
         normalizeActivityAccessKey_(u && u.name) === normalizeActivityAccessKey_(rawUser)) || null;
@@ -8293,7 +8265,7 @@ function renderActivityAdmins(title) {
         return;
     }
 
-    let isStaff = (currentUserRole === 'guest');
+    let isStaff = !canEditActivity_(currentMasterActivity);
     let rowsHtml = '';
     act.admins.forEach((admin, i) => {
         let initial = (admin.user || 'A').charAt(0).toUpperCase();
@@ -8327,42 +8299,44 @@ function renderActivityAdmins(title) {
 
 // 15. ส่งออกข้อมูล CSV
 window.exportActivityToCSV = function() {
-    let title = currentMasterActivity ? currentMasterActivity.title : '';
-    let parts = activityLogs.filter(l => l.activityTitle === title);
+    const title = currentMasterActivity ? currentMasterActivity.title : '';
+    const parts = (activityLogs || []).filter(l => l && l.activityTitle === title);
     if (parts.length === 0) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีผู้เข้าร่วมในกิจกรรมนี้', 'info');
+    if (typeof XLSX === 'undefined') return Swal.fire('ส่งออกไม่ได้', 'ไม่พบไลบรารี Excel (SheetJS) กรุณารีเฟรชหน้าเว็บแล้วลองใหม่', 'error');
 
-    let rounds = getMasterRounds();
-    let distinctIds = [...new Set(parts.map(p => p.studentId))];
+    const rounds = getMasterRounds();
+    const distinctIds = [...new Set(parts.map(p => String(p.studentId || '')).filter(Boolean))];
+    const headers = ['ลำดับ', 'รหัสนักศึกษา', 'ชื่อ-นามสกุล', 'ลงทะเบียนผ่านเว็บ', ...rounds.map(r => String(r.thName || r.id || 'รอบ')), 'สถานะการประเมิน'];
+    const rows = [headers];
+    const statusLabel = { A: 'ผ่านกิจกรรม (A)', C: 'ผ่านกิจกรรม (C)', U: 'ไม่ผ่านกิจกรรม (U)', P: 'รอพิจารณา (P)' };
 
-    let roundHeaders = rounds.map(r => r.thName || r.id).join(',');
-    let csv = "\uFEFFลำดับ,รหัสนักศึกษา,ชื่อ-นามสกุล,สาขา/ห้อง,หลักสูตร,ลงทะเบียนเว็บ," + (roundHeaders ? roundHeaders + "," : "") + "สถานะประเมิน\n";
-
-    distinctIds.forEach((sId, idx) => {
-        let s = students.find(x => x.id === sId) || { name: 'ไม่พบชื่อ', room: '-', major: '', degree: '' };
-        let sLogs = parts.filter(l => l.studentId === sId);
-        let webLog = sLogs.find(l => isWebRegistrationOnlyLog_(l));
-        let rawWebTime = webLog ? (webLog.registeredAt || (webLog.timeIn && webLog.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? webLog.timeIn : '-')) : '-';
-        let webTime = rawWebTime !== '-' ? formatDisplayDate(rawWebTime) : '-';
-        let degree = s.degree || s.level || (s.room ? 'ห้อง ' + s.room : 'ปริญญาตรี 4-5 ปี');
-        let status = (sLogs.find(l => l.status && l.status !== 'P') || sLogs[0] || {}).status || 'P';
-
-        let roundTimes = rounds.map(r => {
-            let rLog = sLogs.find(l => (l.roundName === (r.thName || r.id) || l.roundId === r.id) && l.timeIn);
-            return rLog ? formatDisplayDate(rLog.timeIn) : '-';
-        }).join('","');
-
-        let roundColStr = rounds.length > 0 ? `"${roundTimes}",` : '';
-        csv += `"${idx + 1}","${sId}","${s.name || ''}","${s.major || s.room || '-'}","${degree}","${webTime}",${roundColStr}"${status}"\n`;
+    distinctIds.forEach((studentId, idx) => {
+        const student = students.find(x => String(x.id) === studentId) || { name: 'ไม่พบชื่อ' };
+        const studentLogs = parts.filter(l => String(l.studentId || '') === studentId);
+        const webLog = studentLogs.find(l => isWebRegistrationOnlyLog_(l));
+        const rawWebTime = webLog ? (webLog.registeredAt || (webLog.timeIn && webLog.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? webLog.timeIn : '-')) : '-';
+        const webTime = rawWebTime !== '-' ? formatDisplayDate(rawWebTime) : '-';
+        const roundValues = rounds.map(r => {
+            const log = studentLogs.find(l => !isWebRegistrationOnlyLog_(l) && (l.roundName === (r.thName || r.id) || l.roundId === r.id) && l.timeIn);
+            return log ? String(formatDisplayDate(log.timeIn)) : '-';
+        });
+        const rawStatus = (studentLogs.find(l => l.status && l.status !== 'P') || studentLogs[0] || {}).status || 'P';
+        rows.push([String(idx + 1), String(studentId), String(student.name || ''), String(webTime), ...roundValues.map(String), String(statusLabel[rawStatus] || rawStatus)]);
     });
 
-    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `${title}_participants.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('ดาวน์โหลดไฟล์ CSV เรียบร้อยแล้ว', 'success');
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    // Explicitly force every populated cell to text so student IDs, dates and Thai labels stay unchanged.
+    Object.keys(worksheet).forEach(address => {
+        if (address[0] === '!') return;
+        worksheet[address].t = 's';
+        worksheet[address].v = String(worksheet[address].v == null ? '' : worksheet[address].v);
+        delete worksheet[address].z;
+    });
+    worksheet['!cols'] = headers.map((h, i) => ({ wch: i === 2 ? 32 : (i === 1 ? 20 : Math.max(16, Math.min(26, String(h).length + 4))) }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'รายชื่อกิจกรรม');
+    XLSX.writeFile(workbook, `${String(title || 'activity').replace(/[\\/:*?"<>|]/g, '_')}_participants.xlsx`, { bookType: 'xlsx', cellStyles: true });
+    showToast('ดาวน์โหลดไฟล์ Excel (.xlsx) เรียบร้อยแล้ว', 'success');
 };
 // 16. แบบฟอร์มสร้างกิจกรรมใหม่ (ตรงตามรูป 023211.png)
 window.createActivityModal = function() {
@@ -9090,6 +9064,64 @@ function printReceipt(roundId, studentId) {
             updateSplitSummaryStatus();
         }
 
+        // v15.4.11: Expense split handlers are included and validated.
+        function onExpAmtChange() {
+            const source = document.getElementById('exp-source')?.value || '';
+            if (source === 'แบ่งจ่ายระหว่างห้อง') calculateExpRoomSplit();
+        }
+        function onExpSourceChange() {
+            const source = document.getElementById('exp-source')?.value || 'บัญชีส่วนกลาง';
+            const singleBox = document.getElementById('exp-single-room-box');
+            const multiBox = document.getElementById('exp-multi-room-box');
+            if (singleBox) singleBox.classList.toggle('hidden', source !== 'บัญชีห้อง');
+            if (multiBox) multiBox.classList.toggle('hidden', source !== 'แบ่งจ่ายระหว่างห้อง');
+            if (source === 'แบ่งจ่ายระหว่างห้อง') calculateExpRoomSplit();
+            updateSplitSummaryStatus();
+        }
+        function onExpSplitModeChange() {
+            const mode = document.getElementById('exp-split-mode')?.value || 'proportional';
+            const desc = document.getElementById('exp-split-mode-desc');
+            if (desc) desc.textContent = mode === 'custom'
+                ? 'กำหนดยอดเงินของแต่ละห้องเอง โดยยอดรวมต้องเท่ากับยอดรายการ'
+                : (mode === 'equal' ? 'แบ่งยอดเท่ากันทุกห้องที่เลือก ระบบจัดการเศษสตางค์ให้ยอดรวมตรงกัน' : 'คำนวณตามจำนวน นศ. ในแต่ละห้อง ห้องที่มีนักศึกษามากจะรับภาระตามสัดส่วน');
+            calculateExpRoomSplit();
+        }
+        function onCustomExpRoomAllocChange(roomName) {
+            const mode = document.getElementById('exp-split-mode')?.value || 'proportional';
+            if (mode !== 'custom') return;
+            const totalAmt = parseFloat(document.getElementById('exp-amt')?.value) || 0;
+            const enc = encodeURIComponent(roomName);
+            const currentAmt = parseFloat(document.getElementById(`amt-split-${enc}`)?.value) || 0;
+            const pct = totalAmt > 0 ? (currentAmt / totalAmt * 100) : 0;
+            const pctEl = document.getElementById(`pct-split-${enc}`);
+            if (pctEl) pctEl.textContent = `${pct.toFixed(1)}%`;
+            updateSplitSummaryStatus();
+        }
+        function updateSplitSummaryStatus() {
+            const totalAmt = parseFloat(document.getElementById('exp-amt')?.value) || 0;
+            const source = document.getElementById('exp-source')?.value || '';
+            const summary = document.getElementById('exp-split-summary-bar');
+            const label = document.getElementById('exp-split-sum-label');
+            const status = document.getElementById('exp-split-sum-status');
+            if (!summary || !label || !status) return;
+            if (source !== 'แบ่งจ่ายระหว่างห้อง') {
+                label.textContent = 'รวมจัดสรร: ฿0.00'; status.textContent = 'ไม่ใช้การแบ่งจ่าย';
+                summary.className = 'p-2.5 rounded-lg text-xs font-bold flex justify-between items-center bg-white border border-slate-200 shadow-sm';
+                return;
+            }
+            const selected = (rooms || []).filter(r => document.getElementById(`chk-split-${encodeURIComponent(r)}`)?.checked);
+            const totalAlloc = selected.reduce((sum, r) => sum + (parseFloat(document.getElementById(`amt-split-${encodeURIComponent(r)}`)?.value) || 0), 0);
+            const diff = Math.round((totalAmt - totalAlloc) * 100) / 100;
+            label.textContent = `รวมจัดสรร: ฿${totalAlloc.toFixed(2)} / ฿${totalAmt.toFixed(2)}`;
+            if (Math.abs(diff) <= 0.01 && totalAmt > 0 && selected.length) {
+                status.textContent = 'ยอดตรงกัน ✓';
+                summary.className = 'p-2.5 rounded-lg text-xs font-bold flex justify-between items-center bg-emerald-50 border border-emerald-200 text-emerald-700';
+            } else {
+                status.textContent = `ขาด/เกิน ฿${Math.abs(diff).toFixed(2)}`;
+                summary.className = 'p-2.5 rounded-lg text-xs font-bold flex justify-between items-center bg-amber-50 border border-amber-200 text-amber-700';
+            }
+        }
+
         // =========================================================================
         // 🌟 บันทึกบัญชี (รองรับ ส่วนกลาง, เฉพาะห้อง, และแบ่งจ่ายตามสัดส่วน นศ.)
         // =========================================================================
@@ -9139,7 +9171,7 @@ function printReceipt(roundId, studentId) {
                 });
 
                 const diff = Math.abs(totalAlloc - amt);
-                if (diff > 0.1) {
+                if (Math.round(diff * 100) !== 0) {
                     return Swal.fire({
                         title: 'ยอดเงินไม่ตรงกัน',
                         html: `ยอดรวมที่จัดสรรแต่ละห้อง (฿${totalAlloc.toFixed(2)}) ไม่เท่ากับยอดเงินรวม (฿${amt.toFixed(2)})<br><span class="text-xs text-slate-500">กรุณาตรวจสอบจำนวนเงินให้ตรงกันก่อนบันทึก</span>`,
@@ -10021,55 +10053,16 @@ function toggleQuickRoundStatus() {
 // =========================================================================
 // 🌟 ฟังก์ชันเปิดหน้าต่างดูสลิป (เวอร์ชันดั้งเดิม - แสดงรูปภาพตรงๆ)
 // =========================================================================
-function viewSlipPopup(url) {
-    if(!url || url === '') return Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบลิงก์รูปภาพสลิป', 'error');
-
-    // 🌟 1. ดักลิงก์รูปแบบใหม่ (googleusercontent) ที่ได้จากหลังบ้านตรงๆ ให้แสดงรูปได้เลย
-    if (url.includes('googleusercontent.com')) {
-        Swal.fire({ 
-            title: 'หลักฐานการชำระเงิน', 
-            imageUrl: url, 
-            imageAlt: 'สลิปโอนเงิน', 
-            html: '<p class="text-xs text-slate-400 mt-2">หากรูปไม่ขึ้น <a href="' + url + '" target="_blank" class="text-blue-600 font-bold hover:underline">คลิกเปิดแท็บใหม่</a></p>', 
-            showConfirmButton: false, 
-            showCloseButton: true, 
-            customClass: { 
-                image: 'rounded-xl max-h-[60vh] object-contain border shadow-sm mx-auto', 
-                popup: 'p-4 w-full max-w-md' 
-            } 
-        });
-        return;
+async function viewSlipPopup(url) {
+    if (!url) return Swal.fire('เกิดข้อผิดพลาด', 'ไม่พบลิงก์รูปภาพสลิป', 'error');
+    Swal.fire({ title:'กำลังเปิดหลักฐานการชำระเงิน...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    try {
+        const result = await callBackend({ action:'getBase64Image', url:String(url) });
+        if (!result || result.status !== 'success' || !result.data) throw new Error((result && result.message) || 'ไม่สามารถเปิดรูปภาพได้');
+        await Swal.fire({ title:'หลักฐานการชำระเงิน', imageUrl:result.data, imageAlt:'สลิปโอนเงิน', showConfirmButton:false, showCloseButton:true, customClass:{ image:'rounded-xl max-h-[60vh] object-contain border shadow-sm mx-auto', popup:'p-4 w-full max-w-md' } });
+    } catch (error) {
+        Swal.fire('เปิดสลิปไม่ได้', String(error && error.message || error), 'error');
     }
-
-    // 🌟 2. ดักลิงก์รูปแบบเดิม (Drive) แปลงเป็นรูปลิงก์ตรง
-    if (url.includes('drive.google.com')) {
-        let fileIdMatch = url.match(/[-\w]{25,}/);
-        if (fileIdMatch) {
-            let directImgUrl = 'https://lh3.googleusercontent.com/d/' + fileIdMatch[0];
-            Swal.fire({ 
-                title: 'หลักฐานการชำระเงิน', 
-                imageUrl: directImgUrl, 
-                imageAlt: 'สลิปโอนเงิน', 
-                html: '<p class="text-xs text-slate-400 mt-2">หากรูปไม่ขึ้น <a href="' + url + '" target="_blank" class="text-blue-600 font-bold hover:underline">คลิกเปิดแท็บใหม่</a></p>', 
-                showConfirmButton: false, 
-                showCloseButton: true, 
-                customClass: { 
-                    image: 'rounded-xl max-h-[60vh] object-contain border shadow-sm mx-auto', 
-                    popup: 'p-4 w-full max-w-md' 
-                } 
-            });
-            return;
-        }
-    } 
-    
-    // 🌟 3. กรณีลิงก์แบบเก่ามาก (เช่น TinyURL ยุคแรก) ค่อยแสดงปุ่มกดเปิดแท็บใหม่
-    Swal.fire({ 
-        title: 'หลักฐานการชำระเงิน', 
-        html: '<div class="p-6 bg-slate-50 rounded-xl border mb-4 text-slate-500 flex flex-col items-center justify-center"><i class="fas fa-file-invoice-dollar text-5xl mb-3 text-emerald-400"></i><p class="text-sm font-bold mb-1">ไฟล์นี้เป็นรูปแบบเก่า</p></div><a href="' + url + '" target="_blank" class="w-full block bg-blue-600 text-white py-3 rounded-lg font-bold shadow-md hover:bg-blue-700 transition text-center" style="text-decoration: none;"><i class="fas fa-external-link-alt mr-2"></i> คลิกเพื่อเปิดดูรูปสลิป</a>', 
-        showConfirmButton: false, 
-        showCloseButton: true, 
-        customClass: { popup: 'p-4 w-full max-w-md' } 
-    });
 }
 
         function renderFundTable() {
@@ -10724,41 +10717,39 @@ window.editStudent = function(id) {
         // ================= ADMIN USERS =================
 
 // 🌟 ฟังก์ชันใหม่: โหลดรายชื่อใส่ Dropdown ค้นหา (สำหรับช่องค้นหาผู้ดูแลกิจกรรม)
-window.loadAdminUserOptions = function() {
-    let dl = document.getElementById('sys-users-list');
-    if(!dl) return;
-    let opts = '';
-    // ดึงชื่อนักศึกษา
-    students.forEach(s => opts += `<option value="${s.id} - ${s.name}"></option>`);
-    // ดึงชื่อแอดมินระบบ
-    users.forEach(u => opts += `<option value="${u.user}"></option>`);
-    dl.innerHTML = opts;
-}
+// v15.4.11: ใช้ loadAdminUserOptions/autoFillAdminPhone ชุดเดียว และ parser รองรับทั้งรูปแบบชื่อ (รหัส) กับ รหัส - ชื่อ
 
-// 🌟 ฟังก์ชันใหม่: ออโต้เติมเบอร์โทรศัพท์เวลาเลือกชื่อ
-window.autoFillAdminPhone = function() {
-    let val = document.getElementById('admin-user-input').value;
-    let idMatch = val.split(' - ')[0].trim();
-    let stu = students.find(s => s.id === idMatch);
-    if(stu && stu.phone) {
-        document.getElementById('admin-phone-input').value = stu.phone;
-    }
-}
-
-function addUserAlert() { 
-    let stuOpts = '<option value="">-- ไม่ผูกกับรายชื่อ (User ระบบ) --</option>'; rooms.forEach(rm => { let rmStudents = students.filter(s => s.room === rm); if(rmStudents.length > 0) { stuOpts += `<optgroup label="ห้อง ${rm}">`; rmStudents.forEach(s => { stuOpts += `<option value="${s.id}">${s.number}. ${s.name}</option>`; }); stuOpts += '</optgroup>'; } });
-    let formHtml = `<input id="u-u" class="modern-input" placeholder="Username (ใช้ล็อคอิน) *"><input id="u-p" class="modern-input" placeholder="Password *"><select id="u-r" class="modern-input"><option value="leader">หัวหน้า</option><option value="vice">รองหัวหน้า</option><option value="treasurer">เหรัญญิก</option></select><label class="block text-left text-xs font-bold text-slate-500 mb-1">ผูกกับนักศึกษา (เพื่อยกเว้นตอนสุ่มงาน)</label><select id="u-ref" class="modern-input">${stuOpts}</select>`;
-    Swal.fire({ title: 'สร้าง User ใหม่', html: formHtml, confirmButtonText: 'บันทึก', confirmButtonColor: '#059669', preConfirm: () => { const u = document.getElementById('u-u').value.trim(); const p = document.getElementById('u-p').value.trim(); const r = document.getElementById('u-r').value; const ref = document.getElementById('u-ref').value; if(!u || !p) return Swal.showValidationMessage('กรุณากรอก Username และ Password ให้ครบ'); if(users.find(x => x.user === u)) return Swal.showValidationMessage('Username นี้มีในระบบแล้ว'); return {user: u, pass: p, role: r, refId: ref}; } }).then(res => { if(res.isConfirmed) { users.push(res.value); txHistory.unshift({ date: getNow(), name: 'เพิ่ม User: '+res.value.user, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'สร้าง User เรียบร้อย', 'success'); } }); 
+async function addUserAlert() {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าเท่านั้นที่สร้างบัญชีเจ้าหน้าที่ได้', 'error');
+    let stuOpts = '<option value="">-- ไม่ผูกกับรายชื่อ (User ระบบ) --</option>';
+    rooms.forEach(rm => { const list = students.filter(s => s.room === rm); if (list.length) { stuOpts += `<optgroup label="ห้อง ${rm}">`; list.forEach(s => { stuOpts += `<option value="${s.id}">${s.number}. ${s.name}</option>`; }); stuOpts += '</optgroup>'; } });
+    const formHtml = `<input id="u-u" class="modern-input" placeholder="Username (ใช้ล็อกอิน) *"><input id="u-p" type="password" autocomplete="new-password" class="modern-input" placeholder="Password อย่างน้อย 8 ตัวอักษร *"><select id="u-r" class="modern-input"><option value="vice">รองหัวหน้า</option><option value="treasurer">เหรัญญิก</option><option value="admin">ผู้ดูแลระบบทั่วไป</option><option value="leader">หัวหน้า</option></select><label class="block text-left text-xs font-bold text-slate-500 mb-1">ผูกกับนักศึกษา</label><select id="u-ref" class="modern-input">${stuOpts}</select>`;
+    const res = await Swal.fire({ title:'สร้างบัญชีเจ้าหน้าที่', html:formHtml, showCancelButton:true, confirmButtonText:'บันทึก', confirmButtonColor:'#059669', preConfirm:() => {
+      const user=document.getElementById('u-u').value.trim(), password=document.getElementById('u-p').value, role=document.getElementById('u-r').value, refId=document.getElementById('u-ref').value;
+      if (!user || password.length < 8) return Swal.showValidationMessage('กรุณากรอก Username และรหัสผ่านอย่างน้อย 8 ตัวอักษร');
+      if (users.some(x => String(x.user).toLowerCase() === user.toLowerCase())) return Swal.showValidationMessage('Username นี้มีในระบบแล้ว');
+      return {user,password,role,refId};
+    }});
+    if (!res.isConfirmed) return;
+    const saved = await callBackend({action:'adminUpsertUserCredential', user:res.value.user, password:res.value.password, role:res.value.role, refId:res.value.refId});
+    if (!saved || saved.status !== 'success') return Swal.fire('บันทึกไม่สำเร็จ', saved && saved.message || 'ไม่สามารถบันทึกบัญชีได้', 'error');
+    users.push(saved.user); txHistory.unshift({date:getNow(), name:'เพิ่ม User: '+saved.user.user, type:'ระบบ', amt:0, user:currentUsername}); saveToLocal(); refreshAll();
+    Swal.fire('สำเร็จ','สร้างบัญชีแล้ว รหัสผ่านถูกจัดเก็บแบบ Hash ใน SystemDB และไม่ส่งไป Firebase','success');
 }
 function deleteUserAction(username) { Swal.fire({ title: 'ลบผู้ใช้นี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3342f' }).then(r => { if(r.isConfirmed) { users = users.filter(x => x.user !== username); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'ลบแล้ว', 'success'); } }); }
-function editUserAction(username) {
-    let uData = users.find(x => x.user === username); if(!uData) return;
-    let isL = uData.role === 'leader' ? 'selected' : ''; let isV = uData.role === 'vice' ? 'selected' : ''; let isT = uData.role === 'treasurer' ? 'selected' : '';
-    let stuOpts = '<option value="">-- ไม่ผูกกับรายชื่อ (User ระบบ) --</option>'; rooms.forEach(rm => { let rmStudents = students.filter(s => s.room === rm); if(rmStudents.length > 0) { stuOpts += `<optgroup label="ห้อง ${rm}">`; rmStudents.forEach(s => { let sel = (uData.refId === s.id) ? 'selected' : ''; stuOpts += `<option value="${s.id}" ${sel}>${s.number}. ${s.name}</option>`; }); stuOpts += '</optgroup>'; } });
-    let formHtml = `<label class="block text-left text-xs font-bold text-slate-500 mb-1">Username / ชื่อผู้ใช้</label><input id="e-u-u" class="modern-input" value="${uData.user}"><label class="block text-left text-xs font-bold text-slate-500 mb-1">Password / รหัสผ่านใหม่</label><input id="e-u-p" class="modern-input" value="${uData.pass}"><label class="block text-left text-xs font-bold text-slate-500 mb-1">สิทธิ์ (Role)</label><select id="e-u-r" class="modern-input"><option value="leader" ${isL}>หัวหน้า</option><option value="vice" ${isV}>รองหัวหน้า</option><option value="treasurer" ${isT}>เหรัญญิก</option></select><label class="block text-left text-xs font-bold text-slate-500 mb-1">ผูกกับนักศึกษา</label><select id="e-u-ref" class="modern-input">${stuOpts}</select>`;
-    Swal.fire({ title: 'แก้ไขข้อมูลผู้ใช้', html: formHtml, confirmButtonText: 'บันทึก', confirmButtonColor: '#059669', showCancelButton: true, preConfirm: () => { const newU = document.getElementById('e-u-u').value.trim(); const newP = document.getElementById('e-u-p').value.trim(); const newR = document.getElementById('e-u-r').value; const newRef = document.getElementById('e-u-ref').value; if(!newU || !newP) return Swal.showValidationMessage('กรอกข้อมูลให้ครบถ้วน'); if(newU !== username && users.find(x => x.user === newU)) return Swal.showValidationMessage('Username นี้ถูกใช้งานแล้ว'); return { newU, newP, newR, newRef }; } }).then(res => { if(res.isConfirmed) { uData.user = res.value.newU; uData.pass = res.value.newP; uData.role = res.value.newR; uData.refId = res.value.newRef; txHistory.unshift({ date: getNow(), name: `แก้ไขข้อมูลผู้ใช้: ${username} -> ${res.value.newU}`, type: 'ระบบ', amt: 0, user: currentUsername }); saveToLocal(); refreshAll(); Swal.fire('สำเร็จ', 'แก้ไขข้อมูลผู้ใช้เรียบร้อยแล้ว', 'success'); } });
+async function editUserAction(username) {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่แก้ไขบัญชีเจ้าหน้าที่ได้','error');
+    const uData = users.find(x => x.user === username); if (!uData) return;
+    let stuOpts = '<option value="">-- ไม่ผูกกับรายชื่อ (User ระบบ) --</option>';
+    rooms.forEach(rm => { const list=students.filter(s=>s.room===rm); if(list.length){stuOpts+=`<optgroup label="ห้อง ${rm}">`; list.forEach(s=>{stuOpts+=`<option value="${s.id}" ${uData.refId===s.id?'selected':''}>${s.number}. ${s.name}</option>`;}); stuOpts+='</optgroup>';}});
+    const formHtml = `<label class="block text-left text-xs font-bold text-slate-500 mb-1">Username</label><input id="e-u-u" class="modern-input" value="${String(uData.user||'').replace(/"/g,'&quot;')}"><label class="block text-left text-xs font-bold text-slate-500 mb-1">รหัสผ่านใหม่ (เว้นว่างเพื่อใช้รหัสเดิม)</label><input id="e-u-p" type="password" autocomplete="new-password" class="modern-input" placeholder="อย่างน้อย 8 ตัวอักษร"><label class="block text-left text-xs font-bold text-slate-500 mb-1">สิทธิ์</label><select id="e-u-r" class="modern-input"><option value="leader" ${uData.role==='leader'?'selected':''}>หัวหน้า</option><option value="vice" ${uData.role==='vice'?'selected':''}>รองหัวหน้า</option><option value="treasurer" ${uData.role==='treasurer'?'selected':''}>เหรัญญิก</option><option value="admin" ${uData.role==='admin'?'selected':''}>ผู้ดูแลระบบทั่วไป</option></select><label class="block text-left text-xs font-bold text-slate-500 mb-1">ผูกกับนักศึกษา</label><select id="e-u-ref" class="modern-input">${stuOpts}</select>`;
+    const res=await Swal.fire({title:'แก้ไขบัญชีเจ้าหน้าที่',html:formHtml,showCancelButton:true,confirmButtonText:'บันทึก',preConfirm:()=>{const user=document.getElementById('e-u-u').value.trim(),password=document.getElementById('e-u-p').value,role=document.getElementById('e-u-r').value,refId=document.getElementById('e-u-ref').value;if(!user)return Swal.showValidationMessage('กรุณาระบุ Username');if(password && password.length<8)return Swal.showValidationMessage('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร');return {user,password,role,refId};}});
+    if(!res.isConfirmed)return;
+    const saved=await callBackend({action:'adminUpsertUserCredential',oldUser:username,user:res.value.user,password:res.value.password,role:res.value.role,refId:res.value.refId});
+    if(!saved||saved.status!=='success')return Swal.fire('บันทึกไม่สำเร็จ',saved&&saved.message||'ไม่สามารถแก้ไขบัญชีได้','error');
+    const index=users.findIndex(x=>x.user===username);if(index>=0)users[index]=saved.user;txHistory.unshift({date:getNow(),name:`แก้ไขข้อมูลผู้ใช้: ${username} -> ${saved.user.user}`,type:'ระบบ',amt:0,user:currentUsername});saveToLocal();refreshAll();
+    Swal.fire('สำเร็จ','แก้ไขบัญชีแล้ว Session เก่าของบัญชีนี้ถูกยกเลิก ผู้ใช้นั้นต้องเข้าสู่ระบบใหม่','success');
 }
-
 // ================= HISTORY =================
         function editTxHistory(index) { let tx = txHistory[index]; Swal.fire({ title: 'แก้ไขประวัติ', html: `<div class="text-left"><label class="text-xs">รายการ</label><input id="e-tx-n" class="modern-input" value="${tx.name}"></div>`, confirmButtonColor: '#059669', preConfirm: () => { tx.name = document.getElementById('e-tx-n').value; saveToLocal(); refreshAll(); } }); }
         function deleteTxHistory(index) { Swal.fire({title: 'ลบประวัตินี้?', showCancelButton: true, confirmButtonColor: '#e3342f'}).then(r=>{if(r.isConfirmed){txHistory.splice(index,1); saveToLocal(); refreshAll();}}); }
@@ -11085,6 +11076,7 @@ window.addPollOption = function() {
 }
 
 function submitVote(pollId, optIdx) {
+    if (!window.currentStudentAuthToken) return Swal.fire('ต้องยืนยันบัญชีนักศึกษาด้วย Google', 'กรุณาเข้าสู่ระบบด้วย Google ที่ผูกกับรหัสนักศึกษาก่อนใช้สิทธิ์โหวต', 'warning');
     if(!window.currentGuestStuId) return Swal.fire('ยังไม่ได้ล็อกอิน', 'กรุณาเข้าสู่ระบบในเมนู "โปรไฟล์ของคุณ" ก่อนกดโหวตครับ', 'error');
     let stu = students.find(s => s.id === window.currentGuestStuId);
     if(!stu) return;
@@ -11455,6 +11447,7 @@ window.openRegistrationModal = function(title) {
 };
 
 window.promptConfirmReg = function(title) {
+    if (!window.currentStudentAuthToken) return Swal.fire({ icon: 'warning', title: 'ต้องยืนยันบัญชีนักศึกษาด้วย Google', text: 'การลงทะเบียนต้องใช้บัญชี Google ที่ผูกกับรหัสนักศึกษา เพื่อป้องกันการลงทะเบียนแทนผู้อื่น' });
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
     const registrationWindow = getActivityRegistrationWindow_(act);
@@ -11501,6 +11494,7 @@ window.promptConfirmReg = function(title) {
         activityLogs.unshift({
             studentId: stuId,
             activityTitle: act.title,
+            activityRef: String(act.ref || act.id || ''),
             webRegistrationOnly: true,
             isWebReg: true,
             registeredAt: getNow(),
@@ -11576,6 +11570,7 @@ window.getDistanceFromLatLonInM = function(lat1, lon1, lat2, lon2) {
 };
 
 window.processStudentQRCheckin = function(data, source) {
+    if (!window.currentStudentAuthToken) return Swal.fire({ icon: 'warning', title: 'ต้องยืนยันบัญชีนักศึกษาด้วย Google', text: 'กรุณาเข้าสู่ระบบด้วย Google ที่ผูกกับรหัสนักศึกษาก่อนเช็กอิน' });
     if (!data || !data.act) return showToast('ไม่พบข้อมูลกิจกรรมใน QR Code', 'error');
 
     let act = appSettings.activities.find(a => a.title.trim() === String(data.act).trim());
@@ -11641,6 +11636,7 @@ window.processStudentQRCheckin = function(data, source) {
         let randomRegId = existingBooking?.regId || ('REG-' + Math.floor(100000 + Math.random() * 900000));
         let nowStr = getNow();
         if (existingBooking) {
+            existingBooking.activityRef = String(act.ref || act.id || '');
             existingBooking.timeIn = nowStr;
             if (data.round) existingBooking.roundName = data.round;
             if (userLat) { existingBooking.lat = userLat; existingBooking.lng = userLng; }
@@ -11653,6 +11649,7 @@ window.processStudentQRCheckin = function(data, source) {
             activityLogs.unshift({
                 studentId: stuId,
                 activityTitle: data.act,
+                activityRef: String(act.ref || act.id || ''),
                 roundName: data.round || 'ทั่วไป',
                 lat: userLat || null,
                 lng: userLng || null,
@@ -11892,6 +11889,7 @@ window.checkUrlCheckin = function() {
 };
 
 window.promptCancelReg = function(title) {
+    if (!window.currentStudentAuthToken) return Swal.fire({ icon: 'warning', title: 'ต้องยืนยันบัญชีนักศึกษาด้วย Google', text: 'กรุณาเข้าสู่ระบบด้วย Google ที่ผูกกับรหัสนักศึกษาก่อนยกเลิกการลงทะเบียน' });
     Swal.fire({
         html: `
         <div class="text-left mt-2">
