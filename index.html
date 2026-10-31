@@ -4,7 +4,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริการนักศึกษา SSSFN v15.4.17</title>
+    <title>ระบบบริการนักศึกษา SSSFN v15.4.19</title>
     <link rel="icon" type="image/png" href="logo-2.png">
     <link rel="apple-touch-icon" href="logo-2.png">
 
@@ -4565,7 +4565,10 @@ function renderHomeDirectory() {
        let lineBtnHtml = '';
        let navLineLink = document.getElementById('nav-line-link'); // หาเมนูที่แถบด้านซ้าย
        
-       if (s.lineUid && s.lineUid.trim() !== '') {
+       // v15.4.19: Public student projection intentionally hides the raw LINE UID.
+       // Use the safe boolean returned by the backend; retain lineUid fallback for legacy/admin views.
+       const isLineLinked = s.lineLinked === true || String(s.lineUid || '').trim() !== '';
+       if (isLineLinked) {
            // กรณีที่ผูกบัญชีแล้ว (เปลี่ยนปุ่มเป็นสีเทา)
            lineBtnHtml = `
            <div class="mb-6 px-4 md:px-8">
