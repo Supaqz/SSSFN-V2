@@ -3573,19 +3573,30 @@ function decodeJwtResponse(token) {
     return JSON.parse(jsonPayload);
 }
 
-function handleGoogleCredentialResponse(response) {
+async function handleGoogleCredentialResponse(response) {
     const responsePayload = decodeJwtResponse(response.credential);
     const userEmail = responsePayload.email;
     
     // 1. ตรวจสอบว่าเป็นแอดมินหรือไม่
-    const adminUser = users.find(u => u.email === userEmail || u.user === userEmail); 
+    const adminUser = users.find(u => String(u.email || '').trim().toLowerCase() === String(userEmail || '').trim().toLowerCase() || String(u.user || '').trim().toLowerCase() === String(userEmail || '').trim().toLowerCase()); 
     if (adminUser) {
-        currentUserRole = adminUser.role; 
-        currentUsername = adminUser.user; 
-        localStorage.setItem('sssfn_session', JSON.stringify({user: adminUser.user, role: adminUser.role, email: userEmail})); 
-        Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับแอดมิน: ${userEmail}`, showConfirmButton: false, timer: 1500}); 
-        applyRoleUI(); 
-        switchPage(adminUser.role === 'treasurer' ? 'fin-fund' : 'admin-db'); 
+        // Verify Google's ID token on Apps Script before granting an administrator session.
+        try {
+            const authResult = await callBackend({ action: 'loginGoogleAdmin', credential: response.credential });
+            if (!authResult || authResult.status !== 'success' || !authResult.token) {
+                throw new Error((authResult && authResult.message) || 'ไม่สามารถยืนยันบัญชีผู้ดูแลจาก Google ได้');
+            }
+            currentUserRole = authResult.role;
+            currentUsername = authResult.user;
+            window.currentAuthToken = authResult.token;
+            localStorage.setItem('sssfn_session', JSON.stringify({user: authResult.user, role: authResult.role, token: authResult.token, email: userEmail}));
+            Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับแอดมิน: ${userEmail}`, showConfirmButton: false, timer: 1500});
+            applyRoleUI();
+            switchPage(authResult.role === 'treasurer' ? 'fin-fund' : 'admin-db');
+        } catch (authError) {
+            console.error('Google administrator verification failed:', authError);
+            Swal.fire({icon: 'error', title: 'ยืนยันบัญชีผู้ดูแลไม่สำเร็จ', text: String(authError.message || authError)});
+        }
         return;
     }
 
@@ -4857,6 +4868,89 @@ function switchActSubTab(tab) {
     renderActivities();
 }
 
+// v15.4.5: Activity-level permissions. Global leader sees all; others see only owned/assigned activities.
+function isActivityLeader_() {
+    return currentUserRole === 'leader' || currentUserRole === 'admin';
+}
+function normalizeActivityAccessKey_(value) {
+    return String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+function normalizeActivityAccessId_(value) {
+    return String(value == null ? '' : value).trim().toLowerCase().replace(/[\s-]/g, '');
+}
+function getCurrentActivityIdentity_() {
+    const keys = new Set();
+    const ids = new Set();
+    const addKey = value => { const v = normalizeActivityAccessKey_(value); if (v) keys.add(v); };
+    const addId = value => { const v = normalizeActivityAccessId_(value); if (v) ids.add(v); };
+    addKey(currentUsername);
+    addKey(window.currentGuestStuId);
+    addId(window.currentGuestStuId);
+    const stuId = normalizeActivityAccessId_(window.currentGuestStuId || '');
+    const stu = (students || []).find(s => normalizeActivityAccessId_(s.id) === stuId) || null;
+    if (stu) {
+        addKey(stu.name); addKey(stu.email); addKey(stu.id); addId(stu.id);
+    }
+    const account = (users || []).find(u => normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(currentUsername)) || null;
+    if (account) {
+        addKey(account.user); addKey(account.name); addKey(account.email); addKey(account.id);
+        addId(account.id);
+    }
+    return { keys, ids, student: stu, account: account };
+}
+function isActivityOwner_(activity) {
+    if (!activity) return false;
+    if (isActivityLeader_()) return true;
+    const identity = getCurrentActivityIdentity_();
+    const ownerValues = [activity.createdBy, activity.createdByUser, activity.createdByUsername,
+        activity.ownerUser, activity.owner, activity.creatorUsername];
+    return ownerValues.some(value => identity.keys.has(normalizeActivityAccessKey_(value)) ||
+        identity.ids.has(normalizeActivityAccessId_(value)));
+}
+function isActivityAssignedToCurrentUser_(activity) {
+    if (!activity || !Array.isArray(activity.admins)) return false;
+    const identity = getCurrentActivityIdentity_();
+    return activity.admins.some(admin => {
+        if (!admin) return false;
+        const values = [admin.user, admin.username, admin.id, admin.email, admin.studentId];
+        return values.some(value => identity.keys.has(normalizeActivityAccessKey_(value)) ||
+            identity.ids.has(normalizeActivityAccessId_(value)));
+    });
+}
+function canManageActivity_(activity) {
+    return !!activity && (isActivityLeader_() || isActivityOwner_(activity) || isActivityAssignedToCurrentUser_(activity));
+}
+function canDeleteActivity_(activity) {
+    // Delegated activity admins may manage the activity but may not delete it.
+    return !!activity && (isActivityLeader_() || isActivityOwner_(activity));
+}
+function canManageActivityAdmins_(activity) {
+    // Only the activity creator or the global leader can grant/revoke access.
+    return !!activity && (isActivityLeader_() || isActivityOwner_(activity));
+}
+function canEditActivity_(activity) {
+    // Student accounts assigned as Staff retain the existing scan-only interface.
+    return currentUserRole !== 'guest' && canManageActivity_(activity);
+}
+function canViewActivityInManagementList_(activity) {
+    if (!activity) return false;
+    if (isActivityLeader_()) return true;
+    if (currentUserRole === 'guest') return isActivityAssignedToCurrentUser_(activity);
+    return isActivityOwner_(activity) || isActivityAssignedToCurrentUser_(activity);
+}
+function canViewPublicActivity_(activity, hasRegistration) {
+    if (!activity) return false;
+    if (currentUserRole !== 'guest') return canViewActivityInManagementList_(activity);
+    if (isActivityAssignedToCurrentUser_(activity)) return true;
+    if (hasRegistration) return activity.status === 'อนุมัติแล้ว';
+    return activity.isVisible !== false && activity.status === 'อนุมัติแล้ว';
+}
+function currentActivityIdentityMatches_(name, id, email) {
+    const identity = getCurrentActivityIdentity_();
+    return [name, id, email].some(value => identity.keys.has(normalizeActivityAccessKey_(value)) ||
+        identity.ids.has(normalizeActivityAccessId_(value)));
+}
+
 function renderActivities() {
     let actSearchEl = document.getElementById('act-search');
     const search = actSearchEl ? actSearchEl.value.toLowerCase().trim() : '';
@@ -4892,8 +4986,8 @@ function renderActivities() {
     // คำนวณยอด Badge ของแท็บต่าง ๆ
     let myActsAll = appSettings.activities.filter(a => activityLogs.some(l => l.studentId === myId && l.activityTitle === a.title));
     let managedActsAll = appSettings.activities.filter(a => {
-        if (currentUserRole !== 'guest') return true;
-        return a.admins && a.admins.some(adm => adm.user === myName || adm.user === myId || adm.user === myUser || (currentStu && adm.user === currentStu.name));
+        if (isActivityLeader_()) return true;
+        return isActivityOwner_(a) || isActivityAssignedToCurrentUser_(a);
     });
 
     let badgeMy = document.getElementById('badge-my-count');
@@ -4911,26 +5005,21 @@ function renderActivities() {
     // =====================================================================
     if (currentActSubTab === 'all') {
         grid.classList.remove('hidden');
-        let filtered = appSettings.activities.filter(a => a.title.toLowerCase().includes(search) || String(a.year).includes(search) || (a.ref && a.ref.toLowerCase().includes(search)));
-        
-        if (currentUserRole === 'guest') {
-            filtered = filtered.filter(a => {
-                const normalizeId = value => String(value || '').replace(/-/g, '').trim();
-                let hasReg = activityLogs.some(l => normalizeId(l.studentId) === normalizeId(myId) && l.activityTitle === a.title);
-                let isActAdmin = a.admins && a.admins.some(admin => admin.user === myName || admin.user === myId);
-                if (isActAdmin) return true;
-
-                // The student list is controlled by approval + the explicit "show in list" switch.
-                // Do not hide a visible activity just because its event date is earlier than today.
-                if (hasReg) return a.status === 'อนุมัติแล้ว';
-                return a.isVisible !== false && a.status === 'อนุมัติแล้ว';
-            });
-        }
+        let filtered = appSettings.activities.filter(a =>
+            (String(a.title || '').toLowerCase().includes(search) || String(a.year || '').includes(search) ||
+             (a.ref && String(a.ref).toLowerCase().includes(search)))
+        );
+        filtered = filtered.filter(a => {
+            const normalizeId = value => String(value || '').replace(/-/g, '').trim();
+            const hasReg = currentUserRole === 'guest' && activityLogs.some(l =>
+                normalizeId(l.studentId) === normalizeId(myId) && l.activityTitle === a.title);
+            return canViewPublicActivity_(a, hasReg);
+        });
 
         let shownCountEl = document.getElementById('act-shown-count');
         let totalCountEl = document.getElementById('act-total-count');
         if (shownCountEl) shownCountEl.innerText = filtered.length;
-        if (totalCountEl) totalCountEl.innerText = appSettings.activities.length;
+        if (totalCountEl) totalCountEl.innerText = filtered.length;
 
         if (filtered.length === 0) {
             grid.innerHTML = `<div class="col-span-full text-center py-10 sm:py-14 text-slate-400 bg-white rounded-2xl border border-slate-200"><i class="fas fa-box-open text-5xl mb-4 opacity-40"></i><p class="font-bold text-sm">ไม่พบข้อมูลกิจกรรม</p></div>`;
@@ -4955,16 +5044,13 @@ function renderActivities() {
                         `<span class="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">ปิดรับสมัคร</span>`;
 
             let adminBtn = ''; let appBtn = '';
-            let isActAdmin = false;
-            if (currentUserRole === 'guest' && myId) {
-                isActAdmin = act.admins && act.admins.some(admin => admin.user === myName || admin.user === myId);
-            }
+            let isActAdmin = currentUserRole === 'guest' && isActivityAssignedToCurrentUser_(act);
 
-            if (currentUserRole !== 'guest') {
+            if (canDeleteActivity_(act) && currentUserRole !== 'guest') {
                 adminBtn = `<button onclick="event.stopPropagation(); deleteActivity('${act.title}')" class="shrink-0 text-slate-400 hover:text-rose-600 transition p-2 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-100" aria-label="ลบกิจกรรม ${act.title}" title="ลบกิจกรรม"><i class="fa-solid fa-trash-can"></i></button>`;
-                if (act.status === 'รออนุมัติ' && currentUserRole !== 'treasurer') {
-                    appBtn = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">อนุมัติกิจกรรมนี้</button>`;
-                }
+            }
+            if (isActivityLeader_() && act.status === 'รออนุมัติ') {
+                appBtn = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">กำหนดรหัสและอนุมัติกิจกรรม</button>`;
             }
 
             let clickAction = (currentUserRole === 'guest' && !isActAdmin) ? `openRegistrationModal('${act.title}')` : `loadActivityMasterData('${act.title}')`;
@@ -5347,6 +5433,7 @@ window.updateOverviewEvalState = function() {
 // Other open browsers receive a committed delta through Pusher after the write succeeds.
 async function persistCurrentActivityFlag_(flagName, nextValue, successMessage, successType) {
     if (!currentMasterActivity) return;
+    if (!canManageActivity_(currentMasterActivity) || currentUserRole === 'guest') return showToast('ไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรมนี้', 'error');
     if (!window.currentAuthToken) {
         showToast('เซสชันแอดมินนี้ไม่มีโทเคนจากหลังบ้าน กรุณาเข้าสู่ระบบแอดมินด้วยชื่อผู้ใช้และรหัสผ่านใหม่', 'error');
         Swal.fire({
@@ -5626,6 +5713,12 @@ window.loadActivityMasterData = function(title) {
     if (!title) return;
     currentMasterActivity = appSettings.activities.find(a => a.title === title);
     if (!currentMasterActivity) return;
+    if (!canManageActivity_(currentMasterActivity)) {
+        currentMasterActivity = null;
+        showToast('ไม่มีสิทธิ์เปิดจัดการกิจกรรมนี้ ผู้สร้าง หัวหน้า หรือผู้ที่ได้รับแต่งตั้งเท่านั้นที่เข้าถึงได้', 'error');
+        renderActivities();
+        return;
+    }
 
     // เตรียมโครงสร้างข้อมูลเริ่มต้นถ้ายังไม่มี
     if (!currentMasterActivity.rounds) currentMasterActivity.rounds = getMasterRounds();
@@ -5662,6 +5755,13 @@ window.loadActivityMasterData = function(title) {
 
     // 🌟 ตรวจสอบสิทธิ์ Staff: ถ้าเป็น guest ให้จำกัดสิทธิ์ทันที
     let isStaff = (currentUserRole === 'guest');
+
+    // v15.4.5: delegated admins may manage their activity but cannot appoint other admins.
+    const adminTab = document.getElementById('mtab-content-admins');
+    if (adminTab) {
+        const grantPanel = adminTab.querySelector('.grid > div:first-child');
+        if (grantPanel) grantPanel.classList.toggle('hidden', !canManageActivityAdmins_(currentMasterActivity));
+    }
 
     // จัดการแสดง/ซ่อนปุ่มและแท็บสำหรับ Staff
     let editBtn = document.getElementById('btn-master-edit-act');
@@ -7648,7 +7748,7 @@ window.renderMasterRoundsTab = function() {
         return;
     }
 
-    let isStaff = (currentUserRole === 'guest');
+    let canEditRoster = canManageActivityAdmins_(act);
     let rowsHtml = '';
     rounds.forEach((r, idx) => {
         let isOpen = (r.isOpen !== false);
@@ -8117,23 +8217,32 @@ window.autoFillAdminPhone = function() {
 window.addActivityAdmin = function(title) {
     let act = currentMasterActivity;
     if (!act) return;
+    if (!canManageActivityAdmins_(act)) return showToast('เฉพาะผู้สร้างกิจกรรมหรือหัวหน้าเท่านั้นที่เพิ่มผู้ดูแลได้', 'error');
     let rawUser = (document.getElementById('admin-user-input')?.value || '').trim();
     if (!rawUser) return showToast('กรุณาระบุ Username ผู้ใช้งาน', 'error');
 
     let cleanId = rawUser.includes('(') ? rawUser.split('(')[1].replace(')', '').trim() : '';
     let stu = students.find(s => s.id === cleanId || s.name === rawUser);
-    let targetName = stu ? stu.name : (rawUser.includes(' (') ? rawUser.split(' (')[0].trim() : rawUser);
-    let targetId = stu ? stu.id : cleanId;
-    let targetEmail = stu ? (stu.email || '') : '';
+    let systemUser = (users || []).find(u => normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(rawUser) ||
+        (cleanId && normalizeActivityAccessKey_(u && u.user) === normalizeActivityAccessKey_(cleanId)) ||
+        normalizeActivityAccessKey_(u && u.name) === normalizeActivityAccessKey_(rawUser)) || null;
+    let targetName = stu ? stu.name : (systemUser ? (systemUser.name || systemUser.user) : (rawUser.includes(' (') ? rawUser.split(' (')[0].trim() : rawUser));
+    let targetUsername = systemUser ? String(systemUser.user || '') : (!stu ? cleanId || rawUser : '');
+    let targetId = stu ? stu.id : (systemUser && systemUser.id ? systemUser.id : cleanId);
+    let targetEmail = stu ? (stu.email || '') : (systemUser && systemUser.email ? systemUser.email : '');
     let phone = (document.getElementById('admin-phone-input')?.value || '').trim();
     if (!phone && stu && stu.phone) phone = stu.phone;
+    if (currentActivityIdentityMatches_(targetName, targetId, targetEmail) || currentActivityIdentityMatches_(targetUsername, '', '')) {
+        return showToast('ผู้สร้างกิจกรรมมีสิทธิ์จัดการอยู่แล้ว ไม่ต้องเพิ่มตัวเองเป็นผู้ดูแล', 'warning');
+    }
 
     act.admins = act.admins || [];
-    let isDupe = act.admins.some(a => a.user === targetName || (targetId && a.id === targetId));
+    let isDupe = act.admins.some(a => a.user === targetName || (targetUsername && a.username === targetUsername) || (targetId && a.id === targetId));
     if (isDupe) return showToast('บุคคลนี้ได้รับสิทธิ์ผู้ดูแลอยู่แล้ว', 'warning');
 
     act.admins.push({
         user: targetName,
+        username: targetUsername,
         id: targetId,
         email: targetEmail,
         phone: phone
@@ -8149,6 +8258,7 @@ window.addActivityAdmin = function(title) {
 window.deleteActivityAdmin = function(title, index) {
     let act = currentMasterActivity;
     if (!act || !act.admins) return;
+    if (!canManageActivityAdmins_(act)) return showToast('เฉพาะผู้สร้างกิจกรรมหรือหัวหน้าเท่านั้นที่ถอดสิทธิ์ผู้ดูแลได้', 'error');
     let adminName = act.admins[index]?.user || '';
 
     Swal.fire({
@@ -8203,7 +8313,7 @@ function renderActivityAdmins(title) {
                 </td>
                 <td class="p-3.5 text-xs text-slate-600 font-mono">${admin.phone || '-'}</td>
                 <td class="p-3.5 text-center">
-                    ${!isStaff ? `
+                    ${canEditRoster ? `
                         <button onclick="deleteActivityAdmin('${title}', ${i})" class="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition" title="ถอดสิทธิ์ผู้ดูแล" aria-label="ลบรายการ">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
@@ -8274,7 +8384,7 @@ window.createActivityModal = function() {
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">รหัสกิจกรรมอ้างอิง</label>
-                    <input id="act-ref" class="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-500 font-mono font-bold" placeholder="ACT-${new Date().getFullYear() + 543}-001">
+                    <div class="w-full border border-blue-200 bg-blue-50 text-blue-800 rounded-xl p-2.5 font-medium">หัวหน้าจะกำหนดรหัสให้ก่อนอนุมัติกิจกรรม</div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
@@ -8358,7 +8468,9 @@ window.createActivityModal = function() {
             return {
                 title: title,
                 titleEng: document.getElementById('act-title-eng')?.value.trim() || '',
-                ref: document.getElementById('act-ref')?.value.trim() || `ACT-${document.getElementById('act-year')?.value || '2568'}`,
+                ref: '', // กำหนดโดยหัวหน้าตอนอนุมัติเท่านั้น
+                createdBy: String(currentUsername || '').trim(),
+                createdByName: (users.find(u => normalizeActivityAccessKey_(u.user) === normalizeActivityAccessKey_(currentUsername)) || {}).name || currentUsername || '',
                 year: document.getElementById('act-year')?.value || '2568',
                 term: document.getElementById('act-term')?.value || '1',
                 type: 'กิจกรรมทั่วไป',
@@ -8397,10 +8509,10 @@ window.createActivityModal = function() {
 
 // 17. แบบฟอร์มแก้ไขข้อมูลกิจกรรม (ตรงตามรูป 023658.png พร้อม 3 สวิตช์การ์ด)
 window.editActivityModal = function(oldTitle) {
-    if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์แก้ไขกิจกรรม', 'error');
-
     let actIndex = appSettings.activities.findIndex(a => a.title === oldTitle);
-    if (actIndex === -1) return;
+    if (actIndex < 0) return;
+    if (!canEditActivity_(appSettings.activities[actIndex])) return showToast('ไม่มีสิทธิ์แก้ไขกิจกรรมนี้', 'error');
+
     let act = appSettings.activities[actIndex];
 
     let hasQuota = (act.maxParticipants && act.maxParticipants > 0);
@@ -8413,7 +8525,8 @@ window.editActivityModal = function(oldTitle) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div class="md:col-span-2">
                     <label class="block font-bold text-slate-700 mb-1">หัวข้อ / ชื่อกิจกรรม (ภาษาไทย) *</label>
-                    <input id="edit-act-title" class="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-500 font-bold" value="${act.title}">
+                    <input id="edit-act-title" class="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-500 font-bold ${canManageActivityAdmins_(act) ? '' : 'bg-slate-100 cursor-not-allowed'}" value="${act.title}" ${canManageActivityAdmins_(act) ? '' : 'readonly title="ผู้ดูแลที่ได้รับมอบหมายไม่สามารถเปลี่ยนชื่อกิจกรรมได้"'}>
+                    ${!canManageActivityAdmins_(act) ? '<p class="text-[11px] text-amber-700 mt-1">ผู้ดูแลที่ได้รับมอบหมายแก้ไขข้อมูลได้ แต่ไม่สามารถเปลี่ยนชื่อกิจกรรม จัดการผู้ดูแล หรือลบกิจกรรมได้</p>' : ''}
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">ชื่อกิจกรรม (English)</label>
@@ -8421,7 +8534,7 @@ window.editActivityModal = function(oldTitle) {
                 </div>
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">รหัสกิจกรรมอ้างอิง</label>
-                    <input id="edit-act-ref" class="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-500 font-mono font-bold" value="${act.ref || ''}">
+                    <div class="w-full border border-slate-200 bg-slate-50 text-slate-600 rounded-xl p-2.5 font-mono font-bold">${act.ref || 'รอหัวหน้ากำหนดก่อนอนุมัติ'}</div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
@@ -8532,7 +8645,7 @@ window.editActivityModal = function(oldTitle) {
             return {
                 title: nTitle,
                 titleEng: document.getElementById('edit-act-title-eng')?.value.trim() || '',
-                ref: document.getElementById('edit-act-ref')?.value.trim() || act.ref,
+                ref: act.ref || '', // แก้รหัสอ้างอิงได้เฉพาะขั้นตอนอนุมัติโดยหัวหน้า
                 year: document.getElementById('edit-act-year')?.value || act.year,
                 term: document.getElementById('edit-act-term')?.value || act.term,
                 hours: 0,
@@ -8570,7 +8683,8 @@ window.editActivityModal = function(oldTitle) {
 
 // 18. ลบกิจกรรม
 window.deleteActivity = function(title) {
-    if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์ลบกิจกรรม', 'error');
+    const targetActivity = appSettings.activities.find(a => a.title === title);
+    if (!targetActivity || !canDeleteActivity_(targetActivity)) return showToast('ลบกิจกรรมได้เฉพาะผู้สร้างกิจกรรมหรือหัวหน้าเท่านั้น ผู้ดูแลที่ได้รับมอบหมายไม่มีสิทธิ์ลบ', 'error');
 
     Swal.fire({
         title: `ลบกิจกรรม "${title}"?`,
@@ -8594,27 +8708,40 @@ window.deleteActivity = function(title) {
 
 // 19. อนุมัติกิจกรรม
 window.approveActivity = function(title) {
-    if (currentUserRole === 'guest') return showToast('คุณไม่มีสิทธิ์อนุมัติกิจกรรม', 'error');
+    if (!isActivityLeader_()) return showToast('อนุมัติและกำหนดรหัสกิจกรรมได้เฉพาะหัวหน้าเท่านั้น', 'error');
+    let act = appSettings.activities.find(a => a.title === title);
+    if (!act) return showToast('ไม่พบกิจกรรมที่ต้องการอนุมัติ', 'error');
+    if (act.status !== 'รออนุมัติ') return showToast('กิจกรรมนี้ไม่ได้อยู่ในสถานะรออนุมัติ', 'warning');
 
     Swal.fire({
-        title: `ยืนยันอนุมัติกิจกรรม?`,
-        text: `กิจกรรม "${title}" จะเปิดใช้งานและแสดงในหน้าเว็บนักศึกษา`,
+        title: 'กำหนดรหัสอ้างอิงและอนุมัติกิจกรรม',
+        html: `<div class="text-left text-sm text-slate-600 mb-2">กิจกรรม: <b>${String(title).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</b></div>
+               <label class="block text-left text-xs font-bold text-slate-700 mb-1">รหัสกิจกรรมอ้างอิง *</label>
+               <input id="approve-activity-ref" class="swal2-input !mx-0 !w-full !text-sm !font-mono" placeholder="เช่น ACT-2569-001" value="${String(act.ref || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" maxlength="80">`,
         icon: 'question',
         showCancelButton: true,
-        confirmButtonText: 'อนุมัติกิจกรรม',
+        confirmButtonText: 'บันทึกรหัสและอนุมัติ',
         cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#10b981'
+        confirmButtonColor: '#10b981',
+        preConfirm: () => {
+            const ref = String(document.getElementById('approve-activity-ref')?.value || '').trim();
+            if (!ref) return Swal.showValidationMessage('หัวหน้าต้องกำหนดรหัสกิจกรรมอ้างอิงก่อนอนุมัติ');
+            const duplicate = appSettings.activities.some(a => a !== act && String(a.ref || '').trim().toLowerCase() === ref.toLowerCase());
+            if (duplicate) return Swal.showValidationMessage('รหัสกิจกรรมนี้ถูกใช้แล้ว กรุณาระบุรหัสอื่น');
+            return ref;
+        }
     }).then(r => {
-        if (r.isConfirmed) {
-            let act = appSettings.activities.find(a => a.title === title);
-            if (act) {
-                act.status = 'อนุมัติแล้ว';
-                act.isOpen = true;
-                txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername });
-                saveToLocal(true);
-                renderActivities();
-                showToast('อนุมัติกิจกรรมสำเร็จ', 'success');
-            }
+        if (r.isConfirmed && r.value) {
+            act.ref = String(r.value).trim();
+            act.status = 'อนุมัติแล้ว';
+            act.approvedBy = String(currentUsername || '').trim();
+            act.approvedAt = getNow();
+            act.isOpen = true;
+            txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title + ' (' + act.ref + ')', type: 'ระบบ', amt: 0, user: currentUsername });
+            saveToLocal(true);
+            renderActivities();
+            if (typeof notifyFirebaseUpdate === 'function') notifyFirebaseUpdate();
+            showToast('กำหนดรหัสและอนุมัติกิจกรรมสำเร็จ', 'success');
         }
     });
 };
