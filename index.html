@@ -166,11 +166,96 @@
         padding: 0.625rem 1.25rem !important;
         background-color: #64748b !important;
     }
+    
+    /* v15.4.20: polished activity-registration detail modal */
+    .swal2-popup.sssfn-registration-popup {
+        padding: 0 !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 1.5rem !important;
+        overflow: hidden !important;
+        background: #fff !important;
+        box-shadow: 0 24px 60px -18px rgba(15, 23, 42, .28) !important;
+    }
+    .swal2-popup.sssfn-registration-popup .swal2-html-container {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+    .sssfn-registration-popup .reg-success-banner {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr) minmax(118px, 164px);
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #86efac;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+        color: #047857;
+        text-align: left;
+    }
+    .sssfn-registration-popup .reg-success-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        background: #059669;
+        color: white;
+        font-size: 12px;
+    }
+    .sssfn-registration-popup .reg-success-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+        line-height: 1.35;
+    }
+    .sssfn-registration-popup .reg-success-title {
+        color: #047857;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .sssfn-registration-popup .reg-success-note {
+        color: #047857;
+        font-size: 10px;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+    }
+    .sssfn-registration-popup .reg-success-code {
+        display: block;
+        min-width: 0;
+        padding: 6px 8px;
+        border: 1px solid #6ee7b7;
+        border-radius: 9px;
+        background: rgba(209, 250, 229, .8);
+        color: #065f46;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.35;
+        text-align: center;
+        overflow-wrap: anywhere;
+    }
+    @media (max-width: 520px) {
+        .sssfn-registration-popup .reg-success-banner {
+            grid-template-columns: 26px minmax(0, 1fr);
+            gap: 8px;
+        }
+        .sssfn-registration-popup .reg-success-code {
+            grid-column: 2;
+            justify-self: start;
+            max-width: 100%;
+        }
+    }
+
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
 </head>
-<!-- SSSFN v15.4.16: student logout landing, verified Google-only student sessions, resilient Google button, student profile + own billing projection -->
+<!-- SSSFN v15.4.22: scheduled bill opening, student safe page projection, activity wording, read-only student roster -->
 <!-- SSSFN Google Login Fix v15.4.16: backend token-expiry validation corrected -->
 <body class="flex h-screen overflow-hidden text-slate-800">
 
@@ -424,7 +509,7 @@
                         <i class="fa-solid fa-compass"></i> <span>กิจกรรมทั้งหมด</span>
                     </button>
                     <button id="tab-act-my" onclick="switchActSubTab('my')" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all text-slate-600 hover:text-slate-900 whitespace-nowrap flex items-center justify-center gap-1 cursor-pointer">
-                        <i class="fa-solid fa-user-check"></i> <span>ส่งคำขอ / ของคุณ</span> <span id="badge-my-count" class="ml-1 text-[10px] sm:text-[11px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-full">0</span>
+                        <i class="fa-solid fa-user-check"></i> <span>กิจกรรมที่เข้าร่วม</span> <span id="badge-my-count" class="ml-1 text-[10px] sm:text-[11px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-full">0</span>
                     </button>
                     <button id="tab-act-managed" onclick="switchActSubTab('managed')" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all text-slate-600 hover:text-slate-900 whitespace-nowrap flex items-center justify-center gap-1 cursor-pointer">
                         <i class="fa-solid fa-user-shield"></i> <span>ที่คุณดูแล / มีส่วนร่วม</span> <span id="badge-managed-count" class="ml-1 text-[10px] sm:text-[11px] font-semibold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full">0</span>
@@ -451,7 +536,7 @@
         <!-- 1. กิจกรรมทั้งหมด (Card Grid) -->
         <div id="activity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"></div>
 
-        <!-- 2. ส่งคำขอ / กิจกรรมของคุณ (ที่ลงทะเบียน / เข้าร่วม) -->
+        <!-- 2. กิจกรรมที่เข้าร่วม (รายการที่นักศึกษาลงทะเบียน/เข้าร่วมแล้ว) -->
         <div id="activity-my-container" class="hidden mb-8"></div>
 
         <!-- 3. กิจกรรมที่คุณดูแล / มีส่วนร่วม (Managed Activities Table ตรงตามรูป) -->
@@ -2301,15 +2386,79 @@ window.renderMasterDropdowns = window.renderMasterDropdowns || renderMasterDropd
         function getNow() { return new Date().toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(' น.', ''); }
         function formatDisplayDate(rawDate) { if (!rawDate) return '-'; let s = String(rawDate); if (s.includes('GMT') || s.includes('เวลาอินโดจีน') || s.length > 20) { try { let d = new Date(s); if (!isNaN(d)) { let day = String(d.getDate()).padStart(2, '0'); let month = String(d.getMonth() + 1).padStart(2, '0'); let year = d.getFullYear(); if(year < 2500) year += 543; let hrs = String(d.getHours()).padStart(2, '0'); let mins = String(d.getMinutes()).padStart(2, '0'); return (hrs === '00' && mins === '00') ? day+'/'+month+'/'+year : day+'/'+month+'/'+year+' '+hrs+':'+mins; } } catch(e) {} } return s; }
 
-        function recalculateDebts() { 
-    if(!students || !fundPayments || !fundRounds) return; 
+        // v15.4.21: Bill rounds can be scheduled to open on startDate.
+// isOpen remains the administrator's enable/disable switch; dueDate remains the payment due date
+// (it does NOT auto-close a debt, so overdue payments can still be settled until staff closes the round).
+function getBangkokDateKeyV15421_(dateValue = new Date()) {
+    try {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(dateValue);
+        const part = key => parts.find(p => p.type === key)?.value || '';
+        return `${part('year')}-${part('month')}-${part('day')}`;
+    } catch (error) {
+        const d = new Date(dateValue);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+}
+function normalizeFundRoundDateKeyV15422_(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    let match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (match) return `${match[1]}-${String(match[2]).padStart(2,'0')}-${String(match[3]).padStart(2,'0')}`;
+    match = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    if (match) return `${match[3]}-${String(match[2]).padStart(2,'0')}-${String(match[1]).padStart(2,'0')}`;
+    return '';
+}
+function isFundRoundOpenNow_(round, now = new Date()) {
+    if (!round) return false;
+    // autoOpen=true means the schedule remains armed until staff explicitly cancels it
+    // (the close button sets autoOpen=false). Do not let a stale isOpen=false flag
+    // permanently block a scheduled round after its start date has arrived.
+    const scheduleEnabled = round.autoOpen === true ||
+        (round.autoOpen === undefined && !!round.startDate && round.isOpen !== false);
+    if (scheduleEnabled) {
+        const startKey = normalizeFundRoundDateKeyV15422_(round.startDate);
+        if (startKey) return getBangkokDateKeyV15421_(now) >= startKey;
+    }
+    return round.isOpen !== false;
+}
+function getFundRoundScheduleLabel_(round, now = new Date()) {
+    if (!round) return 'ไม่พบรอบบิล';
+    const scheduleEnabled = round.autoOpen === true ||
+        (round.autoOpen === undefined && !!round.startDate && round.isOpen !== false);
+    if (scheduleEnabled) {
+        const startKey = normalizeFundRoundDateKeyV15422_(round.startDate);
+        if (startKey && getBangkokDateKeyV15421_(now) < startKey) return `รอเปิด ${startKey}`;
+        if (isFundRoundOpenNow_(round, now)) return 'เปิดรับชำระ';
+    }
+    return isFundRoundOpenNow_(round, now) ? 'เปิดรับชำระ' : 'ปิดโดยผู้ดูแล';
+}
+function refreshFundRoundScheduleUIV15421_() {
+    const signature = (fundRounds || []).map(r => `${r.id}:${isFundRoundOpenNow_(r) ? '1' : '0'}:${getFundRoundScheduleLabel_(r)}`).join('|');
+    if (window.__sssfnFundRoundScheduleSignatureV15421 === undefined) {
+        window.__sssfnFundRoundScheduleSignatureV15421 = signature;
+        return;
+    }
+    if (signature !== window.__sssfnFundRoundScheduleSignatureV15421) {
+        window.__sssfnFundRoundScheduleSignatureV15421 = signature;
+        refreshAll(); // local render only; no Firebase read or write is triggered
+    }
+}
+
+function recalculateDebts() { 
+    if(!students || !fundPayments || !fundRounds) return;
+    // Student views receive a read-only public roster + their own private billing rows.
+    // Do not rewrite the students collection from a student browser; that caused a forbidden
+    // full-roster saveDelta when the student registered for an activity.
+    if (currentUserRole === 'guest') return;
     students.forEach(s => { 
         let currentDebt = 0; let myPayments = fundPayments.filter(p => p.studentId === s.id); 
         myPayments.forEach(p => { 
             if (p.status !== 'ยกเลิก') { 
                 let round = fundRounds.find(r => r.id === p.roundId); 
                 // 🌟 ดักเงื่อนไข: นำมาบวกหนี้เฉพาะรอบบิลที่ "เปิดรับชำระ" เท่านั้น
-                if (round && round.isOpen !== false) { 
+                if (round && isFundRoundOpenNow_(round)) { 
                     let paid = p.paidAmt || 0; 
                     let expectedAmt = (round.roomAmounts && round.roomAmounts[s.room] !== undefined) ? Number(round.roomAmounts[s.room]) : Number(round.amt);
                     currentDebt += (expectedAmt - paid); 
@@ -2760,7 +2909,11 @@ async function silentPullFromGS(showStatus = false, force = false) {
         const serverState = snapshotRealtimeData_(result.data);
         const localState = captureCurrentRealtimeData_();
         const baseState = lastServerSnapshot || initialLocalSnapshot || localState;
-        const reconciled = mergeRealtimeValue_(baseState, localState, serverState, true, true, true, 'root');
+        // A student/public session must not merge an old administrator cache into its scoped
+        // server projection. That hid/overrode valid fields and could leak stale admin data.
+        const reconciled = currentUserRole === 'guest'
+            ? serverState
+            : mergeRealtimeValue_(baseState, localState, serverState, true, true, true, 'root');
         applyLoadedData(reconciled, serverState);
         hasLocalChanges = buildRealtimeChanges_(serverState, captureCurrentRealtimeData_()).length > 0;
         pullSucceeded = true;
@@ -2894,6 +3047,9 @@ function applyLoadedData(d, serverBaselineOverride) {
 
     saveToLocal(false);
     refreshAll();
+    if (typeof refreshVisiblePageDataV15422_ === 'function' && currentView) {
+        refreshVisiblePageDataV15422_(currentView);
+    }
 
     // Refresh any open activity-administration panel after canonical data is applied.
     const adminMasterCard = document.getElementById('admin-activity-master-card');
@@ -3037,7 +3193,7 @@ function saveToLocal(triggerSync = true) {
             // 1. ต้องเป็นบิลที่เปิดรับชำระ (isOpen !== false)
             // 2. ต้องมียอดค้าง (r.amt - paid > 0)
             // 3. ต้องไม่ใช่บิลที่ส่งสลิปไปแล้วและรอแอดมินยืนยัน
-            if(r && r.isOpen !== false) {
+            if(r && isFundRoundOpenNow_(r)) {
                 let paid = p.paidAmt || 0;
                 let isPending = (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ');
                 
@@ -3104,7 +3260,7 @@ function saveToLocal(triggerSync = true) {
             let roundData = fundRounds.find(r => r.id === roundId);
             let roundTitle = roundData ? roundData.title : "ชำระเงินกองกลาง";
             
-            if (roundData && roundData.isOpen === false) {
+            if (roundData && !isFundRoundOpenNow_(roundData)) {
                 qrContainer.innerHTML = '<div class="bg-rose-50 p-5 rounded-xl border-2 border-rose-100 mt-2 shadow-inner text-center"><p class="font-bold text-rose-700"><i class="fas fa-lock"></i> รอบบิลนี้ปิดรับชำระแล้ว</p></div>';
                 return;
             }
@@ -3408,7 +3564,24 @@ function openPublicSlipModal(targetRoundId = null) {
     refreshAll();
     applyRoleUI();
     initialLocalSnapshot = captureCurrentRealtimeData_();
-    silentPullFromGS();
+    window.__sssfnInitialDataLoadPromiseV15422 = Promise.resolve(silentPullFromGS(false, true))
+        .then(result => {
+            if (result && result.status === 'success') {
+                refreshAll();
+                refreshVisiblePageDataV15422_(currentView || 'home');
+            } else if (result && result.status !== 'throttled' && result.status !== 'busy') {
+                console.warn('Initial SSSFN data load was not complete:', result.message || result.status);
+            }
+            return result;
+        })
+        .catch(error => {
+            console.error('Initial SSSFN data load failed:', error);
+            return { status:'error', message:String(error && error.message || error) };
+        });
+    window.__sssfnFundRoundScheduleSignatureV15421 = (fundRounds || []).map(r => `${r.id}:${isFundRoundOpenNow_(r) ? '1' : '0'}:${getFundRoundScheduleLabel_(r)}`).join('|');
+    if (!window.__sssfnFundRoundScheduleTimerV15421) {
+        window.__sssfnFundRoundScheduleTimerV15421 = setInterval(refreshFundRoundScheduleUIV15421_, 60000);
+    }
     setTimeout(() => {
         if (typeof checkUrlCheckin === 'function') checkUrlCheckin();
     }, 500);
@@ -3427,6 +3600,62 @@ window.toggleSidebar = function() {
         if(sidebar) sidebar.classList.toggle('desktop-sidebar-closed');
     }
 }
+function refreshVisiblePageDataV15422_(pageId) {
+    // Render from the latest in-memory canonical snapshot. This intentionally does not
+    // issue another Firebase read on every tab click; startup + Pusher keep the snapshot fresh.
+    const safe = fn => { try { if (typeof fn === 'function') fn(); } catch (error) { console.warn('Page render skipped (' + pageId + '):', error); } };
+    switch (String(pageId || '')) {
+        case 'home':
+            safe(renderHomeDirectory);
+            safe(renderFinHistory);
+            safe(renderTimeHistoryTable);
+            safe(renderLeaderboard);
+            break;
+        case 'activity':
+            safe(renderActivities);
+            break;
+        case 'voting':
+            safe(renderPolls);
+            break;
+        case 'random':
+            safe(initRandomizer);
+            break;
+        case 'time-history':
+            safe(renderTimeHistoryTable);
+            break;
+        case 'checkin':
+            safe(renderCheckinTableOnly);
+            break;
+        case 'fin-fund':
+            safe(renderFinHistory);
+            safe(renderFundTable);
+            safe(updateQuickToggleBtn);
+            break;
+        case 'admin-students':
+            safe(renderAdminStudentList);
+            safe(updateSidebarBadges);
+            break;
+        case 'fin-expense':
+            safe(initExpenseUI);
+            safe(renderExpenseTable);
+            break;
+        case 'fin-history':
+            safe(renderFinHistory);
+            break;
+        case 'leaderboard':
+            safe(renderLeaderboard);
+            break;
+        case 'admin-db':
+        case 'admin-users':
+            // These two screens share room, roster and user controls built by refreshAll.
+            safe(refreshAll);
+            break;
+        default:
+            safe(refreshAll);
+            break;
+    }
+}
+
 function switchPage(pageId) {
     currentView = pageId;
     // v15.4.3: students enter the registration page on the public activity list.
@@ -3473,6 +3702,7 @@ function switchPage(pageId) {
 
     let headerTitle = document.querySelector('header h2');
     if(headerTitle) headerTitle.innerHTML = titleIcon + titleText;
+    refreshVisiblePageDataV15422_(pageId);
 }
         // ================= LOGIN & UI =================
         function promptLogin() { 
@@ -3501,6 +3731,7 @@ function switchPage(pageId) {
                             localStorage.setItem('sssfn_session', JSON.stringify({ user: res.user, role: res.role, token: res.token }));
                             Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 1200 });
                             applyRoleUI();
+                            await silentPullFromGS(false, true);
                             startBackgroundSyncWorker();
                             switchPage(res.role === 'treasurer' ? 'fin-fund' : 'admin-db');
                             // Retry only the retained diff after a newly signed backend token is issued.
@@ -4393,7 +4624,7 @@ function renderHomeDirectory() {
        // ประมวลผลบิล (แยกบิลค้างจ่าย กับ บิลที่ส่งแล้ว)
        fundPayments.filter(p => p.studentId === s.id).forEach(p => {
            let r = fundRounds.find(rd => rd.id === p.roundId);
-           if (r && r.isOpen !== false) {
+           if (r && isFundRoundOpenNow_(r)) {
                let remain = r.amt - (p.paidAmt || 0); 
                
                // กรณีที่ 1: ยังไม่ชำระ หรือ ค้างชำระ (มียอดหนี้เหลือ) -> แจ้งเตือนด่วน
@@ -4775,7 +5006,7 @@ function renderHomeDirectory() {
         filtered.forEach(s => {
             let myPayments = fundPayments.filter(p => p.studentId === s.id); let fundBgClass = 'bg-slate-50'; let fundTextClass = 'text-slate-500'; let fundStatusLabel = 'ไม่มีรายการเรียกเก็บ'; let iconHtml = '-';
             if (myPayments.length > 0) {
-                let activeP = myPayments.filter(p => { let r = fundRounds.find(rd => rd.id === p.roundId); return r && r.isOpen !== false; });
+                let activeP = myPayments.filter(p => { let r = fundRounds.find(rd => rd.id === p.roundId); return r && isFundRoundOpenNow_(r); });
                 let pendingCount = activeP.filter(p => p.status === 'รอดำเนินการ' || p.status === 'รอตรวจสอบ').length; 
                 let unpaidCount = activeP.filter(p => p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ').length;
                 if (activeP.length === 0) { fundBgClass = 'bg-slate-50'; fundTextClass = 'text-slate-500'; fundStatusLabel = 'ไม่มีรายการเรียกเก็บ'; iconHtml = '-'; }
@@ -5169,9 +5400,7 @@ function renderActivities() {
                 if (isActAdmin) {
                     guestBtn = `<div class="bg-amber-50 p-3 mt-4 text-center rounded-b-xl border-t border-amber-100 text-xs font-bold text-amber-800 hover:bg-amber-100 transition"><i class="fa-solid fa-user-shield mr-1"></i> พื้นที่จัดการกิจกรรม (Staff) &rarr;</div>`;
                 } else if (myWebReg) {
-                    let attendedRounds = [...new Set(myRoundLogs.map(l => l.roundName || l.roundId).filter(Boolean))];
-                    let participationText = attendedRounds.length ? ` • รอบเช็กอิน: ${attendedRounds.join(', ')}` : ' • ยังไม่ได้จัดรอบเช็กอิน';
-                    guestBtn = `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนผ่านเว็บแล้ว${participationText} &rarr;</div>`;
+                    guestBtn = `<div class="bg-purple-50 p-3 mt-4 text-center rounded-b-xl border-t border-purple-100 text-xs font-bold text-purple-700 hover:bg-purple-100 transition">ลงทะเบียนผ่านเว็บแล้ว &rarr;</div>`;
                 } else if (myRoundLogs.length) {
                     let attendedRounds = [...new Set(myRoundLogs.map(l => l.roundName || l.roundId).filter(Boolean))];
                     guestBtn = `<div class="bg-blue-50 p-3 mt-4 text-center rounded-b-xl border-t border-blue-100 text-xs font-bold text-blue-700 hover:bg-blue-100 transition">มีประวัติเข้าร่วม${attendedRounds.length ? ` • รอบ: ${attendedRounds.join(', ')}` : ''} &rarr;</div>`;
@@ -5202,7 +5431,7 @@ function renderActivities() {
     }
 
     // =====================================================================
-    // แท็บ 2: ส่งคำขอ / กิจกรรมของคุณ (ที่ลงทะเบียน / เข้าร่วม)
+    // แท็บ 2: กิจกรรมที่เข้าร่วม
     // =====================================================================
     else if (currentActSubTab === 'my') {
         if (!myCont) return;
@@ -5254,7 +5483,7 @@ function renderActivities() {
             }
 
             let roundNames = [...new Set(roundLogs.map(l => l.roundName || l.roundId).filter(Boolean))].join(', ');
-            let roundSummary = roundNames ? `รอบที่เข้าร่วม: ${roundNames}` : (webRegLog ? 'ลงทะเบียนผ่านเว็บแล้ว • ยังไม่ได้จัดรอบเช็กอิน' : 'ยังไม่มีข้อมูลรอบเช็กอิน');
+            let roundSummary = roundNames ? `รอบที่เข้าร่วม: ${roundNames}` : (webRegLog ? 'ลงทะเบียนผ่านเว็บแล้ว' : 'ยังไม่มีข้อมูลรอบเช็กอิน');
             let scoreText = latestLog.score != null ? latestLog.score : (act.points || 3);
             let refCode = act.ref || 'ACT-' + (act.year || 68);
 
@@ -10018,7 +10247,7 @@ function printReceipt(roundId, studentId) {
                         <div><label class="block text-left text-xs font-bold text-slate-700 mb-1">สิ้นสุด (Due):</label><input type="date" id="f-due" class="modern-input mb-0"></div>
                     </div>
                     <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
-                        <span class="text-sm font-bold text-slate-700">เปิดรับชำระรอบนี้</span>
+                        <span class="text-sm font-bold text-slate-700">เปิดรับชำระอัตโนมัติตามวันที่เริ่ม</span>
                         <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in"><input type="checkbox" id="f-status" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="f-status" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div>
                     </div>
                 </div>`;
@@ -10036,7 +10265,8 @@ function printReceipt(roundId, studentId) {
                     const s = document.getElementById('f-start').value;
                     const d = document.getElementById('f-due').value;
                     const r = document.getElementById('f-r').value;
-                    const isOpen = document.getElementById('f-status').checked; 
+                    const autoOpen = document.getElementById('f-status').checked;
+                    const isOpen = autoOpen;
                     if(!t || !a || !d) return Swal.showValidationMessage('กรอกข้อมูลบังคับให้ครบ'); 
 
                     let roomAmounts = null;
@@ -10050,7 +10280,7 @@ function printReceipt(roundId, studentId) {
                         });
                     }
 
-                    return {title: t, amt: a, startDate: s, due: d, room: r, isOpen: isOpen, roomAmounts: roomAmounts}; 
+                    return {title: t, amt: a, startDate: s, due: d, room: r, isOpen: isOpen, autoOpen: autoOpen, roomAmounts: roomAmounts}; 
                 } 
             }).then(res => { 
                 if(res.isConfirmed) { 
@@ -10062,7 +10292,8 @@ function printReceipt(roundId, studentId) {
                         startDate: res.value.startDate, 
                         dueDate: res.value.due, 
                         targetRoom: res.value.room, 
-                        isOpen: res.value.isOpen 
+                        isOpen: res.value.isOpen,
+                        autoOpen: res.value.autoOpen === true
                     }; 
                     fundRounds.push(newRound); 
                     
@@ -10075,7 +10306,7 @@ function printReceipt(roundId, studentId) {
                             let expectedAmt = (newRound.roomAmounts && newRound.roomAmounts[s.room] !== undefined) ? Number(newRound.roomAmounts[s.room]) : newRound.amt;
 
                             // 🌟 ระบบหักเงินฝากมาจ่ายบิลใหม่อัตโนมัติ (ทำงานต่อเมื่อเปิดบิลรับเงินแล้ว)
-                            if (newRound.isOpen && s.dep && s.dep > 0) {
+                            if (isFundRoundOpenNow_(newRound) && s.dep && s.dep > 0) {
                                 let payFromDep = Math.min(s.dep, expectedAmt);
                                 s.dep -= payFromDep;
                                 newPayment.paidAmt = payFromDep;
@@ -10122,14 +10353,15 @@ function printReceipt(roundId, studentId) {
             <div><label class="block text-left text-xs font-bold text-slate-700 mb-1">สิ้นสุด:</label><input type="date" id="e-f-due" class="modern-input mb-0" value="${round.dueDate || ''}"></div>
         </div>
         <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
-            <span class="text-sm font-bold text-slate-700">สถานะเปิดรับชำระ</span>
-            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in"><input type="checkbox" id="e-f-status" ${round.isOpen !== false ? 'checked' : ''} class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="e-f-status" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div>
-        </div>`; 
+            <span class="text-sm font-bold text-slate-700">อนุญาตให้เปิดรับชำระตามกำหนด</span>
+            <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in"><input type="checkbox" id="e-f-status" ${(round.autoOpen === true || (round.autoOpen === undefined && round.isOpen !== false)) ? 'checked' : ''} class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="e-f-status" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div>
+        </div><p class="text-[11px] text-slate-500 text-left mt-1">เมื่อถึงวันที่เริ่ม ระบบจะแสดงบิลและเปิดรับชำระเอง วันที่ Due ใช้เป็นกำหนดชำระ ไม่ได้ปิดบิลอัตโนมัติ</p>`; 
     Swal.fire({ title: 'แก้ไขรอบบิล', html: htmlForm, confirmButtonText: 'บันทึก', confirmButtonColor: '#059669', showCancelButton: true, preConfirm: () => { 
-        return {title: document.getElementById('e-f-t').value, amt: parseFloat(document.getElementById('e-f-a').value), startDate: document.getElementById('e-f-start').value, dueDate: document.getElementById('e-f-due').value, isOpen: document.getElementById('e-f-status').checked}; 
+        const autoOpen = document.getElementById('e-f-status').checked;
+        return {title: document.getElementById('e-f-t').value, amt: parseFloat(document.getElementById('e-f-a').value), startDate: document.getElementById('e-f-start').value, dueDate: document.getElementById('e-f-due').value, isOpen: autoOpen, autoOpen: autoOpen}; 
     } }).then(res => { 
         if(res.isConfirmed) { 
-            round.title = res.value.title; round.amt = res.value.amt; round.startDate = res.value.startDate; round.dueDate = res.value.dueDate; round.isOpen = res.value.isOpen; 
+            round.title = res.value.title; round.amt = res.value.amt; round.startDate = res.value.startDate; round.dueDate = res.value.dueDate; round.isOpen = res.value.isOpen; round.autoOpen = res.value.autoOpen; 
             saveToLocal(); refreshAll(); 
         } 
     }); 
@@ -10140,60 +10372,55 @@ function printReceipt(roundId, studentId) {
         }
         // ฟังก์ชันอัปเดตสีและข้อความของปุ่มตามสถานะปัจจุบัน
 function updateQuickToggleBtn() {
-    let selectEl = document.getElementById('fund-round-select');
-    let btnToggle = document.getElementById('btn-toggle-round');
-    if(!selectEl || !btnToggle) return;
-    
-    const roundId = parseInt(selectEl.value);
-    if(isNaN(roundId)) {
-        btnToggle.classList.add('hidden');
-        return;
-    }
-    
-    const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
-    if(!isAdmin) {
-        btnToggle.classList.add('hidden');
-        return;
-    }
-
-    let round = fundRounds.find(r => r.id === roundId);
-    if(round) {
-        btnToggle.classList.remove('hidden');
-        if(round.isOpen !== false) {
-            // กรณีเปิดอยู่
-            btnToggle.className = 'px-3 rounded-lg text-sm font-bold shadow-sm transition bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-200';
-            btnToggle.innerHTML = '<i class="fas fa-toggle-on text-emerald-600"></i> เปิดรับเงิน';
-        } else {
-            // กรณีปิดแล้ว
-            btnToggle.className = 'px-3 rounded-lg text-sm font-bold shadow-sm transition bg-rose-100 text-rose-700 border border-rose-300 hover:bg-rose-200';
-            btnToggle.innerHTML = '<i class="fas fa-toggle-off text-rose-600"></i> ปิดรอบบิล';
-        }
+    const selectEl = document.getElementById('fund-round-select');
+    const btnToggle = document.getElementById('btn-toggle-round');
+    if (!selectEl || !btnToggle) return;
+    const roundId = String(selectEl.value || '');
+    if (!roundId) { btnToggle.classList.add('hidden'); return; }
+    const isAdmin = ['leader','vice','treasurer'].includes(currentUserRole);
+    if (!isAdmin) { btnToggle.classList.add('hidden'); return; }
+    const round = fundRounds.find(r => String(r.id) === roundId);
+    if (!round) { btnToggle.classList.add('hidden'); return; }
+    btnToggle.classList.remove('hidden');
+    const isOpenNow = isFundRoundOpenNow_(round);
+    const scheduleEnabled = round.autoOpen === true || (round.autoOpen === undefined && !!round.startDate && round.isOpen !== false);
+    const waiting = scheduleEnabled && !!normalizeFundRoundDateKeyV15422_(round.startDate) && !isOpenNow;
+    if (isOpenNow) {
+        btnToggle.className = 'px-3 rounded-lg text-sm font-bold shadow-sm transition bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-200';
+        btnToggle.innerHTML = '<i class="fas fa-toggle-on text-emerald-600"></i> เปิดรับเงิน';
+        btnToggle.title = 'กดเพื่อปิดรอบบิลด้วยตนเอง';
+    } else if (waiting) {
+        btnToggle.className = 'px-3 rounded-lg text-sm font-bold shadow-sm transition bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200';
+        btnToggle.innerHTML = '<i class="fas fa-clock text-amber-600"></i> รอวันเปิด';
+        btnToggle.title = 'รอถึงวันที่เริ่มที่ตั้งไว้ กดเพื่อยกเลิกการเปิดอัตโนมัติ';
+    } else {
+        btnToggle.className = 'px-3 rounded-lg text-sm font-bold shadow-sm transition bg-rose-100 text-rose-700 border border-rose-300 hover:bg-rose-200';
+        btnToggle.innerHTML = '<i class="fas fa-toggle-off text-rose-600"></i> ปิดรอบบิล';
+        btnToggle.title = 'กดเพื่อเปิดตามกำหนดวันที่เริ่ม';
     }
 }
 
-// ฟังก์ชันสลับสถานะเมื่อกดปุ่ม
 function toggleQuickRoundStatus() {
-    let selectEl = document.getElementById('fund-round-select');
-    if(!selectEl) return;
-    
-    const roundId = parseInt(selectEl.value);
-    if(isNaN(roundId)) return;
-    
-    let round = fundRounds.find(r => r.id === roundId);
-    if(round) {
-        // สลับค่า true / false
-        round.isOpen = (round.isOpen === false) ? true : false;
-        
-        // บันทึกและอัปเดต UI
-        saveToLocal(true); 
-        updateQuickToggleBtn();
-        
-        let statusTxt = round.isOpen ? 'เปิดรับชำระเงินรอบนี้แล้ว' : 'ปิดรับชำระรอบนี้แล้ว';
-        Swal.fire({
-            toast: true, position: 'top-end', icon: round.isOpen ? 'success' : 'warning', 
-            title: statusTxt, showConfirmButton: false, timer: 1500
-        });
+    const selectEl = document.getElementById('fund-round-select');
+    if (!selectEl) return;
+    const round = fundRounds.find(r => String(r.id) === String(selectEl.value || ''));
+    if (!round) return;
+    const scheduleEnabled = round.autoOpen === true || (round.autoOpen === undefined && !!round.startDate && round.isOpen !== false);
+    const waiting = scheduleEnabled && !!normalizeFundRoundDateKeyV15422_(round.startDate) && !isFundRoundOpenNow_(round);
+    if (isFundRoundOpenNow_(round) || waiting) {
+        // Explicitly close/cancel the scheduled opening. It must not silently reopen later.
+        round.isOpen = false;
+        round.autoOpen = false;
+    } else {
+        // Re-arm the schedule. If the start date is already reached, it opens immediately.
+        round.isOpen = true;
+        round.autoOpen = true;
     }
+    saveToLocal(true);
+    updateQuickToggleBtn();
+    renderFundTable();
+    const label = getFundRoundScheduleLabel_(round);
+    Swal.fire({ toast:true, position:'top-end', icon:isFundRoundOpenNow_(round) ? 'success' : 'info', title:label, showConfirmButton:false, timer:1800 });
 }
 
 // =========================================================================
@@ -10397,7 +10624,7 @@ async function viewSlipPopup(url) {
         if (p.studentId === studentId && p.roundId != roundId && 
            (p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ' || p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ')) {
             let r = fundRounds.find(rd => rd.id === p.roundId);
-            if (r && r.isOpen !== false) {
+            if (r && isFundRoundOpenNow_(r)) {
                 let remain = r.amt - (p.paidAmt || 0);
                 if (remain > 0) {
                     otherUnpaidRounds.push({ payment: p, round: r, remain: remain });
@@ -11295,7 +11522,8 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
                     return `<span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2">${rm} <span class="text-xs bg-white px-2 py-0.5 rounded text-emerald-600 border border-emerald-200">${displayTxt}</span> <button onclick="editRoom('${rm}')" class="text-blue-500 hover:text-blue-700" aria-label="แก้ไขรายการ"><i class="fas fa-edit"></i></button><button onclick="deleteRoom('${rm}')" class="text-rose-500 hover:text-rose-700" aria-label="ปิดหน้าต่าง"><i class="fas fa-times"></i></button></span>`;
                 }).join('');
             }
-            if(elFund) { if(fundRounds.length === 0) { elFund.innerHTML = '<option value="">ไม่มีรายการเรียกเก็บ</option>'; } else { let fdHtml = ''; fundRounds.forEach(r => { let dParts = r.dueDate ? r.dueDate.split('-') : ['0000','00','00']; let y = dParts[0], m = dParts[1], d = dParts[2]; let displayDate = (y !== '0000') ? `บิลวันที่: ${d}/${m}/${parseInt(y)+543}` : 'ไม่มีกำหนด'; fdHtml += `<option value="${r.id}">${r.title} (${displayDate})</option>`; }); elFund.innerHTML = fdHtml; } }
+            if(elFund) { if(fundRounds.length === 0) { elFund.innerHTML = '<option value="">ไม่มีรายการเรียกเก็บ</option>'; } else { let fdHtml = ''; fundRounds.forEach(r => { let dParts = r.dueDate ? r.dueDate.split('-') : ['0000','00','00']; let y = dParts[0], m = dParts[1], d = dParts[2]; let displayDate = (y !== '0000') ? `บิลวันที่: ${d}/${m}/${parseInt(y)+543}` : 'ไม่มีกำหนด'; const roundState = getFundRoundScheduleLabel_(r);
+                    fdHtml += `<option value="${r.id}">${r.title} (${displayDate} • ${roundState})</option>`; }); elFund.innerHTML = fdHtml; } }
             
             const isFinAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer');
             let btnEditRound = document.getElementById('btn-edit-round'); if(btnEditRound) btnEditRound.classList.toggle('hidden', !isFinAdmin || fundRounds.length===0); 
@@ -11388,7 +11616,7 @@ function updateRoomDropdowns() {
                 if((p.status === 'ยังไม่ชำระ' || p.status === 'ค้างชำระ') && p.studentId === stu.id) { 
                     let round = fundRounds.find(r => r.id === p.roundId); 
                     // 🌟 ดักเงื่อนไข: ตรวจสอบเฉพาะบิลที่ isOpen ไม่เป็น false
-                    if(round && round.isOpen !== false && today > round.dueDate) { 
+                    if(round && isFundRoundOpenNow_(round) && today > round.dueDate) { 
                         let dP = round.dueDate.split('-'); 
                         let dStr = (dP[0] !== '0000') ? `${dP[2]}/${dP[1]}/${parseInt(dP[0])+543}` : '-'; 
                         overdueItems.push(`<li><b>${round.title}</b> (บิลวันที่: ${dStr}) - ฿${round.amt.toFixed(2)}</li>`); 
@@ -11469,13 +11697,13 @@ window.openRegistrationModal = function(title) {
         footerHtml = `<button type="button" onclick="promptStudentLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition flex items-center justify-center gap-2"><i class="fas fa-sign-in-alt"></i> กรุณาเข้าสู่ระบบนักศึกษาก่อนทำการลงทะเบียน</button>`;
     } else if (existingLog) {
         footerHtml = `
-            <div class="bg-emerald-50 text-emerald-700 font-bold py-3.5 rounded-xl mb-3 flex flex-col sm:flex-row items-center justify-center gap-2 border border-emerald-200 shadow-sm text-center">
-                <div class="flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-check text-lg text-emerald-600"></i>
-                    <span>คุณลงทะเบียนผ่านเว็บไซต์แล้ว</span>
+            <div class="reg-success-banner mb-3" role="status" aria-live="polite">
+                <span class="reg-success-icon"><i class="fa-solid fa-check"></i></span>
+                <div class="reg-success-copy">
+                    <span class="reg-success-title">ลงทะเบียนผ่านเว็บแล้ว</span>
+                    <span class="reg-success-note">ยังไม่กำหนดรอบเช็กอิน<br>ใช้รอบเมื่อต้องสแกนเข้าร่วมกิจกรรม</span>
                 </div>
-                <span class="text-xs font-medium text-emerald-700">ยังไม่ได้จัดรอบเช็กอิน (รอบจะใช้ตอนสแกนเข้าร่วมกิจกรรม)</span>
-                <span class="bg-emerald-100/90 text-emerald-800 px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold border border-emerald-300">รหัสลงทะเบียนเว็บ: ${existingLog.regId || ('REG-' + String(existingLog.studentId).slice(-4))}</span>
+                <span class="reg-success-code">รหัสลงทะเบียนเว็บ<br>${existingLog.regId || ('REG-' + String(existingLog.studentId).slice(-4))}</span>
             </div>
             <button type="button" onclick="promptCancelReg('${act.title}')" class="w-full bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
                 <i class="fa-solid fa-user-xmark"></i> ยกเลิกการลงทะเบียนผ่านเว็บ
@@ -11588,7 +11816,7 @@ window.openRegistrationModal = function(title) {
         html: htmlForm,
         width: 'min(760px, 95vw)',
         showConfirmButton: false,
-        customClass: { popup: 'rounded-3xl p-0 overflow-hidden border border-slate-200 shadow-2xl' }
+        customClass: { popup: 'sssfn-registration-popup rounded-3xl p-0 overflow-hidden border border-slate-200 shadow-2xl' }
     });
 };
 
@@ -12212,7 +12440,7 @@ function createPodiumPlace(stu, rank, heightClass, colorClass, textColor, title,
 // =========================================================================
 function openBulkSlipModal() {
     let rOpts = '';
-    fundRounds.filter(r => r.isOpen !== false).forEach(r => {
+    fundRounds.filter(r => isFundRoundOpenNow_(r)).forEach(r => {
         rOpts += `<option value="${r.id}">${r.title}</option>`;
     });
 
@@ -12420,7 +12648,7 @@ function resolveUnmatchedSlips(unmatchedList, roundId) {
 // =========================================================================
 function openDriveSyncModal() {
     let rOpts = '';
-    fundRounds.filter(r => r.isOpen !== false).forEach(r => { rOpts += `<option value="${r.id}">${r.title}</option>`; });
+    fundRounds.filter(r => isFundRoundOpenNow_(r)).forEach(r => { rOpts += `<option value="${r.id}">${r.title}</option>`; });
     if (!rOpts) return Swal.fire('ไม่พบรอบบิล', 'ต้องมีรอบบิลที่เปิดรับชำระก่อนนะครับ', 'warning');
 
     Swal.fire({
