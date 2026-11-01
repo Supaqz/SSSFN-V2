@@ -251,14 +251,30 @@
         }
     }
 
+    @keyframes sssfnLoadingSpin { to { transform: rotate(360deg); } }
+    #sssfn-app-loading { transition: opacity .18s ease; }
+    #sssfn-app-loading.hidden { display: none !important; }
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
 </head>
-<!-- SSSFN v15.4.23: faster authenticated load, deduplicated render, race-safe login -->
+<!-- SSSFN v15.4.25: login loading screen, LINE status, closed-round payment history, accounting modal -->
 <!-- SSSFN v15.4.22: scheduled bill opening, student safe page projection, activity wording, read-only student roster -->
 <!-- SSSFN Google Login Fix v15.4.16: backend token-expiry validation corrected -->
 <body class="flex h-screen overflow-hidden text-slate-800">
+    <!-- v15.4.25: visible startup/login loading screen while the authorized data snapshot is fetched. -->
+    <div id="sssfn-app-loading" class="fixed inset-0 z-[20000] flex items-center justify-center bg-white/95 backdrop-blur-sm" role="status" aria-live="polite">
+        <div class="w-full max-w-xs mx-5 rounded-3xl border border-emerald-100 bg-white p-7 shadow-xl text-center">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 shadow-inner">
+                <i class="fas fa-graduation-cap text-3xl"></i>
+            </div>
+            <div class="mx-auto mb-4 h-9 w-9 rounded-full border-4 border-emerald-100 border-t-emerald-600" style="animation:sssfnLoadingSpin .85s linear infinite"></div>
+            <h2 class="text-base font-extrabold text-slate-800">กำลังโหลดข้อมูล SSSFN</h2>
+            <p id="sssfn-app-loading-message" class="mt-2 text-xs leading-relaxed text-slate-500">กำลังตรวจสอบบัญชีและดึงข้อมูลล่าสุดจากระบบ...</p>
+            <p class="mt-4 text-[10px] font-bold tracking-widest text-emerald-600">STUDENT SERVICE SYSTEM</p>
+        </div>
+    </div>
+
 
     <div class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200/80 z-40 flex items-center px-4 shadow-xs gap-4">
         <button onclick="toggleSidebar()" class="text-slate-700 text-2xl p-1"><i class="fas fa-bars"></i></button>
@@ -1404,15 +1420,6 @@
 <!-- ================= หน้าจัดการรายชื่อและคะแนนนักศึกษา (Admin) ================= -->
 <div id="page-admin-students" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-6xl mx-auto bg-slate-50/50 min-h-screen">
     
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-200/60 pb-4 gap-4">
-        <h2 class="text-xl md:text-2xl font-extrabold text-slate-800 tracking-tight flex items-center">
-            <div class="w-12 h-12 bg-white rounded-2xl shadow-md border border-indigo-100 flex items-center justify-center mr-3 md:mr-4 transform rotate-3">
-                <i class="fas fa-user-graduate text-indigo-500 text-2xl"></i>
-            </div>
-            จัดการรายชื่อ & คะแนนสะสม
-        </h2>
-    </div>
-
     <!-- 🌟 แถบค้นหา & แผงควบคุมแจกแต้มยกห้อง -->
     <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6 flex flex-col xl:flex-row gap-4 items-center justify-between">
         
@@ -1523,9 +1530,12 @@
                 <!-- Main Section: Form & Table Grid -->
                 <div id="expense-main-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                     <!-- Form บันทึกบัญชี (Admin Panel) -->
+                    <!-- v15.4.25: accounting form is now a centered modal; history stays visible behind it. -->
+                    <div id="expense-entry-modal" class="fixed inset-0 z-[10060] hidden items-center justify-center bg-slate-950/55 backdrop-blur-sm p-3 sm:p-6" role="presentation" onclick="if(event.target===this) closeExpenseEntryForm()">
+                        <div class="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="expense-entry-modal-title">
                     <div id="expense-admin-panel" class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm h-max hidden lg:col-span-3">
                         <div class="flex items-center justify-between mb-4 border-b pb-3 gap-3">
-                            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <h3 id="expense-entry-modal-title" class="font-bold text-slate-800 text-base flex items-center gap-2">
                                 <i class="fas fa-pen-nib text-emerald-600"></i> บันทึกบัญชี
                             </h3>
                             <div class="flex items-center gap-2">
@@ -1606,6 +1616,10 @@
                         <button onclick="saveExpense()" class="w-full bg-emerald-600 text-white font-bold p-3 rounded-xl shadow hover:bg-emerald-700 transition mt-4 flex items-center justify-center gap-2 cursor-pointer">
                             <i class="fas fa-save"></i> บันทึกบัญชี
                         </button>
+                    </div>
+
+
+                        </div>
                     </div>
 
                     <!-- Expense Table Container -->
@@ -2901,10 +2915,36 @@ function scheduleRealtimePullRetry_(reason) {
     }, baseDelay + jitter);
 }
 
+function setSssfnPageLoadingV15425_(visible, message) {
+    const overlay = document.getElementById('sssfn-app-loading');
+    const label = document.getElementById('sssfn-app-loading-message');
+    if (label && message) label.textContent = String(message);
+    if (!overlay) return;
+    overlay.classList.toggle('hidden', !visible);
+    overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+}
+
 async function silentPullFromGS(showStatus = false, force = false) {
     if (isSyncing || remotePullInProgress) {
-        if (force) pendingRemotePull = true;
+        if (force) {
+            setSssfnPageLoadingV15425_(true, 'กำลังรอคำขอเดิมเสร็จ แล้วโหลดข้อมูลตามบัญชีที่เข้าสู่ระบบ...');
+            const waitStarted = Date.now();
+            while ((isSyncing || remotePullInProgress) && Date.now() - waitStarted < 45000) {
+                await new Promise(resolve => setTimeout(resolve, 120));
+            }
+            if (isSyncing || remotePullInProgress) {
+                setSssfnPageLoadingV15425_(false);
+                return { status:'busy', message:'ระบบยังประมวลผลคำขอก่อนหน้าไม่เสร็จ กรุณาลองโหลดใหม่อีกครั้ง' };
+            }
+            return silentPullFromGS(showStatus, true);
+        }
         return { status: 'busy', message: 'มีการอ่าน/เขียนข้อมูลอยู่แล้ว' };
+    }
+    const shouldShowPageLoader = !!force || !window.__sssfnInitialDataLoadCompleteV15425;
+    if (shouldShowPageLoader) {
+        setSssfnPageLoadingV15425_(true, window.currentAuthToken || window.currentStudentAuthToken
+            ? 'เข้าสู่ระบบแล้ว กำลังโหลดข้อมูลตามสิทธิ์ของบัญชี...' 
+            : 'กำลังดึงข้อมูลล่าสุดจากระบบ...');
     }
     const now = Date.now();
     if (!force && lastSuccessfulCanonicalPullAtV13 && now - lastSuccessfulCanonicalPullAtV13 < CANONICAL_PULL_MIN_INTERVAL_MS_V14) {
@@ -2991,6 +3031,10 @@ async function silentPullFromGS(showStatus = false, force = false) {
         return { status: isExpectedBusy ? 'busy' : 'error', message: errorMessage };
     } finally {
         remotePullInProgress = false;
+        if (shouldShowPageLoader) {
+            window.__sssfnInitialDataLoadCompleteV15425 = true;
+            setSssfnPageLoadingV15425_(false);
+        }
         setTimeout(() => applyPendingStagedRealtimeEvents_(), 0);
         if (pendingRemotePull) {
             pendingRemotePull = false;
@@ -3789,31 +3833,35 @@ function switchPage(pageId) {
             switchPage('home'); 
         }
         
-        // v15.4.24: accounting form is a separate step, not an always-visible panel.
+        // v15.4.25: open the accounting form in a modal without hiding the ledger/history page.
         let expenseEntryFormOpen = false;
         function syncExpenseEntryView_() {
-            const role = currentUserRole;
-            const canEnter = ['leader','vice','treasurer'].includes(role);
+            const canEnter = ['leader','vice','treasurer'].includes(currentUserRole);
+            if (!canEnter) expenseEntryFormOpen = false;
             const launcher = document.getElementById('expense-entry-launcher');
+            const modal = document.getElementById('expense-entry-modal');
             const panel = document.getElementById('expense-admin-panel');
             const table = document.getElementById('expense-table-container');
             const summary = document.getElementById('expense-summary-cards');
-            if (launcher) launcher.classList.toggle('hidden', !canEnter || expenseEntryFormOpen);
+            if (launcher) launcher.classList.toggle('hidden', !canEnter);
+            if (modal) {
+                modal.classList.toggle('hidden', !canEnter || !expenseEntryFormOpen);
+                modal.classList.toggle('flex', canEnter && expenseEntryFormOpen);
+            }
             if (panel) panel.classList.toggle('hidden', !canEnter || !expenseEntryFormOpen);
-            if (table) table.classList.toggle('hidden', canEnter && expenseEntryFormOpen);
-            if (summary) summary.classList.toggle('hidden', canEnter && expenseEntryFormOpen);
+            // Keep the transaction history and summary visible on the page behind the modal.
+            if (table) table.classList.remove('hidden');
+            if (summary) summary.classList.remove('hidden');
         }
         function openExpenseEntryForm() {
             if (!['leader','vice','treasurer'].includes(currentUserRole)) {
                 return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้า รอง หรือเหรัญญิกเท่านั้นที่บันทึกบัญชีได้', 'warning');
             }
+            if (typeof initExpenseUI === 'function') initExpenseUI();
             expenseEntryFormOpen = true;
             syncExpenseEntryView_();
-            if (typeof initExpenseUI === 'function') initExpenseUI();
             setTimeout(() => {
-                const panel = document.getElementById('expense-admin-panel');
                 const name = document.getElementById('exp-name');
-                if (panel) panel.scrollIntoView({ behavior:'smooth', block:'start' });
                 if (name) name.focus({ preventScroll:true });
             }, 80);
         }
@@ -3822,6 +3870,9 @@ function switchPage(pageId) {
             syncExpenseEntryView_();
             if (typeof renderExpenseTable === 'function') renderExpenseTable();
         }
+        window.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && expenseEntryFormOpen) closeExpenseEntryForm();
+        });
 
         function applyRoleUI(skipFullRender = false) { 
     const role = currentUserRole; // leader, vice, treasurer, guest
@@ -3926,19 +3977,26 @@ function decodeJwtResponse(token) {
 // requesting the authenticated snapshot. Never treat a guest/public response as the
 // authenticated user's completed login load.
 async function waitForCanonicalPullAfterLoginV15423_(timeoutMs = 60000) {
+    // Show the loading page immediately after authentication, including while the anonymous startup pull finishes.
+    setSssfnPageLoadingV15425_(true, 'เข้าสู่ระบบแล้ว กำลังเตรียมข้อมูลและโหลดข้อมูลตามสิทธิ์ของบัญชี...');
     const startedAt = Date.now();
-    while (isSyncing || remotePullInProgress) {
-        if (Date.now() - startedAt > timeoutMs) {
-            return { status: 'busy', message: 'การโหลดข้อมูลเดิมยังไม่เสร็จ กรุณากดโหลดข้อมูลอีกครั้ง' };
+    try {
+        while (isSyncing || remotePullInProgress) {
+            if (Date.now() - startedAt > timeoutMs) {
+                return { status: 'busy', message: 'การโหลดข้อมูลเดิมยังไม่เสร็จ กรุณากดโหลดข้อมูลอีกครั้ง' };
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
-        await new Promise(resolve => setTimeout(resolve, 100));
+        return await silentPullFromGS(false, true);
+    } finally {
+        setSssfnPageLoadingV15425_(false);
     }
-    return await silentPullFromGS(false, true);
 }
 
 async function handleGoogleCredentialResponse(response) {
     const credential = String(response && response.credential || '');
     if (!credential) return Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูลจาก Google', text: 'กรุณาลองเข้าสู่ระบบอีกครั้ง' });
+    setSssfnPageLoadingV15425_(true, 'กำลังตรวจสอบบัญชี Google...');
 
     // ให้หลังบ้านตรวจ Google ID Token และตัดสินว่าเป็นเจ้าหน้าที่หรือนักศึกษาจากฐานข้อมูลจริง
     try {
@@ -3965,6 +4023,7 @@ async function handleGoogleCredentialResponse(response) {
     try {
         const studentResult = await callBackend({ action: 'loginGoogleStudent', credential: credential });
         if (studentResult && studentResult.status === 'needs_link' && studentResult.email) {
+            setSssfnPageLoadingV15425_(false);
             await promptLinkAccount(studentResult.email, credential);
             return;
         }
@@ -3993,6 +4052,7 @@ async function handleGoogleCredentialResponse(response) {
             });
         }
     } catch (error) {
+        setSssfnPageLoadingV15425_(false);
         console.error('Google student login failed:', error);
         Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: String(error.message || error) + ' กรุณาติดต่อผู้ดูแลเพื่อผูกอีเมลกับรหัสนักศึกษาก่อน' });
     }
@@ -4693,11 +4753,11 @@ function renderHomeDirectory() {
        // ประมวลผลบิล (แยกบิลค้างจ่าย กับ บิลที่ส่งแล้ว)
        fundPayments.filter(p => p.studentId === s.id).forEach(p => {
            let r = fundRounds.find(rd => rd.id === p.roundId);
-           if (r && isFundRoundOpenNow_(r)) {
+           if (r) {
                let remain = r.amt - (p.paidAmt || 0); 
                
                // กรณีที่ 1: ยังไม่ชำระ หรือ ค้างชำระ (มียอดหนี้เหลือ) -> แจ้งเตือนด่วน
-               if ((p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ') && remain > 0) {
+               if (isFundRoundOpenNow_(r) && (p.status === 'ยังไม่ชำระ' || p.status.includes('ค้างชำระ') || p.status === 'ตีกลับ') && remain > 0) {
                    totalDebt += remain;
                    let statusText = p.status === 'ตีกลับ' ? 'สลิปถูกตีกลับ (โปรดส่งใหม่)' : (p.paidAmt > 0 ? 'ค้างชำระ (ผ่อน)' : 'ค้างชำระ');
                    alerts.push(`
@@ -9940,12 +10000,10 @@ function printReceipt(roundId, studentId) {
             }
 
             // ควบคุมการขยายเต็มจอของตาราง
-            const expAdminPanel = document.getElementById('expense-admin-panel');
             const expTableContainer = document.getElementById('expense-table-container');
-            if (expAdminPanel && expTableContainer) {
-                const isHidden = expAdminPanel.classList.contains('hidden');
-                expTableContainer.classList.toggle('lg:col-span-3', isHidden);
-                expTableContainer.classList.toggle('lg:col-span-2', !isHidden);
+            if (expTableContainer) {
+                expTableContainer.classList.add('lg:col-span-3');
+                expTableContainer.classList.remove('lg:col-span-2');
             }
 
             // แสดงรายการในตาราง
@@ -11771,7 +11829,6 @@ window.openRegistrationModal = function(title) {
                 <span class="reg-success-icon"><i class="fa-solid fa-check"></i></span>
                 <div class="reg-success-copy">
                     <span class="reg-success-title">ลงทะเบียนผ่านเว็บแล้ว</span>
-                    <span class="reg-success-note">ยังไม่กำหนดรอบเช็กอิน<br>ใช้รอบเมื่อต้องสแกนเข้าร่วมกิจกรรม</span>
                 </div>
                 <span class="reg-success-code">รหัสลงทะเบียนเว็บ<br>${existingLog.regId || ('REG-' + String(existingLog.studentId).slice(-4))}</span>
             </div>
@@ -11788,24 +11845,6 @@ window.openRegistrationModal = function(title) {
         footerHtml = `<button type="button" onclick="promptConfirmReg('${act.title}')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 text-sm">
             <i class="fa-solid fa-pen-to-square"></i> ลงทะเบียนเข้าร่วมกิจกรรมนี้
         </button>`;
-    }
-
-    let openRounds = (act.rounds || []).filter(r => r.isOpen !== false);
-    let roundsSectionHtml = '';
-    if (openRounds.length > 0) {
-        roundsSectionHtml = `
-            <div class="mt-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center gap-1.5"><i class="fa-solid fa-clock text-blue-600"></i> รอบสำหรับสแกนเช็กอินหน้างาน (ไม่ใช่การจองรอบผ่านเว็บ)</h4>
-                <div class="space-y-1.5">
-                    ${openRounds.map(r => `
-                        <div class="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
-                            <span class="font-bold text-slate-800">${r.thName || r.name || r.id}</span>
-                            <span class="text-slate-400 text-[11px]">${r.note || '-'}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
     }
 
     let htmlForm = `
@@ -11851,7 +11890,6 @@ window.openRegistrationModal = function(title) {
                      </div>
                  </div>
 
-                 ${roundsSectionHtml}
              </div>
 
              <div class="w-full lg:w-72 bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 self-start text-xs">
