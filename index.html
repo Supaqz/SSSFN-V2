@@ -259,6 +259,7 @@
     
 </head>
 <!-- SSSFN v15.4.29: student realtime projection refresh for filtered private changes -->
+<!-- SSSFN v15.4.30: serialized student slip uploads, request idempotency, and unique Drive filenames -->
 <!-- SSSFN v15.4.28: student-only score history page and sidebar naming -->
 <!-- SSSFN v15.4.27: payment-confirmation points and auditable score cancellation -->
 <!-- SSSFN v15.4.25: login loading screen, LINE status, closed-round payment history, accounting modal -->
@@ -3584,6 +3585,10 @@ function copyToClipboard(text) {
 // 🌟 ฟังก์ชันเปิดหน้าต่างแนบสลิปโอนเงิน (เพิ่มระบบยิงแจ้งเตือน LINE)
 // =========================================================================
 function openPublicSlipModal(targetRoundId = null) {
+    if (window.__sssfnSlipUploadInProgressV15430) {
+        Swal.fire({ toast:true, position:'top', icon:'info', title:'กำลังบันทึกสลิปก่อนหน้า', text:'กรุณารอให้รายการเดิมสำเร็จก่อนส่งสลิปใบถัดไป', showConfirmButton:false, timer:2400 });
+        return;
+    }
     window.currentQrPayload = "";
     let formHtml = `
     <div class="text-left space-y-2">
@@ -3684,98 +3689,126 @@ function openPublicSlipModal(targetRoundId = null) {
             let expectedAmount = parseFloat(selectOpt.options[selectOpt.selectedIndex].dataset.remain);
             let cleanRoundTitle = selectOpt.options[selectOpt.selectedIndex].text.split(' (')[0];
 
-            return { 
-                studentId: stu.id, 
-                studentName: stu.name, 
-                roundId: roundId, 
-                file: fileInput.files[0], 
-                qrPayload: window.currentQrPayload, 
-                room: stu.room, 
-                expectedAmount: expectedAmount, 
+            if (window.__sssfnSlipUploadInProgressV15430) {
+                return Swal.showValidationMessage('มีรายการส่งสลิปกำลังบันทึกอยู่ กรุณารอสักครู่');
+            }
+            window.__sssfnSlipUploadInProgressV15430 = true;
+            const requestId = 'slip-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+            return {
+                studentId: stu.id,
+                studentName: stu.name,
+                roundId: roundId,
+                file: fileInput.files[0],
+                qrPayload: window.currentQrPayload,
+                room: stu.room,
+                expectedAmount: expectedAmount,
                 roundTitle: cleanRoundTitle,
+                requestId: requestId,
                 isLumpSum: isLumpSum // ส่งค่าเหมาจ่ายไปให้ระบบด้านล่างประมวลผลต่อ
             }; 
         }
-    }).then(async res => { 
-        if (res.isConfirmed) { 
-            Swal.fire({ title: 'กำลังให้ AI ตรวจสลิป...', html: 'ห้ามปิดหน้าเว็บนะครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); 
-            let reader = new FileReader(); 
-            reader.onload = function(e) { 
-                let img = new Image(); 
-                img.onload = async function() { 
-                    // 🌟 ปรับเพิ่มความละเอียดภาพเพื่อให้ระบบ OCR อ่านชื่อออก
-                    let canvas = document.createElement('canvas'); 
-                    let MAX_WIDTH = 1200; // เพิ่มขนาดจาก 400 เป็น 1200
-                    let scaleSize = MAX_WIDTH / img.width; 
-                    let w = img.width; let h = img.height; 
-                    if (scaleSize < 1) { w *= scaleSize; h *= scaleSize; } 
-                    canvas.width = w; canvas.height = h; 
-                    
-                    let ctx = canvas.getContext('2d'); 
-                    ctx.drawImage(img, 0, 0, w, h); 
-                    
-                    // 🌟 ปรับคุณภาพ JPEG เป็น 0.8 และคงนามสกุลไฟล์เดิมไว้
-                    let compressedBase64 = canvas.toDataURL('image/jpeg', 0.8); 
-                    
-                    let result = await callBackend({
-                        action: 'uploadSlip',
-                        studentId: res.value.studentId,
-                        roundId: res.value.roundId,
-                        base64Data: compressedBase64,
-                        fileName: res.value.file.name,
-                        qrPayload: res.value.qrPayload,
-                        room: res.value.room,
-                        studentName: res.value.studentName,
-                        expectedAmount: res.value.expectedAmount,
-                        userRole: currentUserRole,
-                        isLumpSum: res.value.isLumpSum // 🌟 เพิ่มค่าเหมาจ่ายเข้าไปใน Payload
-                    });
-                    //... โค้ดส่วนที่เหลือเหมือนเดิม
+    }).then(async res => {
+        if (!res.isConfirmed) {
+            // The guard is set only after all preConfirm validation succeeds.
+            window.__sssfnSlipUploadInProgressV15430 = false;
+            return;
+        }
+        try {
+            Swal.fire({
+                title: 'กำลังบันทึกสลิป...',
+                html: 'ระบบกำลังอัปโหลดและตรวจสอบหลักฐาน กรุณาอย่าปิดหน้าเว็บหรือส่งบิลเดิมซ้ำ',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
 
-                    if (result.status === 'success') { 
-                        // ยิงแจ้งเตือนเข้า LINE/Facebook ทันที
-                        let notiRoundTitle = res.value.isLumpSum ? "เหมาจ่ายหลายรายการ" : res.value.roundTitle;
-                        callBackend({
-                            action: 'notifySlipSubmit',
-                            studentName: res.value.studentName,
-                            studentId: res.value.studentId,
-                            roundTitle: notiRoundTitle
-                        });
+            const compressedBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('อ่านไฟล์สลิปไม่สำเร็จ กรุณาเลือกไฟล์ใหม่'));
+                reader.onload = event => {
+                    const img = new Image();
+                    img.onerror = () => reject(new Error('เปิดภาพสลิปไม่สำเร็จ กรุณาเลือกไฟล์ภาพใหม่'));
+                    img.onload = () => {
+                        try {
+                            const canvas = document.createElement('canvas');
+                            const maxWidth = 1200;
+                            const scaleSize = maxWidth / img.width;
+                            let width = img.width;
+                            let height = img.height;
+                            if (scaleSize < 1) { width *= scaleSize; height *= scaleSize; }
+                            canvas.width = Math.max(1, Math.round(width));
+                            canvas.height = Math.max(1, Math.round(height));
+                            const ctx = canvas.getContext('2d');
+                            if (!ctx) throw new Error('ไม่สามารถเตรียมภาพสลิปได้');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        } catch (imageError) { reject(imageError); }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(res.value.file);
+            });
 
-                        // Notify other open clients only after the backend has saved the slip row.
-                        if (typeof notifyFirebaseUpdate === "function") {
-                            try { await notifyFirebaseUpdate(); }
-                            catch (signalError) { console.error("Firebase signal error:", signalError); }
-                        }
-                        // 🌟 ดึงข้อมูลล่าสุดจาก Google Sheets กลับมาโชว์ทันที
-                        await silentPullFromGS();
-                        
-                        // อัปเดตตัวเลขแจ้งเตือนให้แอดมิน
-                        if(typeof updateSidebarBadges === 'function') {
-                            updateSidebarBadges();
-                        }
-                        let pendingBadge = document.querySelector('#nav-fin-fund .pending-badge');
-                        if(pendingBadge) {
-                            let currentCount = parseInt(pendingBadge.innerText) || 0;
-                            pendingBadge.innerText = currentCount + 1;
-                            pendingBadge.style.display = 'flex';
-                        }
-                        
-                        // แสดงกล่องแจ้งเตือน
-                        if(result.isMatch === false && result.detectedAmount !== -1) { 
-                            Swal.fire('ส่งสำเร็จ แต่เดี๋ยวก่อน!', `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`, 'warning');
-                        } else { 
-                            Swal.fire('ส่งสลิปสำเร็จ!', result.ocrMsg || 'ระบบบันทึกหลักฐานเรียบร้อย รอเหรัญญิกตรวจสอบครับ', 'success');
-                        }
+            const result = await callBackend({
+                action: 'uploadSlip',
+                requestId: res.value.requestId,
+                studentId: res.value.studentId,
+                roundId: res.value.roundId,
+                base64Data: compressedBase64,
+                fileName: res.value.file.name,
+                qrPayload: res.value.qrPayload,
+                room: res.value.room,
+                studentName: res.value.studentName,
+                expectedAmount: res.value.expectedAmount,
+                userRole: currentUserRole,
+                isLumpSum: res.value.isLumpSum
+            });
 
-                    } else { 
-                        Swal.fire('ผิดพลาด', result.message || 'ไม่สามารถอัปโหลดสลิปได้', 'error');
-                    } 
-                }; 
-                img.src = e.target.result; 
-            }; 
-            reader.readAsDataURL(res.value.file); 
-        } 
+            if (!result || result.status !== 'success') {
+                Swal.fire('ส่งสลิปไม่สำเร็จ', (result && result.message) || 'ระบบยังบันทึกสลิปไม่สำเร็จ กรุณาลองใหม่', 'error');
+                return;
+            }
+
+            // Use the committed backend result as the success condition; then fan out notifications.
+            const notiRoundTitle = res.value.isLumpSum ? 'เหมาจ่ายหลายรายการ' : res.value.roundTitle;
+            callBackend({
+                action: 'notifySlipSubmit',
+                studentName: res.value.studentName,
+                studentId: res.value.studentId,
+                roundTitle: notiRoundTitle
+            }).catch(notificationError => console.warn('Slip notification skipped:', notificationError));
+
+            if (typeof notifyFirebaseUpdate === 'function') {
+                try { await notifyFirebaseUpdate(); }
+                catch (signalError) { console.error('Firebase signal error:', signalError); }
+            }
+            try { await silentPullFromGS(false, false); }
+            catch (refreshError) { console.warn('Student data refresh after slip upload skipped:', refreshError); }
+
+            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            const pendingBadge = document.querySelector('#nav-fin-fund .pending-badge');
+            if (pendingBadge) {
+                const currentCount = parseInt(pendingBadge.innerText) || 0;
+                pendingBadge.innerText = currentCount + 1;
+                pendingBadge.style.display = 'flex';
+            }
+
+            if (result.isMatch === false && result.detectedAmount !== -1) {
+                Swal.fire(
+                    'ส่งสำเร็จ แต่เดี๋ยวก่อน!',
+                    `<p class="font-bold text-rose-600 mt-2 text-lg">⚠️ ระวังยอดโอนไม่ตรง!</p>ระบบ AI ตรวจพบยอดในสลิป: <span class="font-bold">฿${result.detectedAmount}</span><br>ยอดที่ระบบระบุ: <span class="font-bold">฿${res.value.expectedAmount}</span>`,
+                    'warning'
+                );
+            } else {
+                Swal.fire('ส่งสลิปสำเร็จ!', result.ocrMsg || 'ระบบบันทึกหลักฐานเรียบร้อย รอเหรัญญิกตรวจสอบครับ', 'success');
+            }
+        } catch (uploadError) {
+            console.error('Slip upload flow failed:', uploadError);
+            Swal.fire('ส่งสลิปไม่สำเร็จ', String(uploadError && uploadError.message || uploadError || 'เกิดข้อผิดพลาดระหว่างส่งสลิป'), 'error');
+        } finally {
+            window.__sssfnSlipUploadInProgressV15430 = false;
+        }
     });
 }
         document.addEventListener('DOMContentLoaded', () => {
