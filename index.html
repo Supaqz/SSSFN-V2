@@ -4,7 +4,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริการนักศึกษา SSSFN v15.4.29</title>
+    <title>ระบบบริการนักศึกษา SSSFN v15.4.31</title>
     <link rel="icon" type="image/png" href="logo-2.png">
     <link rel="apple-touch-icon" href="logo-2.png">
 
@@ -260,6 +260,8 @@
 </head>
 <!-- SSSFN v15.4.29: student realtime projection refresh for filtered private changes -->
 <!-- SSSFN v15.4.30: serialized student slip uploads, request idempotency, and unique Drive filenames -->
+<!-- SSSFN v15.4.31: receipt date uses latest student slip submission time for transfer payments -->
+<!-- SSSFN v15.4.30: prevent concurrent slip submission overwrite -->
 <!-- SSSFN v15.4.28: student-only score history page and sidebar naming -->
 <!-- SSSFN v15.4.27: payment-confirmation points and auditable score cancellation -->
 <!-- SSSFN v15.4.25: login loading screen, LINE status, closed-round payment history, accounting modal -->
@@ -9502,52 +9504,63 @@ window.approveActivity = function(title) {
 // 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (ดึงเวลาและชื่อแอดมินจากฐานข้อมูล)
 // =========================================================================
 function printReceipt(roundId, studentId) {
-    let stu = students.find(s => s.id == studentId);
-    let round = fundRounds.find(r => r.id == roundId);
-    let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
-    
-    let paid = payment.paidAmt || 0;
-    
-    // ดึงเวลาและชื่อคนอนุมัติ
-    let displayDate = "-";
-    let approverName = "-";
-    let historyRef = "";
-    
-    if (payment.paidDate && String(payment.paidDate).trim() !== '') {
-        // 🌟 แก้ไข: ใช้ฟังก์ชัน formatDisplayDate เพื่อแปลงวันที่ให้สวยงาม
-        displayDate = formatDisplayDate(payment.paidDate); 
-        approverName = payment.paidBy || "ระบบ";
-        historyRef = String(payment.paidDate).replace(/\D/g, '').substring(0, 8);
-    } else {
-        let matchLog = txHistory.find(tx => tx.name.includes(stu.name) && tx.name.includes(round.title) && (tx.name.includes('รับเงิน') || tx.name.includes('แอดมินแก้ไขสถานะ')));
-        if (matchLog) {
-            // 🌟 แก้ไข: ใช้ฟังก์ชัน formatDisplayDate ครอบไว้ด้วยเช่นกัน
-            displayDate = formatDisplayDate(matchLog.date); 
-            approverName = matchLog.user || "ระบบ";
-            payment.paidDate = matchLog.date; 
-            payment.paidBy = matchLog.user;
-            historyRef = String(matchLog.date).replace(/\D/g, '').substring(0, 8);
-        } else {
-            displayDate = getNow() + " (เวลาเปิดดู)";
-            approverName = "ระบบอัตโนมัติ";
-            historyRef = Math.floor(10000000 + Math.random() * 90000000);
+    const stu = students.find(s => String(s.id) === String(studentId));
+    const round = fundRounds.find(r => String(r.id) === String(roundId));
+    const payment = fundPayments.find(p => String(p.roundId) === String(roundId) && String(p.studentId) === String(studentId));
+    if (!stu || !round || !payment) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลใบเสร็จ', text: 'กรุณาดึงข้อมูลล่าสุดแล้วลองอีกครั้ง' });
+        return;
+    }
+
+    const paid = Number(payment.paidAmt) || 0;
+    const channel = String(payment.paymentChannel || payment.method || '').trim().toLowerCase();
+    const status = String(payment.status || '');
+    const isCash = status.includes('เงินสด') || channel === 'cash' || channel.includes('เงินสด');
+    const isDeposit = channel === 'deposit' || channel === 'ฝาก';
+    const hasSlipEvidence = !!String(payment.slipUrl || payment.slipFileId || payment.fileId || '').trim();
+    const slipSubmittedAt = payment.lastSlipSubmittedAt || payment.slipSubmittedAt || payment.submittedAt || payment.firstSlipSubmittedAt || '';
+    const isSlipTransfer = !isCash && !isDeposit && (channel === 'transfer' || hasSlipEvidence || !!slipSubmittedAt);
+
+    // ใบเสร็จการโอนใช้เวลาที่นักศึกษาส่งสลิปล่าสุด; เงินสด/ยอดฝากใช้เวลารับเงินจริง
+    const dateCandidates = isSlipTransfer
+        ? [slipSubmittedAt, payment.paidDate, payment.paymentReceivedAt]
+        : [payment.paidDate, payment.paymentReceivedAt, payment.receivedAt, slipSubmittedAt];
+    let receiptDateRaw = dateCandidates.find(value => value != null && String(value).trim() !== '') || '';
+    let approverName = String(payment.paidBy || payment.approvedBy || 'ระบบ');
+
+    // ข้อมูลเก่าบางรายการไม่มีวันเวลาอยู่ในแถวชำระเงิน ให้ย้อนดูประวัติเดิมแทนเวลาเปิดใบเสร็จ
+    if (!receiptDateRaw) {
+        const stuName = String(stu.name || '');
+        const roundTitle = String(round.title || '');
+        const matchLog = (txHistory || []).find(tx => {
+            const logName = String(tx && tx.name || '');
+            return logName.includes(stuName) && logName.includes(roundTitle) &&
+                (logName.includes('รับเงิน') || logName.includes('แอดมินแก้ไขสถานะ') || logName.includes('ตัดหนี้ค้าง'));
+        });
+        if (matchLog && matchLog.date) {
+            receiptDateRaw = matchLog.date;
+            approverName = String(payment.paidBy || matchLog.user || 'ระบบ');
         }
     }
-    
-    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    const displayDate = receiptDateRaw ? formatDisplayDate(receiptDateRaw) : '-';
+    const dateDigits = String(receiptDateRaw || '').replace(/\D/g, '');
+    const stableRef = String(payment.receiptRef || payment.slipRequestId || '').replace(/[^A-Za-z0-9]/g, '').slice(-12);
+    const historyRef = dateDigits.length >= 8 ? dateDigits.substring(0, 8) : (stableRef || 'NO-DATE');
+
+    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
     document.getElementById('receiptStuId').innerText = stu.id;
     document.getElementById('receiptName').innerText = stu.name;
     document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
     document.getElementById('receiptRound').innerText = round.title;
-    
-    document.getElementById('receiptDate').innerText = displayDate; 
+    document.getElementById('receiptDate').innerText = displayDate;
     document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${historyRef}`;
-    
-    // 🌟 อัปเดตชื่อผู้อนุมัติลงใน HTML ของใบเสร็จ
-    let approverElement = document.getElementById('receiptApprover');
+
+    const approverElement = document.getElementById('receiptApprover');
     if (approverElement) {
-        approverElement.innerHTML = `<i class="fas fa-user-check"></i> อนุมัติโดย: ${approverName}`;
+        approverElement.innerHTML = '<i class="fas fa-user-check"></i> อนุมัติโดย: ';
+        approverElement.appendChild(document.createTextNode(approverName));
     }
 
     document.getElementById('receiptModal').classList.remove('hidden');
@@ -13264,50 +13277,63 @@ function ArabicNumberToText(Number) {
 // 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (ดึงเวลาและชื่อแอดมินจากฐานข้อมูล)
 // =========================================================================
 function printReceipt(roundId, studentId) {
-    let stu = students.find(s => s.id == studentId);
-    let round = fundRounds.find(r => r.id == roundId);
-    let payment = fundPayments.find(p => p.roundId == roundId && p.studentId == studentId);
-    
-    let paid = payment.paidAmt || 0;
-    
-    // ดึงเวลาและชื่อคนอนุมัติ
-    let displayDate = "-";
-    let approverName = "-";
-    let historyRef = "";
-    
-    if (payment.paidDate && payment.paidDate.trim() !== '') {
-        displayDate = payment.paidDate;
-        approverName = payment.paidBy || "ระบบ";
-        historyRef = payment.paidDate.replace(/\D/g, '').substring(0, 8);
-    } else {
-        let matchLog = txHistory.find(tx => tx.name.includes(stu.name) && tx.name.includes(round.title) && (tx.name.includes('รับเงิน') || tx.name.includes('แอดมินแก้ไขสถานะ')));
-        if (matchLog) {
-            displayDate = matchLog.date;
-            approverName = matchLog.user || "ระบบ";
-            payment.paidDate = matchLog.date; 
-            payment.paidBy = matchLog.user;
-            historyRef = matchLog.date.replace(/\D/g, '').substring(0, 8);
-        } else {
-            displayDate = getNow() + " (เวลาเปิดดู)";
-            approverName = "ระบบอัตโนมัติ";
-            historyRef = Math.floor(10000000 + Math.random() * 90000000);
+    const stu = students.find(s => String(s.id) === String(studentId));
+    const round = fundRounds.find(r => String(r.id) === String(roundId));
+    const payment = fundPayments.find(p => String(p.roundId) === String(roundId) && String(p.studentId) === String(studentId));
+    if (!stu || !round || !payment) {
+        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลใบเสร็จ', text: 'กรุณาดึงข้อมูลล่าสุดแล้วลองอีกครั้ง' });
+        return;
+    }
+
+    const paid = Number(payment.paidAmt) || 0;
+    const channel = String(payment.paymentChannel || payment.method || '').trim().toLowerCase();
+    const status = String(payment.status || '');
+    const isCash = status.includes('เงินสด') || channel === 'cash' || channel.includes('เงินสด');
+    const isDeposit = channel === 'deposit' || channel === 'ฝาก';
+    const hasSlipEvidence = !!String(payment.slipUrl || payment.slipFileId || payment.fileId || '').trim();
+    const slipSubmittedAt = payment.lastSlipSubmittedAt || payment.slipSubmittedAt || payment.submittedAt || payment.firstSlipSubmittedAt || '';
+    const isSlipTransfer = !isCash && !isDeposit && (channel === 'transfer' || hasSlipEvidence || !!slipSubmittedAt);
+
+    // ใบเสร็จการโอนใช้เวลาที่นักศึกษาส่งสลิปล่าสุด; เงินสด/ยอดฝากใช้เวลารับเงินจริง
+    const dateCandidates = isSlipTransfer
+        ? [slipSubmittedAt, payment.paidDate, payment.paymentReceivedAt]
+        : [payment.paidDate, payment.paymentReceivedAt, payment.receivedAt, slipSubmittedAt];
+    let receiptDateRaw = dateCandidates.find(value => value != null && String(value).trim() !== '') || '';
+    let approverName = String(payment.paidBy || payment.approvedBy || 'ระบบ');
+
+    // ข้อมูลเก่าบางรายการไม่มีวันเวลาอยู่ในแถวชำระเงิน ให้ย้อนดูประวัติเดิมแทนเวลาเปิดใบเสร็จ
+    if (!receiptDateRaw) {
+        const stuName = String(stu.name || '');
+        const roundTitle = String(round.title || '');
+        const matchLog = (txHistory || []).find(tx => {
+            const logName = String(tx && tx.name || '');
+            return logName.includes(stuName) && logName.includes(roundTitle) &&
+                (logName.includes('รับเงิน') || logName.includes('แอดมินแก้ไขสถานะ') || logName.includes('ตัดหนี้ค้าง'));
+        });
+        if (matchLog && matchLog.date) {
+            receiptDateRaw = matchLog.date;
+            approverName = String(payment.paidBy || matchLog.user || 'ระบบ');
         }
     }
-    
-    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    const displayDate = receiptDateRaw ? formatDisplayDate(receiptDateRaw) : '-';
+    const dateDigits = String(receiptDateRaw || '').replace(/\D/g, '');
+    const stableRef = String(payment.receiptRef || payment.slipRequestId || '').replace(/[^A-Za-z0-9]/g, '').slice(-12);
+    const historyRef = dateDigits.length >= 8 ? dateDigits.substring(0, 8) : (stableRef || 'NO-DATE');
+
+    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
     document.getElementById('receiptStuId').innerText = stu.id;
     document.getElementById('receiptName').innerText = stu.name;
     document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
     document.getElementById('receiptRound').innerText = round.title;
-    
-    document.getElementById('receiptDate').innerText = displayDate; 
+    document.getElementById('receiptDate').innerText = displayDate;
     document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${historyRef}`;
-    
-    // 🌟 อัปเดตชื่อผู้อนุมัติลงใน HTML ของใบเสร็จ
-    let approverElement = document.getElementById('receiptApprover');
+
+    const approverElement = document.getElementById('receiptApprover');
     if (approverElement) {
-        approverElement.innerHTML = `<i class="fas fa-user-check"></i> อนุมัติโดย: ${approverName}`;
+        approverElement.innerHTML = '<i class="fas fa-user-check"></i> อนุมัติโดย: ';
+        approverElement.appendChild(document.createTextNode(approverName));
     }
 
     document.getElementById('receiptModal').classList.remove('hidden');
