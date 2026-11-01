@@ -255,6 +255,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
 </head>
+<!-- SSSFN v15.4.23: faster authenticated load, deduplicated render, race-safe login -->
 <!-- SSSFN v15.4.22: scheduled bill opening, student safe page projection, activity wording, read-only student roster -->
 <!-- SSSFN Google Login Fix v15.4.16: backend token-expiry validation corrected -->
 <body class="flex h-screen overflow-hidden text-slate-800">
@@ -1463,7 +1464,7 @@
 </div>
            <div id="page-fin-expense" class="page-view hidden max-w-6xl mx-auto space-y-6">
                 <!-- Top Summary Financial Cards -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div id="expense-summary-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <!-- Card 1: บัญชีส่วนกลาง (Central Fund) -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center transition hover:shadow-md">
                         <div>
@@ -1506,15 +1507,31 @@
                     </div>
                 </div>
 
+                <!-- v15.4.24: first show a button; open the accounting form only when requested -->
+                <div id="expense-entry-launcher" class="hidden bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 md:p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-bold text-slate-800"><i class="fas fa-book-open text-emerald-600 mr-2"></i>บันทึกบัญชี</h3>
+                            <p class="text-xs text-slate-500 mt-1">เพิ่มรายการรายรับหรือรายจ่าย แล้วเลือกแหล่งเงินและวิธีจัดสรร</p>
+                        </div>
+                        <button type="button" onclick="openExpenseEntryForm()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+                            <i class="fas fa-plus-circle"></i> เริ่มบันทึกบัญชี
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Main Section: Form & Table Grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div id="expense-main-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                     <!-- Form บันทึกบัญชี (Admin Panel) -->
-                    <div id="expense-admin-panel" class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm h-max hidden lg:col-span-1">
-                        <div class="flex items-center justify-between mb-4 border-b pb-3">
+                    <div id="expense-admin-panel" class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm h-max hidden lg:col-span-3">
+                        <div class="flex items-center justify-between mb-4 border-b pb-3 gap-3">
                             <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                                 <i class="fas fa-pen-nib text-emerald-600"></i> บันทึกบัญชี
                             </h3>
-                            <span class="text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-bold">บันทึก & จัดสรร</span>
+                            <div class="flex items-center gap-2">
+                                <span class="hidden sm:inline text-[11px] text-slate-400 bg-slate-100 px-2 py-1 rounded-full font-bold">บันทึก & จัดสรร</span>
+                                <button type="button" onclick="closeExpenseEntryForm()" class="text-slate-500 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-3 py-2 rounded-lg text-xs font-bold transition"><i class="fas fa-arrow-left mr-1"></i> กลับ</button>
+                            </div>
                         </div>
 
                         <div class="space-y-3">
@@ -1703,8 +1720,8 @@
             <div id="page-leaderboard" class="page-view hidden max-w-4xl mx-auto">
                 <div class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-8 text-center shadow-lg mb-8 relative overflow-hidden">
                     <i class="fas fa-crown absolute -right-4 -top-4 text-9xl text-white opacity-20"></i>
-                    <h2 class="text-3xl md:text-4xl font-bold text-white mb-2 relative z-10"><i class="fas fa-trophy text-yellow-200 mr-2"></i> ทำเนียบคนเก่ง SSSFN</h2>
-                    <p class="text-amber-100 text-sm relative z-10">สะสมแต้มแบบอัตโนมัติจากการเข้าร่วมกิจกรรมและวินัยการเช็คชื่อ!</p>
+                    <h2 class="text-3xl md:text-4xl font-bold text-[#4b250b] mb-2 relative z-10"><i class="fas fa-trophy text-yellow-100 mr-2 drop-shadow-sm"></i> ทำเนียบคนเก่ง SSSFN</h2>
+                    <p class="text-[#713f12] text-sm font-semibold relative z-10">สะสมแต้มแบบอัตโนมัติจากการเข้าร่วมกิจกรรมและวินัยการเช็คชื่อ!</p>
                 </div>
                 
                 <div id="leaderboard-podium" class="flex justify-center items-end gap-2 md:gap-6 mb-12 mt-8 h-48">
@@ -3046,10 +3063,15 @@ function applyLoadedData(d, serverBaselineOverride) {
     timeLogs = Array.isArray(d.timeLogs) ? d.timeLogs : timeLogs;
 
     saveToLocal(false);
-    refreshAll();
-    if (typeof refreshVisiblePageDataV15422_ === 'function' && currentView) {
-        refreshVisiblePageDataV15422_(currentView);
+    if (typeof updateSidebarBadges === 'function') {
+        try { updateSidebarBadges(); } catch (badgeError) { console.warn('Sidebar badge refresh skipped:', badgeError); }
     }
+    if (typeof refreshVisiblePageDataV15422_ === 'function') {
+        refreshVisiblePageDataV15422_(currentView || 'home');
+    } else {
+        refreshAll();
+    }
+    window.__sssfnLastCanonicalRenderAtV15423 = Date.now();
 
     // Refresh any open activity-administration panel after canonical data is applied.
     const adminMasterCard = document.getElementById('admin-activity-master-card');
@@ -3658,6 +3680,7 @@ function refreshVisiblePageDataV15422_(pageId) {
 
 function switchPage(pageId) {
     currentView = pageId;
+    if (pageId === 'fin-expense' && typeof closeExpenseEntryForm === 'function') closeExpenseEntryForm();
     // v15.4.3: students enter the registration page on the public activity list.
     // The "managed" tab is only for activities explicitly assigned to them as staff.
     if (pageId === 'activity' && currentUserRole === 'guest' && typeof switchActSubTab === 'function') {
@@ -3730,8 +3753,8 @@ function switchPage(pageId) {
                             window.currentAuthToken = res.token;
                             localStorage.setItem('sssfn_session', JSON.stringify({ user: res.user, role: res.role, token: res.token }));
                             Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', showConfirmButton: false, timer: 1200 });
-                            applyRoleUI();
-                            await silentPullFromGS(false, true);
+                            applyRoleUI(true);
+                            await waitForCanonicalPullAfterLoginV15423_();
                             startBackgroundSyncWorker();
                             switchPage(res.role === 'treasurer' ? 'fin-fund' : 'admin-db');
                             // Retry only the retained diff after a newly signed backend token is issued.
@@ -3766,7 +3789,41 @@ function switchPage(pageId) {
             switchPage('home'); 
         }
         
-        function applyRoleUI() { 
+        // v15.4.24: accounting form is a separate step, not an always-visible panel.
+        let expenseEntryFormOpen = false;
+        function syncExpenseEntryView_() {
+            const role = currentUserRole;
+            const canEnter = ['leader','vice','treasurer'].includes(role);
+            const launcher = document.getElementById('expense-entry-launcher');
+            const panel = document.getElementById('expense-admin-panel');
+            const table = document.getElementById('expense-table-container');
+            const summary = document.getElementById('expense-summary-cards');
+            if (launcher) launcher.classList.toggle('hidden', !canEnter || expenseEntryFormOpen);
+            if (panel) panel.classList.toggle('hidden', !canEnter || !expenseEntryFormOpen);
+            if (table) table.classList.toggle('hidden', canEnter && expenseEntryFormOpen);
+            if (summary) summary.classList.toggle('hidden', canEnter && expenseEntryFormOpen);
+        }
+        function openExpenseEntryForm() {
+            if (!['leader','vice','treasurer'].includes(currentUserRole)) {
+                return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้า รอง หรือเหรัญญิกเท่านั้นที่บันทึกบัญชีได้', 'warning');
+            }
+            expenseEntryFormOpen = true;
+            syncExpenseEntryView_();
+            if (typeof initExpenseUI === 'function') initExpenseUI();
+            setTimeout(() => {
+                const panel = document.getElementById('expense-admin-panel');
+                const name = document.getElementById('exp-name');
+                if (panel) panel.scrollIntoView({ behavior:'smooth', block:'start' });
+                if (name) name.focus({ preventScroll:true });
+            }, 80);
+        }
+        function closeExpenseEntryForm() {
+            expenseEntryFormOpen = false;
+            syncExpenseEntryView_();
+            if (typeof renderExpenseTable === 'function') renderExpenseTable();
+        }
+
+        function applyRoleUI(skipFullRender = false) { 
     const role = currentUserRole; // leader, vice, treasurer, guest
     const isGuest = (role === 'guest');
     
@@ -3781,9 +3838,8 @@ function switchPage(pageId) {
     // 🌟 1. กำหนดกลุ่มสิทธิ์บริหารการเงิน (หัวหน้า, รอง, เหรัญญิก)
     const isFullAdmin = (role === 'leader' || role === 'vice' || role === 'treasurer');
 
-    // 🌟 2. แสดง Panel บันทึกบัญชี (Expense Admin Panel) เฉพาะ 3 ตำแหน่งนี้
-    const expAdminPanel = document.getElementById('expense-admin-panel'); 
-    if(expAdminPanel) expAdminPanel.classList.toggle('hidden', !isFullAdmin);
+    // v15.4.24: show the launcher to finance admins; reveal the actual form only after click.
+    syncExpenseEntryView_();
     
     // ตั้งค่ารายปุ่มในเมนู Admin
     let navFin = document.getElementById('nav-fin-fund');
@@ -3803,7 +3859,7 @@ function switchPage(pageId) {
         if(navUsers) navUsers.classList.add('hidden');
     }
     
-    refreshAll(); 
+    if (!skipFullRender) refreshAll(); 
 }
 function linkLineAccount() {
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
@@ -3866,6 +3922,20 @@ function decodeJwtResponse(token) {
     return JSON.parse(jsonPayload);
 }
 
+// v15.4.23: wait for the anonymous startup pull or previous save to finish before
+// requesting the authenticated snapshot. Never treat a guest/public response as the
+// authenticated user's completed login load.
+async function waitForCanonicalPullAfterLoginV15423_(timeoutMs = 60000) {
+    const startedAt = Date.now();
+    while (isSyncing || remotePullInProgress) {
+        if (Date.now() - startedAt > timeoutMs) {
+            return { status: 'busy', message: 'การโหลดข้อมูลเดิมยังไม่เสร็จ กรุณากดโหลดข้อมูลอีกครั้ง' };
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return await silentPullFromGS(false, true);
+}
+
 async function handleGoogleCredentialResponse(response) {
     const credential = String(response && response.credential || '');
     if (!credential) return Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูลจาก Google', text: 'กรุณาลองเข้าสู่ระบบอีกครั้ง' });
@@ -3883,8 +3953,8 @@ async function handleGoogleCredentialResponse(response) {
             localStorage.removeItem('sssfn_guest_id');
             localStorage.setItem('sssfn_session', JSON.stringify({ user: adminResult.user, role: adminResult.role, token: adminResult.token, email: adminResult.email || '' }));
             Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับ ${adminResult.email || adminResult.user}`, showConfirmButton: false, timer: 1300 });
-            applyRoleUI();
-            await silentPullFromGS(false, true);
+            applyRoleUI(true);
+            await waitForCanonicalPullAfterLoginV15423_();
             switchPage(adminResult.role === 'treasurer' ? 'fin-fund' : 'admin-db');
             return;
         }
@@ -3909,9 +3979,8 @@ async function handleGoogleCredentialResponse(response) {
         currentUsername = '';
         localStorage.removeItem('sssfn_session');
         localStorage.setItem('sssfn_guest_id', studentResult.studentId);
-        const studentLoadResult = await silentPullFromGS(false, true);
-        applyRoleUI();
-        refreshAll();
+        const studentLoadResult = await waitForCanonicalPullAfterLoginV15423_();
+        applyRoleUI(true);
         switchPage('home');
         if (studentLoadResult && studentLoadResult.status === 'success') {
             Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1400 });
@@ -3963,8 +4032,8 @@ async function executeEmailLinking(studentId, email, googleCredential, pdpaConse
     localStorage.setItem('sssfn_guest_id', result.studentId);
     currentUserRole = 'guest'; currentUsername = '';
     localStorage.removeItem('sssfn_session');
-    const linkedStudentLoad = await silentPullFromGS(false, true);
-    applyRoleUI(); refreshAll(); switchPage('home');
+    const linkedStudentLoad = await waitForCanonicalPullAfterLoginV15423_();
+    applyRoleUI(true); switchPage('home');
     if (linkedStudentLoad && linkedStudentLoad.status === 'success') {
         Swal.fire({ icon:'success', title:'ผูกบัญชีสำเร็จ', text:'ยืนยันตัวตนด้วย Google แล้ว สามารถดูข้อมูล ลงทะเบียน สแกน และส่งสลิปได้', timer:1800, showConfirmButton:false });
     } else {
@@ -9590,6 +9659,7 @@ function printReceipt(roundId, studentId) {
             saveToLocal(false);
             autoSyncToGS();
             refreshAll();
+            closeExpenseEntryForm();
 
             Swal.fire({
                 title: 'บันทึกสำเร็จ',
@@ -13109,7 +13179,7 @@ function renderLeaderboard() {
     let sorted = [...students].filter(s => (s.points || 0) > 0).sort((a, b) => b.points - a.points).slice(0, 10);
     
     if(sorted.length === 0) {
-        podium.innerHTML = '<p class="text-white w-full text-center">ยังไม่มีข้อมูลคะแนนในระบบ</p>';
+        podium.innerHTML = '<p class="text-slate-600 w-full text-center font-semibold">ยังไม่มีข้อมูลคะแนนในระบบ</p>';
         list.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-slate-400">ยังไม่มีผู้ติดอันดับ</td></tr>';
         return;
     }
@@ -13128,8 +13198,8 @@ function renderLeaderboard() {
             <div class="flex flex-col items-center justify-end w-1/3 max-w-[100px]">
                 <div class="text-center mb-2 z-10">
                     <div class="w-12 h-12 md:w-16 md:h-16 rounded-full border-4 ${borders[idx]} bg-white mx-auto flex items-center justify-center font-bold text-slate-700 shadow-md">${getInitials(stu.name)}</div>
-                    <p class="text-white font-bold text-xs mt-1 truncate w-20 md:w-24 drop-shadow-md">${stu.name.split(' ')[0]}</p>
-                    <p class="text-yellow-200 text-xs font-bold drop-shadow-md">${stu.points} ✨</p>
+                    <p class="text-slate-800 font-extrabold text-xs mt-1 truncate w-20 md:w-24 drop-shadow-sm">${stu.name.split(' ')[0]}</p>
+                    <p class="text-amber-800 text-xs font-extrabold drop-shadow-sm">${stu.points} ✨</p>
                 </div>
                 <div class="w-full ${colors[idx]} ${heights[idx]} rounded-t-xl border-x border-t ${borders[idx]} shadow-inner flex items-start justify-center pt-2 relative overflow-hidden">
                     <div class="absolute inset-0 bg-white opacity-20"></div>
