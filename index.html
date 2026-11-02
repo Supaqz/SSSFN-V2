@@ -254,6 +254,108 @@
     @keyframes sssfnLoadingSpin { to { transform: rotate(360deg); } }
     #sssfn-app-loading { transition: opacity .18s ease; }
     #sssfn-app-loading.hidden { display: none !important; }
+
+
+    /* v15.4.34 UI refinement: student email-link request modal only */
+    .swal2-popup.sssfn-email-requests-popup {
+        width: min(600px, calc(100vw - 32px)) !important;
+        max-width: calc(100vw - 32px) !important;
+        box-sizing: border-box !important;
+        padding: 30px 28px 24px !important;
+        border-radius: 24px !important;
+        overflow: hidden !important;
+        text-align: center !important;
+    }
+    .swal2-popup.sssfn-email-requests-popup .swal2-title {
+        width: 100%;
+        margin: 0 auto 18px !important;
+        padding: 0 !important;
+        text-align: center !important;
+        font-size: 23px !important;
+        font-weight: 800 !important;
+        line-height: 1.5 !important;
+        color: #1e293b !important;
+    }
+    .swal2-popup.sssfn-email-requests-popup .swal2-html-container {
+        width: 100%;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        text-align: center !important;
+        color: #64748b !important;
+        font-size: 14px !important;
+        line-height: 1.7 !important;
+    }
+    .swal2-popup.sssfn-email-requests-popup .sssfn-email-empty-state {
+        min-height: 190px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        box-sizing: border-box;
+        padding: 18px 12px;
+        text-align: center;
+    }
+    .swal2-popup.sssfn-email-requests-popup .sssfn-email-empty-icon {
+        width: 64px;
+        height: 64px;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 64px;
+        margin: 0 auto !important;
+        border-radius: 50%;
+        background: #d1fae5;
+        color: #059669;
+        font-size: 27px;
+        box-shadow: 0 4px 12px rgba(5, 150, 105, .12);
+    }
+    .swal2-popup.sssfn-email-requests-popup .sssfn-email-empty-text {
+        color: #64748b;
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.7;
+        text-align: center;
+    }
+    .swal2-popup.sssfn-email-requests-popup .swal2-actions {
+        display: flex;
+        justify-content: center !important;
+        width: 100%;
+        margin: 20px auto 0 !important;
+        gap: 10px !important;
+    }
+    .swal2-popup.sssfn-email-requests-popup .swal2-cancel {
+        min-width: 100px;
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 11px 28px !important;
+        background: #64748b !important;
+        color: #fff !important;
+        font-family: 'Prompt', sans-serif !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        box-shadow: none !important;
+        transition: background .2s ease, transform .2s ease;
+    }
+    .swal2-popup.sssfn-email-requests-popup .swal2-cancel:hover {
+        background: #475569 !important;
+        transform: translateY(-1px);
+    }
+    @media (max-width: 600px) {
+        .swal2-popup.sssfn-email-requests-popup {
+            width: calc(100vw - 28px) !important;
+            max-width: calc(100vw - 28px) !important;
+            padding: 24px 16px 20px !important;
+        }
+        .swal2-popup.sssfn-email-requests-popup .swal2-title {
+            font-size: 20px !important;
+        }
+        .swal2-popup.sssfn-email-requests-popup .sssfn-email-empty-state {
+            min-height: 160px;
+        }
+    }
+
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     
@@ -323,6 +425,7 @@
                 <button onclick="switchPage('fin-fund')" id="nav-fin-fund" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-piggy-bank text-lg w-5 text-center"></i> จัดการการเงิน</button>
                 <!-- 🌟 เพิ่มเมนู รายชื่อ & คะแนนสะสม 🌟 -->
                 <button onclick="switchPage('admin-students'); renderAdminStudentList();" id="nav-admin-students" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-user-graduate text-lg w-5 text-center"></i> รายชื่อ & คะแนนสะสม</button>
+                <button onclick="openStudentEmailLinkRequestsV15433_()" id="nav-email-link-requests" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-envelope-circle-check text-lg w-5 text-center text-indigo-500"></i> คำขอผูกอีเมล <span id="student-email-link-request-count" class="ml-auto bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ตรวจสอบ</span></button>
                 <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
                 <button onclick="switchPage('admin-db')" id="nav-admin-db" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-database text-lg w-5 text-center"></i> ฐานข้อมูล นศ.</button>
                 <button onclick="switchPage('admin-users')" id="nav-admin-users" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-users-cog text-lg w-5 text-center"></i> สิทธิ์ผู้ใช้</button>
@@ -1455,13 +1558,6 @@
         </div>
     </div>
 
-    <div class="flex justify-end mb-4">
-        <button id="btn-student-email-link-requests" onclick="openStudentEmailLinkRequestsV15433_()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2">
-            <i class="fas fa-envelope-circle-check"></i> คำขอผูกอีเมล
-            <span id="student-email-link-request-count" class="bg-white/20 px-2 py-0.5 rounded-full">ตรวจสอบ</span>
-        </button>
-    </div>
-
     <!-- ตารางรายชื่อนักศึกษา -->
     <div class="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <div class="overflow-x-auto">
@@ -1522,6 +1618,17 @@
                         <button id="exp-card4-btn" onclick="showRoomBalancesBreakdownModal()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                             <i class="fas fa-table-list"></i> <span id="exp-card4-btn-text">ดูสรุปยอดเงินรายห้อง</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- v15.4.34: only the signed-in student's room-level deposit aggregate is exposed. -->
+                <div id="student-room-deposit-summary" class="hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-teal-50 px-4 py-3 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                            <p class="text-xs font-extrabold text-emerald-800"><i class="fas fa-users mr-1"></i> ยอดเงินฝากคงเหลือรวมของนักศึกษาในห้องเดียวกัน</p>
+                            <p id="student-room-deposit-summary-note" class="text-[11px] text-emerald-700 mt-1">แสดงเฉพาะยอดรวม ไม่แสดงยอดฝากรายบุคคล</p>
+                        </div>
+                        <p id="student-room-deposit-summary-value" class="text-2xl font-black font-mono text-emerald-700 tabular-nums">฿ 0.00</p>
                     </div>
                 </div>
 
@@ -4102,8 +4209,8 @@ function switchPage(pageId) {
     const canManageStudentPoints = (role === 'leader' || role === 'vice');
     const bulkPointControls = document.getElementById('admin-bulk-point-controls');
     if (bulkPointControls) bulkPointControls.classList.toggle('hidden', !canManageStudentPoints);
-    const emailLinkRequestButton = document.getElementById('btn-student-email-link-requests');
-    if (emailLinkRequestButton) emailLinkRequestButton.classList.toggle('hidden', !['leader','vice'].includes(role));
+    const emailLinkRequestMenu = document.getElementById('nav-email-link-requests');
+    if (emailLinkRequestMenu) emailLinkRequestMenu.classList.toggle('hidden', !['leader','vice'].includes(role));
 
     // v15.4.24: show the launcher to finance admins; reveal the actual form only after click.
     syncExpenseEntryView_();
@@ -4641,7 +4748,7 @@ function showRoomCashTransferBreakdownModal() {
 
     if (Array.isArray(fundPayments)) {
         fundPayments.forEach(p => {
-            if (p.paidAmt && parseFloat(p.paidAmt) > 0 && p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก') {
+            if (p.paidAmt && parseFloat(p.paidAmt) > 0 && !String(p.status || '').includes('ตีกลับ') && !String(p.status || '').includes('ยกเลิก')) {
                 const stu = (students || []).find(st => st.id === p.studentId);
                 if (stu && stu.room && roomStats[stu.room]) {
                     const pAmt = parseFloat(p.paidAmt);
@@ -10141,6 +10248,7 @@ function printReceipt(roundId, studentId) {
 
             rooms.forEach(r => {
                 roomBalances[r] = {
+                    depositBalance: 0,
                     collected: 0,
                     expenses: 0,
                     balance: 0,
@@ -10148,12 +10256,19 @@ function printReceipt(roundId, studentId) {
                 };
             });
 
-            // 1. รวมยอดเงินเก็บจากนักศึกษาเข้าแต่ละห้อง
+            // 1. รวมยอดเงินฝากคงเหลือจากช่อง dep ของนักศึกษาแยกตามห้อง
+            // นักศึกษาทั่วไปจะได้รับเพียง roomFinanceSummary ของห้องตนเองจากหลังบ้าน และไม่เห็นยอดรายบุคคลของเพื่อน
+            (students || []).forEach(st => {
+                const targetRoom = String(st && st.room || '').trim();
+                if (targetRoom && roomBalances[targetRoom]) roomBalances[targetRoom].depositBalance += Number(st.dep || 0) || 0;
+            });
+
+            // 2. รวมยอดชำระบิลที่บันทึกแล้ว (สำหรับนักศึกษาจะถูกแทนด้วยยอดรวมจากหลังบ้าน)
             let totalStudentsCollected = 0;
             if (Array.isArray(fundPayments)) {
                 fundPayments.forEach(p => {
-                    if (p.paidAmt && parseFloat(p.paidAmt) > 0 && p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก') {
-                        const pAmt = parseFloat(p.paidAmt);
+                    if (p.paidAmt && parseFloat(p.paidAmt) > 0 && !String(p.status || '').includes('ตีกลับ') && !String(p.status || '').includes('ยกเลิก')) {
+                        const pAmt = Math.max(0, (Number(p.paidAmt) || 0) - (Number(p.pointShopRewardUsed) || 0));
                         totalStudentsCollected += pAmt;
                         const stu = students.find(st => st.id === p.studentId);
                         if (stu && stu.room && roomBalances[stu.room]) {
@@ -10200,8 +10315,8 @@ function printReceipt(roundId, studentId) {
             let totalRoomsExpense = 0;
             let totalRoomsNet = 0;
             rooms.forEach(r => {
-                roomBalances[r].balance = roomBalances[r].collected - roomBalances[r].expenses;
-                totalRoomsIncome += roomBalances[r].collected;
+                roomBalances[r].balance = roomBalances[r].depositBalance + roomBalances[r].collected - roomBalances[r].expenses;
+                totalRoomsIncome += roomBalances[r].depositBalance + roomBalances[r].collected;
                 totalRoomsExpense += roomBalances[r].expenses;
                 totalRoomsNet += roomBalances[r].balance;
             });
@@ -10215,6 +10330,18 @@ function printReceipt(roundId, studentId) {
             let myId = window.currentGuestStuId || '';
             let currentStu = students.find(s => s.id === myId || (currentUsername && s.name === currentUsername));
             let myRoom = (currentStu && currentStu.room) ? currentStu.room : (window.currentStudentRoom || '');
+
+            // For student accounts, replace their partial local sums with one room-scoped summary
+            // calculated on the server. No other student's dep or payment rows are sent to the browser.
+            const roomFinanceSummary = currentStu && currentStu.roomFinanceSummary && String(currentStu.roomFinanceSummary.room || '') === String(myRoom || '')
+                ? currentStu.roomFinanceSummary : null;
+            if (isStudent && myRoom && roomBalances[myRoom] && roomFinanceSummary) {
+                roomBalances[myRoom].depositBalance = Number(roomFinanceSummary.depositBalanceTotal) || 0;
+                roomBalances[myRoom].collected = (Number(roomFinanceSummary.paidBillsTotal) || 0) + (Number(roomFinanceSummary.roomIncomeTotal) || 0);
+                roomBalances[myRoom].expenses = Number(roomFinanceSummary.roomExpenseTotal) || 0;
+                roomBalances[myRoom].balance = Number(roomFinanceSummary.balanceTotal) || 0;
+                roomBalances[myRoom].studentCount = Number(roomFinanceSummary.studentCount) || roomBalances[myRoom].studentCount;
+            }
 
             // อัปเดตการ์ดสรุปยอดเงินด้านบนตามสิทธิ์ของผู้ใช้งาน
             const balPoolEl = document.getElementById('bal-pool-fund');
@@ -10248,7 +10375,13 @@ function printReceipt(roundId, studentId) {
                     balRoomsEl.innerText = '฿ ' + myStat.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     balRoomsEl.className = 'text-2xl font-bold text-blue-700 font-mono';
                 }
-                if (card2Sub) card2Sub.innerText = myRoom ? `เงินสะสมคงเหลือห้อง ${myRoom}` : 'กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา';
+                if (card2Sub) card2Sub.innerText = myRoom ? `ยอดฝากรวม + ชำระบิลและรายรับ − รายจ่าย ของห้อง ${myRoom}` : 'กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา';
+                const roomDepositPanel = document.getElementById('student-room-deposit-summary');
+                const roomDepositValue = document.getElementById('student-room-deposit-summary-value');
+                const roomDepositNote = document.getElementById('student-room-deposit-summary-note');
+                if (roomDepositPanel) roomDepositPanel.classList.toggle('hidden', !myRoom || !roomFinanceSummary);
+                if (roomDepositValue && roomFinanceSummary) roomDepositValue.innerText = '฿ ' + (Number(roomFinanceSummary.depositBalanceTotal) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+                if (roomDepositNote && roomFinanceSummary) roomDepositNote.innerText = `ห้อง ${myRoom} • ${Number(roomFinanceSummary.studentCount) || 0} คน • แสดงยอดรวมเท่านั้น ไม่เปิดเผยยอดฝากรายบุคคล`;
                 if (card2IconBox) card2IconBox.className = 'w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 text-xl shadow-inner';
                 if (card2Icon) card2Icon.className = 'fas fa-chalkboard-user';
 
@@ -10265,13 +10398,15 @@ function printReceipt(roundId, studentId) {
                 if (card4Sub) card4Sub.innerText = myRoom ? `ตรวจสอบรายรับ-รายจ่ายเฉพาะห้อง ${myRoom}` : 'ตรวจสอบสถานะการเงินของห้องคุณ';
                 if (card4BtnText) card4BtnText.innerText = myRoom ? `ดูสรุปยอดเงินห้อง ${myRoom}` : 'ดูสรุปยอดเงินห้องของคุณ';
             } else {
+                const roomDepositPanel = document.getElementById('student-room-deposit-summary');
+                if (roomDepositPanel) roomDepositPanel.classList.add('hidden');
                 // 🌟 โหมดแอดมิน: แสดงภาพรวมรายรับทั้งหมด และรายจ่ายทั้งหมดในระบบ
                 if (card2Title) card2Title.innerText = '📥 รวมเงินรายรับทั้งหมด';
                 if (balRoomsEl) {
                     balRoomsEl.innerText = '฿ ' + grandTotalIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     balRoomsEl.className = 'text-2xl font-bold text-emerald-600 font-mono';
                 }
-                if (card2Sub) card2Sub.innerText = 'ยอดจัดเก็บนักศึกษา + รายรับส่วนกลาง';
+                if (card2Sub) card2Sub.innerText = 'ยอดฝากคงเหลือ + ชำระบิล + รายรับห้อง/ส่วนกลาง';
                 if (card2IconBox) card2IconBox.className = 'w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 text-xl shadow-inner';
                 if (card2Icon) card2Icon.className = 'fas fa-hand-holding-dollar';
 
@@ -10311,10 +10446,11 @@ function printReceipt(roundId, studentId) {
                 // 🌟 ป้องกันความเป็นส่วนตัว: สำหรับนักศึกษาทั่วไป ให้เห็นเฉพาะส่วนกลาง + ห้องตนเองเท่านั้น
                 if (isStudent) {
                     let isCentral = (e.source === 'บัญชีส่วนกลาง' || e.source === 'เงินกองกลาง');
-                    let isMyRoom = myRoom && (e.source === 'บัญชีห้อง' && e.room === myRoom);
+                    let isMyRoom = myRoom && ((e.source === 'บัญชีห้อง' || e.source === 'เงินห้อง') && e.room === myRoom);
+                    let isUnassignedRoomEntry = myRoom && (e.source === 'บัญชีห้อง' || e.source === 'เงินห้อง') && !String(e.room || '').trim();
                     let isMySplit = myRoom && (e.source === 'แบ่งจ่ายระหว่างห้อง' && Array.isArray(e.allocations) && e.allocations.some(a => a.room === myRoom));
                     
-                    if (!isCentral && !isMyRoom && !isMySplit) {
+                    if (!isCentral && !isMyRoom && !isUnassignedRoomEntry && !isMySplit) {
                         return false; // ไม่แสดงรายการของห้องอื่น
                     }
                 }
@@ -10497,6 +10633,7 @@ function printReceipt(roundId, studentId) {
             let roomBalances = {};
             rooms.forEach(r => {
                 roomBalances[r] = {
+                    depositBalance: 0,
                     collected: 0,
                     expenses: 0,
                     balance: 0,
@@ -10504,12 +10641,17 @@ function printReceipt(roundId, studentId) {
                 };
             });
 
+            (students || []).forEach(st => {
+                const targetRoom = String(st && st.room || '').trim();
+                if (targetRoom && roomBalances[targetRoom]) roomBalances[targetRoom].depositBalance += Number(st.dep || 0) || 0;
+            });
+
             if (Array.isArray(fundPayments)) {
                 fundPayments.forEach(p => {
                     if (p.paidAmt && parseFloat(p.paidAmt) > 0 && p.status !== 'ตีกลับ' && p.status !== 'ยกเลิก') {
                         const stu = students.find(st => st.id === p.studentId);
                         if (stu && stu.room && roomBalances[stu.room]) {
-                            roomBalances[stu.room].collected += parseFloat(p.paidAmt);
+                            roomBalances[stu.room].collected += Math.max(0, (Number(p.paidAmt) || 0) - (Number(p.pointShopRewardUsed) || 0));
                         }
                     }
                 });
@@ -10543,6 +10685,14 @@ function printReceipt(roundId, studentId) {
             let myId = window.currentGuestStuId || '';
             let currentStu = students.find(s => s.id === myId || (currentUsername && s.name === currentUsername));
             let myRoom = (currentStu && currentStu.room) ? currentStu.room : (window.currentStudentRoom || '');
+            const roomFinanceSummary = currentStu && currentStu.roomFinanceSummary && String(currentStu.roomFinanceSummary.room || '') === String(myRoom || '')
+                ? currentStu.roomFinanceSummary : null;
+            if (isStudent && myRoom && roomBalances[myRoom] && roomFinanceSummary) {
+                roomBalances[myRoom].depositBalance = Number(roomFinanceSummary.depositBalanceTotal) || 0;
+                roomBalances[myRoom].collected = (Number(roomFinanceSummary.paidBillsTotal) || 0) + (Number(roomFinanceSummary.roomIncomeTotal) || 0);
+                roomBalances[myRoom].expenses = Number(roomFinanceSummary.roomExpenseTotal) || 0;
+                roomBalances[myRoom].studentCount = Number(roomFinanceSummary.studentCount) || roomBalances[myRoom].studentCount;
+            }
 
             let targetRooms = (isStudent && myRoom) ? [myRoom] : rooms;
 
@@ -10554,7 +10704,7 @@ function printReceipt(roundId, studentId) {
 
             targetRooms.forEach(r => {
                 const rb = roomBalances[r] || { collected: 0, expenses: 0, balance: 0, studentCount: getRoomStudentCount(r) };
-                rb.balance = rb.collected - rb.expenses;
+                rb.balance = (Number(rb.depositBalance) || 0) + rb.collected - rb.expenses;
                 totalStu += rb.studentCount;
                 totalColl += rb.collected;
                 totalExp += rb.expenses;
@@ -10565,6 +10715,7 @@ function printReceipt(roundId, studentId) {
                     <tr class="border-b hover:bg-slate-50 whitespace-nowrap">
                         <td class="p-3 font-bold text-slate-800 whitespace-nowrap">🏫 ${r}${isStudent ? ' (ห้องของคุณ)' : ''}</td>
                         <td class="p-3 text-center text-slate-600 font-mono whitespace-nowrap">${rb.studentCount} คน</td>
+                        <td class="p-3 text-right font-mono text-emerald-700 font-bold whitespace-nowrap">฿${(Number(rb.depositBalance) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="p-3 text-right font-mono text-emerald-600 font-bold whitespace-nowrap">฿${rb.collected.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="p-3 text-right font-mono text-rose-600 font-bold whitespace-nowrap">฿${rb.expenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                         <td class="p-3 text-right font-mono font-bold ${balColor} text-sm whitespace-nowrap">฿${rb.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -10587,12 +10738,13 @@ function printReceipt(roundId, studentId) {
                 <div class="text-left space-y-3">
                     <p class="text-xs text-slate-500">${headerDesc}</p>
                     <div class="overflow-x-auto max-h-80 overflow-y-auto border rounded-xl">
-                        <table class="w-full min-w-[480px] text-left text-xs">
+                        <table class="w-full min-w-[600px] text-left text-xs">
                             <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0 whitespace-nowrap">
                                 <tr>
                                     <th class="p-3 whitespace-nowrap">ห้องเรียน</th>
                                     <th class="p-3 text-center whitespace-nowrap">นศ. ในห้อง</th>
-                                    <th class="p-3 text-right whitespace-nowrap">เงินเก็บ/รายรับ</th>
+                                    <th class="p-3 text-right whitespace-nowrap">ยอดฝากคงเหลือรวม</th>
+                                    <th class="p-3 text-right whitespace-nowrap">ชำระบิล/รายรับ</th>
                                     <th class="p-3 text-right whitespace-nowrap">ค่าใช้จ่าย/จัดสรร</th>
                                     <th class="p-3 text-right whitespace-nowrap">คงเหลือสุทธิ</th>
                                 </tr>
@@ -14458,8 +14610,11 @@ window.openStudentEmailLinkRequestsV15433_ = async function() {
         </div>`).join('');
     Swal.fire({
         title:'คำขอผูกอีเมลนักศึกษา',
-        html: requests.length ? `<div class="text-xs text-slate-500 mb-3">พบคำขอรออนุมัติ ${requests.length} รายการ • ตรวจสอบรหัส ชื่อ ห้อง และอีเมลก่อนดำเนินการ</div><div class="text-left max-h-[55vh] overflow-y-auto pr-1">${rows}</div>` : '<div class="py-8 text-sm text-slate-500"><i class="fas fa-circle-check text-emerald-500 text-3xl block mb-3"></i>ไม่มีคำขอผูกอีเมลที่รออนุมัติ</div>',
+        html: requests.length
+            ? `<div class="text-xs text-slate-500 mb-4 text-center leading-relaxed">พบคำขอรออนุมัติ ${requests.length} รายการ • ตรวจสอบรหัส ชื่อ ห้อง และอีเมลก่อนดำเนินการ</div><div class="text-left max-h-[55vh] overflow-y-auto pr-1">${rows}</div>`
+            : `<div class="sssfn-email-empty-state"><div class="sssfn-email-empty-icon"><i class="fas fa-check"></i></div><div class="sssfn-email-empty-text">ไม่มีคำขอผูกอีเมลที่รออนุมัติ</div></div>`,
         showConfirmButton:false, showCancelButton:true, cancelButtonText:'ปิด', width:600,
+        customClass: { popup: 'sssfn-email-requests-popup' },
         didOpen: () => {
             document.querySelectorAll('[data-email-link-action]').forEach(button => {
                 button.addEventListener('click', async () => {
