@@ -262,6 +262,7 @@
 <!-- SSSFN v15.4.30: serialized student slip uploads, request idempotency, and unique Drive filenames -->
 <!-- SSSFN v15.4.31: receipt date uses latest student slip submission time for transfer payments -->
 <!-- SSSFN v15.4.30: prevent concurrent slip submission overwrite -->
+<!-- SSSFN v15.4.32: actual/reserve classification for website registration vs on-site scan -->
 <!-- SSSFN v15.4.28: student-only score history page and sidebar naming -->
 <!-- SSSFN v15.4.27: payment-confirmation points and auditable score cancellation -->
 <!-- SSSFN v15.4.25: login loading screen, LINE status, closed-round payment history, accounting modal -->
@@ -1152,17 +1153,20 @@
                     <div id="m-cond-conflicts-list" class="border border-dashed border-slate-200 rounded-xl p-6 text-center text-xs text-slate-400 font-bold">ยังไม่มีเงื่อนไขที่กำหนด</div>
                 </div>
 
-                <!-- 2. นักศึกษาที่ยังไม่ลงทะเบียนผ่านเว็บไซต์ห้ามเข้ากิจกรรม -->
+                <!-- v15.4.32: Participant class is automatic; walk-in scan is reserve. -->
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <h4 class="text-xs font-bold text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-user-lock text-rose-600"></i> นักศึกษาที่ยังไม่ลงทะเบียนผ่านเว็บไซต์ห้ามเข้ากิจกรรม</h4>
-                    <p class="text-[11px] text-slate-400 mb-4">กำหนดสิทธิ์ของนักศึกษาที่ยังไม่ได้ลงทะเบียนผ่านเว็บไซต์ห้ามเข้าร่วมกิจกรรม</p>
-                    <label class="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition">
-                        <input type="checkbox" id="m-cond-block-unreg" onchange="toggleBlockUnregistered(this)" class="w-4 h-4 text-blue-600 rounded">
-                        <div>
-                            <p class="text-xs font-bold text-slate-700">ระงับสิทธิ์นักศึกษาที่ยังไม่ลงทะเบียนผ่านเว็บไซต์</p>
-                            <p class="text-xs text-slate-400">เมื่อเปิดใช้งาน นักศึกษาที่ไม่มีข้อมูลลงทะเบียนผ่านเว็บไซต์จะไม่สามารถเข้าร่วมกิจกรรมนี้ได้</p>
+                    <h4 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-2"><i class="fa-solid fa-users text-indigo-600"></i> หลักเกณฑ์การจัดประเภทผู้เข้าร่วม</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                            <span class="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">ตัวจริง</span>
+                            <p class="text-xs text-emerald-800 font-medium">ผู้ที่ลงทะเบียนผ่านเว็บไซต์ก่อนมาสแกน</p>
                         </div>
-                    </label>
+                        <div class="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                            <span class="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full">ตัวสำรอง</span>
+                            <p class="text-xs text-amber-800 font-medium">ผู้ที่ไม่ได้ลงทะเบียนผ่านเว็บไซต์ แต่เข้ามาสแกนหน้างาน</p>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-3">ระบบอนุญาตให้สแกนหน้างานได้ และบันทึกประเภทตามสถานะการลงทะเบียน ณ เวลาสแกนโดยอัตโนมัติ</p>
                 </div>
             </section>
 
@@ -1449,6 +1453,13 @@
             <button onclick="givePointsToRoom(-5)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-5</button>
             <button onclick="givePointsToRoom(-1)" class="w-10 h-10 shrink-0 bg-white border border-rose-200 text-rose-600 font-black rounded-lg hover:bg-rose-50 hover:-translate-y-0.5 transition shadow-sm">-1</button>
         </div>
+    </div>
+
+    <div class="flex justify-end mb-4">
+        <button id="btn-student-email-link-requests" onclick="openStudentEmailLinkRequestsV15433_()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2">
+            <i class="fas fa-envelope-circle-check"></i> คำขอผูกอีเมล
+            <span id="student-email-link-request-count" class="bg-white/20 px-2 py-0.5 rounded-full">ตรวจสอบ</span>
+        </button>
     </div>
 
     <!-- ตารางรายชื่อนักศึกษา -->
@@ -4091,6 +4102,8 @@ function switchPage(pageId) {
     const canManageStudentPoints = (role === 'leader' || role === 'vice');
     const bulkPointControls = document.getElementById('admin-bulk-point-controls');
     if (bulkPointControls) bulkPointControls.classList.toggle('hidden', !canManageStudentPoints);
+    const emailLinkRequestButton = document.getElementById('btn-student-email-link-requests');
+    if (emailLinkRequestButton) emailLinkRequestButton.classList.toggle('hidden', !['leader','vice'].includes(role));
 
     // v15.4.24: show the launcher to finance admins; reveal the actual form only after click.
     syncExpenseEntryView_();
@@ -4264,45 +4277,50 @@ async function handleGoogleCredentialResponse(response) {
 // 🌟 ฟังก์ชันขอรหัสนักศึกษาและยืนยัน PDPA
 async function promptLinkAccount(email, googleCredential) {
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    const safeDisplayEmail = normalizedEmail.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const result = await Swal.fire({
-        title: 'ผูกบัญชี Google กับรหัสนักศึกษา',
-        html: `<div class="text-left text-sm space-y-3"><div class="bg-blue-50 text-blue-800 p-3 rounded-xl border border-blue-200">อีเมล <b>${normalizedEmail}</b> ยังไม่พบในทะเบียนนักศึกษา กรุณายืนยันข้อมูลให้ตรงกับทะเบียนก่อนผูกบัญชี</div><label class="block text-xs font-bold">รหัสนักศึกษา</label><input id="link-stu-id" class="swal2-input !mx-0 !w-full" placeholder="เช่น 68152110001-2"><label class="block text-xs font-bold">เบอร์โทรศัพท์ 4 ตัวท้ายตามทะเบียน</label><input id="link-phone-last4" class="swal2-input !mx-0 !w-full" inputmode="numeric" maxlength="4" placeholder="4 ตัวท้าย"><label class="flex gap-2 items-start text-xs text-slate-600"><input type="checkbox" id="pdpa-consent" class="mt-1"><span>ข้าพเจ้ายินยอมให้ผูกอีเมลนี้กับรหัสนักศึกษาของข้าพเจ้าเพื่อเข้าสู่ระบบและใช้บริการ SSSFN</span></label><p class="text-[11px] text-amber-700">หากทะเบียนไม่มีเบอร์โทรศัพท์หรือมีอีเมลอื่นผูกอยู่แล้ว กรุณาติดต่อหัวหน้าระบบ</p></div>`, 
-        showCancelButton:true, confirmButtonText:'ยืนยันและผูกบัญชี', cancelButtonText:'ยกเลิก', confirmButtonColor:'#059669',
+        title: 'ส่งคำขอผูกอีเมลกับรหัสนักศึกษา',
+        html: `<div class="text-left text-sm space-y-3">
+            <div class="bg-blue-50 text-blue-800 p-3 rounded-xl border border-blue-200">อีเมล <b>${safeDisplayEmail}</b> ยังไม่พบในทะเบียนนักศึกษา สามารถใช้อีเมลมหาวิทยาลัยหรือ Gmail ส่วนตัวได้ โดยไม่ต้องใช้เบอร์โทรศัพท์</div>
+            <label class="block text-xs font-bold">รหัสนักศึกษา</label>
+            <input id="link-stu-id" class="swal2-input !mx-0 !w-full" placeholder="เช่น 68152110001-2">
+            <label class="flex gap-2 items-start text-xs text-slate-600"><input type="checkbox" id="pdpa-consent" class="mt-1"><span>ข้าพเจ้ายินยอมให้ผูกอีเมลนี้กับรหัสนักศึกษาของข้าพเจ้าเพื่อเข้าสู่ระบบและใช้บริการ SSSFN</span></label>
+            <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">เพื่อความปลอดภัย คำขอจะรอหัวหน้าหรือรองหัวหน้าตรวจสอบก่อนอนุมัติ ไม่ต้องกรอกเบอร์มือถือ</p>
+        </div>`,
+        showCancelButton:true, confirmButtonText:'ส่งคำขอผูกอีเมล', cancelButtonText:'ยกเลิก', confirmButtonColor:'#059669',
         preConfirm:() => {
             const id = String(document.getElementById('link-stu-id')?.value || '').trim();
-            const phoneLast4 = String(document.getElementById('link-phone-last4')?.value || '').replace(/\D/g,'');
             const consent = !!document.getElementById('pdpa-consent')?.checked;
             if (!id) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษา');
-            if (phoneLast4.length !== 4) return Swal.showValidationMessage('กรุณากรอกเบอร์โทรศัพท์ 4 ตัวท้าย');
-            if (!consent) return Swal.showValidationMessage('กรุณายอมรับเงื่อนไขก่อนผูกบัญชี');
-            return { studentId:formatIdSearch(id), phoneLast4:phoneLast4, pdpaConsent:consent };
+            if (!consent) return Swal.showValidationMessage('กรุณายอมรับเงื่อนไขก่อนส่งคำขอ');
+            return { studentId:formatIdSearch(id), pdpaConsent:consent };
         }
     });
     if (!result.isConfirmed || !result.value) return;
-    await executeEmailLinking(result.value.studentId, normalizedEmail, googleCredential, result.value.pdpaConsent, result.value.phoneLast4);
+    await executeEmailLinkRequestV15433_(result.value.studentId, normalizedEmail, googleCredential, result.value.pdpaConsent);
 }
 
-async function executeEmailLinking(studentId, email, googleCredential, pdpaConsent, phoneLast4) {
-    Swal.fire({ title:'กำลังตรวจสอบและผูกบัญชี...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
-    const result = await callBackend({ action:'linkEmail', studentId:String(studentId || ''), phoneLast4:String(phoneLast4 || ''), credential:String(googleCredential || ''), pdpaConsent:pdpaConsent === true });
-    if (!result || result.status !== 'success' || !result.studentAuthToken) {
-        return Swal.fire('ผูกบัญชีไม่สำเร็จ', (result && result.message) || 'ไม่สามารถผูกบัญชีได้', 'error');
+async function executeEmailLinkRequestV15433_(studentId, email, googleCredential, pdpaConsent) {
+    Swal.fire({ title:'กำลังส่งคำขอ...', text:'กำลังตรวจสอบบัญชี Google และข้อมูลนักศึกษา', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    const result = await callBackend({
+        action:'requestStudentEmailLink',
+        studentId:String(studentId || ''),
+        credential:String(googleCredential || ''),
+        pdpaConsent:pdpaConsent === true
+    });
+    if (result && (result.status === 'pending' || result.status === 'already_pending')) {
+        return Swal.fire({
+            icon:'info', title:'ส่งคำขอเรียบร้อยแล้ว',
+            html:'คำขอผูกอีเมล <b>' + String(email || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) + '</b> ถูกส่งให้หัวหน้าหรือรองหัวหน้าตรวจสอบแล้ว<br><br>เมื่อได้รับอนุมัติ ให้กลับมาเลือกบัญชี Google เดิมเพื่อเข้าสู่ระบบอีกครั้ง',
+            confirmButtonText:'รับทราบ'
+        });
     }
-    window.currentAuthToken = '';
-    window.currentStudentAuthToken = result.studentAuthToken;
-    sessionStorage.setItem('sssfn_student_auth_token', result.studentAuthToken);
-    window.currentGuestStuId = result.studentId;
-    localStorage.setItem('sssfn_guest_id', result.studentId);
-    currentUserRole = 'guest'; currentUsername = '';
-    localStorage.removeItem('sssfn_session');
-    const linkedStudentLoad = await waitForCanonicalPullAfterLoginV15423_();
-    applyRoleUI(true); switchPage('home');
-    if (linkedStudentLoad && linkedStudentLoad.status === 'success') {
-        Swal.fire({ icon:'success', title:'ผูกบัญชีสำเร็จ', text:'ยืนยันตัวตนด้วย Google แล้ว สามารถดูข้อมูล ลงทะเบียน สแกน และส่งสลิปได้', timer:1800, showConfirmButton:false });
-    } else {
-        Swal.fire({ icon:'warning', title:'ผูกบัญชีสำเร็จ แต่โหลดข้อมูลไม่ครบ', text:(linkedStudentLoad && linkedStudentLoad.message) || 'บัญชีผูกสำเร็จแล้ว แต่ยังโหลดข้อมูลไม่ได้ กรุณากดลองโหลดอีกครั้ง', confirmButtonText:'รับทราบ' });
+    if (result && result.status === 'already_linked') {
+        return Swal.fire({ icon:'success', title:'อีเมลนี้ผูกกับรหัสนักศึกษาแล้ว', text:'กรุณากดเข้าสู่ระบบด้วยบัญชี Google นี้อีกครั้ง', confirmButtonText:'รับทราบ' });
     }
+    return Swal.fire('ส่งคำขอไม่สำเร็จ', (result && result.message) || 'ไม่สามารถส่งคำขอผูกอีเมลได้', 'error');
 }
+
 
 
 // ================= ระบบเข้าสู่ระบบของนักศึกษา (RMUTI Style) =================
@@ -4864,7 +4882,7 @@ function renderHomeDirectory() {
                             
                             <!-- ซ่อนปุ่ม Google ไว้ -->
                             <div id="google-auth-btn-wrapper" class="hidden mt-2 bg-white/5 p-3 rounded-xl border border-white/10 flex flex-col items-center">
-                                <p class="text-[11px] text-slate-400 mb-2 text-center">ใช้อีเมล @rmuti.ac.th หรือ Gmail ส่วนตัวที่ผูกกับรหัสนักศึกษา</p>
+                                <p class="text-[11px] text-slate-400 mb-2 text-center">ใช้อีเมล @rmuti.ac.th หรือ Gmail ส่วนตัวที่ได้รับอนุมัติให้ผูกกับรหัสนักศึกษา</p>
                                 <div id="google-btn-container" class="w-full flex justify-center h-[36px]"></div>
                             </div>
                         </div>
@@ -5451,6 +5469,21 @@ function isWebRegistrationOnlyLog_(log) {
 
 function normalizeActivityStudentId_(value) {
     return String(value == null ? '' : value).replace(/-/g, '').trim();
+}
+
+// Supports both ISO timestamps and the Thai Buddhist-era date returned by getNow().
+function getActivityLogTimestamp_(value) {
+    const raw = String(value == null ? '' : value).trim();
+    if (!raw) return 0;
+    const thaiDate = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (thaiDate) {
+        let year = Number(thaiDate[3]);
+        if (year > 2400) year -= 543;
+        const dt = new Date(year, Number(thaiDate[2]) - 1, Number(thaiDate[1]), Number(thaiDate[4] || 0), Number(thaiDate[5] || 0), Number(thaiDate[6] || 0));
+        return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    const parsed = Date.parse(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function getActivityWebRegistrationLog_(studentId, activityTitle) {
@@ -6725,7 +6758,7 @@ window.filterMasterTable = function() {
 
     // จัดกลุ่มตามรหัสนักศึกษา
     let studentMap = {};
-    actLogs.forEach(log => {
+    actLogs.forEach((log, logIndex) => {
         const studentKey = normalizeActivityStudentId_(log.studentId) || String(log.studentId || '');
         if (!studentMap[studentKey]) {
             let stu = students.find(s => normalizeActivityStudentId_(s.id) === studentKey) || { id: log.studentId, name: 'ไม่พบข้อมูลในระบบ', room: '-' };
@@ -6733,17 +6766,45 @@ window.filterMasterTable = function() {
                 student: stu,
                 logs: [],
                 webRegTime: isWebRegistrationOnlyLog_(log) ? (log.registeredAt || (log.timeIn && log.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? log.timeIn : '-')) : '-',
+                hasWebRegistration: isWebRegistrationOnlyLog_(log),
                 status: log.status || 'P',
                 regId: log.regId || null
             };
         }
         studentMap[studentKey].logs.push(log);
         if (log.regId && !studentMap[studentKey].regId) studentMap[studentKey].regId = log.regId;
-        if (isWebRegistrationOnlyLog_(log)) studentMap[studentKey].webRegTime = log.registeredAt || (log.timeIn && log.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? log.timeIn : '-');
+        if (isWebRegistrationOnlyLog_(log)) {
+            studentMap[studentKey].hasWebRegistration = true;
+            studentMap[studentKey].webRegTime = log.registeredAt || (log.timeIn && log.timeIn !== 'จองสิทธิ์ล่วงหน้า' ? log.timeIn : '-');
+        }
         if (log.status && log.status !== 'P') studentMap[studentKey].status = log.status;
+
+        // Use the earliest stored scan classification. This remains stable if the student
+        // registers (or cancels registration) after having checked in as a reserve/actual.
+        if (!isWebRegistrationOnlyLog_(log) && (log.roundId || log.roundName)) {
+            let typeAtScan = String(log.participantType || '').trim().toUpperCase();
+            if (!typeAtScan && typeof log.isWebRegisteredAtCheckin === 'boolean') {
+                typeAtScan = log.isWebRegisteredAtCheckin ? 'REAL' : 'RESERVE';
+            }
+            if (typeAtScan === 'REAL' || typeAtScan === 'RESERVE') {
+                // The current log array is newest-first (new records are unshifted). If an
+                // older Thai-format timestamp cannot be parsed, use array order as fallback.
+                const scanTime = getActivityLogTimestamp_(log.timeIn || log.createdAt) || -(logIndex + 1);
+                if (scanTime < (studentMap[studentKey]._participantTypeTime || Number.MAX_SAFE_INTEGER)) {
+                    studentMap[studentKey].participantType = typeAtScan;
+                    studentMap[studentKey]._participantTypeTime = scanTime;
+                }
+            }
+        }
     });
 
     let participantList = Object.values(studentMap);
+    participantList.forEach(p => {
+        // Backward compatibility for records saved before v15.4.32.
+        if (p.participantType !== 'REAL' && p.participantType !== 'RESERVE') {
+            p.participantType = p.hasWebRegistration ? 'REAL' : 'RESERVE';
+        }
+    });
 
     // กรองด้วยคำค้นหา (ชื่อ, รหัส, สาขา, ห้อง)
     if (searchTxt) {
@@ -6834,7 +6895,7 @@ window.filterMasterTable = function() {
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="font-bold text-slate-800 text-xs leading-tight">${stu.name}</span>
-                            <span class="bg-emerald-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm leading-none">เช็คชื่อ</span>
+                            <span class="${p.participantType === 'RESERVE' ? 'bg-amber-500' : 'bg-emerald-500'} text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm leading-none">${p.participantType === 'RESERVE' ? 'ตัวสำรอง' : 'ตัวจริง'}</span>
                         </div>
                         <div class="text-[11px] text-slate-400 font-mono mt-0.5 leading-tight flex items-center gap-1.5">
                             <span>${stu.id}</span>
@@ -7267,21 +7328,9 @@ window.executeScanLogic = function(barcode, actTitle) {
         });
     }
 
-    // ตรวจสอบเงื่อนไขการเข้าร่วม (Conditions)
-    let cond = currentMasterActivity.conditions || {};
-    
-    // 1. ตรวจสอบเงื่อนไขระงับผู้ไม่ได้ลงทะเบียนผ่านเว็บ
-    if (cond.blockUnregistered) {
-        let hasReg = hasActivityWebRegistration_(stu.id, currentMasterActivity.title);
-        if (!hasReg) {
-            return Swal.fire({
-                icon: 'error',
-                title: 'สิทธิ์ถูกระงับ',
-                text: 'นักศึกษาไม่ได้ลงทะเบียนเข้าร่วมกิจกรรมผ่านหน้าเว็บล่วงหน้า',
-                confirmButtonColor: '#e11d48'
-            });
-        }
-    }
+    // v15.4.32: Walk-in students without web registration are allowed to scan as RESERVE.
+    // Legacy conditions.blockUnregistered is intentionally not enforced by this flow because
+    // the requested business rule is to accept on-site scans as reserve participants.
 
     // 3. ตรวจสอบการสแกนซ้ำในรอบเดียวกัน
     let existingLog = activityLogs.find(l => 
@@ -7414,6 +7463,10 @@ window.executeScanLogic = function(barcode, actTitle) {
 
 window.confirmScan = function(stuId, roundName) {
     let stu = students.find(s => s.id === stuId) || { name: stuId };
+    // Snapshot the registration state at scan time. Later web registration/cancellation
+    // must not silently change whether this participant originally joined as a reserve.
+    const hasWebRegistrationAtScan = !!(currentMasterActivity && hasActivityWebRegistration_(stuId, currentMasterActivity.title));
+    const participantTypeAtScan = hasWebRegistrationAtScan ? 'REAL' : 'RESERVE';
     
     // 🌟 บังคับสถานะ "รอพิจารณา (P)" ทันที เพื่อความปลอดภัย
     activityLogs.unshift({
@@ -7423,6 +7476,8 @@ window.confirmScan = function(stuId, roundName) {
         timeIn: getNow(),
         timeOut: null,
         status: 'P',
+        participantType: participantTypeAtScan,
+        isWebRegisteredAtCheckin: hasWebRegistrationAtScan,
         staffUser: currentUsername || 'Staff'
     });
 
@@ -7450,7 +7505,7 @@ window.confirmScan = function(stuId, roundName) {
         osc.stop(ctx.currentTime + 0.15);
     } catch(e) {}
 
-    showToast(`เช็กชื่อ "${stu.name}" สำเร็จ (สถานะ: รอพิจารณา)`, 'success');
+    showToast(`เช็กชื่อ "${stu.name}" สำเร็จ (${participantTypeAtScan === 'REAL' ? 'ตัวจริง' : 'ตัวสำรอง'} • รอพิจารณา)`, 'success');
 
     // โฟกัสกลับไปที่ช่อง Barcode เพื่อเตรียมยิงคนถัดไป
     let input = document.getElementById('hw-input-focus');
@@ -14378,6 +14433,54 @@ function payWithDeposit(studentId, roundId) {
         }
     });
 }
+
+// v15.4.33: Leader/vice review queue for phone-free student email linking.
+window.openStudentEmailLinkRequestsV15433_ = async function() {
+    if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้นที่อนุมัติการผูกอีเมลได้', 'warning');
+    Swal.fire({ title:'กำลังโหลดคำขอ...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+    const result = await callBackend({ action:'listStudentEmailLinkRequests' });
+    if (!result || result.status !== 'success') return Swal.fire('โหลดคำขอไม่สำเร็จ', (result && result.message) || 'ไม่สามารถอ่านรายการคำขอได้', 'error');
+    const requests = Array.isArray(result.requests) ? result.requests : [];
+    const countEl = document.getElementById('student-email-link-request-count');
+    if (countEl) countEl.textContent = String(requests.length);
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const rows = requests.map((r, index) => `
+        <div class="border border-slate-200 rounded-xl p-3 mb-3 text-left bg-white">
+            <div class="flex items-start justify-between gap-2">
+                <div><div class="font-bold text-slate-800 text-sm">${esc(r.studentName || 'ไม่พบชื่อ')}</div><div class="text-xs text-slate-500 font-mono">${esc(r.studentId)} • ห้อง ${esc(r.room || '-')}</div></div>
+                <span class="text-[10px] text-slate-400">${esc(r.createdAt || '')}</span>
+            </div>
+            <div class="mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 text-xs text-indigo-800 break-all"><i class="fas fa-envelope mr-1"></i>${esc(r.email)}</div>
+            <div class="flex gap-2 mt-3">
+                <button type="button" data-email-link-action="approve" data-request-id="${esc(r.requestId)}" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2 text-xs font-bold"><i class="fas fa-check mr-1"></i>อนุมัติ</button>
+                <button type="button" data-email-link-action="reject" data-request-id="${esc(r.requestId)}" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg py-2 text-xs font-bold"><i class="fas fa-times mr-1"></i>ปฏิเสธ</button>
+            </div>
+        </div>`).join('');
+    Swal.fire({
+        title:'คำขอผูกอีเมลนักศึกษา',
+        html: requests.length ? `<div class="text-xs text-slate-500 mb-3">พบคำขอรออนุมัติ ${requests.length} รายการ • ตรวจสอบรหัส ชื่อ ห้อง และอีเมลก่อนดำเนินการ</div><div class="text-left max-h-[55vh] overflow-y-auto pr-1">${rows}</div>` : '<div class="py-8 text-sm text-slate-500"><i class="fas fa-circle-check text-emerald-500 text-3xl block mb-3"></i>ไม่มีคำขอผูกอีเมลที่รออนุมัติ</div>',
+        showConfirmButton:false, showCancelButton:true, cancelButtonText:'ปิด', width:600,
+        didOpen: () => {
+            document.querySelectorAll('[data-email-link-action]').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const action = button.getAttribute('data-email-link-action');
+                    const requestId = button.getAttribute('data-request-id');
+                    const decision = action === 'approve' ? 'approve' : 'reject';
+                    const confirmation = await Swal.fire({
+                        title: decision === 'approve' ? 'อนุมัติการผูกอีเมล?' : 'ปฏิเสธคำขอนี้?',
+                        text: decision === 'approve' ? 'อีเมลนี้จะใช้เข้าสู่ระบบรหัสนักศึกษานี้ได้ โดยคงอีเมลเดิมไว้' : 'คำขอนี้จะถูกปฏิเสธ นักศึกษาสามารถส่งคำขอใหม่ได้',
+                        icon:'question', showCancelButton:true, confirmButtonText:decision === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ', cancelButtonText:'ย้อนกลับ', confirmButtonColor:decision === 'approve' ? '#059669' : '#e11d48'
+                    });
+                    if (!confirmation.isConfirmed) return;
+                    Swal.fire({ title:'กำลังบันทึกผล...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
+                    const reviewed = await callBackend({ action:'reviewStudentEmailLinkRequest', requestId:requestId, decision:decision });
+                    if (!reviewed || reviewed.status !== 'success') return Swal.fire('ดำเนินการไม่สำเร็จ', (reviewed && reviewed.message) || 'ไม่สามารถบันทึกผลได้', 'error');
+                    await window.openStudentEmailLinkRequestsV15433_();
+                });
+            });
+        }
+    });
+};
 
 // ================= โหลดรายชื่อนักศึกษา (อัปเกรดป้ายคะแนนให้ดูง่ายขึ้น) =================
 window.renderAdminStudentList = function() {
