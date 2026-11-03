@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.4.39: negative-score safe reset, audited deposit deduction, independent bill unlocking -->
+<!-- SSSFN v15.4.40: merge-before-validation for realtime deltas; authenticated Pusher startup guard -->
 <html lang="th">
 <head>
 
@@ -2300,6 +2300,14 @@
     }
 
     async function fetchPusherRealtimeDeltaV15_(signal) {
+        if (window.__sssfnSessionRestoreCompleteV15440 !== true) {
+            // Initial canonical load after DOMContentLoaded will catch up with the current state.
+            return;
+        }
+        if (!window.currentAuthToken && !window.currentStudentAuthToken) {
+            // Public/guest pages must not query private realtime event records.
+            return;
+        }
         // When Firestore quota is exhausted, Pusher explicitly says the canonical store is Sheets.
         // Skip Firestore realtimeEvents reads and immediately pull the current Sheets snapshot.
         if (signal && signal.canonicalRefresh === true && String(signal.storageMode || '').toUpperCase() === 'SHEETS') {
@@ -2361,6 +2369,11 @@
             }
         } catch (error) {
             const pusherErrorMessage = String(error && error.message || error);
+            if (/ต้องเข้าสู่ระบบเพื่อรับข้อมูล Realtime|ไม่มี Session ที่ตรวจสอบได้|ไม่มีเซสชัน.*ตรวจสอบได้|เซสชันหมดอายุ/i.test(pusherErrorMessage)) {
+                pusherDeltaRetryAttemptV15_ = 0;
+                console.warn('Realtime delta was not authorized. No retry loop was scheduled; verify the current backend session.', pusherErrorMessage);
+                return;
+            }
             if (/HTTP\s*429|Quota exceeded|RESOURCE_EXHAUSTED|quota exceeded/i.test(pusherErrorMessage)) {
                 console.warn('Firestore realtime event quota reached; switching canonical pull to Sheets fallback:', pusherErrorMessage);
                 requestRealtimeCanonicalRefresh_('sheets-fallback-mode', 50);
@@ -2431,6 +2444,10 @@
         console.log('Pusher activity status applied without Firestore read:', flagName, flagValue);
         return true;
     }
+
+    // Pusher can connect before DOMContentLoaded restores the saved admin/student session.
+    // Do not request protected deltas until the session restoration step has completed.
+    window.__sssfnSessionRestoreCompleteV15440 = false;
 
     function startPusherRealtimeV15_() {
         if (typeof Pusher === 'undefined') {
@@ -3106,6 +3123,7 @@ async function autoSyncToGS(showStatus = false) {
     syncQueued = false;
     let saveFailed = false;
     let authBlocked = false;
+    let validationBlocked = false;
     if (showStatus && typeof Swal !== 'undefined') Swal.fire({
         title: 'กำลังบันทึกการเปลี่ยนแปลง...',
         text: 'กำลังบันทึกเฉพาะรายการที่เปลี่ยนลง Firebase ส่วน Google Sheets จะสำรองภายหลัง',
@@ -3151,6 +3169,8 @@ async function autoSyncToGS(showStatus = false) {
         hasLocalChanges = true;
         const saveErrorMessage = String(error && error.message || error || '');
         authBlocked = /ไม่มีเซสชันผู้ดูแลที่ตรวจสอบได้|เซสชันหมดอายุ|ไม่มีสิทธิ์แก้ไขข้อมูลหลัก|กรุณาเข้าสู่ระบบใหม่|admin session|unauthori[sz]ed/i.test(saveErrorMessage);
+        validationBlocked = /การซ่อนประวัติที่ถูกยกเลิกแล้วแก้ไขได้เฉพาะข้อมูลการตรวจสอบ|การซ่อนประวัติคะแนน|ไม่อนุญาตให้|เฉพาะหัวหน้าเท่านั้น|ต้องระบุ.*ก่อน|ข้อมูล.*ไม่ถูกต้อง/i.test(saveErrorMessage);
+        if (validationBlocked) syncQueued = false;
         console.error('Incremental Firebase save failed:', error);
         if (authBlocked) {
             // Keep the pending local diff, but never retry an invalid session in a loop.
@@ -3173,8 +3193,8 @@ async function autoSyncToGS(showStatus = false) {
             pendingRemotePull = false;
             syncQueued = false;
             setTimeout(() => silentPullFromGS(), 120);
-            if (saveFailed && hasLocalChanges && !authBlocked) scheduleRealtimeSaveRetry_();
-        } else if ((syncQueued || hasLocalChanges) && !authBlocked) {
+            if (saveFailed && hasLocalChanges && !authBlocked && !validationBlocked) scheduleRealtimeSaveRetry_();
+        } else if ((syncQueued || hasLocalChanges) && !authBlocked && !validationBlocked) {
             syncQueued = false;
             setTimeout(() => autoSyncToGS(false), 250);
         }
@@ -3545,6 +3565,7 @@ function saveToLocal(triggerSync = true) {
     } else {
         window.currentAuthToken = '';
     }
+    window.__sssfnSessionRestoreCompleteV15440 = true;
 }
 
         function formatIdSearch(val) { let clean = val.replace(/-/g, ''); if(/^\d+$/.test(clean) && clean.length > 11) return clean.slice(0,11) + '-' + clean.slice(11,12); return val; }
