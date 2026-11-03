@@ -365,6 +365,7 @@
 <!-- SSSFN v15.4.31: receipt date uses latest student slip submission time for transfer payments -->
 <!-- SSSFN v15.4.30: prevent concurrent slip submission overwrite -->
 <!-- SSSFN v15.4.32: actual/reserve classification for website registration vs on-site scan -->
+<!-- SSSFN v15.4.35: linked notification email, individual activation code, background login and bulk score admin tools -->
 <!-- SSSFN v15.4.28: student-only score history page and sidebar naming -->
 <!-- SSSFN v15.4.27: payment-confirmation points and auditable score cancellation -->
 <!-- SSSFN v15.4.25: login loading screen, LINE status, closed-round payment history, accounting modal -->
@@ -1558,12 +1559,25 @@
         </div>
     </div>
 
+    <!-- v15.4.35: bulk point-history management. Students can be selected, or use the filter to target a room. -->
+    <div id="admin-score-bulk-toolbar" class="bg-white rounded-2xl border border-rose-100 p-3 md:p-4 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs text-slate-600">
+            <label class="inline-flex items-center gap-2 font-bold cursor-pointer"><input id="admin-score-select-visible" type="checkbox" class="w-4 h-4 accent-rose-600" onchange="toggleVisibleScoreStudentsV15435_(this.checked)"> เลือกนักศึกษาที่แสดง</label>
+            <span id="admin-score-selected-count" class="text-slate-400">เลือก 0 คน</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="bulkVoidSelectedStudentsPointsV15435_()" class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"><i class="fas fa-user-minus mr-1"></i>ยกเลิกคะแนนของคนที่เลือก</button>
+            <button id="admin-score-clear-all" type="button" onclick="bulkVoidAllStudentPointsV15435_()" class="hidden px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold"><i class="fas fa-broom mr-1"></i>ล้างประวัติคะแนนทุกคน</button>
+        </div>
+    </div>
+
     <!-- ตารางรายชื่อนักศึกษา -->
     <div class="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full min-w-[700px] text-left border-collapse" id="admin-student-table">
                 <thead>
                     <tr class="bg-slate-50/80 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200 whitespace-nowrap">
+                        <th class="p-4 text-center w-10"><i class="fas fa-check-square text-slate-400"></i></th>
                         <th class="p-4 font-bold whitespace-nowrap min-w-[220px]">รหัส - ชื่อสกุล</th>
                         <th class="p-4 font-bold text-center whitespace-nowrap min-w-[90px]">ห้อง</th>
                         <th class="p-4 font-bold text-right whitespace-nowrap min-w-[110px]">ยอดฝาก</th>
@@ -3213,7 +3227,7 @@ async function silentPullFromGS(showStatus = false, force = false, quietRealtime
         }
         return { status: 'busy', message: 'มีการอ่าน/เขียนข้อมูลอยู่แล้ว' };
     }
-    const shouldShowPageLoader = (!!force && !quietRealtime) || !window.__sssfnInitialDataLoadCompleteV15425;
+    const shouldShowPageLoader = !quietRealtime && ((!!force) || !window.__sssfnInitialDataLoadCompleteV15425);
     if (shouldShowPageLoader) {
         setSssfnPageLoadingV15425_(true, window.currentAuthToken || window.currentStudentAuthToken
             ? 'เข้าสู่ระบบแล้ว กำลังโหลดข้อมูลตามสิทธิ์ของบัญชี...' 
@@ -3339,6 +3353,36 @@ function normalizeStudentIdKeyFrontend(value) {
     return String(value == null ? "" : value).replace(/-/g, "").trim();
 }
 
+// v15.4.35: student cache is separated by verified student ID; never reuse an admin/global cache as a student-private snapshot.
+function sssfnStudentCacheKeyV15435_(studentId) {
+    return 'SSSfnStudentCacheV15435:' + String(studentId || '').replace(/-/g,'').trim();
+}
+function restoreStudentScopedCacheV15435_(studentId) {
+    const key = sssfnStudentCacheKeyV15435_(studentId);
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        if (!parsed || String(parsed.studentId || '').replace(/-/g,'') !== String(studentId || '').replace(/-/g,'') || !parsed.data) return false;
+        applyLoadedData(parsed.data, parsed.data);
+        return true;
+    } catch (error) {
+        console.warn('Student-scoped cache unavailable:', error);
+        return false;
+    }
+}
+function clearUnsafeGlobalCacheForStudentV15435_(studentId) {
+    // Preserve only non-sensitive directory labels until the authenticated projection arrives.
+    students = (students || []).map(s => ({id:String(s.id || ''), name:String(s.name || ''), room:String(s.room || ''), number:s.number, points:0, activityPoints:0, totalPoints:0}));
+    users = [];
+    txHistory = [];
+    fundPayments = [];
+    expenses = [];
+    activityLogs = [];
+    timeLogs = [];
+    appSettings = {activities:[]};
+    saveToLocal(false);
+    try { refreshAll(); } catch (error) { console.warn('Student safe shell render skipped:', error); }
+}
+
 function applyLoadedData(d, serverBaselineOverride) {
     if (!d || typeof d !== 'object') return;
     if (serverBaselineOverride || d) lastServerSnapshot = snapshotRealtimeData_(serverBaselineOverride || d);
@@ -3382,6 +3426,12 @@ function applyLoadedData(d, serverBaselineOverride) {
     activityLogs = Array.isArray(d.activityLogs) ? d.activityLogs : activityLogs;
     timeLogs = Array.isArray(d.timeLogs) ? d.timeLogs : timeLogs;
 
+    if (currentUserRole === 'guest' && window.currentStudentAuthToken && window.currentGuestStuId) {
+        try {
+            const ownSnapshot = snapshotRealtimeData_(serverBaselineOverride || d);
+            localStorage.setItem(sssfnStudentCacheKeyV15435_(window.currentGuestStuId), JSON.stringify({studentId:String(window.currentGuestStuId), savedAt:Date.now(), data:ownSnapshot}));
+        } catch (studentCacheError) { console.warn('Could not save student-scoped cache:', studentCacheError); }
+    }
     saveToLocal(false);
     if (typeof updateSidebarBadges === 'function') {
         try { updateSidebarBadges(); } catch (badgeError) { console.warn('Sidebar badge refresh skipped:', badgeError); }
@@ -3933,12 +3983,13 @@ function openPublicSlipModal(targetRoundId = null) {
 }
         document.addEventListener('DOMContentLoaded', () => {
     loadFromLocal();
+    setSssfnPageLoadingV15425_(false);
     const checkDateEl = document.getElementById('checkDate');
     if (checkDateEl) checkDateEl.valueAsDate = new Date();
     refreshAll();
     applyRoleUI();
     initialLocalSnapshot = captureCurrentRealtimeData_();
-    window.__sssfnInitialDataLoadPromiseV15422 = Promise.resolve(silentPullFromGS(false, true))
+    window.__sssfnInitialDataLoadPromiseV15422 = Promise.resolve(silentPullFromGS(false, true, true))
         .then(result => {
             if (result && result.status === 'success') {
                 refreshAll();
@@ -4300,20 +4351,31 @@ function decodeJwtResponse(token) {
 // requesting the authenticated snapshot. Never treat a guest/public response as the
 // authenticated user's completed login load.
 async function waitForCanonicalPullAfterLoginV15423_(timeoutMs = 60000) {
-    // Show the loading page immediately after authentication, including while the anonymous startup pull finishes.
-    setSssfnPageLoadingV15425_(true, 'เข้าสู่ระบบแล้ว กำลังเตรียมข้อมูลและโหลดข้อมูลตามสิทธิ์ของบัญชี...');
-    const startedAt = Date.now();
-    try {
+    // v15.4.35: authentication completes first; canonical data refresh runs in the background.
+    // Cached UI is shown immediately, but student-private records are replaced only by the
+    // authenticated server projection when it arrives.
+    setSssfnPageLoadingV15425_(false);
+    if (window.__sssfnAuthRefreshPromiseV15435) return {status:'loading'};
+    window.__sssfnAuthRefreshPromiseV15435 = (async () => {
+        const startedAt = Date.now();
         while (isSyncing || remotePullInProgress) {
-            if (Date.now() - startedAt > timeoutMs) {
-                return { status: 'busy', message: 'การโหลดข้อมูลเดิมยังไม่เสร็จ กรุณากดโหลดข้อมูลอีกครั้ง' };
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
+            if (Date.now() - startedAt > timeoutMs) return {status:'busy', message:'กำลังโหลดข้อมูลเดิมอยู่ ระบบจะแจ้งเตือนและลองใหม่อัตโนมัติ'};
+            await new Promise(resolve => setTimeout(resolve, 120));
         }
-        return await silentPullFromGS(false, true);
-    } finally {
-        setSssfnPageLoadingV15425_(false);
-    }
+        return silentPullFromGS(false, true, true);
+    })().then(result => {
+        if (result && result.status === 'success') {
+            applyRoleUI(true);
+            refreshVisiblePageDataV15422_(currentView || 'home');
+        } else if (result && !['throttled','busy'].includes(result.status)) {
+            console.warn('Background login refresh did not complete:', result.message || result.status);
+        }
+        return result;
+    }).catch(error => {
+        console.warn('Background login refresh failed:', error);
+        return {status:'error', message:String(error && error.message || error)};
+    }).finally(() => { window.__sssfnAuthRefreshPromiseV15435 = null; });
+    return {status:'loading', message:'เข้าสู่ระบบแล้ว กำลังอัปเดตข้อมูลในพื้นหลัง'};
 }
 
 async function handleGoogleCredentialResponse(response) {
@@ -4361,19 +4423,12 @@ async function handleGoogleCredentialResponse(response) {
         currentUsername = '';
         localStorage.removeItem('sssfn_session');
         localStorage.setItem('sssfn_guest_id', studentResult.studentId);
-        const studentLoadResult = await waitForCanonicalPullAfterLoginV15423_();
+        setSssfnPageLoadingV15425_(false);
+        if (!restoreStudentScopedCacheV15435_(studentResult.studentId)) clearUnsafeGlobalCacheForStudentV15435_(studentResult.studentId);
         applyRoleUI(true);
         switchPage('home');
-        if (studentLoadResult && studentLoadResult.status === 'success') {
-            Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1400 });
-        } else {
-            Swal.fire({
-                icon: 'warning',
-                title: 'ยืนยัน Google สำเร็จ แต่โหลดข้อมูลไม่ครบ',
-                text: (studentLoadResult && studentLoadResult.message) || 'บัญชียืนยันแล้ว แต่ยังดึงข้อมูลนักศึกษาไม่ได้ กรุณากดลองโหลดอีกครั้ง หรือติดต่อผู้ดูแลตรวจสอบข้อมูลทะเบียน',
-                confirmButtonText: 'รับทราบ'
-            });
-        }
+        const studentLoadResult = await waitForCanonicalPullAfterLoginV15423_();
+        Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1300 });
     } catch (error) {
         setSssfnPageLoadingV15425_(false);
         console.error('Google student login failed:', error);
@@ -4386,49 +4441,59 @@ async function promptLinkAccount(email, googleCredential) {
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const safeDisplayEmail = normalizedEmail.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const result = await Swal.fire({
-        title: 'ส่งคำขอผูกอีเมลกับรหัสนักศึกษา',
+        title: 'ผูก Gmail กับรหัสนักศึกษา',
         html: `<div class="text-left text-sm space-y-3">
-            <div class="bg-blue-50 text-blue-800 p-3 rounded-xl border border-blue-200">อีเมล <b>${safeDisplayEmail}</b> ยังไม่พบในทะเบียนนักศึกษา สามารถใช้อีเมลมหาวิทยาลัยหรือ Gmail ส่วนตัวได้ โดยไม่ต้องใช้เบอร์โทรศัพท์</div>
+            <div class="bg-blue-50 text-blue-800 p-3 rounded-xl border border-blue-200">บัญชี <b>${safeDisplayEmail}</b> ยังไม่พบในทะเบียน สามารถผูกได้โดยไม่ต้องใช้เบอร์มือถือหรือรอแอดมินอนุมัติ</div>
             <label class="block text-xs font-bold">รหัสนักศึกษา</label>
-            <input id="link-stu-id" class="swal2-input !mx-0 !w-full" placeholder="เช่น 68152110001-2">
+            <input id="link-stu-id" class="swal2-input !mx-0 !w-full" placeholder="เช่น 68152110001-2" autocomplete="off">
+            <label class="block text-xs font-bold">รหัสเปิดใช้งานจากหัวหน้าหรือรองหัวหน้า</label>
+            <input id="link-activation-code" class="swal2-input !mx-0 !w-full text-center font-mono tracking-widest uppercase" placeholder="XXXX-XXXX-XXXX" maxlength="14" autocomplete="one-time-code">
             <label class="flex gap-2 items-start text-xs text-slate-600"><input type="checkbox" id="pdpa-consent" class="mt-1"><span>ข้าพเจ้ายินยอมให้ผูกอีเมลนี้กับรหัสนักศึกษาของข้าพเจ้าเพื่อเข้าสู่ระบบและใช้บริการ SSSFN</span></label>
-            <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">เพื่อความปลอดภัย คำขอจะรอหัวหน้าหรือรองหัวหน้าตรวจสอบก่อนอนุมัติ ไม่ต้องกรอกเบอร์มือถือ</p>
+            <p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">รหัสนี้ใช้ได้ครั้งเดียว ผูกกับรหัสนักศึกษาของคุณโดยเฉพาะ และหมดอายุภายใน 72 ชั่วโมง หากไม่มีรหัสให้ติดต่อหัวหน้าหรือรองหัวหน้า</p>
         </div>`,
-        showCancelButton:true, confirmButtonText:'ส่งคำขอผูกอีเมล', cancelButtonText:'ยกเลิก', confirmButtonColor:'#059669',
+        showCancelButton:true, confirmButtonText:'ยืนยันและผูกอีเมล', cancelButtonText:'ยกเลิก', confirmButtonColor:'#059669',
         preConfirm:() => {
             const id = String(document.getElementById('link-stu-id')?.value || '').trim();
+            const activationCode = String(document.getElementById('link-activation-code')?.value || '').trim().toUpperCase();
             const consent = !!document.getElementById('pdpa-consent')?.checked;
             if (!id) return Swal.showValidationMessage('กรุณากรอกรหัสนักศึกษา');
-            if (!consent) return Swal.showValidationMessage('กรุณายอมรับเงื่อนไขก่อนส่งคำขอ');
-            return { studentId:formatIdSearch(id), pdpaConsent:consent };
+            if (activationCode.replace(/[^A-Z0-9]/g,'').length !== 12) return Swal.showValidationMessage('กรุณากรอกรหัสเปิดใช้งาน 12 ตัวอักษร');
+            if (!consent) return Swal.showValidationMessage('กรุณายอมรับเงื่อนไขก่อนผูกอีเมล');
+            return { studentId:formatIdSearch(id), activationCode:activationCode, pdpaConsent:consent };
         }
     });
     if (!result.isConfirmed || !result.value) return;
-    await executeEmailLinkRequestV15433_(result.value.studentId, normalizedEmail, googleCredential, result.value.pdpaConsent);
-}
-
-async function executeEmailLinkRequestV15433_(studentId, email, googleCredential, pdpaConsent) {
-    Swal.fire({ title:'กำลังส่งคำขอ...', text:'กำลังตรวจสอบบัญชี Google และข้อมูลนักศึกษา', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
-    const result = await callBackend({
-        action:'requestStudentEmailLink',
-        studentId:String(studentId || ''),
-        credential:String(googleCredential || ''),
-        pdpaConsent:pdpaConsent === true
-    });
-    if (result && (result.status === 'pending' || result.status === 'already_pending')) {
-        return Swal.fire({
-            icon:'info', title:'ส่งคำขอเรียบร้อยแล้ว',
-            html:'คำขอผูกอีเมล <b>' + String(email || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) + '</b> ถูกส่งให้หัวหน้าหรือรองหัวหน้าตรวจสอบแล้ว<br><br>เมื่อได้รับอนุมัติ ให้กลับมาเลือกบัญชี Google เดิมเพื่อเข้าสู่ระบบอีกครั้ง',
-            confirmButtonText:'รับทราบ'
+    Swal.fire({title:'กำลังตรวจสอบรหัสและผูกอีเมล...', allowOutsideClick:false, didOpen:() => Swal.showLoading()});
+    try {
+        const linked = await callBackend({
+            action:'completeStudentEmailLinkWithCode',
+            studentId:String(result.value.studentId || ''),
+            activationCode:String(result.value.activationCode || ''),
+            credential:String(googleCredential || ''),
+            pdpaConsent:result.value.pdpaConsent === true
         });
+        if (!linked || linked.status !== 'success' || !linked.studentAuthToken || !linked.studentId) {
+            throw new Error((linked && linked.message) || 'ไม่สามารถผูกอีเมลได้');
+        }
+        window.currentAuthToken = '';
+        window.currentStudentAuthToken = linked.studentAuthToken;
+        sessionStorage.setItem('sssfn_student_auth_token', linked.studentAuthToken);
+        window.currentGuestStuId = linked.studentId;
+        currentUserRole = 'guest';
+        currentUsername = '';
+        localStorage.removeItem('sssfn_session');
+        localStorage.setItem('sssfn_guest_id', linked.studentId);
+        setSssfnPageLoadingV15425_(false);
+        if (!restoreStudentScopedCacheV15435_(linked.studentId)) clearUnsafeGlobalCacheForStudentV15435_(linked.studentId);
+        applyRoleUI(true);
+        switchPage('home');
+        await waitForCanonicalPullAfterLoginV15423_();
+        Swal.fire({icon:'success', title:'ผูกอีเมลและเข้าสู่ระบบสำเร็จ', text:'อีเมลนี้ถูกตั้งเป็นอีเมลสำหรับแจ้งเตือนแล้ว', showConfirmButton:false, timer:1800});
+    } catch (error) {
+        console.error('Student email activation failed:', error);
+        Swal.fire({icon:'error', title:'ผูกอีเมลไม่สำเร็จ', text:String(error && error.message || error)});
     }
-    if (result && result.status === 'already_linked') {
-        return Swal.fire({ icon:'success', title:'อีเมลนี้ผูกกับรหัสนักศึกษาแล้ว', text:'กรุณากดเข้าสู่ระบบด้วยบัญชี Google นี้อีกครั้ง', confirmButtonText:'รับทราบ' });
-    }
-    return Swal.fire('ส่งคำขอไม่สำเร็จ', (result && result.message) || 'ไม่สามารถส่งคำขอผูกอีเมลได้', 'error');
 }
-
-
 
 // ================= ระบบเข้าสู่ระบบของนักศึกษา (RMUTI Style) =================
 window.seedRandomRegistrations = function(actTitle, count = 5) {
@@ -11712,8 +11777,9 @@ window.editStudent = function(id) {
         <label class="block text-left text-xs font-bold text-slate-500 mb-1">ชื่อ-สกุล</label>
         <input id="e-nm" class="modern-input mb-2" value="${stu.name}">
         
-        <label class="block text-left text-xs font-bold text-slate-500 mb-1 mt-2">อีเมลสำหรับแจ้งเตือน</label>
-        <input id="e-email" class="modern-input" value="${stu.email || ''}" placeholder="example@email.com">
+        <label class="block text-left text-xs font-bold text-slate-500 mb-1 mt-2">อีเมลหลักในทะเบียน</label>
+        <input id="e-email" type="email" class="modern-input" value="${stu.email || ''}" placeholder="example@rmuti.ac.th">
+        <p class="text-[11px] text-indigo-600 -mt-2 mb-2 leading-relaxed"><i class="fas fa-info-circle mr-1"></i>อีเมลแจ้งเตือนจะใช้ที่อยู่อีเมลซึ่งผูกและยืนยันกับระบบแล้ว หากต้องการเพิ่ม Gmail ให้ใช้ปุ่ม “รหัส Gmail”</p>
     `, confirmButtonColor: '#059669', preConfirm:()=>{
         let newNm = document.getElementById('e-nm').value.trim();
         let newNo = parseInt(document.getElementById('e-no').value);
@@ -13575,7 +13641,7 @@ function renderMyPointsPageV15428_() {
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const rows = [];
     const txItems = (txHistory || []).filter(tx => {
-        if (!tx || tx.scoreAudit === true || tx.isPointEvent !== true) return false;
+        if (!tx || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
         const direct = cleanId(tx.studentId) === wantedId;
         const grouped = Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanId(id) === wantedId);
         return direct || grouped;
@@ -13797,7 +13863,7 @@ window.openStudentProfileModal = function(studentId) {
             const pointIdentity = pointKind === 'activity' ? String(tx.activityKey || '') : sssfnPointHistoryIdentityV15427_(tx);
             const encodedIdentity = encodeURIComponent(pointIdentity).replace(/'/g,'%27');
             const encodedStudentId = encodeURIComponent(String(stu.id)).replace(/'/g,'%27');
-            const removeButton = canVoidPoint ? `<button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ยกเลิกรายการคะแนน"><i class="fas fa-trash-alt text-xs"></i></button>` : '';
+            const removeButton = canVoidPoint ? `<div class="flex items-center gap-1.5"><input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer" data-bulk-point-student="${encodedStudentId}" data-bulk-point-kind="${pointKind}" data-bulk-point-identity="${encodedIdentity}" title="เลือกรายการนี้เพื่อยกเลิกหลายรายการ"><button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ยกเลิกรายการคะแนน"><i class="fas fa-trash-alt text-xs"></i></button></div>` : '';
             pointHistoryHtml += `
             <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1 gap-3">
                 <div class="flex-1 min-w-0 pr-1">
@@ -13864,11 +13930,12 @@ window.openStudentProfileModal = function(studentId) {
 
             <!-- 🌟 NEW: Point History Section -->
             <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                         <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
                         ประวัติคะแนนสะสม
                     </h3>
+                    ${['leader','vice'].includes(currentUserRole) && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ยกเลิกที่เลือก</button>` : ''}
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
@@ -13994,7 +14061,7 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
         pointDelta = Number(matchingLogs[0].score != null ? matchingLogs[0].score : (activity && activity.points || 0)) || 0;
     } else {
         tx = (txHistory || []).find(item => item && item.voided !== true && sssfnPointHistoryIdentityV15427_(item) === identity);
-        if (!tx || tx.isPointEvent !== true || tx.scoreAudit === true) return Swal.fire('ไม่พบรายการ', 'รายการคะแนนนี้ถูกยกเลิกไปแล้วหรือไม่สามารถยกเลิกได้', 'info');
+        if (!tx || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return Swal.fire('ไม่พบรายการ', 'รายการคะแนนนี้ถูกยกเลิกไปแล้วหรือไม่สามารถยกเลิกได้', 'info');
         pointDelta = Number(tx.pointDelta);
         if (!Number.isFinite(pointDelta)) {
             const match = String(tx.name || '').match(/([+-]\s*\d+)\s*แต้ม/);
@@ -14587,6 +14654,32 @@ function payWithDeposit(studentId, roundId) {
 }
 
 // v15.4.33: Leader/vice review queue for phone-free student email linking.
+window.generateStudentEmailActivationCodeV15435_ = async function(studentId) {
+    if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้นที่สร้างรหัสเปิดใช้งานได้','warning');
+    const student = (students || []).find(s => String(s.id || '') === String(studentId || ''));
+    if (!student) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาที่ต้องการสร้างรหัส','error');
+    const confirm = await Swal.fire({
+        title:'สร้างรหัสผูก Gmail?',
+        html:`<div class="text-left text-sm">สร้างรหัสเปิดใช้งานแบบใช้ครั้งเดียวสำหรับ <b>${String(student.name || '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</b><br><span class="text-slate-500">${String(student.id || '')} • ห้อง ${String(student.room || '-')}</span><p class="mt-2 text-amber-700">รหัสเก่าที่ยังไม่ถูกใช้ของคนนี้จะถูกยกเลิก และรหัสใหม่หมดอายุใน 72 ชั่วโมง</p></div>`,
+        icon:'question', showCancelButton:true, confirmButtonText:'สร้างรหัส', cancelButtonText:'กลับ', confirmButtonColor:'#059669'
+    });
+    if (!confirm.isConfirmed) return;
+    Swal.fire({title:'กำลังสร้างรหัส...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
+    try {
+        const result = await callBackend({action:'generateStudentEmailActivationCode', studentId:String(student.id)});
+        if (!result || result.status !== 'success' || !result.code) throw new Error((result && result.message) || 'สร้างรหัสไม่สำเร็จ');
+        const safeCode = String(result.code).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        await Swal.fire({
+            icon:'success', title:'สร้างรหัสแล้ว',
+            html:`<div class="text-center space-y-3"><p class="text-sm text-slate-600">ส่งรหัสนี้ให้นักศึกษา <b>${String(result.studentName || '')}</b> เป็นการส่วนตัว</p><div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><div class="text-xs text-emerald-700 mb-2">รหัสเปิดใช้งาน (แสดงครั้งนี้เท่านั้น)</div><div id="sssfn-generated-email-code" class="font-mono text-2xl font-black tracking-widest text-emerald-800 select-all">${safeCode}</div></div><p class="text-xs text-amber-700">หมดอายุ ${String(result.expiresAt || '')} • ใช้ได้ครั้งเดียว</p><button type="button" id="sssfn-copy-email-code" class="px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold"><i class="fas fa-copy mr-1"></i>คัดลอกรหัส</button></div>`,
+            confirmButtonText:'เสร็จสิ้น', confirmButtonColor:'#059669',
+            didOpen:()=>{ const btn=document.getElementById('sssfn-copy-email-code'); if(btn) btn.onclick=()=>{ if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(result.code).then(()=>showToast('คัดลอกรหัสแล้ว','success')).catch(()=>showToast('กรุณาเลือกและคัดลอกรหัสด้วยตนเอง','info')); else showToast('กรุณาเลือกและคัดลอกรหัสด้วยตนเอง','info'); }; }
+        });
+    } catch(error) {
+        Swal.fire('สร้างรหัสไม่สำเร็จ', String(error && error.message || error), 'error');
+    }
+};
+
 window.openStudentEmailLinkRequestsV15433_ = async function() {
     if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้นที่อนุมัติการผูกอีเมลได้', 'warning');
     Swal.fire({ title:'กำลังโหลดคำขอ...', allowOutsideClick:false, didOpen:() => Swal.showLoading() });
@@ -14638,11 +14731,142 @@ window.openStudentEmailLinkRequestsV15433_ = async function() {
 };
 
 // ================= โหลดรายชื่อนักศึกษา (อัปเกรดป้ายคะแนนให้ดูง่ายขึ้น) =================
+// v15.4.35: audited bulk cancellation of score history for selected students or selected rows.
+function sssfnCleanPointStudentIdV15435_(value) { return String(value || '').replace(/-/g,'').trim(); }
+function sssfnPointAppliesToStudentV15435_(tx, stu) {
+    if (!tx || !stu) return false;
+    const id = sssfnCleanPointStudentIdV15435_(stu.id);
+    if (sssfnCleanPointStudentIdV15435_(tx.studentId) === id) return true;
+    if (Array.isArray(tx.studentIds) && tx.studentIds.some(x => sssfnCleanPointStudentIdV15435_(x) === id)) return true;
+    const name = String(tx.name || '');
+    const room = String(tx.pointRoom || ((name.match(/ยกห้อง\s*\(([^)]+)\)/) || [])[1] || '')).trim().toLowerCase();
+    if (!tx.studentId && !(Array.isArray(tx.studentIds) && tx.studentIds.length) && room && room === String(stu.room || '').trim().toLowerCase() && /(แต้ม|คะแนน)/.test(name)) return true;
+    return !tx.studentId && !(Array.isArray(tx.studentIds) && tx.studentIds.length) && name.includes(String(stu.name || '')) && /(แต้ม|คะแนน)/.test(name);
+}
+function sssfnResolvePointDeltaV15435_(tx) {
+    let delta = Number(tx && tx.pointDelta);
+    if (!Number.isFinite(delta)) { const m = String(tx && tx.name || '').match(/([+-]\s*\d+)\s*แต้ม/); delta = m ? Number(m[1].replace(/\s/g,'')) : 0; }
+    return Number.isFinite(delta) ? delta : 0;
+}
+function sssfnPointActivityKeyV15435_(log) {
+    const title = String(log && log.activityTitle || '').trim();
+    const ref = String(log && (log.activityRef || log.activityId) || '').trim();
+    const act = (appSettings.activities || []).find(a => (ref && String(a.ref || a.id || '').trim() === ref) || (title && String(a.title || '').trim() === title));
+    return ref || String(act && (act.ref || act.id) || title);
+}
+function applyBulkPointVoidsV15435_(studentIds, reason, descriptors) {
+    const targets = (students || []).filter(s => studentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id)));
+    const selectedKeys = new Set((descriptors || []).map(d => String(d.kind || '') + '|' + String(d.identity || '')));
+    const onlySelectedRows = Array.isArray(descriptors) && descriptors.length > 0;
+    const now = getNow();
+    let txVoids = 0, activityVoids = 0;
+    targets.forEach(stu => {
+        const wantedId = sssfnCleanPointStudentIdV15435_(stu.id);
+        (activityLogs || []).forEach(log => {
+            if (!log || log.pointsVoided === true || sssfnCleanPointStudentIdV15435_(log.studentId) !== wantedId) return;
+            if (!['C','A'].includes(String(log.status || '').trim().toUpperCase())) return;
+            const key = sssfnPointActivityKeyV15435_(log);
+            if (onlySelectedRows && !selectedKeys.has('activity|' + key)) return;
+            log.pointsVoided = true;
+            log.pointsVoidedAt = now;
+            log.pointsVoidedBy = currentUsername || 'เจ้าหน้าที่';
+            log.pointsVoidReason = reason;
+            activityVoids++;
+        });
+        (txHistory || []).forEach(tx => {
+            if (!tx || tx.voided === true || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return;
+            if (!sssfnPointAppliesToStudentV15435_(tx, stu)) return;
+            const identity = sssfnPointHistoryIdentityV15427_(tx);
+            if (onlySelectedRows && !selectedKeys.has('tx|' + identity)) return;
+            const alreadyForStudent = Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId);
+            if (alreadyForStudent) return;
+            const delta = sssfnResolvePointDeltaV15435_(tx);
+            if (!delta) return;
+            const groupEvent = !String(tx.studentId || '').trim() && (Array.isArray(tx.studentIds) && tx.studentIds.length > 0 || !!String(tx.pointRoom || '') || /ยกห้อง/.test(String(tx.name || '')));
+            if (groupEvent) {
+                tx.voidedStudentIds = Array.from(new Set([...(tx.voidedStudentIds || []).map(String), String(stu.id)]));
+                tx.voidedStudentsAudit = Array.isArray(tx.voidedStudentsAudit) ? tx.voidedStudentsAudit : [];
+                tx.voidedStudentsAudit.push({studentId:String(stu.id), at:now, by:currentUsername || 'เจ้าหน้าที่', reason:reason});
+            } else {
+                tx.voided = true;
+                tx.voidedAt = now;
+                tx.voidedBy = currentUsername || 'เจ้าหน้าที่';
+                tx.voidReason = reason;
+            }
+            if (tx.pointSource !== 'payment') stu.points = (Number(stu.points) || 0) - delta;
+            txVoids++;
+        });
+        if (typeof getApprovedActivityPointsForStudent_ === 'function') {
+            stu.activityPoints = getApprovedActivityPointsForStudent_(stu.id);
+        }
+        stu.totalPoints = (Number(stu.points) || 0) + (Number(stu.activityPoints) || 0);
+    });
+    return {txVoids, activityVoids, students:targets.length};
+}
+window.updateScoreStudentSelectionCountV15435_ = function() {
+    const checked = document.querySelectorAll('[data-score-bulk-student]:checked').length;
+    const el = document.getElementById('admin-score-selected-count');
+    if (el) el.textContent = 'เลือก ' + checked + ' คน';
+};
+window.toggleVisibleScoreStudentsV15435_ = function(checked) {
+    document.querySelectorAll('[data-score-bulk-student]').forEach(el => { el.checked = !!checked; });
+    window.updateScoreStudentSelectionCountV15435_();
+};
+window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
+    if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้น','warning');
+    const ids = Array.from(document.querySelectorAll('[data-score-bulk-student]:checked')).map(el => decodeURIComponent(el.getAttribute('data-score-bulk-student') || ''));
+    if (!ids.length) return Swal.fire('ยังไม่ได้เลือกนักศึกษา','เลือกนักศึกษาอย่างน้อยหนึ่งคนก่อน','info');
+    const names = students.filter(s => ids.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id))).map(s => s.name).slice(0,8);
+    const res = await Swal.fire({title:'ยกเลิกประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label><textarea id="bulk-point-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น ปรับฐานคะแนนใหม่ / บันทึกซ้ำ"></textarea></div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันยกเลิก', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const v=String(document.getElementById('bulk-point-reason')?.value||'').trim(); if(!v) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return v;}});
+    if (!res.isConfirmed) return;
+    const result = applyBulkPointVoidsV15435_(ids, res.value, null);
+    saveToLocal(false); hasLocalChanges = true;
+    const saved = await autoSyncToGS(false);
+    renderLeaderboard(); renderAdminStudentList();
+    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยกเลิกในหน้าจอแล้ว แต่ยังบันทึกไม่ครบ',text:(saved && saved.message) || 'กรุณาตรวจสอบการบันทึกข้อมูลอีกครั้ง'});
+    Swal.fire({icon:'success', title:'ยกเลิกประวัติคะแนนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
+};
+window.bulkVoidAllStudentPointsV15435_ = async function() {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ล้างประวัติคะแนนทุกคนได้','warning');
+    const res = await Swal.fire({title:'ล้างประวัติคะแนนทุกคนทั้งระบบ?', html:'<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมด แต่เก็บประวัติการยกเลิกไว้ตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-all-point-reason" class="swal2-textarea" style="margin:0;width:100%"></textarea></div>', icon:'warning', showCancelButton:true, confirmButtonText:'ล้างคะแนนทุกคน', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); const r=String(document.getElementById('bulk-all-point-reason')?.value||'').trim(); if(!r) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return r;}});
+    if (!res.isConfirmed) return;
+    const ids = (students || []).map(s => s.id);
+    const result = applyBulkPointVoidsV15435_(ids, res.value, null);
+    saveToLocal(false); hasLocalChanges = true;
+    const saved = await autoSyncToGS(false);
+    renderLeaderboard(); renderAdminStudentList();
+    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยกเลิกในหน้าจอแล้ว แต่ยังบันทึกไม่ครบ',text:(saved && saved.message) || 'กรุณาตรวจสอบการบันทึกข้อมูลอีกครั้ง'});
+    Swal.fire({icon:'success', title:'ล้างประวัติคะแนนทุกคนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
+};
+window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId) {
+    if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้น','warning');
+    let studentId = ''; try { studentId = decodeURIComponent(String(encodedStudentId || '')); } catch (e) { return; }
+    const boxes = Array.from(document.querySelectorAll(`[data-bulk-point-student="${encodeURIComponent(studentId).replace(/"/g,'%22')}"]:checked`));
+    const descriptors = boxes.map(el => ({kind:el.getAttribute('data-bulk-point-kind'), identity:decodeURIComponent(el.getAttribute('data-bulk-point-identity') || '')}));
+    if (!descriptors.length) return Swal.fire('ยังไม่ได้เลือกรายการ','เลือกประวัติคะแนนที่ต้องการยกเลิกก่อน','info');
+    const res = await Swal.fire({title:'ยกเลิกรายการคะแนนที่เลือก?', html:`<p class="text-sm text-rose-700">เลือก ${descriptors.length} รายการ</p><label class="block text-left text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-point-row-reason" class="swal2-textarea" style="width:100%;margin:0"></textarea>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันยกเลิก', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const r=String(document.getElementById('bulk-point-row-reason')?.value||'').trim();if(!r)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return r;}});
+    if (!res.isConfirmed) return;
+    const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
+    saveToLocal(false); hasLocalChanges = true;
+    const saved = await autoSyncToGS(false);
+    renderLeaderboard(); renderAdminStudentList();
+    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยังบันทึกไม่สำเร็จ',text:(saved && saved.message) || 'กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่'});
+    Swal.fire({icon:'success',title:'ยกเลิกรายการที่เลือกแล้ว',text:`รายการคะแนน ${result.txVoids} • คะแนนกิจกรรม ${result.activityVoids}`,showConfirmButton:false,timer:1700});
+    setTimeout(()=>window.openStudentProfileModal(studentId),250);
+};
+
 window.renderAdminStudentList = function() {
     let search = (document.getElementById('admin-search-stu')?.value || '').toLowerCase();
     let roomFilter = document.getElementById('admin-filter-room')?.value || 'all';
     let tbody = document.getElementById('admin-student-list-body');
     if(!tbody) return;
+    const canManageScores = ['leader','vice'].includes(currentUserRole);
+    const bulkToolbar = document.getElementById('admin-score-bulk-toolbar');
+    const clearAllButton = document.getElementById('admin-score-clear-all');
+    if (bulkToolbar) bulkToolbar.classList.toggle('hidden', !canManageScores);
+    if (clearAllButton) clearAllButton.classList.toggle('hidden', currentUserRole !== 'leader');
+    const bulkSelect = document.getElementById('admin-score-select-visible');
+    if (bulkSelect) bulkSelect.checked = false;
 
     let roomSelect = document.getElementById('admin-filter-room');
     if (roomSelect && roomSelect.options.length <= 1) {
@@ -14658,7 +14882,7 @@ window.renderAdminStudentList = function() {
     });
 
     if (filteredStu.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold">ไม่พบรายชื่อนักศึกษา</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold">ไม่พบรายชื่อนักศึกษา</td></tr>';
         return;
     }
 
@@ -14675,6 +14899,7 @@ window.renderAdminStudentList = function() {
 
         html += `
         <tr class="border-b border-slate-50 hover:bg-indigo-50/30 transition-colors">
+            <td class="p-3 text-center">${canManageScores ? `<input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer" data-score-bulk-student="${encodeURIComponent(String(s.id)).replace(/'/g,'%27')}" onchange="updateScoreStudentSelectionCountV15435_()" aria-label="เลือก ${String(s.id)}">` : ""}</td>
             <td class="p-4">
                 <div class="font-bold text-slate-700 text-sm cursor-pointer hover:text-indigo-600 transition flex items-center group" onclick="viewStudentFinance('${s.id}')">
                     ${s.name} <i class="fas fa-search text-xs text-slate-300 ml-2 group-hover:text-indigo-400 transition-colors"></i>
@@ -14690,7 +14915,7 @@ window.renderAdminStudentList = function() {
                 </span>
             </td>
             <td class="p-4 text-center">
-                ${['leader','vice'].includes(currentUserRole) ? `<button onclick="manageStudentPoints('${s.id}')" class="bg-amber-100 hover:bg-amber-200 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition"><i class="fas fa-gift mr-1"></i> ให้แต้ม</button>` : '<span class="text-xs text-slate-300">ดูอย่างเดียว</span>'}
+                ${['leader','vice'].includes(currentUserRole) ? `<div class="flex flex-wrap justify-center gap-1.5"><button onclick="manageStudentPoints('${s.id}')" class="bg-amber-100 hover:bg-amber-200 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition"><i class="fas fa-gift mr-1"></i> ให้แต้ม</button><button onclick="generateStudentEmailActivationCodeV15435_('${s.id}')" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition"><i class="fas fa-key mr-1"></i> รหัส Gmail</button></div>` : '<span class="text-xs text-slate-300">ดูอย่างเดียว</span>'}
             </td>
         </tr>`;
     });
