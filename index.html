@@ -365,6 +365,7 @@
 <!-- SSSFN v15.4.31: receipt date uses latest student slip submission time for transfer payments -->
 <!-- SSSFN v15.4.30: prevent concurrent slip submission overwrite -->
 <!-- SSSFN v15.4.32: actual/reserve classification for website registration vs on-site scan -->
+<!-- SSSFN v15.4.36: leader-only score history edit/delete with audit trail -->
 <!-- SSSFN v15.4.35: linked notification email, individual activation code, background login and bulk score admin tools -->
 <!-- SSSFN v15.4.28: student-only score history page and sidebar naming -->
 <!-- SSSFN v15.4.27: payment-confirmation points and auditable score cancellation -->
@@ -1566,8 +1567,8 @@
             <span id="admin-score-selected-count" class="text-slate-400">เลือก 0 คน</span>
         </div>
         <div class="flex flex-wrap gap-2">
-            <button type="button" onclick="bulkVoidSelectedStudentsPointsV15435_()" class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"><i class="fas fa-user-minus mr-1"></i>ยกเลิกคะแนนของคนที่เลือก</button>
-            <button id="admin-score-clear-all" type="button" onclick="bulkVoidAllStudentPointsV15435_()" class="hidden px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold"><i class="fas fa-broom mr-1"></i>ล้างประวัติคะแนนทุกคน</button>
+            <button type="button" onclick="bulkVoidSelectedStudentsPointsV15435_()" class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"><i class="fas fa-user-minus mr-1"></i>ลบประวัติคะแนนของคนที่เลือก</button>
+            <button id="admin-score-clear-all" type="button" onclick="bulkVoidAllStudentPointsV15435_()" class="hidden px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold"><i class="fas fa-broom mr-1"></i>ลบประวัติคะแนนทุกคน</button>
         </div>
     </div>
 
@@ -13063,7 +13064,7 @@ function getApprovedActivityPointsForStudent_(studentId) {
     const earnedKeys = new Set();
     let total = 0;
     (activityLogs || []).forEach(log => {
-        if (!log || log.pointsVoided === true || cleanId(log.studentId) !== wantedId) return;
+        if (!log || log.pointsVoided === true || log.scoreHistoryHidden === true || cleanId(log.studentId) !== wantedId) return;
         const status = String(log.status || '').trim().toUpperCase();
         if (status !== 'C' && status !== 'A') return; // C/A are historical/current pass statuses.
         const title = String(log.activityTitle || '').trim();
@@ -13641,7 +13642,7 @@ function renderMyPointsPageV15428_() {
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const rows = [];
     const txItems = (txHistory || []).filter(tx => {
-        if (!tx || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
+        if (!tx || tx.scoreAudit === true || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => cleanId(id) === wantedId)) || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
         const direct = cleanId(tx.studentId) === wantedId;
         const grouped = Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanId(id) === wantedId);
         return direct || grouped;
@@ -13667,11 +13668,11 @@ function renderMyPointsPageV15428_() {
     });
 
     const seenActivities = new Set();
-    (activityLogs || []).filter(log => log && cleanId(log.studentId) === wantedId).forEach(log => {
+    (activityLogs || []).filter(log => log && log.scoreHistoryHidden !== true && cleanId(log.studentId) === wantedId).forEach(log => {
         const status = String(log.status || '').trim().toUpperCase();
         const isVoided = log.pointsVoided === true;
         if (!isVoided && status !== 'C' && status !== 'A') return;
-        const title = String(log.activityTitle || log.activityName || 'กิจกรรม').trim();
+        const title = String(log.scoreNote || log.activityTitle || log.activityName || 'กิจกรรม').trim();
         const ref = String(log.activityRef || log.activityId || '').trim();
         const act = (appSettings.activities || []).find(a =>
             (ref && String(a.ref || a.id || '').trim() === ref) ||
@@ -13681,7 +13682,7 @@ function renderMyPointsPageV15428_() {
         if (!activityKey || seenActivities.has(activityKey)) return;
         seenActivities.add(activityKey);
         const delta = Number(log.score != null ? log.score : (act && act.points != null ? act.points : 0)) || 0;
-        if (delta <= 0) return;
+        if (delta < 0 || (delta === 0 && !isVoided && !(Array.isArray(log.scoreEditAudit) && log.scoreEditAudit.length))) return;
         rows.push({
             key:'activity:' + activityKey,
             date:String(isVoided ? (log.pointsVoidedAt || log.assessedAt || log.updatedAt || log.timeIn || '') : (log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '')),
@@ -13755,7 +13756,7 @@ window.openStudentProfileModal = function(studentId) {
     let activityPointRows = [];
     myActs.forEach(log => {
         const status = String(log.status || '').trim().toUpperCase();
-        if (log.pointsVoided === true || (status !== 'C' && status !== 'A')) return;
+        if (log.scoreHistoryHidden === true || (log.pointsVoided !== true && status !== 'C' && status !== 'A')) return;
         const title = String(log.activityTitle || '').trim();
         const ref = String(log.activityRef || log.activityId || '').trim();
         const act = appSettings.activities.find(a => (ref && String(a.ref || a.id || '').trim() === ref) || (title && String(a.title || '').trim() === title));
@@ -13763,7 +13764,7 @@ window.openStudentProfileModal = function(studentId) {
         if (!activityKey || approvedActivityKeys.has(activityKey)) return;
         approvedActivityKeys.add(activityKey);
         const pts = Number(log.score != null ? log.score : (act && act.points != null ? act.points : 0)) || 0;
-        if (pts > 0) activityPointRows.push({ date:log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '-', name:`ผ่านกิจกรรม ${title || 'กิจกรรม'} +${pts} แต้ม: ${stu.name}`, user:'ระบบ', pointDelta:pts, isPointEvent:true, source:'activity', studentId:String(stu.id), activityKey:String(activityKey) });
+        if (pts >= 0) activityPointRows.push({ date:log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '-', name:`ผ่านกิจกรรม ${String(log.scoreNote || title || 'กิจกรรม')} +${pts} แต้ม: ${stu.name}`, user:'ระบบ', pointDelta:pts, isPointEvent:true, source:'activity', studentId:String(stu.id), activityKey:String(activityKey), scoreEditAudit:Array.isArray(log.scoreEditAudit) ? log.scoreEditAudit : [], voided:log.pointsVoided === true, voidedForStudent:log.pointsVoided === true, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''), voidReason:String(log.pointsVoidReason || '') });
     });
     let activityPointTotal = activityPointRows.reduce((sum, item) => sum + Number(item.pointDelta || 0), 0);
     let totalPoints = getStudentTotalPoints_(stu);
@@ -13822,9 +13823,7 @@ window.openStudentProfileModal = function(studentId) {
     // 3. ประวัติคะแนน: คะแนนที่ผู้ดูแลให้ + คะแนนจากกิจกรรมที่ได้รับผลผ่าน (C/A).
     const idKey = cleanStudentKey(stu.id);
     let manualPointLogs = (txHistory || []).filter(tx => {
-        if (!tx || tx.voided === true || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
-        const individuallyVoided = Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => cleanStudentKey(id) === idKey);
-        if (individuallyVoided) return false;
+        if (!tx || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => cleanStudentKey(id) === idKey)) || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
         const directMatch = cleanStudentKey(tx.studentId) === idKey;
         const groupMatch = Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanStudentKey(id) === idKey);
         const txName = String(tx.name || '');
@@ -13854,23 +13853,31 @@ window.openStudentProfileModal = function(studentId) {
             const cleanDesc = tx.source === 'activity'
                 ? String(tx.name || '').replace(String(stu.name || ''), '').trim()
                 : String(tx.pointNote || tx.name || '').replace(String(stu.name || ''), '').replace(/^ปรับคะแนน\s*/,'').trim();
-            const badgeHtml = isPositive
+            const safeCleanDesc = String(cleanDesc || 'ปรับคะแนนสะสม').replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+            const latestEditAudit = Array.isArray(tx.scoreEditAudit) && tx.scoreEditAudit.length ? tx.scoreEditAudit[tx.scoreEditAudit.length - 1] : null;
+            const editAuditHtml = latestEditAudit ? `<p class="text-[10px] text-indigo-500 mt-1">แก้ไขล่าสุดโดย ${String(latestEditAudit.by || 'หัวหน้า').replace(/[&<>\"']/g,'')} · ${String(latestEditAudit.at || '').replace(/[&<>\"']/g,'')} · ${String(latestEditAudit.reason || '').replace(/[&<>\"']/g,'')}</p>` : '';
+            const individualVoidAudit = Array.isArray(tx.voidedStudentsAudit) ? tx.voidedStudentsAudit.find(a => String(a.studentId || '').replace(/-/g,'') === idKey) : null;
+            tx.voidedForStudent = tx.voided === true || (Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => cleanStudentKey(id) === idKey));
+            tx.rowVoidAt = tx.voidedAt || (individualVoidAudit && individualVoidAudit.at) || '';
+            tx.rowVoidBy = tx.voidedBy || (individualVoidAudit && individualVoidAudit.by) || '';
+            tx.rowVoidReason = tx.voidReason || (individualVoidAudit && individualVoidAudit.reason) || '';
+            const badgeHtml = tx.voidedForStudent ? '<span class="bg-slate-100 text-slate-500 px-2 py-1 rounded-md text-xs font-bold border border-slate-200">ยกเลิกแล้ว</span>' : (isPositive
                 ? '<span class="bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md text-xs font-bold border border-emerald-200 shadow-sm"><i class="fas fa-arrow-up mr-1"></i> ได้รับ</span>'
-                : (isNegative ? '<span class="bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-xs font-bold border border-rose-200 shadow-sm"><i class="fas fa-arrow-down mr-1"></i> ถูกหัก</span>' : '<span class="bg-blue-100 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-200 shadow-sm">อัปเดต</span>');
-            const deltaText = Number.isFinite(delta) && delta !== 0 ? `${delta > 0 ? '+' : ''}${delta} แต้ม` : '';
-            const canVoidPoint = ['leader','vice'].includes(currentUserRole);
+                : (isNegative ? '<span class="bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-xs font-bold border border-rose-200 shadow-sm"><i class="fas fa-arrow-down mr-1"></i> ถูกหัก</span>' : '<span class="bg-blue-100 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-200 shadow-sm">อัปเดต</span>'));
+            const deltaText = Number.isFinite(delta) ? `${delta > 0 ? '+' : ''}${delta} แต้ม` : '';
+            const canVoidPoint = currentUserRole === 'leader';
             const pointKind = tx.source === 'activity' ? 'activity' : 'tx';
             const pointIdentity = pointKind === 'activity' ? String(tx.activityKey || '') : sssfnPointHistoryIdentityV15427_(tx);
             const encodedIdentity = encodeURIComponent(pointIdentity).replace(/'/g,'%27');
             const encodedStudentId = encodeURIComponent(String(stu.id)).replace(/'/g,'%27');
-            const removeButton = canVoidPoint ? `<div class="flex items-center gap-1.5"><input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer" data-bulk-point-student="${encodedStudentId}" data-bulk-point-kind="${pointKind}" data-bulk-point-identity="${encodedIdentity}" title="เลือกรายการนี้เพื่อยกเลิกหลายรายการ"><button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ยกเลิกรายการคะแนน"><i class="fas fa-trash-alt text-xs"></i></button></div>` : '';
+            const removeButton = canVoidPoint ? `<div class="flex items-center gap-1.5"><input type="checkbox" class="w-4 h-4 accent-indigo-600 cursor-pointer" data-bulk-point-student="${encodedStudentId}" data-bulk-point-kind="${pointKind}" data-bulk-point-identity="${encodedIdentity}" title="เลือกรายการนี้เพื่อแก้ไข/ลบหลายรายการ"><button type="button" onclick="editStudentPointHistoryItemV15436_('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" title="แก้ไขประวัติคะแนน"><i class="fas fa-pen text-xs"></i></button><button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ลบประวัติคะแนน"><i class="fas fa-trash-alt text-xs"></i></button></div>` : '';
             pointHistoryHtml += `
             <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1 gap-3">
                 <div class="flex-1 min-w-0 pr-1">
-                    <p class="text-sm font-bold text-slate-800" title="${cleanDesc}">${cleanDesc || 'ปรับคะแนนสะสม'}</p>
-                    <p class="text-xs text-slate-400 font-mono mt-0.5"><i class="far fa-clock"></i> ${tx.date || '-'} | ${tx.user || 'ระบบ'}</p>
+                    <p class="text-sm font-bold text-slate-800" title="${safeCleanDesc}">${safeCleanDesc}</p>
+                    <p class="text-xs text-slate-400 font-mono mt-0.5"><i class="far fa-clock"></i> ${tx.date || '-'} | ${tx.user || 'ระบบ'}</p>${tx.voidedForStudent ? `<p class="text-[10px] text-slate-500 mt-1">ยกเลิกโดย ${String(tx.rowVoidBy || 'ผู้ดูแล').replace(/[&<>\"']/g,'')} · ${String(tx.rowVoidAt || '').replace(/[&<>\"']/g,'')} · ${String(tx.rowVoidReason || '').replace(/[&<>\"']/g,'')}</p>` : ''}${editAuditHtml}
                 </div>
-                <div class="shrink-0 flex items-center gap-2"><div class="flex flex-col items-end gap-1">${badgeHtml}<span class="text-xs font-black ${delta < 0 ? 'text-rose-600' : 'text-emerald-600'}">${deltaText}</span></div>${removeButton}</div>
+                <div class="shrink-0 flex items-center gap-2"><div class="flex flex-col items-end gap-1">${badgeHtml}<span class="text-xs font-black ${tx.voidedForStudent ? 'text-slate-400 line-through' : (delta < 0 ? 'text-rose-600' : 'text-emerald-600')}">${deltaText}</span></div>${removeButton}</div>
             </div>`;
         });
     }
@@ -13935,7 +13942,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
                         ประวัติคะแนนสะสม
                     </h3>
-                    ${['leader','vice'].includes(currentUserRole) && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ยกเลิกที่เลือก</button>` : ''}
+                    ${currentUserRole === 'leader' && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
@@ -14025,7 +14032,90 @@ function adjustStudentPoints(studentId) {
     });
 }
 
-// v15.4.27: audited soft-void of one point-history item (leader/vice only).
+// v15.4.36: leader-only edit score amount/description. Source identity, date, recipient and origin stay immutable.
+window.editStudentPointHistoryItemV15436_ = async function(encodedKey, source, encodedStudentId) {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่แก้ไขประวัติคะแนนได้','warning');
+    let identity = '', studentId = '';
+    try { identity = decodeURIComponent(String(encodedKey || '')); studentId = decodeURIComponent(String(encodedStudentId || '')); }
+    catch (e) { return Swal.fire('ข้อมูลไม่ถูกต้อง','ไม่สามารถระบุรายการคะแนนได้','error'); }
+    const student = (students || []).find(s => String(s.id || '').replace(/-/g,'') === studentId.replace(/-/g,''));
+    if (!student) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาที่ต้องการแก้ไข','error');
+    const isActivity = source === 'activity';
+    let records = [], oldDelta = 0, oldNote = '', affectedStudents = [student];
+    if (isActivity) {
+        records = (activityLogs || []).filter(log => {
+            if (!log || log.scoreHistoryHidden === true) return false;
+            if (String(log.studentId || '').replace(/-/g,'') !== String(student.id || '').replace(/-/g,'')) return false;
+            if (!['C','A'].includes(String(log.status || '').trim().toUpperCase())) return false;
+            const title = String(log.activityTitle || '').trim();
+            const ref = String(log.activityRef || log.activityId || '').trim();
+            const act = (appSettings.activities || []).find(a => (ref && String(a.ref || a.id || '').trim() === ref) || (title && String(a.title || '').trim() === title));
+            return (ref || String(act && (act.ref || act.id) || title) || '') === identity;
+        });
+        if (!records.length) return Swal.fire('ไม่พบรายการ','รายการกิจกรรมนี้ถูกยกเลิกหรือลบไปแล้ว','info');
+        const actTitle = String(records[0].activityTitle || 'กิจกรรม');
+        const activity = (appSettings.activities || []).find(a => String(a.ref || a.id || '').trim() === identity || String(a.title || '').trim() === actTitle);
+        oldDelta = Number(records[0].score != null ? records[0].score : (activity && activity.points || 0)) || 0;
+        oldNote = String(records[0].scoreNote || actTitle);
+    } else {
+        const tx = (txHistory || []).find(item => item && item.historyHidden !== true && !(Array.isArray(item.historyHiddenStudentIds) && item.historyHiddenStudentIds.some(id => String(id).replace(/-/g,'') === String(student.id).replace(/-/g,''))) && sssfnPointHistoryIdentityV15427_(item) === identity);
+        if (!tx || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return Swal.fire('ไม่พบรายการ','รายการคะแนนนี้ถูกยกเลิกหรือลบไปแล้ว','info');
+        oldDelta = sssfnResolvePointDeltaV15435_(tx);
+        oldNote = String(tx.pointNote || tx.name || '').replace(String(student.name || ''),'').trim();
+        const isGroup = !String(tx.studentId || '').trim() && (Array.isArray(tx.studentIds) && tx.studentIds.length || tx.pointRoom || /ยกห้อง/.test(String(tx.name || '')));
+        if (isGroup) {
+            affectedStudents = (students || []).filter(s => sssfnPointAppliesToStudentV15435_(tx, s) && !(Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => String(id).replace(/-/g,'') === String(s.id).replace(/-/g,''))));
+        }
+        records = [tx];
+    }
+    const res = await Swal.fire({
+        title:'แก้ไขประวัติคะแนน',
+        html:`<div class="text-left"><div class="mb-3 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600">นักศึกษา: <b>${String(student.name || '').replace(/[&<>"']/g,'')}</b>${!isActivity && affectedStudents.length > 1 ? `<br><span class="text-amber-700">เป็นรายการให้คะแนนกลุ่ม จะมีผลกับ ${affectedStudents.length} คนที่ยังไม่ได้ยกเลิกรายการนี้</span>` : ''}</div><label class="block text-xs font-bold mb-1">จำนวนแต้มใหม่</label><input id="edit-score-delta-v15436" type="number" step="1" min="${isActivity ? 0 : -9999}" max="9999" class="swal2-input" style="width:100%;margin:0 0 12px" value="${oldDelta}"><label class="block text-xs font-bold mb-1">รายละเอียดประวัติ</label><textarea id="edit-score-note-v15436" class="swal2-textarea" style="width:100%;margin:0">${String(oldNote).replace(/[&<>"']/g,'')}</textarea><label class="block text-xs font-bold mb-1 mt-3">เหตุผลที่แก้ไข (เก็บในประวัติตรวจสอบ) *</label><textarea id="edit-score-reason-v15436" class="swal2-textarea" style="width:100%;margin:0" placeholder="ระบุเหตุผลการแก้ไข"></textarea></div>`,
+        showCancelButton:true, confirmButtonText:'บันทึกการแก้ไข', cancelButtonText:'กลับ', confirmButtonColor:'#4f46e5',
+        preConfirm:() => {
+            const delta = Number(document.getElementById('edit-score-delta-v15436')?.value);
+            const note = String(document.getElementById('edit-score-note-v15436')?.value || '').trim();
+            const reason = String(document.getElementById('edit-score-reason-v15436')?.value || '').trim();
+            if (!Number.isInteger(delta) || Math.abs(delta) > 9999 || (isActivity && delta < 0)) return Swal.showValidationMessage(isActivity ? 'คะแนนกิจกรรมต้องเป็นจำนวนเต็มตั้งแต่ 0 ถึง 9,999' : 'คะแนนต้องเป็นจำนวนเต็มระหว่าง -9,999 ถึง 9,999');
+            if (!note) return Swal.showValidationMessage('กรุณาระบุรายละเอียดประวัติ');
+            if (note.length > 200) return Swal.showValidationMessage('รายละเอียดต้องไม่เกิน 200 ตัวอักษร');
+            if (!reason) return Swal.showValidationMessage('กรุณาระบุเหตุผลที่แก้ไข');
+            return {delta,note,reason};
+        }
+    });
+    if (!res.isConfirmed) return;
+    const now = getNow(), next = res.value;
+    if (isActivity) {
+        records.forEach(log => {
+            const previous = {score:Number(log.score != null ? log.score : oldDelta) || 0, note:String(log.scoreNote || oldNote)};
+            log.score = next.delta;
+            log.scoreNote = next.note;
+            log.scoreEditAudit = Array.isArray(log.scoreEditAudit) ? log.scoreEditAudit : [];
+            log.scoreEditAudit.push({at:now,by:currentUsername || 'หัวหน้า',reason:next.reason,before:previous,after:{score:next.delta,note:next.note}});
+        });
+        student.activityPoints = getApprovedActivityPointsForStudent_(student.id);
+    } else {
+        const tx = records[0];
+        const previousDelta = sssfnResolvePointDeltaV15435_(tx);
+        tx.scoreEditAudit = Array.isArray(tx.scoreEditAudit) ? tx.scoreEditAudit : [];
+        tx.scoreEditAudit.push({at:now,by:currentUsername || 'หัวหน้า',reason:next.reason,before:{pointDelta:previousDelta,pointNote:String(tx.pointNote || '')},after:{pointDelta:next.delta,pointNote:next.note}});
+        tx.pointDelta = next.delta;
+        tx.pointNote = next.note;
+        if (tx.pointSource !== 'payment' && tx.voided !== true) {
+            const difference = next.delta - previousDelta;
+            affectedStudents.forEach(target => { target.points = (Number(target.points) || 0) + difference; });
+        }
+    }
+    (affectedStudents || [student]).forEach(target => { target.totalPoints = getStudentTotalPoints_(target); });
+    saveToLocal(false); hasLocalChanges = true;
+    const saved = await autoSyncToGS(false);
+    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'แก้ไขในหน้าจอแล้ว แต่ยังบันทึกไม่สำเร็จ',text:(saved && saved.message) || 'กรุณากดดึงข้อมูลและตรวจสอบก่อนลองใหม่'});
+    renderLeaderboard(); renderAdminStudentList();
+    Swal.fire({icon:'success',title:'แก้ไขประวัติคะแนนแล้ว',text:`ปรับเป็น ${next.delta} แต้ม • บันทึกเหตุผลและผู้แก้ไขไว้แล้ว`,timer:1800,showConfirmButton:false});
+    setTimeout(()=>window.openStudentProfileModal(student.id),250);
+};
+
+// v15.4.36: leader-only soft delete of one point-history item with audit trail.
 function sssfnPointHistoryIdentityV15427_(tx) {
     if (!tx) return '';
     if (tx.pointSourceKey) return String(tx.pointSourceKey);
@@ -14034,8 +14124,8 @@ function sssfnPointHistoryIdentityV15427_(tx) {
 }
 
 window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudentId) {
-    if (!['leader','vice'].includes(currentUserRole)) {
-        return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่ยกเลิกรายการคะแนนได้', 'warning');
+    if (currentUserRole !== 'leader') {
+        return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าเท่านั้นที่แก้ไขหรือลบประวัติคะแนนได้', 'warning');
     }
     let identity = '', targetStudentId = '';
     try { identity = decodeURIComponent(String(encodedKey || '')); targetStudentId = decodeURIComponent(String(encodedStudentId || '')); }
@@ -14047,7 +14137,7 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
     if (isActivity) {
         activityKey = identity;
         const matchingLogs = (activityLogs || []).filter(log => {
-            if (!log || log.pointsVoided === true || String(log.studentId || '').replace(/-/g,'') !== String(student.id || '').replace(/-/g,'')) return false;
+            if (!log || log.scoreHistoryHidden === true || String(log.studentId || '').replace(/-/g,'') !== String(student.id || '').replace(/-/g,'')) return false;
             const status = String(log.status || '').trim().toUpperCase();
             if (status !== 'C' && status !== 'A') return false;
             const title = String(log.activityTitle || '').trim();
@@ -14060,7 +14150,7 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
         const activity = (appSettings.activities || []).find(a => String(a.ref || a.id || '').trim() === activityKey || String(a.title || '').trim() === activityKey);
         pointDelta = Number(matchingLogs[0].score != null ? matchingLogs[0].score : (activity && activity.points || 0)) || 0;
     } else {
-        tx = (txHistory || []).find(item => item && item.voided !== true && sssfnPointHistoryIdentityV15427_(item) === identity);
+        tx = (txHistory || []).find(item => item && item.historyHidden !== true && sssfnPointHistoryIdentityV15427_(item) === identity);
         if (!tx || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return Swal.fire('ไม่พบรายการ', 'รายการคะแนนนี้ถูกยกเลิกไปแล้วหรือไม่สามารถยกเลิกได้', 'info');
         pointDelta = Number(tx.pointDelta);
         if (!Number.isFinite(pointDelta)) {
@@ -14068,13 +14158,13 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
             pointDelta = match ? Number(match[1].replace(/\s/g,'')) : 0;
         }
     }
-    if (!pointDelta) return Swal.fire('ไม่สามารถยกเลิกได้', 'รายการนี้ไม่มีจำนวนคะแนนที่ตรวจสอบได้', 'warning');
-    const verb = pointDelta > 0 ? `นำคะแนนออก ${pointDelta} แต้ม` : `คืนคะแนนที่ถูกหัก ${Math.abs(pointDelta)} แต้ม`;
+    if (!Number.isFinite(pointDelta)) return Swal.fire('ไม่สามารถลบได้', 'รายการนี้ไม่มีจำนวนคะแนนที่ตรวจสอบได้', 'warning');
+    const verb = pointDelta > 0 ? `นำคะแนนออก ${pointDelta} แต้ม` : (pointDelta < 0 ? `คืนคะแนนที่ถูกหัก ${Math.abs(pointDelta)} แต้ม` : 'ซ่อนประวัติรายการ 0 แต้ม');
     const itemName = isActivity ? `ผ่านกิจกรรม ${activityKey}` : String(tx.pointNote || tx.name || 'รายการคะแนน');
     Swal.fire({
-        title: 'ยืนยันยกเลิกรายการคะแนน?',
+        title: 'ยืนยันลบประวัติคะแนน?',
         html: `<div class="text-left text-sm bg-rose-50 border border-rose-200 rounded-xl p-3 mb-3"><b>${itemName}</b><p class="text-rose-700 mt-1">${verb} ของ ${student.name}</p></div><label class="block text-xs font-bold text-slate-600 text-left mb-1">เหตุผลที่ยกเลิก *</label><textarea id="void-point-reason" class="swal2-textarea" placeholder="เช่น ให้คะแนนผิดคน / ให้คะแนนซ้ำ" style="width:100%;margin:0"></textarea>`,
-        icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยันยกเลิกคะแนน', cancelButtonText: 'กลับ', confirmButtonColor: '#e11d48',
+        icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยันลบประวัติ', cancelButtonText: 'กลับ', confirmButtonColor: '#e11d48',
         preConfirm: () => {
             const reason = String(document.getElementById('void-point-reason')?.value || '').trim();
             if (!reason) return Swal.showValidationMessage('กรุณาระบุเหตุผลที่ยกเลิกคะแนน');
@@ -14087,11 +14177,8 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
             // Capture the current activity subtotal before marking its source logs voided.
             // Otherwise a fresh projection (activityPoints == null) would already exclude
             // this item and subtracting pointDelta again would double-deduct the score.
-            const activityPointsBeforeVoid = student.activityPoints != null
-                ? Number(student.activityPoints || 0)
-                : getApprovedActivityPointsForStudent_(student.id);
             (activityLogs || []).forEach(log => {
-                if (!log || log.pointsVoided === true || String(log.studentId || '').replace(/-/g,'') !== String(student.id || '').replace(/-/g,'')) return;
+                if (!log || log.scoreHistoryHidden === true || String(log.studentId || '').replace(/-/g,'') !== String(student.id || '').replace(/-/g,'')) return;
                 const status = String(log.status || '').trim().toUpperCase();
                 if (status !== 'C' && status !== 'A') return;
                 const title = String(log.activityTitle || '').trim();
@@ -14099,17 +14186,25 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
                 const act = (appSettings.activities || []).find(a => (ref && String(a.ref || a.id || '').trim() === ref) || (title && String(a.title || '').trim() === title));
                 const key = ref || String(act && (act.ref || act.id) || title);
                 if (key === activityKey) {
-                    log.pointsVoided = true;
-                    log.pointsVoidedAt = now;
-                    log.pointsVoidedBy = currentUsername || 'เจ้าหน้าที่';
-                    log.pointsVoidReason = result.value;
+                    if (log.pointsVoided !== true) {
+                        log.pointsVoided = true;
+                        log.pointsVoidedAt = now;
+                        log.pointsVoidedBy = currentUsername || 'หัวหน้า';
+                        log.pointsVoidReason = result.value;
+                    }
+                    log.scoreHistoryHidden = true;
+                    log.scoreHistoryHiddenAt = now;
+                    log.scoreHistoryHiddenBy = currentUsername || 'หัวหน้า';
+                    log.scoreHistoryHiddenReason = result.value;
                 }
             });
-            student.activityPoints = Math.max(0, activityPointsBeforeVoid - pointDelta);
+            student.activityPoints = getApprovedActivityPointsForStudent_(student.id);
             student.totalPoints = (Number(student.points) || 0) + student.activityPoints;
         } else {
             const liveTx = (txHistory || []).find(item => item && sssfnPointHistoryIdentityV15427_(item) === identity);
-            if (!liveTx || liveTx.voided === true) return;
+            if (!liveTx || liveTx.historyHidden === true) return;
+            const wasVoidedBefore = liveTx.voided === true;
+            let alreadyVoidedForStudent = false;
             const studentKey = String(student.id || '').replace(/-/g,'');
             const listedStudentIds = Array.isArray(liveTx.studentIds) ? liveTx.studentIds.map(id => String(id).replace(/-/g,'')) : [];
             const legacyRoom = String(liveTx.pointRoom || ((String(liveTx.name || '').match(/ยกห้อง\s*\(([^)]+)\)/) || [])[1] || '')).trim();
@@ -14117,22 +14212,34 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
             const isExplicitGroupEvent = !String(liveTx.studentId || '').trim() && listedStudentIds.length > 0;
             const isGroupEvent = isRoomGroupEvent || isExplicitGroupEvent;
             if (isGroupEvent) {
-                const alreadyVoidedForStudent = Array.isArray(liveTx.voidedStudentIds) && liveTx.voidedStudentIds.some(id => String(id).replace(/-/g,'') === studentKey);
-                if (alreadyVoidedForStudent) return;
+                alreadyVoidedForStudent = Array.isArray(liveTx.voidedStudentIds) && liveTx.voidedStudentIds.some(id => String(id).replace(/-/g,'') === studentKey);
                 if (isExplicitGroupEvent && !listedStudentIds.includes(studentKey)) return;
                 if (isRoomGroupEvent && String(student.room || '').trim().toLowerCase() !== legacyRoom.toLowerCase()) return;
-                liveTx.voidedStudentIds = Array.from(new Set([...(liveTx.voidedStudentIds || []).map(String), String(student.id)]));
-                liveTx.voidedStudentsAudit = Array.isArray(liveTx.voidedStudentsAudit) ? liveTx.voidedStudentsAudit : [];
-                liveTx.voidedStudentsAudit.push({ studentId:String(student.id), at:now, by:currentUsername || 'เจ้าหน้าที่', reason:String(result.value) });
+                if (!alreadyVoidedForStudent) {
+                    liveTx.voidedStudentIds = Array.from(new Set([...(liveTx.voidedStudentIds || []).map(String), String(student.id)]));
+                    liveTx.voidedStudentsAudit = Array.isArray(liveTx.voidedStudentsAudit) ? liveTx.voidedStudentsAudit : [];
+                    liveTx.voidedStudentsAudit.push({ studentId:String(student.id), at:now, by:currentUsername || 'หัวหน้า', reason:String(result.value) });
+                }
+                liveTx.historyHiddenStudentIds = Array.from(new Set([...(liveTx.historyHiddenStudentIds || []).map(String), String(student.id)]));
+                liveTx.historyHiddenStudentsAudit = Array.isArray(liveTx.historyHiddenStudentsAudit) ? liveTx.historyHiddenStudentsAudit : [];
+                liveTx.historyHiddenStudentsAudit.push({studentId:String(student.id),at:now,by:currentUsername || 'หัวหน้า',reason:String(result.value)});
             } else {
-                liveTx.voided = true;
-                liveTx.voidedAt = now;
-                liveTx.voidedBy = currentUsername || 'เจ้าหน้าที่';
-                liveTx.voidReason = result.value;
+                if (liveTx.voided !== true) {
+                    liveTx.voided = true;
+                    liveTx.voidedAt = now;
+                    liveTx.voidedBy = currentUsername || 'หัวหน้า';
+                    liveTx.voidReason = result.value;
+                }
+                liveTx.historyHidden = true;
+                liveTx.historyDeletedAt = now;
+                liveTx.historyDeletedBy = currentUsername || 'หัวหน้า';
+                liveTx.historyDeleteReason = result.value;
             }
             // A row shown in one student's profile is voided only for that student.
             // For room/bulk awards, other students keep their own awarded points.
-            if (liveTx.pointSource !== 'payment') {
+            if (liveTx.pointSource !== 'payment' && !wasVoidedBefore && !isGroupEvent) {
+                student.points = (Number(student.points) || 0) - pointDelta;
+            } else if (liveTx.pointSource !== 'payment' && isGroupEvent && !alreadyVoidedForStudent) {
                 student.points = (Number(student.points) || 0) - pointDelta;
             }
         }
@@ -14140,7 +14247,7 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
         renderLeaderboard();
         renderAdminStudentList();
         setTimeout(() => openStudentProfileModal(student.id), 350);
-        Swal.fire({toast:true, position:'top-end', icon:'success', title:'ยกเลิกรายการคะแนนแล้ว', showConfirmButton:false, timer:1800});
+        Swal.fire({toast:true, position:'top-end', icon:'success', title:'ลบประวัติคะแนนแล้ว', showConfirmButton:false, timer:1800});
     });
 };
 
@@ -14763,37 +14870,55 @@ function applyBulkPointVoidsV15435_(studentIds, reason, descriptors) {
     targets.forEach(stu => {
         const wantedId = sssfnCleanPointStudentIdV15435_(stu.id);
         (activityLogs || []).forEach(log => {
-            if (!log || log.pointsVoided === true || sssfnCleanPointStudentIdV15435_(log.studentId) !== wantedId) return;
+            if (!log || log.scoreHistoryHidden === true || sssfnCleanPointStudentIdV15435_(log.studentId) !== wantedId) return;
             if (!['C','A'].includes(String(log.status || '').trim().toUpperCase())) return;
             const key = sssfnPointActivityKeyV15435_(log);
             if (onlySelectedRows && !selectedKeys.has('activity|' + key)) return;
-            log.pointsVoided = true;
-            log.pointsVoidedAt = now;
-            log.pointsVoidedBy = currentUsername || 'เจ้าหน้าที่';
-            log.pointsVoidReason = reason;
+            if (log.pointsVoided !== true) {
+                log.pointsVoided = true;
+                log.pointsVoidedAt = now;
+                log.pointsVoidedBy = currentUsername || 'หัวหน้า';
+                log.pointsVoidReason = reason;
+            }
+            log.scoreHistoryHidden = true;
+            log.scoreHistoryHiddenAt = now;
+            log.scoreHistoryHiddenBy = currentUsername || 'หัวหน้า';
+            log.scoreHistoryHiddenReason = reason;
             activityVoids++;
         });
         (txHistory || []).forEach(tx => {
-            if (!tx || tx.voided === true || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return;
+            if (!tx || tx.scoreAudit === true || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId)) || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return;
             if (!sssfnPointAppliesToStudentV15435_(tx, stu)) return;
             const identity = sssfnPointHistoryIdentityV15427_(tx);
             if (onlySelectedRows && !selectedKeys.has('tx|' + identity)) return;
             const alreadyForStudent = Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId);
-            if (alreadyForStudent) return;
+            const wasVoidedBefore = tx.voided === true;
             const delta = sssfnResolvePointDeltaV15435_(tx);
-            if (!delta) return;
+            if (!Number.isFinite(delta)) return;
             const groupEvent = !String(tx.studentId || '').trim() && (Array.isArray(tx.studentIds) && tx.studentIds.length > 0 || !!String(tx.pointRoom || '') || /ยกห้อง/.test(String(tx.name || '')));
             if (groupEvent) {
-                tx.voidedStudentIds = Array.from(new Set([...(tx.voidedStudentIds || []).map(String), String(stu.id)]));
-                tx.voidedStudentsAudit = Array.isArray(tx.voidedStudentsAudit) ? tx.voidedStudentsAudit : [];
-                tx.voidedStudentsAudit.push({studentId:String(stu.id), at:now, by:currentUsername || 'เจ้าหน้าที่', reason:reason});
+                if (!alreadyForStudent) {
+                    tx.voidedStudentIds = Array.from(new Set([...(tx.voidedStudentIds || []).map(String), String(stu.id)]));
+                    tx.voidedStudentsAudit = Array.isArray(tx.voidedStudentsAudit) ? tx.voidedStudentsAudit : [];
+                    tx.voidedStudentsAudit.push({studentId:String(stu.id), at:now, by:currentUsername || 'หัวหน้า', reason:reason});
+                }
+                tx.historyHiddenStudentIds = Array.from(new Set([...(tx.historyHiddenStudentIds || []).map(String), String(stu.id)]));
+                tx.historyHiddenStudentsAudit = Array.isArray(tx.historyHiddenStudentsAudit) ? tx.historyHiddenStudentsAudit : [];
+                tx.historyHiddenStudentsAudit.push({studentId:String(stu.id),at:now,by:currentUsername || 'หัวหน้า',reason:reason});
             } else {
-                tx.voided = true;
-                tx.voidedAt = now;
-                tx.voidedBy = currentUsername || 'เจ้าหน้าที่';
-                tx.voidReason = reason;
+                if (tx.voided !== true) {
+                    tx.voided = true;
+                    tx.voidedAt = now;
+                    tx.voidedBy = currentUsername || 'หัวหน้า';
+                    tx.voidReason = reason;
+                }
+                tx.historyHidden = true;
+                tx.historyDeletedAt = now;
+                tx.historyDeletedBy = currentUsername || 'หัวหน้า';
+                tx.historyDeleteReason = reason;
             }
-            if (tx.pointSource !== 'payment') stu.points = (Number(stu.points) || 0) - delta;
+            if (tx.pointSource !== 'payment' && !alreadyForStudent && !wasVoidedBefore && !groupEvent) stu.points = (Number(stu.points) || 0) - delta;
+            else if (tx.pointSource !== 'payment' && !alreadyForStudent && groupEvent) stu.points = (Number(stu.points) || 0) - delta;
             txVoids++;
         });
         if (typeof getApprovedActivityPointsForStudent_ === 'function') {
@@ -14813,22 +14938,22 @@ window.toggleVisibleScoreStudentsV15435_ = function(checked) {
     window.updateScoreStudentSelectionCountV15435_();
 };
 window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
-    if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้น','warning');
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่จัดการประวัติคะแนนได้','warning');
     const ids = Array.from(document.querySelectorAll('[data-score-bulk-student]:checked')).map(el => decodeURIComponent(el.getAttribute('data-score-bulk-student') || ''));
     if (!ids.length) return Swal.fire('ยังไม่ได้เลือกนักศึกษา','เลือกนักศึกษาอย่างน้อยหนึ่งคนก่อน','info');
     const names = students.filter(s => ids.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id))).map(s => s.name).slice(0,8);
-    const res = await Swal.fire({title:'ยกเลิกประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label><textarea id="bulk-point-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น ปรับฐานคะแนนใหม่ / บันทึกซ้ำ"></textarea></div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันยกเลิก', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const v=String(document.getElementById('bulk-point-reason')?.value||'').trim(); if(!v) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return v;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label><textarea id="bulk-point-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น ปรับฐานคะแนนใหม่ / บันทึกซ้ำ"></textarea></div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const v=String(document.getElementById('bulk-point-reason')?.value||'').trim(); if(!v) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return v;}});
     if (!res.isConfirmed) return;
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
     const saved = await autoSyncToGS(false);
     renderLeaderboard(); renderAdminStudentList();
     if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยกเลิกในหน้าจอแล้ว แต่ยังบันทึกไม่ครบ',text:(saved && saved.message) || 'กรุณาตรวจสอบการบันทึกข้อมูลอีกครั้ง'});
-    Swal.fire({icon:'success', title:'ยกเลิกประวัติคะแนนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
+    Swal.fire({icon:'success', title:'ลบประวัติคะแนนแล้ว', text:`จัดการ ${result.students} คน • ซ่อนประวัติคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
 };
 window.bulkVoidAllStudentPointsV15435_ = async function() {
     if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ล้างประวัติคะแนนทุกคนได้','warning');
-    const res = await Swal.fire({title:'ล้างประวัติคะแนนทุกคนทั้งระบบ?', html:'<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมด แต่เก็บประวัติการยกเลิกไว้ตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-all-point-reason" class="swal2-textarea" style="margin:0;width:100%"></textarea></div>', icon:'warning', showCancelButton:true, confirmButtonText:'ล้างคะแนนทุกคน', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); const r=String(document.getElementById('bulk-all-point-reason')?.value||'').trim(); if(!r) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return r;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนทุกคนทั้งระบบ?', html:'<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะยกเลิกผลคะแนนและซ่อนประวัติจากหน้าของนักศึกษาทุกคน โดยยังเก็บหลักฐานและ audit ไว้ให้หัวหน้าตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-all-point-reason" class="swal2-textarea" style="margin:0;width:100%"></textarea></div>', icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติทั้งหมด', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); const r=String(document.getElementById('bulk-all-point-reason')?.value||'').trim(); if(!r) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return r;}});
     if (!res.isConfirmed) return;
     const ids = (students || []).map(s => s.id);
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
@@ -14836,22 +14961,22 @@ window.bulkVoidAllStudentPointsV15435_ = async function() {
     const saved = await autoSyncToGS(false);
     renderLeaderboard(); renderAdminStudentList();
     if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยกเลิกในหน้าจอแล้ว แต่ยังบันทึกไม่ครบ',text:(saved && saved.message) || 'กรุณาตรวจสอบการบันทึกข้อมูลอีกครั้ง'});
-    Swal.fire({icon:'success', title:'ล้างประวัติคะแนนทุกคนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
+    Swal.fire({icon:'success', title:'ลบประวัติคะแนนทุกคนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
 };
 window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId) {
-    if (!['leader','vice'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้น','warning');
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่จัดการประวัติคะแนนได้','warning');
     let studentId = ''; try { studentId = decodeURIComponent(String(encodedStudentId || '')); } catch (e) { return; }
     const boxes = Array.from(document.querySelectorAll(`[data-bulk-point-student="${encodeURIComponent(studentId).replace(/"/g,'%22')}"]:checked`));
     const descriptors = boxes.map(el => ({kind:el.getAttribute('data-bulk-point-kind'), identity:decodeURIComponent(el.getAttribute('data-bulk-point-identity') || '')}));
     if (!descriptors.length) return Swal.fire('ยังไม่ได้เลือกรายการ','เลือกประวัติคะแนนที่ต้องการยกเลิกก่อน','info');
-    const res = await Swal.fire({title:'ยกเลิกรายการคะแนนที่เลือก?', html:`<p class="text-sm text-rose-700">เลือก ${descriptors.length} รายการ</p><label class="block text-left text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-point-row-reason" class="swal2-textarea" style="width:100%;margin:0"></textarea>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันยกเลิก', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const r=String(document.getElementById('bulk-point-row-reason')?.value||'').trim();if(!r)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return r;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนที่เลือก?', html:`<p class="text-sm text-rose-700">เลือก ${descriptors.length} รายการ</p><label class="block text-left text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-point-row-reason" class="swal2-textarea" style="width:100%;margin:0"></textarea>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const r=String(document.getElementById('bulk-point-row-reason')?.value||'').trim();if(!r)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return r;}});
     if (!res.isConfirmed) return;
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
     const saved = await autoSyncToGS(false);
     renderLeaderboard(); renderAdminStudentList();
     if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยังบันทึกไม่สำเร็จ',text:(saved && saved.message) || 'กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่'});
-    Swal.fire({icon:'success',title:'ยกเลิกรายการที่เลือกแล้ว',text:`รายการคะแนน ${result.txVoids} • คะแนนกิจกรรม ${result.activityVoids}`,showConfirmButton:false,timer:1700});
+    Swal.fire({icon:'success',title:'ลบประวัติรายการที่เลือกแล้ว',text:`รายการคะแนน ${result.txVoids} • คะแนนกิจกรรม ${result.activityVoids}`,showConfirmButton:false,timer:1700});
     setTimeout(()=>window.openStudentProfileModal(studentId),250);
 };
 
@@ -14860,7 +14985,7 @@ window.renderAdminStudentList = function() {
     let roomFilter = document.getElementById('admin-filter-room')?.value || 'all';
     let tbody = document.getElementById('admin-student-list-body');
     if(!tbody) return;
-    const canManageScores = ['leader','vice'].includes(currentUserRole);
+    const canManageScores = currentUserRole === 'leader';
     const bulkToolbar = document.getElementById('admin-score-bulk-toolbar');
     const clearAllButton = document.getElementById('admin-score-clear-all');
     if (bulkToolbar) bulkToolbar.classList.toggle('hidden', !canManageScores);
