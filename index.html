@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- SSSFN v15.4.39: negative-score safe reset, audited deposit deduction, independent bill unlocking -->
 <html lang="th">
 <head>
 
@@ -365,7 +366,7 @@
 <!-- SSSFN v15.4.31: receipt date uses latest student slip submission time for transfer payments -->
 <!-- SSSFN v15.4.30: prevent concurrent slip submission overwrite -->
 <!-- SSSFN v15.4.32: actual/reserve classification for website registration vs on-site scan -->
-<!-- SSSFN v15.4.38: fix legacy group-void validation, rollback failed delete, refresh student score history -->
+<!-- SSSFN v15.4.39: fix legacy group-void validation, rollback failed delete, refresh student score history -->
 <!-- SSSFN v15.4.37: conditional multi-criteria score-history deletion (leader only) -->
 <!-- SSSFN v15.4.36: leader-only score history edit/delete with audit trail -->
 <!-- SSSFN v15.4.35: linked notification email, individual activation code, background login and bulk score admin tools -->
@@ -1572,6 +1573,7 @@
             <button type="button" onclick="openConditionalScoreHistoryDeleteV15437_()" class="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold"><i class="fas fa-filter mr-1"></i>ลบตามเงื่อนไข</button>
             <button type="button" onclick="bulkVoidSelectedStudentsPointsV15435_()" class="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"><i class="fas fa-user-minus mr-1"></i>ลบประวัติคะแนนของคนที่เลือก</button>
             <button id="admin-score-clear-all" type="button" onclick="bulkVoidAllStudentPointsV15435_()" class="hidden px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold"><i class="fas fa-broom mr-1"></i>ลบประวัติคะแนนทุกคน</button>
+            <button id="admin-score-negative-cleanup" type="button" onclick="openNegativePointCleanupV15439_()" class="hidden px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold"><i class="fas fa-search-minus mr-1"></i>ตรวจสอบคะแนนติดลบ</button>
         </div>
     </div>
 
@@ -3587,25 +3589,23 @@ function saveToLocal(triggerSync = true) {
     
     let unpaidRounds = [];
     fundPayments.forEach(p => {
-        if (p.studentId === stu.id) {
-            let r = fundRounds.find(rd => rd.id === p.roundId);
-            
-            // 1. ต้องเป็นบิลที่เปิดรับชำระ (isOpen !== false)
-            // 2. ต้องมียอดค้าง (r.amt - paid > 0)
-            // 3. ต้องไม่ใช่บิลที่ส่งสลิปไปแล้วและรอแอดมินยืนยัน
+        if (String(p.studentId || '').replace(/-/g,'') === String(stu.id || '').replace(/-/g,'')) {
+            let r = fundRounds.find(rd => String(rd.id) === String(p.roundId));
+            // หักยอดตามค่าบิลเฉพาะห้อง ไม่ใช้ amt กลางเมื่อมี roomAmounts
             if(r && isFundRoundOpenNow_(r)) {
-                let paid = p.paidAmt || 0;
+                let paid = Number(p.paidAmt || 0);
+                let roomExpected = r.roomAmounts && r.roomAmounts[stu.room] !== undefined ? Number(r.roomAmounts[stu.room]) : Number(r.amt || 0);
+                let remain = Math.max(0, roomExpected - paid);
                 let isPending = (p.status === 'รอตรวจสอบ' || p.status === 'รอดำเนินการ');
-                
-                if (r.amt - paid > 0 && !isPending) {
-                    unpaidRounds.push({...r, paid: paid, remain: r.amt - paid, qrUnlocked: p.qrUnlocked});
+                if (Number.isFinite(remain) && remain > 0 && !isPending) {
+                    unpaidRounds.push({...r, paid: paid, expectedAmount:roomExpected, remain: remain, qrUnlocked: p.qrUnlocked, allowPayWithOldDebt: r.allowPayWithOldDebt === true});
                 }
             }
         }
     });
     
     if(unpaidRounds.length > 0) {
-        // เรียงจากบิลเก่าไปใหม่
+        // เรียงจากบิลเก่าไปใหม่; บิลที่หัวหน้าปลดล็อกจะแยกเป็นตัวเลือกจ่ายเดี่ยว
         unpaidRounds.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
         let total = unpaidRounds.reduce((sum, r) => sum + r.remain, 0);
         buildSlipDropdown(unpaidRounds, total, alertDiv, selectRound);
@@ -3618,45 +3618,49 @@ function saveToLocal(triggerSync = true) {
 }
 
         function buildSlipDropdown(unpaidRounds, total, alertDiv, selectRound) {
-            window.currentUnpaidRounds = unpaidRounds; // 🌟 เก็บข้อมูลบิลค้างไว้ใช้ตอนกระจายสลิป
-            
-            let oldestRound = unpaidRounds[0];
-            let dParts = oldestRound.dueDate ? oldestRound.dueDate.split('-') : ['0000','00','00']; 
-            let dateStr = (dParts[0] !== '0000') ? `(บิล: ${dParts[2]}/${dParts[1]}/${parseInt(dParts[0])+543})` : '';
-            let isUn = oldestRound.qrUnlocked ? 'true' : 'false';
-            
-            let totalFixed = parseFloat(total || 0);
-            let oldestRemainFixed = parseFloat(oldestRound.remain || 0);
-            
+            const independentRounds = unpaidRounds.filter(r => r.allowPayWithOldDebt === true);
+            const debtRounds = unpaidRounds.filter(r => r.allowPayWithOldDebt !== true);
+            window.currentUnpaidRounds = debtRounds; // ALL จะรวมเฉพาะบิลปกติ ไม่รวมบิลที่ปลดล็อก
             let opts = '';
-            
-            if (unpaidRounds.length > 1) {
-                opts += `<option value="${oldestRound.id}" data-remain="${oldestRemainFixed}" data-unlocked="${isUn}">[จ่ายแค่บิลเก่าสุด] ${oldestRound.title} (฿${oldestRemainFixed.toFixed(2)})</option>`;
-                // 🌟 เปลี่ยน value เป็น "ALL" เพื่อให้ระบบรู้ว่านี่คือการเหมาจ่าย
-                opts += `<option value="ALL" data-remain="${totalFixed}" data-unlocked="${isUn}">[จ่ายทั้งหมด] เหมาเคลียร์ทุกบิล (฿${totalFixed.toFixed(2)})</option>`;
-                
-                alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-amber-50 text-amber-600 border border-amber-200'; 
-                alertDiv.innerHTML = `⚠️ มียอดค้างชำระหลายรายการ (รวม <b>฿${totalFixed.toFixed(2)}</b>)<br><span class="text-rose-500 font-bold">*โปรดเลือกรูปแบบการชำระในช่องด้านล่าง*</span>`; 
+            independentRounds.forEach(r => {
+                const remain = parseFloat(r.remain || 0);
+                const unlocked = r.qrUnlocked ? 'true' : 'false';
+                opts += `<option value="${r.id}" data-remain="${remain}" data-unlocked="${unlocked}">🔓 [จ่ายบิลนี้แยกได้] ${r.title} (฿${remain.toFixed(2)})</option>`;
+            });
+            if (independentRounds.length) opts = `<optgroup label="บิลที่หัวหน้าอนุญาตให้จ่ายแยก">${opts}</optgroup>`;
+            if (debtRounds.length) {
+                const oldestRound = debtRounds[0];
+                const dParts = oldestRound.dueDate ? oldestRound.dueDate.split('-') : ['0000','00','00'];
+                const dateStr = (dParts[0] !== '0000') ? `(บิล: ${dParts[2]}/${dParts[1]}/${parseInt(dParts[0])+543})` : '';
+                const isUn = oldestRound.qrUnlocked ? 'true' : 'false';
+                const totalDebt = debtRounds.reduce((sum, r) => sum + Number(r.remain || 0), 0);
+                const oldestRemain = parseFloat(oldestRound.remain || 0);
+                let debtOpts = '';
+                if (debtRounds.length > 1) {
+                    debtOpts += `<option value="${oldestRound.id}" data-remain="${oldestRemain}" data-unlocked="${isUn}">[จ่ายแค่บิลเก่าสุด] ${oldestRound.title} (฿${oldestRemain.toFixed(2)})</option>`;
+                    debtOpts += `<option value="ALL" data-remain="${totalDebt}" data-unlocked="${isUn}">[จ่ายทั้งหมดเฉพาะบิลปกติ] เคลียร์บิลปกติ ${debtRounds.length} รายการ (฿${totalDebt.toFixed(2)})</option>`;
+                } else {
+                    debtOpts += `<option value="${oldestRound.id}" data-remain="${oldestRemain}" data-unlocked="${isUn}">${oldestRound.title} ${dateStr} - ฿${oldestRemain.toFixed(2)}</option>`;
+                }
+                opts += `<optgroup label="บิลปกติ (ต้องชำระตามลำดับ)">${debtOpts}</optgroup>`;
+                alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-amber-50 text-amber-700 border border-amber-200';
+                alertDiv.innerHTML = `⚠️ ยังมีบิลปกติค้างชำระ ${debtRounds.length} รายการ (รวม <b>฿${totalDebt.toFixed(2)}</b>)<br><span class="text-slate-600">บิลที่ปลดล็อกแสดงแยกด้านบนและไม่ถูกรวมในยอดนี้</span>`;
             } else {
-                opts += `<option value="${oldestRound.id}" data-remain="${oldestRemainFixed}" data-unlocked="${isUn}">${oldestRound.title} ${dateStr} - ฿${oldestRemainFixed.toFixed(2)}</option>`;
-                
-                alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-blue-50 text-blue-600 border border-blue-200'; 
-                alertDiv.innerHTML = `ℹ️ บังคับเคลียร์บิล <b>"${oldestRound.title}"</b> ก่อนครับ`; 
+                alertDiv.className = 'mb-2 p-2 rounded-lg text-xs font-bold text-center bg-emerald-50 text-emerald-700 border border-emerald-200';
+                alertDiv.innerHTML = independentRounds.length
+                    ? `🔓 มีบิลที่หัวหน้าอนุญาตให้เลือกจ่ายแยก ${independentRounds.length} รายการ โดยไม่ต้องเคลียร์หนี้เก่าก่อน`
+                    : 'ไม่มียอดค้างชำระ';
             }
-            
-            selectRound.innerHTML = opts;
+            selectRound.innerHTML = opts || '<option value="">-- ไม่มียอดให้ชำระแล้ว --</option>';
             alertDiv.classList.remove('hidden');
-            
-            setTimeout(() => {
-                updateSlipQR();
-            }, 100);
+            setTimeout(() => { updateSlipQR(); }, 100);
         }
         function updateSlipQR() {
             let select = document.getElementById('slip-round');
             let qrContainer = document.getElementById('slip-qr-container');
             if(!select || !select.value) { qrContainer.innerHTML = ''; return; }
             
-            let roundId = select.value === "ALL" ? window.currentUnpaidRounds[0].id : parseInt(select.value);
+            let roundId = select.value === "ALL" ? (window.currentUnpaidRounds && window.currentUnpaidRounds[0] ? window.currentUnpaidRounds[0].id : NaN) : parseInt(select.value);
             let roundData = fundRounds.find(r => r.id === roundId);
             let roundTitle = roundData ? roundData.title : "ชำระเงินกองกลาง";
             
@@ -3788,7 +3792,7 @@ function openPublicSlipModal(targetRoundId = null) {
 
         <div id="slip-debt-alert" class="hidden mb-2 p-2 rounded-lg text-xs font-bold text-center"></div>
         
-        <label class="text-xs font-bold text-slate-500">รายการที่ต้องชำระ (ล็อกบิลเก่าสุด)</label>
+        <label class="text-xs font-bold text-slate-500">รายการที่ต้องชำระ (บิลปกติเรียงตามลำดับ / บิลปลดล็อกเลือกจ่ายแยกได้)</label>
         <select id="slip-round" onchange="updateSlipQR()" class="modern-input mb-2 font-bold text-slate-700 bg-slate-50"><option value="">-- กรุณากรอกรหัสนักศึกษาก่อน --</option></select>
         
         <div id="slip-qr-container" class="mb-3"></div>
@@ -3863,7 +3867,8 @@ function openPublicSlipModal(targetRoundId = null) {
             let isLumpSum = selectOpt.value === "ALL";
             
             // ถ้าเหมาจ่าย ให้เอา ID ของบิลเก่าสุดมาอ้างอิงส่งไปให้หลังบ้าน
-            let roundId = isLumpSum ? window.currentUnpaidRounds[0].id : parseInt(selectOpt.value);
+            let roundId = isLumpSum ? (window.currentUnpaidRounds && window.currentUnpaidRounds[0] ? window.currentUnpaidRounds[0].id : NaN) : parseInt(selectOpt.value);
+            if (!Number.isFinite(Number(roundId))) return Swal.showValidationMessage('ไม่พบบิลปกติที่สามารถรวมชำระได้ กรุณาเลือกบิลที่ปลดล็อกด้านบน');
             let expectedAmount = parseFloat(selectOpt.options[selectOpt.selectedIndex].dataset.remain);
             let cleanRoundTitle = selectOpt.options[selectOpt.selectedIndex].text.split(' (')[0];
 
@@ -10885,6 +10890,7 @@ function printReceipt(roundId, studentId) {
                         </div>
                     </div>
 
+                    ${currentUserRole === 'leader' ? `<div class="rounded-xl border border-amber-200 bg-amber-50 p-3"><label class="flex items-start gap-2 text-xs font-bold text-amber-900"><input type="checkbox" id="f-allow-old-debt" class="mt-0.5"><span>อนุญาตให้นักศึกษาจ่ายบิลนี้ได้ แม้ยังมีบิลเก่าค้างอยู่</span></label><p class="text-[11px] text-amber-800 mt-1">บิลเก่าจะยังคงค้างตามเดิม และบิลนี้จะไม่ถูกรวมในตัวเลือกเหมาจ่ายบิลปกติ</p><textarea id="f-allow-old-debt-reason" class="modern-input mt-2" rows="2" placeholder="เหตุผลที่ปลดล็อก (จำเป็น)"></textarea></div>` : ''}
                     <div class="grid grid-cols-2 gap-2 mb-2">
                         <div><label class="block text-left text-xs font-bold text-slate-700 mb-1">วันที่เริ่ม:</label><input type="date" id="f-start" class="modern-input mb-0"></div>
                         <div><label class="block text-left text-xs font-bold text-slate-700 mb-1">สิ้นสุด (Due):</label><input type="date" id="f-due" class="modern-input mb-0"></div>
@@ -10923,65 +10929,51 @@ function printReceipt(roundId, studentId) {
                         });
                     }
 
-                    return {title: t, amt: a, startDate: s, due: d, room: r, isOpen: isOpen, autoOpen: autoOpen, roomAmounts: roomAmounts}; 
+                    const allowPayWithOldDebt = currentUserRole === 'leader' && document.getElementById('f-allow-old-debt')?.checked === true;
+                    const allowOldDebtReason = allowPayWithOldDebt ? String(document.getElementById('f-allow-old-debt-reason')?.value || '').trim() : '';
+                    if (allowPayWithOldDebt && !allowOldDebtReason) return Swal.showValidationMessage('กรุณาระบุเหตุผลที่ปลดล็อกบิล');
+                    return {title: t, amt: a, startDate: s, due: d, room: r, isOpen: isOpen, autoOpen: autoOpen, roomAmounts: roomAmounts, allowPayWithOldDebt:allowPayWithOldDebt, allowOldDebtReason:allowOldDebtReason}; 
                 } 
-            }).then(res => { 
-                if(res.isConfirmed) { 
-                    let newRound = { 
-                        id: Date.now(), 
-                        title: res.value.title, 
-                        amt: res.value.amt, 
-                        roomAmounts: res.value.roomAmounts,
-                        startDate: res.value.startDate, 
-                        dueDate: res.value.due, 
-                        targetRoom: res.value.room, 
-                        isOpen: res.value.isOpen,
-                        autoOpen: res.value.autoOpen === true
-                    }; 
-                    fundRounds.push(newRound); 
-                    
-                    let autoPaidCount = 0;
-
-                    students.forEach(s => { 
-                        if(res.value.room === 'all' || s.room === res.value.room) { 
-                            let newPayment = { roundId: newRound.id, studentId: s.id, status: 'ยังไม่ชำระ', slipUrl: '', qrPayload: '', paidAmt: 0, qrUnlocked: false };
-                            
-                            let expectedAmt = (newRound.roomAmounts && newRound.roomAmounts[s.room] !== undefined) ? Number(newRound.roomAmounts[s.room]) : newRound.amt;
-
-                            // 🌟 ระบบหักเงินฝากมาจ่ายบิลใหม่อัตโนมัติ (ทำงานต่อเมื่อเปิดบิลรับเงินแล้ว)
-                            if (isFundRoundOpenNow_(newRound) && s.dep && s.dep > 0) {
-                                let payFromDep = Math.min(s.dep, expectedAmt);
-                                s.dep -= payFromDep;
-                                newPayment.paidAmt = payFromDep;
-                                
-                                if (payFromDep >= expectedAmt) {
-                                    newPayment.status = 'จ่ายแล้ว (หักเงินฝาก)';
-                                } else {
-                                    newPayment.status = 'ค้างชำระ (ผ่อน)';
-                                }
-                                autoPaidCount++;
-                                txHistory.unshift({ date: getNow(), name: `ดึงเงินฝากจ่ายบิล (${newRound.title}): ${s.name}`, type: 'ระบบ', amt: payFromDep, user: currentUsername });
-                            }
-
-                            fundPayments.push(newPayment); 
-                        } 
-                    }); 
-                    
-                    txHistory.unshift({ date: getNow(), name: `สร้างรายการ: ${res.value.title}`, type: 'ระบบ', amt: res.value.amt, user: currentUsername }); 
-                    saveToLocal(false); autoSyncToGS(); recalculateDebts(); refreshAll(); 
-                    
-                    if (autoPaidCount > 0) {
-                        Swal.fire({
-                            title: 'สร้างรอบบิลสำเร็จ!',
-                            html: `<p>ระบบได้สร้างบิล <b>${res.value.title}</b> เรียบร้อยแล้ว<br><br><span class="text-emerald-600 font-bold bg-emerald-50 px-3 py-2 rounded-lg inline-block border border-emerald-200">✅ ระบบดึงเงินฝากล่วงหน้ามาจ่ายให้แล้ว ${autoPaidCount} คน</span></p>`,
-                            icon: 'success',
-                            confirmButtonColor: '#059669'
-                        });
-                    } else {
-                        Swal.fire('สำเร็จ', 'สร้างรายการเรียกเก็บเงินเรียบร้อย', 'success'); 
-                    }
-                } 
-            }); 
+            }).then(async res => {
+                if (!res.isConfirmed) return;
+                const newRound = {
+                    id: Date.now(),
+                    title: res.value.title,
+                    amt: res.value.amt,
+                    roomAmounts: res.value.roomAmounts,
+                    startDate: res.value.startDate,
+                    dueDate: res.value.due,
+                    targetRoom: res.value.room,
+                    isOpen: res.value.isOpen,
+                    autoOpen: res.value.autoOpen === true,
+                    allowPayWithOldDebt: res.value.allowPayWithOldDebt === true,
+                    allowPayWithOldDebtReason: res.value.allowOldDebtReason || ''
+                };
+                Swal.fire({title:'กำลังสร้างบิลและตรวจเงินฝาก...',text:'ระบบจะบันทึกรอบบิล รายการเรียกเก็บ และการหักเงินฝากเป็นคำสั่งเดียว',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+                const saved = await callBackend({action:'createFundRoundV15439',round:newRound});
+                if (!saved || saved.status !== 'success') {
+                    return Swal.fire('สร้างรายการไม่สำเร็จ',(saved && saved.message) || 'หลังบ้านไม่ยืนยันการบันทึก ข้อมูลยังไม่ถูกเปลี่ยน','error');
+                }
+                const autoPaidCount = Number(saved.data && saved.data.autoPaidCount || 0);
+                // Pull the committed canonical state; this also resets the local realtime baseline.
+                const pulled = await silentPullFromGS(false,true);
+                if (!pulled || pulled.status !== 'success') {
+                    console.warn('Fund round committed but immediate refresh was not confirmed:',pulled);
+                    refreshAll();
+                    return Swal.fire({icon:'success',title:'สร้างรายการสำเร็จ',text:'บันทึกที่หลังบ้านแล้ว แต่การโหลดข้อมูลกลับมาแสดงยังไม่สำเร็จ กรุณากดรีเฟรชข้อมูลอีกครั้ง'});
+                }
+                recalculateDebts();
+                refreshAll();
+                if (autoPaidCount > 0) {
+                    Swal.fire({
+                        title:'สร้างรอบบิลสำเร็จ!',
+                        html:`<p>ระบบสร้างบิล <b>${String(newRound.title)}</b> แล้ว<br><br><span class="text-emerald-700 font-bold bg-emerald-50 px-3 py-2 rounded-lg inline-block border border-emerald-200">✅ หักเงินฝากอัตโนมัติแล้ว ${autoPaidCount} คน</span></p><p class="text-xs text-slate-500 mt-2">ทุกการหักบันทึกยอดก่อน/หลัง เหตุผล ผู้ดำเนินการ และเวลาไว้แล้ว</p>`,
+                        icon:'success',confirmButtonColor:'#059669'
+                    });
+                } else {
+                    Swal.fire('สำเร็จ','สร้างรายการเรียกเก็บเงินเรียบร้อย','success');
+                }
+            });
         }
 
         function editFundRound() { 
@@ -10995,16 +10987,27 @@ function printReceipt(roundId, studentId) {
             <div><label class="block text-left text-xs font-bold text-slate-700 mb-1">วันที่เริ่ม:</label><input type="date" id="e-f-start" class="modern-input mb-0" value="${round.startDate || ''}"></div>
             <div><label class="block text-left text-xs font-bold text-slate-700 mb-1">สิ้นสุด:</label><input type="date" id="e-f-due" class="modern-input mb-0" value="${round.dueDate || ''}"></div>
         </div>
+        ${currentUserRole === 'leader' ? `<div class="rounded-xl border border-amber-200 bg-amber-50 p-3"><label class="flex items-start gap-2 text-xs font-bold text-amber-900"><input type="checkbox" id="e-f-allow-old-debt" class="mt-0.5" ${round.allowPayWithOldDebt === true ? 'checked' : ''}><span>อนุญาตให้จ่ายบิลนี้ได้แม้ยังมีบิลเก่าค้าง</span></label><p class="text-[11px] text-amber-800 mt-1">เปลี่ยนสถานะปลดล็อกต้องระบุเหตุผล และจะไม่เปลี่ยนสถานะหนี้เก่า</p><textarea id="e-f-allow-old-debt-reason" class="modern-input mt-2" rows="2" placeholder="เหตุผลเมื่อเปลี่ยนสถานะปลดล็อก"></textarea></div>` : `<div class="rounded-lg border p-2 text-xs text-slate-500">สิทธิ์ปลดล็อกบิล: ${round.allowPayWithOldDebt === true ? 'เปิดอยู่' : 'ปิดอยู่'} (เฉพาะหัวหน้าแก้ไขได้)</div>`}
         <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
             <span class="text-sm font-bold text-slate-700">อนุญาตให้เปิดรับชำระตามกำหนด</span>
             <div class="relative inline-block w-12 align-middle select-none transition duration-200 ease-in"><input type="checkbox" id="e-f-status" ${(round.autoOpen === true || (round.autoOpen === undefined && round.isOpen !== false)) ? 'checked' : ''} class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300"/><label for="e-f-status" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer transition-all duration-300"></label></div>
         </div><p class="text-[11px] text-slate-500 text-left mt-1">เมื่อถึงวันที่เริ่ม ระบบจะแสดงบิลและเปิดรับชำระเอง วันที่ Due ใช้เป็นกำหนดชำระ ไม่ได้ปิดบิลอัตโนมัติ</p>`; 
     Swal.fire({ title: 'แก้ไขรอบบิล', html: htmlForm, confirmButtonText: 'บันทึก', confirmButtonColor: '#059669', showCancelButton: true, preConfirm: () => { 
         const autoOpen = document.getElementById('e-f-status').checked;
-        return {title: document.getElementById('e-f-t').value, amt: parseFloat(document.getElementById('e-f-a').value), startDate: document.getElementById('e-f-start').value, dueDate: document.getElementById('e-f-due').value, isOpen: autoOpen, autoOpen: autoOpen}; 
+        const nextAllowOldDebt = currentUserRole === 'leader' ? (document.getElementById('e-f-allow-old-debt')?.checked === true) : (round.allowPayWithOldDebt === true);
+        const oldAllowOldDebt = round.allowPayWithOldDebt === true;
+        const unlockReason = nextAllowOldDebt !== oldAllowOldDebt ? String(document.getElementById('e-f-allow-old-debt-reason')?.value || '').trim() : '';
+        if (nextAllowOldDebt !== oldAllowOldDebt && !unlockReason) return Swal.showValidationMessage('กรุณาระบุเหตุผลที่เปลี่ยนสถานะปลดล็อก');
+        return {title: document.getElementById('e-f-t').value, amt: parseFloat(document.getElementById('e-f-a').value), startDate: document.getElementById('e-f-start').value, dueDate: document.getElementById('e-f-due').value, isOpen: autoOpen, autoOpen: autoOpen, allowPayWithOldDebt:nextAllowOldDebt, unlockReason:unlockReason}; 
     } }).then(res => { 
         if(res.isConfirmed) { 
-            round.title = res.value.title; round.amt = res.value.amt; round.startDate = res.value.startDate; round.dueDate = res.value.dueDate; round.isOpen = res.value.isOpen; round.autoOpen = res.value.autoOpen; 
+            round.title = res.value.title; round.amt = res.value.amt; round.startDate = res.value.startDate; round.dueDate = res.value.dueDate; round.isOpen = res.value.isOpen; round.autoOpen = res.value.autoOpen;
+            const previousUnlock = round.allowPayWithOldDebt === true;
+            if (res.value.allowPayWithOldDebt !== previousUnlock) {
+                round.allowPayWithOldDebt = res.value.allowPayWithOldDebt === true;
+                round.allowPayWithOldDebtAudit = Array.isArray(round.allowPayWithOldDebtAudit) ? round.allowPayWithOldDebtAudit : [];
+                round.allowPayWithOldDebtAudit.push({at:new Date().toISOString(),by:currentUsername || '',reason:res.value.unlockReason,from:previousUnlock,to:round.allowPayWithOldDebt});
+            }
             saveToLocal(); refreshAll(); 
         } 
     }); 
@@ -14721,49 +14724,37 @@ function viewStudentFinance(studentId) {
 
 // ================= ฟังก์ชันนำเงินฝากมาตัดจ่ายบิลใหม่ =================
 function payWithDeposit(studentId, roundId) {
-    let stu = students.find(s => s.id == studentId);
-    let round = fundRounds.find(r => r.id == roundId);
-    let p = fundPayments.find(x => x.roundId == roundId && x.studentId == studentId);
-    
-    if(!stu || !round || !p || !stu.dep || stu.dep <= 0) return;
-    
-    let remain = round.amt - (p.paidAmt || 0);
-    
+    if (!['leader','treasurer'].includes(currentUserRole)) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าหรือเหรัญญิกเท่านั้นที่หักเงินฝากได้','warning');
+    const stu = students.find(s => String(s.id) === String(studentId));
+    const round = fundRounds.find(r => String(r.id) === String(roundId));
+    const payment = fundPayments.find(x => String(x.roundId) === String(roundId) && String(x.studentId) === String(studentId));
+    if (!stu || !round || !payment || !(Number(stu.dep) > 0)) return;
+    const expected = Number((round.roomAmounts || {})[stu.room] !== undefined ? round.roomAmounts[stu.room] : round.amt) || 0;
+    const remain = Math.max(0, expected - Number(payment.paidAmt || 0));
+    if (remain <= 0) return Swal.fire('ชำระครบแล้ว','บิลนี้ไม่มียอดค้าง','info');
     Swal.fire({
-        title: 'ใช้เงินฝากจ่ายบิลนี้?',
-        html: `
-            <div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <p class="text-sm mb-2 text-slate-600">เงินฝากที่มี: <b class="text-emerald-600">฿${stu.dep}</b></p>
-                <p class="text-sm mb-2 text-slate-600">บิลนี้เรียกเก็บ: <b class="text-rose-600">฿${remain}</b></p>
-                <hr class="my-2 border-slate-200">
-                <p class="text-xs text-amber-600">* ระบบจะดึงสลิปเงินฝากเดิมมาแนบเป็นหลักฐานในบิลนี้ให้อัตโนมัติ</p>
-            </div>
-        `,
-        icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยันหักเงินฝาก', confirmButtonColor: '#10b981'
-    }).then(res => {
-        if(res.isConfirmed) {
-            let useAmt = Math.min(stu.dep, remain);
-            stu.dep -= useAmt; // หักเงินออกจากยอดฝาก
-            
-            p.paidAmt = (p.paidAmt || 0) + useAmt;
-            p.status = p.paidAmt >= round.amt ? 'จ่ายแล้ว (หักเงินฝาก)' : 'ค้างชำระ (หักเงินฝาก)';
-            p.paidDate = getNow();
-            p.paidBy = currentUsername || 'ระบบ (ตัดเงินฝาก)';
-            
-            // 🌟 พระเอกอยู่ตรงนี้: ดึงสลิปเงินฝากเดิมมาใส่ในบิลนี้!
-            if(stu.lastDepositSlip) {
-                p.slipUrl = stu.lastDepositSlip;
-            }
-            
-            // คะแนนจะเกิดหลังผู้ดูแลยืนยันการหักเงินฝากจนชำระครบ และผ่านเกณฑ์กำหนดเวลาเท่านั้น
-            p.paymentChannel = 'deposit';
-            sssfnGrantOnTimePaymentPointsV15427_(stu, round, p, currentUsername || 'ผู้ดูแลระบบ');
-            
-            txHistory.unshift({ date: getNow(), name: `นำเงินฝากจ่ายบิล "${round.title}"`, type: 'ระบบ', amt: useAmt, user: currentUsername });
-            
-            saveToLocal(true); renderFundTable();
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'ตัดเงินฝากเรียบร้อย!', showConfirmButton:false, timer:1500});
+        title:'ใช้เงินฝากจ่ายบิลนี้?',
+        html:`<div class="text-left bg-slate-50 p-4 rounded-xl border border-slate-200"><p class="text-sm mb-2">เงินฝากปัจจุบัน: <b class="text-emerald-600">฿${Number(stu.dep).toFixed(2)}</b></p><p class="text-sm mb-2">ยอดค้างบิล: <b class="text-rose-600">฿${remain.toFixed(2)}</b></p><p class="text-xs text-slate-500">ระบบจะหักตามยอดที่มีจริง และบันทึกยอดก่อน/หลัง ผู้ดำเนินการ วันเวลา และเหตุผล</p></div><label class="block text-left text-xs font-bold text-slate-600 mt-3 mb-1">เหตุผลการหักเงินฝาก *</label><textarea id="deposit-deduction-reason-v15439" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น นักศึกษาขอใช้เงินฝากชำระบิลนี้"></textarea>`,
+        icon:'question',showCancelButton:true,confirmButtonText:'ยืนยันหักเงินฝาก',cancelButtonText:'ยกเลิก',confirmButtonColor:'#10b981',
+        preConfirm:()=>{const reason=String(document.getElementById('deposit-deduction-reason-v15439')?.value||'').trim();if(!reason)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return reason;}
+    }).then(async res=>{
+        if(!res.isConfirmed)return;
+        Swal.fire({title:'กำลังบันทึกการหักเงินฝาก...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+        const result=await callBackend({action:'applyDepositDeduction',studentId:String(studentId),roundId:String(roundId),reason:res.value});
+        if(!result||result.status!=='success') return Swal.fire('หักเงินฝากไม่สำเร็จ',(result&&result.message)||'หลังบ้านไม่ยืนยันการบันทึก ยอดเงินยังไม่เปลี่ยน');
+        const data=result.data||{};
+        const pulled=await silentPullFromGS(false,true);
+        if(!pulled || pulled.status!=='success') {
+            const stuIndex=students.findIndex(s=>String(s.id)===String(studentId));
+            const payIndex=fundPayments.findIndex(p=>String(p.studentId)===String(studentId)&&String(p.roundId)===String(roundId));
+            if(stuIndex>=0&&data.student)students[stuIndex]=data.student;
+            if(payIndex>=0&&data.payment)fundPayments[payIndex]=data.payment;
+            if(data.transaction && !txHistory.some(tx=>String(tx.id)===String(data.transaction.id)))txHistory.unshift(data.transaction);
+            saveToLocal(false);
+            if (typeof captureCurrentRealtimeData_ === 'function') { lastServerSnapshot=captureCurrentRealtimeData_(); hasLocalChanges=false; }
         }
+        refreshAll();
+        Swal.fire({toast:true,position:'top-end',icon:'success',title:pulled && pulled.status==='success'?'หักเงินฝากและอัปเดตข้อมูลล่าสุดแล้ว':'หักเงินฝากแล้ว แต่โหลดข้อมูลล่าสุดไม่สำเร็จ กรุณารีเฟรช',showConfirmButton:false,timer:2200});
     });
 }
 
@@ -14988,6 +14979,53 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     setTimeout(()=>window.openStudentProfileModal(studentId),250);
 };
 
+// v15.4.39: leader-only cleanup for negative points with no verifiable history.
+window.openNegativePointCleanupV15439_ = function() {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ตรวจสอบและล้างคะแนนติดลบได้','warning');
+    const rows = (students || []).map(s => ({ id:String(s.id || ''), name:String(s.name || ''), room:String(s.room || ''), total:Number(getStudentTotalPoints_(s)) }))
+        .filter(s => Number.isFinite(s.total) && s.total < 0)
+        .sort((a,b) => a.total - b.total);
+    if (!rows.length) return Swal.fire('ไม่พบคะแนนติดลบ','ขณะนี้ไม่พบนักศึกษาที่มียอดคะแนนรวมต่ำกว่า 0','success');
+    const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    Swal.fire({
+        title:'ตรวจสอบนักศึกษาคะแนนติดลบ',
+        width:760,
+        html:`<div class="text-left text-xs text-slate-600 mb-3">พบ ${rows.length} คน • การกดตรวจสอบจะให้หลังบ้านตรวจประวัติทุกแหล่งอีกครั้งก่อนอนุญาตให้ล้างเป็น 0<br><span class="text-rose-700 font-bold">หากพบประวัติคะแนนแม้ถูกซ่อน/ยกเลิกแล้ว ระบบจะปฏิเสธการล้าง</span></div><input id="negative-points-search-v15439" class="swal2-input" style="width:100%;margin:0 0 10px" placeholder="ค้นหารหัส ชื่อ หรือห้อง"><div id="negative-points-list-v15439" class="max-h-[48vh] overflow-y-auto space-y-2"></div>`,
+        showConfirmButton:false,showCloseButton:true,
+        didOpen:()=>{
+            const input=document.getElementById('negative-points-search-v15439');
+            const list=document.getElementById('negative-points-list-v15439');
+            const draw=()=>{
+                const q=String(input.value||'').trim().toLowerCase();
+                const filtered=rows.filter(r=>!q || [r.id,r.name,r.room].some(v=>v.toLowerCase().includes(q)));
+                list.innerHTML=filtered.map(r=>`<div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 bg-white"><div class="min-w-0"><div class="font-bold text-slate-800 truncate">${esc(r.name)} <span class="text-slate-400 font-normal">(${esc(r.id)})</span></div><div class="text-[11px] text-slate-500">ห้อง ${esc(r.room||'-')} • คะแนนรวม <b class="text-rose-600">${r.total}</b></div></div><button type="button" data-negative-reset-v15439="${encodeURIComponent(r.id)}" class="shrink-0 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 font-bold">ตรวจสอบ / ล้าง</button></div>`).join('') || '<div class="p-6 text-center text-slate-400">ไม่พบรายชื่อที่ตรงกับคำค้น</div>';
+            };
+            input.addEventListener('input',draw);
+            list.addEventListener('click',ev=>{const btn=ev.target.closest('[data-negative-reset-v15439]');if(btn) window.resetNegativeStudentPointsV15439_(btn.getAttribute('data-negative-reset-v15439'));});
+            draw();
+        }
+    });
+};
+window.resetNegativeStudentPointsV15439_ = async function(encodedId) {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้น','warning');
+    let id=''; try{id=decodeURIComponent(String(encodedId||''));}catch(e){return Swal.fire('ข้อมูลไม่ถูกต้อง','รหัสนักศึกษาไม่ถูกต้อง','error');}
+    const stu=(students||[]).find(s=>String(s.id||'').replace(/-/g,'')===id.replace(/-/g,''));
+    if(!stu) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาคนนี้','error');
+    const res=await Swal.fire({title:'ล้างคะแนนติดลบเป็น 0?',html:`<div class="text-left text-sm mb-3">${String(stu.name||'')} (${String(stu.id||'')})<br>คะแนนรวมปัจจุบัน <b class="text-rose-600">${getStudentTotalPoints_(stu)}</b><p class="mt-2 text-amber-700">หลังบ้านจะตรวจว่ามีประวัติคะแนนทั่วไป คะแนนกลุ่ม ประวัติเก่า คะแนนกิจกรรม หรือคะแนนจากการชำระเงินหรือไม่ หากพบแม้เป็นรายการที่ซ่อน/ยกเลิกแล้ว จะไม่อนุญาตให้ล้าง</p></div><label class="block text-left text-xs font-bold mb-1">เหตุผล *</label><textarea id="negative-point-reset-reason-v15439" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น ตรวจสอบแล้วไม่พบประวัติการให้คะแนน เป็นค่าติดลบค้างจากข้อมูลเก่า"></textarea>`,icon:'warning',showCancelButton:true,confirmButtonText:'ตรวจสอบและล้างเป็น 0',cancelButtonText:'ยกเลิก',confirmButtonColor:'#d97706',preConfirm:()=>{const reason=String(document.getElementById('negative-point-reset-reason-v15439')?.value||'').trim();if(!reason)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return reason;}});
+    if(!res.isConfirmed)return;
+    Swal.fire({title:'กำลังตรวจสอบประวัติ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const result=await callBackend({action:'resetNegativeStudentPoints',studentId:id,reason:res.value});
+    if(!result||result.status!=='success') return Swal.fire({icon:'warning',title:'ไม่อนุญาตให้ล้างคะแนน',text:(result&&result.message)||'หลังบ้านไม่สามารถยืนยันเงื่อนไขได้ คะแนนยังไม่ถูกเปลี่ยน'});
+    const pulled=await silentPullFromGS(false,true);
+    if(!pulled || pulled.status!=='success') {
+        if(result.data && result.data.student){const idx=students.findIndex(s=>String(s.id||'').replace(/-/g,'')===id.replace(/-/g,''));if(idx>=0)students[idx]=result.data.student;}
+        saveToLocal(false);
+        if (typeof captureCurrentRealtimeData_ === 'function') { lastServerSnapshot=captureCurrentRealtimeData_(); hasLocalChanges=false; }
+    }
+    renderLeaderboard(); renderAdminStudentList();
+    Swal.fire({icon:'success',title:'ล้างคะแนนเรียบร้อย',text:'หลังบ้านตรวจประวัติและบันทึก Audit แล้ว'+(pulled && pulled.status==='success'?' และโหลดข้อมูลล่าสุดแล้ว':' แต่โหลดข้อมูลล่าสุดไม่สำเร็จ กรุณารีเฟรชหน้าเว็บ')});
+};
+
 // v15.4.37: leader-only conditional point-history bulk delete.
 // All selected criteria are combined with AND. The result preview is shown before any local data is changed.
 function sssfnPointActivityLogIdentityV15437_(log) {
@@ -15210,6 +15248,8 @@ window.renderAdminStudentList = function() {
     const clearAllButton = document.getElementById('admin-score-clear-all');
     if (bulkToolbar) bulkToolbar.classList.toggle('hidden', !canManageScores);
     if (clearAllButton) clearAllButton.classList.toggle('hidden', currentUserRole !== 'leader');
+    const negativeCleanupButton = document.getElementById('admin-score-negative-cleanup');
+    if (negativeCleanupButton) negativeCleanupButton.classList.toggle('hidden', currentUserRole !== 'leader');
     const bulkSelect = document.getElementById('admin-score-select-visible');
     if (bulkSelect) bulkSelect.checked = false;
 
