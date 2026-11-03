@@ -365,6 +365,7 @@
 <!-- SSSFN v15.4.31: receipt date uses latest student slip submission time for transfer payments -->
 <!-- SSSFN v15.4.30: prevent concurrent slip submission overwrite -->
 <!-- SSSFN v15.4.32: actual/reserve classification for website registration vs on-site scan -->
+<!-- SSSFN v15.4.38: fix legacy group-void validation, rollback failed delete, refresh student score history -->
 <!-- SSSFN v15.4.37: conditional multi-criteria score-history deletion (leader only) -->
 <!-- SSSFN v15.4.36: leader-only score history edit/delete with audit trail -->
 <!-- SSSFN v15.4.35: linked notification email, individual activation code, background login and bulk score admin tools -->
@@ -2270,9 +2271,13 @@
             if ((event.changes || []).some(change => {
                 if (!change) return false;
                 if (change.collection === 'activityLogs') {
-                    const beforePassed = ['C','A'].includes(String(change.base && change.base.status || '').trim().toUpperCase());
-                    const afterPassed = ['C','A'].includes(String(change.value && change.value.status || '').trim().toUpperCase());
-                    return beforePassed !== afterPassed;
+                    const beforeLog = change.base || {};
+                    const afterLog = change.value || {};
+                    const beforePassed = ['C','A'].includes(String(beforeLog.status || '').trim().toUpperCase());
+                    const afterPassed = ['C','A'].includes(String(afterLog.status || '').trim().toUpperCase());
+                    const beforeCounted = beforePassed && beforeLog.pointsVoided !== true && beforeLog.scoreHistoryHidden !== true;
+                    const afterCounted = afterPassed && afterLog.pointsVoided !== true && afterLog.scoreHistoryHidden !== true;
+                    return beforePassed !== afterPassed || beforeCounted !== afterCounted;
                 }
                 if (change.collection === 'txHistory') {
                     const record = change.value || change.base || {};
@@ -14921,7 +14926,7 @@ function applyBulkPointVoidsV15435_(studentIds, reason, descriptors) {
                 tx.historyDeleteReason = reason;
             }
             if (tx.pointSource !== 'payment' && !alreadyForStudent && !wasVoidedBefore && !groupEvent) stu.points = (Number(stu.points) || 0) - delta;
-            else if (tx.pointSource !== 'payment' && !alreadyForStudent && groupEvent) stu.points = (Number(stu.points) || 0) - delta;
+            else if (tx.pointSource !== 'payment' && !alreadyForStudent && !wasVoidedBefore && groupEvent) stu.points = (Number(stu.points) || 0) - delta;
             txVoids++;
         });
         if (typeof getApprovedActivityPointsForStudent_ === 'function') {
@@ -15165,12 +15170,34 @@ window.openConditionalScoreHistoryDeleteV15437_ = async function() {
     const finalConfirm=await Swal.fire({title:'ยืนยันยกเลิกคะแนนตามเงื่อนไข?',html:`<div class="text-left text-sm"><p>จะจัดการ ${found.rows.length} รายการ ของนักศึกษา ${uniqueStudents.size} คน</p><p class="text-rose-700 font-bold mt-2">การยกเลิกจะมีผลกับยอดคะแนนสะสมของนักศึกษาตามรายการที่แสดง</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก (บันทึกใน Audit) *</label><textarea id="conditional-score-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น คะแนนซ้ำ / บันทึกผิดช่วงวันที่"></textarea></div>`,icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยันยกเลิกคะแนน',cancelButtonText:'ยกเลิก',confirmButtonColor:'#be123c',preConfirm:()=>{const reason=String(document.getElementById('conditional-score-reason')?.value||'').trim();if(!reason)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return reason;}});
     if(!finalConfirm.isConfirmed) return;
     if(currentUserRole!=='leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ดำเนินการนี้ได้','warning');
+    // Keep a rollback copy until Apps Script confirms the canonical write.
+    const rollbackState = {
+        students: cloneRealtimeValue_(students || []),
+        txHistory: cloneRealtimeValue_(txHistory || []),
+        activityLogs: cloneRealtimeValue_(activityLogs || [])
+    };
     const result=applyBulkPointVoidsV15435_(found.studentIds,finalConfirm.value,found.descriptors);
     saveToLocal(false); hasLocalChanges=true;
     const saved=await autoSyncToGS(false);
-    if(!saved||saved.status!=='success') return Swal.fire({icon:'warning',title:'ยกเลิกในหน้าจอแล้ว แต่บันทึกเซิร์ฟเวอร์ไม่สำเร็จ',text:(saved&&saved.message)||'กรุณาดึงข้อมูลล่าสุดและตรวจสอบก่อนทำรายการซ้ำ'});
+    if(!saved||saved.status!=='success') {
+        students = rollbackState.students;
+        txHistory = rollbackState.txHistory;
+        activityLogs = rollbackState.activityLogs;
+        saveToLocal(false);
+        hasLocalChanges = !!(lastServerSnapshot && buildRealtimeChanges_(lastServerSnapshot, captureCurrentRealtimeData_()).length);
+        syncQueued = false;
+        renderLeaderboard(); renderAdminStudentList();
+        const detail = String((saved && (saved.message || saved.error)) || (saved && saved.status) || 'ไม่ได้รับรายละเอียดจากหลังบ้าน');
+        console.error('Conditional score delete was rejected by server:', saved);
+        return Swal.fire({
+            icon:'error',
+            title:'บันทึกการลบไม่สำเร็จ',
+            html:`<div class="text-sm text-left"><p class="font-semibold text-rose-700">ไม่มีการยืนยันว่ารายการถูกบันทึกบนเซิร์ฟเวอร์</p><p class="mt-2 text-slate-600 break-words">${String(detail).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}</p><p class="mt-3 text-xs text-slate-500">ระบบคืนข้อมูลบนหน้าจอกลับก่อนบันทึกแล้ว กรุณาตรวจสอบสาเหตุก่อนทำรายการใหม่</p></div>`,
+            confirmButtonText:'รับทราบ'
+        });
+    }
     renderLeaderboard(); renderAdminStudentList();
-    Swal.fire({icon:'success',title:'ดำเนินการตามเงื่อนไขแล้ว',text:`ยกเลิก ${result.txVoids} รายการคะแนนทั่วไป • ${result.activityVoids} รายการกิจกรรม • นักศึกษา ${result.students} คน`,confirmButtonText:'รับทราบ'});
+    Swal.fire({icon:'success',title:'ดำเนินการตามเงื่อนไขแล้ว',text:`ซ่อนประวัติ ${result.txVoids} รายการคะแนนทั่วไป • ${result.activityVoids} รายการกิจกรรม • นักศึกษา ${result.students} คน`,confirmButtonText:'รับทราบ'});
 };
 
 window.renderAdminStudentList = function() {
