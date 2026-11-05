@@ -5853,6 +5853,8 @@ function canViewPublicActivity_(activity, hasRegistration) {
     if (!activity) return false;
     if (currentUserRole !== 'guest') return canViewActivityInManagementList_(activity);
     if (isActivityAssignedToCurrentUser_(activity)) return true;
+    // Pending activities are intentionally exposed as summary cards only; all detail entry points are guarded.
+    if (String(activity.status || '') === 'รออนุมัติ') return true;
     if (hasRegistration) return activity.status === 'อนุมัติแล้ว';
     return activity.isVisible !== false && activity.status === 'อนุมัติแล้ว';
 }
@@ -5964,7 +5966,8 @@ function renderActivities() {
                 appBtn = `<button onclick="event.stopPropagation(); approveActivity('${act.title}')" class="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-lg text-sm font-bold mt-4 relative z-10 shadow-sm transition">กำหนดรหัสและอนุมัติกิจกรรม</button>`;
             }
 
-            let clickAction = (currentUserRole === 'guest' && !isActAdmin) ? `openRegistrationModal('${act.title}')` : `loadActivityMasterData('${act.title}')`;
+            const isPendingApproval = String(act.status || '') === 'รออนุมัติ';
+            let clickAction = isPendingApproval ? `showToast('กิจกรรมนี้อยู่ระหว่างรออนุมัติ ยังไม่สามารถเปิดรายละเอียดได้', 'info')` : ((currentUserRole === 'guest' && !isActAdmin) ? `openRegistrationModal('${act.title}')` : `loadActivityMasterData('${act.title}')`);
             
             let guestBtn = '';
             if (currentUserRole === 'guest') {
@@ -5981,7 +5984,7 @@ function renderActivities() {
             }
 
             actHtml += `
-            <div onclick="event.stopPropagation(); ${clickAction}" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition flex flex-col h-full cursor-pointer relative overflow-hidden group">
+            <div ${isPendingApproval ? '' : `onclick="event.stopPropagation(); ${clickAction}"`} class="bg-white rounded-2xl border border-slate-200 shadow-sm ${isPendingApproval ? '' : 'hover:shadow-lg cursor-pointer'} transition flex flex-col h-full relative overflow-hidden group">
                 <div class="p-5 flex-1 flex flex-col">
                     <div class="flex flex-wrap items-start justify-between gap-2 mb-3 min-w-0">
                         <h3 class="font-bold text-slate-800 text-base leading-snug break-words group-hover:text-blue-600 transition flex-1 min-w-[140px]">${act.title}</h3>
@@ -6621,7 +6624,9 @@ function getMasterRounds() {
 // 1. โหลดข้อมูลกิจกรรมขึ้นสู่ศูนย์จัดการ (Master Card)
 window.loadActivityMasterData = function(title) {
     if (!title) return;
-    currentMasterActivity = appSettings.activities.find(a => a.title === title);
+    const requestedActivity = (appSettings.activities || []).find(a => a.title === title);
+    if (requestedActivity && requestedActivity.status !== 'อนุมัติแล้ว') { showToast('กิจกรรมนี้ยังไม่ได้รับอนุมัติ ไม่สามารถเปิดรายละเอียดได้', 'warning'); return; }
+    currentMasterActivity = requestedActivity;
     if (!currentMasterActivity) return;
     if (!canManageActivity_(currentMasterActivity)) {
         currentMasterActivity = null;
@@ -8490,7 +8495,7 @@ window.closeLiveQRModal = function() {
     }
 };
 
-window.regenerateLiveQRToken = function() {
+window.regenerateLiveQRToken = async function() {
     if (!liveQrCurrentRule || !currentMasterActivity) return;
     liveQrSecondsLeft = liveQrTotalInterval;
     liveQrExpiryTime = Date.now() + liveQrTotalInterval * 1000;
@@ -8506,9 +8511,14 @@ window.regenerateLiveQRToken = function() {
     let progressEl = document.getElementById('live-qr-progressbar');
     if (progressEl) progressEl.style.width = '100%';
 
-    let token = 'ACT_' + Math.random().toString(36).substr(2, 8).toUpperCase() + '_' + Date.now();
+    const tokenResult = await callBackend({action:'issueActivityQrTokenV15440',activityTitle:currentMasterActivity.title,activityRef:String(currentMasterActivity.ref || currentMasterActivity.id || ''),roundName:String(liveQrCurrentRule.roundName || 'ทั่วไป'),ttlSeconds:liveQrTotalInterval+20});
+    if (!tokenResult || tokenResult.status !== 'success' || !tokenResult.token) {
+        showToast((tokenResult && tokenResult.message) || 'ไม่สามารถออก QR จากเซิร์ฟเวอร์ได้', 'error');
+        return;
+    }
+    let token = tokenResult.token;
     let baseUrl = window.location.href.split('?')[0].split('#')[0];
-    let checkinUrl = `${baseUrl}?checkin=1&act=${encodeURIComponent(currentMasterActivity.title)}&round=${encodeURIComponent(liveQrCurrentRule.roundName)}&lat=${liveQrCurrentRule.lat || ''}&lng=${liveQrCurrentRule.lng || ''}&rad=${liveQrCurrentRule.radius || 50}&token=${token}`;
+    let checkinUrl = `${baseUrl}?checkin=1&act=${encodeURIComponent(currentMasterActivity.title)}&round=${encodeURIComponent(liveQrCurrentRule.roundName)}&lat=${liveQrCurrentRule.lat || ''}&lng=${liveQrCurrentRule.lng || ''}&rad=${liveQrCurrentRule.radius || 50}&token=${encodeURIComponent(token)}`;
 
     window.currentLiveCheckinUrl = checkinUrl;
 
@@ -12420,6 +12430,7 @@ function addRoundRow() {
 window.openRegistrationModal = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
+    if (act.status !== 'อนุมัติแล้ว') { showToast('กิจกรรมนี้ยังไม่ได้รับอนุมัติ ไม่สามารถเปิดรายละเอียดหรือลงทะเบียนได้', 'warning'); return; }
 
     const registrationWindow = getActivityRegistrationWindow_(act);
     let isStillOpen = registrationWindow.isOpen;
@@ -12726,72 +12737,40 @@ window.processStudentQRCheckin = function(data, source) {
         });
     }
 
-    // ฟังก์ชันบันทึกข้อมูลเช็กอิน
-    const doSaveCheckin = (userLat, userLng, distText) => {
-        let existingBooking = activityLogs.find(l =>
-            normalizeActivityStudentId_(l.studentId) === cleanStuId &&
-            l.activityTitle === data.act &&
-            !isWebRegistrationOnlyLog_(l) &&
-            String(l.roundName || l.roundId || '').trim() === String(data.round || '').trim()
-        );
-
-        let randomRegId = existingBooking?.regId || ('REG-' + Math.floor(100000 + Math.random() * 900000));
-        let nowStr = getNow();
-        if (existingBooking) {
-            existingBooking.activityRef = String(act.ref || act.id || '');
-            existingBooking.timeIn = nowStr;
-            if (data.round) existingBooking.roundName = data.round;
-            if (userLat) { existingBooking.lat = userLat; existingBooking.lng = userLng; }
-            existingBooking.status = 'P';
-            existingBooking.isCheckin = true;
-            existingBooking.isWebReg = false;
-            existingBooking.webRegistrationOnly = false;
-            if (!existingBooking.regId) existingBooking.regId = randomRegId;
-        } else {
-            activityLogs.unshift({
-                studentId: stuId,
-                activityTitle: data.act,
-                activityRef: String(act.ref || act.id || ''),
-                roundName: data.round || 'ทั่วไป',
-                lat: userLat || null,
-                lng: userLng || null,
-                timeIn: nowStr,
-                timeOut: null,
-                status: 'P',
-                isCheckin: true,
-                isWebReg: false,
-                webRegistrationOnly: false,
-                regId: randomRegId
-            });
+    // บันทึกเช็กอินผ่าน Backend เท่านั้น: server lock + canonical read/write + idempotency
+    const doSaveCheckin = async (userLat, userLng, distText) => {
+        const idempotencyKey = [cleanStuId, String(act.ref || act.id || data.act), String(data.round || 'ทั่วไป'), String(data.token || '')].join('|');
+        Swal.fire({title:'กำลังบันทึกเช็กอิน...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+        const result = await callBackend({
+            action:'checkinActivityAtomicV15440',
+            studentAuthToken:window.currentStudentAuthToken,
+            activityTitle:String(data.act),
+            activityRef:String(act.ref || act.id || ''),
+            roundName:String(data.round || 'ทั่วไป'),
+            qrToken:String(data.token || ''),
+            idempotencyKey:idempotencyKey,
+            lat:userLat == null ? null : Number(userLat),
+            lng:userLng == null ? null : Number(userLng)
+        });
+        if (!result || result.status !== 'success') {
+            Swal.fire({icon:'error',title:'เช็กอินไม่สำเร็จ',text:(result && result.message) || 'ไม่สามารถยืนยันการบันทึกจากเซิร์ฟเวอร์ได้'});
+            return;
         }
-
-        saveToLocal(true);
+        if (result.statusCode === 'already_checked_in') {
+            Swal.fire({icon:'info',title:'คุณเช็กอินรอบนี้แล้ว',text:'ระบบตรวจพบรายการเช็กอินเดิมจากฐานข้อมูลกลาง'});
+            return;
+        }
+        if (result.record) {
+            const idx = activityLogs.findIndex(l => normalizeActivityStudentId_(l.studentId) === cleanStuId && l.activityTitle === data.act && String(l.roundName || 'ทั่วไป') === String(data.round || 'ทั่วไป'));
+            if (idx >= 0) activityLogs[idx] = result.record; else activityLogs.unshift(result.record);
+        }
         if (typeof renderActivities === 'function') renderActivities();
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
         if (typeof filterMasterTable === 'function' && currentMasterActivity?.title === data.act) filterMasterTable();
         if (typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === data.act) renderMasterDashboard();
         if (typeof renderCheckinMapDisplay === 'function' && currentMasterActivity?.title === data.act) renderCheckinMapDisplay();
         if (typeof renderMasterRoundsTable === 'function' && currentMasterActivity?.title === data.act) renderMasterRoundsTable();
-
-        Swal.fire({
-            icon: 'success',
-            title: 'เช็กอินเข้าร่วมกิจกรรมสำเร็จ!',
-            html: `
-                <div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2 font-sans">
-                    <p class="font-bold text-emerald-900 text-sm">${data.act}</p>
-                    <p><b>รอบลงทะเบียน:</b> <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">${data.round || 'ทั่วไป'}</span></p>
-                    <p><b>นักศึกษา:</b> ${stu.name} (${stuId})</p>
-                    <p><b>เวลาเช็กอิน:</b> ${nowStr}</p>
-                    <p class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>สถานะ: ลงทะเบียนและเช็กอินเข้าร่วมแล้ว</p>
-                    <p class="text-blue-700 font-bold font-mono text-[11px]"><i class="fa-solid fa-ticket mr-1"></i>รหัสลงทะเบียน: ${randomRegId}</p>
-                    ${distText ? `<p class="text-slate-500 text-[11px]"><i class="fa-solid fa-location-dot mr-1"></i>${distText}</p>` : ''}
-                </div>
-            `,
-            confirmButtonText: 'เปิดดูกิจกรรมของฉัน',
-            confirmButtonColor: '#10b981'
-        }).then(() => {
-            if (typeof openRegistrationModal === 'function') openRegistrationModal(data.act);
-        });
+        Swal.fire({icon:'success',title:'เช็กอินสำเร็จ',html:`<div class="text-left text-sm"><p><b>กิจกรรม:</b> ${data.act}</p><p><b>รอบ:</b> ${data.round || 'ทั่วไป'}</p><p><b>นักศึกษา:</b> ${stu.name} (${stuId})</p><p><b>เวลา:</b> ${result.record && result.record.timeIn || '-'}</p><p><b>รหัสลงทะเบียน:</b> ${result.record && result.record.regId || '-'}</p>${distText ? `<p class="text-xs text-slate-500 mt-2">${distText}</p>` : ''}</div>`,confirmButtonText:'ปิด'});
     };
 
     // ตรวจสอบพิกัด Geofence ถ้ามีการกำหนด lat/lng
@@ -14194,12 +14173,15 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
     const itemName = isActivity ? `ผ่านกิจกรรม ${activityKey}` : String(tx.pointNote || tx.name || 'รายการคะแนน');
     Swal.fire({
         title: 'ยืนยันลบประวัติคะแนน?',
-        html: `<div class="text-left text-sm bg-rose-50 border border-rose-200 rounded-xl p-3 mb-3"><b>${itemName}</b><p class="text-rose-700 mt-1">${verb} ของ ${student.name}</p></div><label class="block text-xs font-bold text-slate-600 text-left mb-1">เหตุผลที่ยกเลิก *</label><textarea id="void-point-reason" class="swal2-textarea" placeholder="เช่น ให้คะแนนผิดคน / ให้คะแนนซ้ำ" style="width:100%;margin:0"></textarea>`,
+        html: `<div class="text-left text-sm bg-rose-50 border border-rose-200 rounded-xl p-3 mb-3"><b>${itemName}</b><p class="text-rose-700 mt-1">${verb} ของ ${student.name}</p></div><label class="block text-xs font-bold text-slate-600 text-left mb-1">เหตุผลที่ยกเลิก *</label><select id="void-point-reason" class="swal2-select" style="width:100%;margin:0"><option value="">-- เลือกเหตุผล --</option><option value="ให้คะแนนผิดคน">ให้คะแนนผิดคน</option><option value="ให้คะแนนซ้ำ">ให้คะแนนซ้ำ</option><option value="กรอกข้อมูลผิดพลาด">กรอกข้อมูลผิดพลาด</option><option value="ยกเลิกกิจกรรม/รายการ">ยกเลิกกิจกรรม/รายการ</option><option value="ปรับตามมติ/คำสั่ง">ปรับตามมติ/คำสั่ง</option><option value="อื่น ๆ">อื่น ๆ</option></select><textarea id="void-point-reason-detail" class="swal2-textarea" placeholder="ระบุรายละเอียดเพิ่มเติม" style="width:100%;margin:8px 0 0;display:none"></textarea>`,
+        didOpen: () => { const s=document.getElementById('void-point-reason'), d=document.getElementById('void-point-reason-detail'); if(s&&d)s.addEventListener('change',()=>{d.style.display=s.value==='อื่น ๆ'?'block':'none';}); },
         icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยันลบประวัติ', cancelButtonText: 'กลับ', confirmButtonColor: '#e11d48',
         preConfirm: () => {
             const reason = String(document.getElementById('void-point-reason')?.value || '').trim();
-            if (!reason) return Swal.showValidationMessage('กรุณาระบุเหตุผลที่ยกเลิกคะแนน');
-            return reason;
+            const detail = String(document.getElementById('void-point-reason-detail')?.value || '').trim();
+            if (!reason) return Swal.showValidationMessage('กรุณาเลือกเหตุผลที่ยกเลิกคะแนน');
+            if (reason === 'อื่น ๆ' && !detail) return Swal.showValidationMessage('กรุณาระบุรายละเอียดเพิ่มเติม');
+            return reason === 'อื่น ๆ' ? reason + ': ' + detail : reason;
         }
     }).then(result => {
         if (!result.isConfirmed) return;
@@ -14962,7 +14944,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const ids = Array.from(document.querySelectorAll('[data-score-bulk-student]:checked')).map(el => decodeURIComponent(el.getAttribute('data-score-bulk-student') || ''));
     if (!ids.length) return Swal.fire('ยังไม่ได้เลือกนักศึกษา','เลือกนักศึกษาอย่างน้อยหนึ่งคนก่อน','info');
     const names = students.filter(s => ids.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id))).map(s => s.name).slice(0,8);
-    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label><textarea id="bulk-point-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น ปรับฐานคะแนนใหม่ / บันทึกซ้ำ"></textarea></div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const v=String(document.getElementById('bulk-point-reason')?.value||'').trim(); if(!v) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return v;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label><select id="bulk-point-reason" class="swal2-select" style="width:100%;margin:0"><option value="">-- เลือกเหตุผล --</option><option value="ให้คะแนนผิดคน">ให้คะแนนผิดคน</option><option value="ให้คะแนนซ้ำ">ให้คะแนนซ้ำ</option><option value="กรอกข้อมูลผิดพลาด">กรอกข้อมูลผิดพลาด</option><option value="ยกเลิกกิจกรรม/รายการ">ยกเลิกกิจกรรม/รายการ</option><option value="ปรับตามมติ/คำสั่ง">ปรับตามมติ/คำสั่ง</option><option value="อื่น ๆ">อื่น ๆ</option></select><textarea id="bulk-point-reason-detail" class="swal2-textarea" style="width:100%;margin:8px 0 0;display:none" placeholder="ระบุรายละเอียดเพิ่มเติม"></textarea></div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', didOpen:()=>{const s=document.getElementById('bulk-point-reason'),d=document.getElementById('bulk-point-reason-detail');if(s&&d)s.addEventListener('change',()=>{d.style.display=s.value==='อื่น ๆ'?'block':'none';});}, preConfirm:()=>{const v=String(document.getElementById('bulk-point-reason')?.value||'').trim(),d=String(document.getElementById('bulk-point-reason-detail')?.value||'').trim();if(!v)return Swal.showValidationMessage('กรุณาเลือกเหตุผล');if(v==='อื่น ๆ'&&!d)return Swal.showValidationMessage('กรุณาระบุรายละเอียดเพิ่มเติม');return v==='อื่น ๆ'?v+': '+d:v;}});
     if (!res.isConfirmed) return;
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
