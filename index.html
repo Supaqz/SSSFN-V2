@@ -14082,6 +14082,28 @@ function sssfnPointHistoryIdentityV15427_(tx) {
     return [tx.date || '', tx.name || '', tx.user || '', tx.studentId || '', Array.isArray(tx.studentIds) ? tx.studentIds.join(',') : '', tx.pointRoom || ''].join('\u001f');
 }
 
+// v15.4.52: critical score-history mutations must not treat an in-flight
+// realtime save/pull as a failed server commit. autoSyncToGS() returns
+// {status:'queued'} in that case; wait for the active operation, then submit
+// the still-pending diff and require an explicit success response.
+async function sssfnSavePointDeleteMutationV1552_() {
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline) {
+        if (isSyncing || remotePullInProgress) {
+            await new Promise(resolve => setTimeout(resolve, 180));
+            continue;
+        }
+        const result = await autoSyncToGS(false);
+        if (result && result.status === 'success') return result;
+        if (result && result.status === 'queued') {
+            await new Promise(resolve => setTimeout(resolve, 220));
+            continue;
+        }
+        return result || {status:'error', message:'ไม่ได้รับผลตอบกลับจากเซิร์ฟเวอร์'};
+    }
+    return {status:'error', message:'หมดเวลารอการบันทึก กรุณารอสักครู่แล้วโหลดข้อมูลล่าสุดก่อนลองลบอีกครั้ง'};
+}
+
 function sssfnCapturePointDeleteRollbackV1549_() {
     return {
         students: cloneRealtimeValue_(students || []),
@@ -14466,7 +14488,7 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     hasLocalChanges = true;
     renderLeaderboard();
     renderAdminStudentList();
-    const saveResult = await autoSyncToGS(false);
+    const saveResult = await sssfnSavePointDeleteMutationV1552_();
     if (!saveResult || saveResult.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({
@@ -15195,7 +15217,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await autoSyncToGS(false);
+    const saved = await sssfnSavePointDeleteMutationV1552_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15211,7 +15233,7 @@ window.bulkVoidAllStudentPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await autoSyncToGS(false);
+    const saved = await sssfnSavePointDeleteMutationV1552_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15230,7 +15252,7 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await autoSyncToGS(false);
+    const saved = await sssfnSavePointDeleteMutationV1552_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
