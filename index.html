@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.4.49: reliable score-history delete save; server stores canonical deletion audit -->
 <html lang="th">
 <head>
@@ -13900,7 +13901,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
                         ประวัติคะแนนสะสม
                     </h3>
-                    <div class="flex items-center gap-2">${currentUserRole === 'leader' ? `<button type="button" onclick="window.openScoreDeletionLogsV1549_()" class="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-100"><i class="fas fa-clipboard-list mr-1"></i>บันทึกการลบ</button>` : ''}${currentUserRole === 'leader' && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}</div>
+                    <div class="flex items-center gap-2">${currentUserRole === 'leader' ? `<button type="button" onclick="window.openScoreDeletionLogsV1549_()" class="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-100"><i class="fas fa-clipboard-list mr-1"></i>บันทึกการลบ</button>` : ''}${currentUserRole === 'leader' ? `<button type="button" onclick="window.openStudentScoreHistoryDiagnosticsV1550_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100"><i class="fas fa-stethoscope mr-1"></i>ตรวจสอบข้อมูล</button>` : ''}${currentUserRole === 'leader' && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}</div>
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
@@ -14129,6 +14130,146 @@ function sssfnCreateScoreDeletionLogV1549_(student, options) {
         scoreAudit: true, scoreDeletionLog: true, scoreDeleteAudit: audit
     };
 }
+
+// v15.4.50: read-only comparison of in-memory, server baseline, browser cache,
+// Firebase Primary exact records, and Google Sheets backup for one student's score history.
+window.openStudentScoreHistoryDiagnosticsV1550_ = async function(encodedStudentId) {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์', 'เครื่องมือตรวจสอบนี้ใช้ได้เฉพาะหัวหน้า', 'warning');
+    let studentId = '';
+    try { studentId = decodeURIComponent(String(encodedStudentId || '')); }
+    catch (error) { return Swal.fire('ข้อมูลไม่ถูกต้อง', 'รหัสนักศึกษาไม่ถูกต้อง', 'error'); }
+    const cleanId = value => String(value == null ? '' : value).replace(/-/g, '').trim();
+    const wanted = cleanId(studentId);
+    const stu = (students || []).find(s => cleanId(s.id) === wanted);
+    if (!stu) return Swal.fire('ไม่พบข้อมูล', 'ไม่พบนักศึกษาในข้อมูลของหน้านี้ กรุณาโหลดข้อมูลใหม่ก่อนตรวจสอบ', 'warning');
+
+    const cached = (() => {
+        try { return JSON.parse(localStorage.getItem('SSSfnDB') || '{}'); }
+        catch (error) { return {}; }
+    })();
+    const relatedTx = item => {
+        if (!item) return false;
+        if (item.scoreDeletionLog === true && item.scoreDeleteAudit) return cleanId(item.scoreDeleteAudit.studentId) === wanted;
+        const auditIds = [item.studentIds, item.voidedStudentIds, item.historyHiddenStudentIds];
+        if (auditIds.some(list => Array.isArray(list) && list.some(id => cleanId(id) === wanted))) return true;
+        const auditRows = [item.voidedStudentsAudit, item.historyHiddenStudentsAudit];
+        if (auditRows.some(list => Array.isArray(list) && list.some(entry => cleanId(entry && entry.studentId) === wanted))) return true;
+        return typeof sssfnPointAppliesToStudentV15435_ === 'function'
+            ? sssfnPointAppliesToStudentV15435_(item, stu)
+            : cleanId(item.studentId) === wanted;
+    };
+    const relatedActivity = item => item && cleanId(item.studentId) === wanted &&
+        (['C','A'].includes(String(item.status || '').trim().toUpperCase()) || item.pointsVoided === true || item.scoreHistoryHidden === true || !!item.scoreEditAudit);
+    const sources = {
+        memoryTx: realtimeArrayEntries_('txHistory', txHistory || []).filter(e => relatedTx(e.value)),
+        baselineTx: realtimeArrayEntries_('txHistory', lastServerSnapshot && lastServerSnapshot.txHistory || []).filter(e => relatedTx(e.value)),
+        cacheTx: realtimeArrayEntries_('txHistory', cached.txHistory || []).filter(e => relatedTx(e.value)),
+        memoryActivity: realtimeArrayEntries_('activityLogs', activityLogs || []).filter(e => relatedActivity(e.value)),
+        baselineActivity: realtimeArrayEntries_('activityLogs', lastServerSnapshot && lastServerSnapshot.activityLogs || []).filter(e => relatedActivity(e.value)),
+        cacheActivity: realtimeArrayEntries_('activityLogs', cached.activityLogs || []).filter(e => relatedActivity(e.value))
+    };
+    const uniqueKeys = rows => [...new Set(rows.map(e => String(e.key || '')).filter(Boolean))];
+    const candidateKeys = {
+        txHistory: uniqueKeys([...sources.memoryTx, ...sources.baselineTx, ...sources.cacheTx]).slice(0, 70),
+        activityLogs: uniqueKeys([...sources.memoryActivity, ...sources.baselineActivity, ...sources.cacheActivity]).slice(0, 30)
+    };
+    Swal.fire({title:'กำลังอ่านข้อมูลเพื่อตรวจสอบ...', text:'โหมดอ่านอย่างเดียว · ไม่มีการแก้ไขหรือลบข้อมูล', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
+    const result = await callBackend({
+        action:'diagnoseStudentScoreHistoryV1550', studentId:String(stu.id),
+        studentName:String(stu.name || ''), studentRoom:String(stu.room || ''), candidateKeys:candidateKeys
+    });
+    if (!result || result.status !== 'success' || result.readOnly !== true) {
+        return Swal.fire({icon:'error', title:'ตรวจสอบไม่สำเร็จ', text:String(result && result.message || 'เซิร์ฟเวอร์ไม่สามารถอ่านข้อมูลเพื่อตรวจสอบได้')});
+    }
+
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const jsonValue = value => {
+        if (value === undefined) return '(ไม่มีฟิลด์)';
+        if (value === null) return 'null';
+        const raw = typeof value === 'string' ? value : JSON.stringify(value);
+        return String(raw).length > 150 ? String(raw).slice(0,147) + '...' : String(raw);
+    };
+    const fieldsToCompare = [
+        'id','date','name','type','amt','user','studentId','studentIds','pointDelta','pointNote','pointSource','pointSourceKey',
+        'voided','voidedAt','voidedBy','voidReason','voidedStudentIds','voidedStudentsAudit',
+        'historyHidden','historyDeletedAt','historyDeletedBy','historyDeleteReason','historyHiddenStudentIds','historyHiddenStudentsAudit',
+        'scoreAudit','scoreEditAudit','scoreDeletionLog','scoreDeleteAudit',
+        'status','score','pointsVoided','pointsVoidedAt','pointsVoidedBy','pointsVoidReason','scoreHistoryHidden','scoreHistoryHiddenAt','scoreHistoryHiddenBy','scoreHistoryHiddenReason'
+    ];
+    const mapByKey = rows => new Map((rows || []).map(entry => [String(entry.key || ''), entry.value || {}]));
+    const txMaps = {
+        'หน้าจอปัจจุบัน': mapByKey(sources.memoryTx),
+        'ฐานข้อมูลตอนเปิดหน้า': mapByKey(sources.baselineTx),
+        'แคชในเครื่อง': mapByKey(sources.cacheTx),
+        'Firebase': mapByKey(result.firebase && result.firebase.txHistory && result.firebase.txHistory.rows || []),
+        'Google Sheets': mapByKey(result.sheets && result.sheets.txHistory && result.sheets.txHistory.rows || [])
+    };
+    const activityMaps = {
+        'หน้าจอปัจจุบัน': mapByKey(sources.memoryActivity),
+        'ฐานข้อมูลตอนเปิดหน้า': mapByKey(sources.baselineActivity),
+        'แคชในเครื่อง': mapByKey(sources.cacheActivity),
+        'Firebase': mapByKey(result.firebase && result.firebase.activityLogs && result.firebase.activityLogs.rows || []),
+        'Google Sheets': mapByKey(result.sheets && result.sheets.activityLogs && result.sheets.activityLogs.rows || [])
+    };
+    const sourceStatus = (name, source, total) => {
+        const status = source && source.status || 'success';
+        const label = status === 'success' ? `อ่านได้ ${total} รายการ` : status === 'skipped' ? 'งดอ่านในโหมดสำรอง' : status === 'error' ? 'อ่านไม่สำเร็จ' : 'ไม่ทราบสถานะ';
+        const color = status === 'success' ? '#047857' : status === 'skipped' ? '#64748b' : '#b91c1c';
+        return `<div class="flex items-center justify-between gap-2 py-1"><span>${esc(name)}</span><b style="color:${color}">${esc(label)}</b></div>`;
+    };
+    const compareMap = (maps, title) => {
+        const keys = new Set();
+        Object.values(maps).forEach(m => m.forEach((v,k) => keys.add(k)));
+        const rows = [...keys].slice(0, 35);
+        if (!rows.length) return `<div class="text-xs text-slate-500 py-3">ไม่พบ ${esc(title)} ของนักศึกษารายนี้ในแหล่งข้อมูลที่อ่านได้</div>`;
+        return rows.map(key => {
+            const values = {};
+            Object.entries(maps).forEach(([name,map]) => { if (map.has(key)) values[name] = map.get(key); });
+            const base = values['Firebase'] || values['ฐานข้อมูลตอนเปิดหน้า'] || values['หน้าจอปัจจุบัน'] || values['Google Sheets'] || {};
+            const label = String(base.pointNote || base.scoreNote || base.activityTitle || base.name || base.id || key);
+            const date = String(base.date || base.assessedAt || base.updatedAt || base.timeIn || '');
+            const presence = Object.entries(maps).map(([name,map]) => `<span class="inline-block text-[10px] px-2 py-0.5 rounded-full mr-1 mb-1 ${map.has(key) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${esc(name)}: ${map.has(key) ? 'พบ' : 'ไม่พบ'}</span>`).join('');
+            const diffs = [];
+            const pairs = [
+                ['หน้าจอปัจจุบัน','Firebase'], ['ฐานข้อมูลตอนเปิดหน้า','Firebase'], ['แคชในเครื่อง','หน้าจอปัจจุบัน'], ['Google Sheets','Firebase']
+            ];
+            pairs.forEach(([left,right]) => {
+                const a = values[left], b = values[right];
+                if (!a || !b) return;
+                // The deletion validator compares the whole record, so compare every
+                // top-level field here rather than only the known cancellation/audit fields.
+                const allFields = [...new Set([...fieldsToCompare, ...Object.keys(a || {}), ...Object.keys(b || {})])];
+                const changed = allFields.filter(field => stableRealtimeJson_(a[field]) !== stableRealtimeJson_(b[field]));
+                if (changed.length) {
+                    const preview = changed.slice(0,8).map(field => `<div class="break-all"><b>${esc(field)}</b>: ${esc(jsonValue(a[field]))} <span class="text-slate-400">→</span> ${esc(jsonValue(b[field]))}</div>`).join('');
+                    diffs.push(`<div class="mt-2 border-l-2 border-amber-400 pl-2"><div class="font-bold text-amber-700 text-[11px]">${esc(left)} เทียบกับ ${esc(right)} · ต่าง ${changed.length} ฟิลด์</div><div class="text-[10px] text-slate-600">${preview}${changed.length>8?`<div>และอีก ${changed.length-8} ฟิลด์</div>`:''}</div></div>`);
+                }
+            });
+            const primaryFields = ['pointDelta','pointNote','voided','voidedAt','voidedBy','voidReason','historyHidden','historyDeleteReason','scoreAudit','scoreDeleteAudit','pointsVoided','scoreHistoryHidden'];
+            const summary = primaryFields.filter(field => Object.prototype.hasOwnProperty.call(base,field)).map(field => `<span class="mr-2"><b>${esc(field)}:</b> ${esc(jsonValue(base[field]))}</span>`).join('');
+            return `<details class="border border-slate-200 rounded-xl p-3 mb-2"><summary class="cursor-pointer text-xs font-bold text-slate-800">${esc(date)} · ${esc(label)}</summary><div class="mt-2">${presence}</div><div class="text-[10px] text-slate-500 break-all">Key: ${esc(key)}</div><div class="mt-2 text-[10px] text-slate-700">${summary}</div>${diffs.length ? diffs.join('') : '<div class="text-[11px] text-emerald-700 mt-2">ไม่พบความต่างในฟิลด์สำคัญที่เปรียบเทียบ</div>'}</details>`;
+        }).join('') + (keys.size > 35 ? `<div class="text-xs text-slate-500">แสดง 35 จาก ${keys.size} รายการ เพื่อให้หน้าต่างอ่านง่าย</div>` : '');
+    };
+    const firebaseMeta = result.firebase || {};
+    const sheetsMeta = result.sheets || {};
+    const htmlReport = `
+      <div class="text-left text-xs space-y-3">
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><div class="font-bold text-slate-800 text-sm">${esc(result.student && result.student.name || stu.name)}</div><div class="text-slate-500">${esc(result.student && result.student.id || stu.id)} · ห้อง ${esc(result.student && result.student.room || stu.room || '-')}</div><div class="text-slate-500 mt-1">ตรวจเมื่อ ${esc(result.generatedAt)} · โหมดระบบ ${esc(result.storageMode)}</div></div>
+        <div class="rounded-xl border border-slate-200 p-3"><div class="font-bold text-slate-800 mb-1">สถานะแหล่งข้อมูล</div>
+          ${sourceStatus('หน้าจอปัจจุบัน', null, sources.memoryTx.length + sources.memoryActivity.length)}
+          ${sourceStatus('ฐานข้อมูลตอนเปิดหน้า', null, sources.baselineTx.length + sources.baselineActivity.length)}
+          ${sourceStatus('localStorage SSSfnDB', null, sources.cacheTx.length + sources.cacheActivity.length)}
+          ${sourceStatus('Firebase Primary', firebaseMeta, (firebaseMeta.txHistory && firebaseMeta.txHistory.rows || []).length + (firebaseMeta.activityLogs && firebaseMeta.activityLogs.rows || []).length)}
+          ${sourceStatus('Google Sheets สำรอง', sheetsMeta, (sheetsMeta.txHistory && sheetsMeta.txHistory.rows || []).length + (sheetsMeta.activityLogs && sheetsMeta.activityLogs.rows || []).length)}
+          ${firebaseMeta.message ? `<div class="text-[10px] text-amber-700 mt-1">${esc(firebaseMeta.message)}</div>` : ''}
+          ${sheetsMeta.txHistory && sheetsMeta.txHistory.message ? `<div class="text-[10px] text-rose-700 mt-1">${esc(sheetsMeta.txHistory.message)}</div>` : ''}
+        </div>
+        <div><div class="font-bold text-slate-800 mb-2">ประวัติคะแนนทั่วไป · txHistory</div>${compareMap(txMaps,'ประวัติคะแนนทั่วไป')}</div>
+        <div><div class="font-bold text-slate-800 mb-2">ประวัติคะแนนกิจกรรม · activityLogs</div>${compareMap(activityMaps,'ประวัติคะแนนกิจกรรม')}</div>
+        <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-[10px] text-amber-800">รายงานนี้อ่านข้อมูลเท่านั้น ไม่ได้แก้ไข ลบ หรือซ่อมแซมข้อมูลใด ๆ • แหล่ง Firebase จะถูกงดอ่านเมื่อระบบอยู่ในโหมด Google Sheets fallback เพื่อไม่เพิ่มการใช้โควตา</div>
+      </div>`;
+    Swal.fire({title:'ตรวจสอบแหล่งเก็บประวัติคะแนน', html:htmlReport, width:850, showCloseButton:true, showConfirmButton:false, customClass:{popup:'sssfn-score-diagnostic-popup'}});
+};
 
 window.openScoreDeletionLogsV1549_ = function() {
     if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ดูบันทึกการลบได้','warning');
