@@ -4412,6 +4412,61 @@ async function waitForCanonicalPullAfterLoginV15423_(timeoutMs = 60000) {
     return {status:'loading', message:'เข้าสู่ระบบแล้ว กำลังอัปเดตข้อมูลในพื้นหลัง'};
 }
 
+// v15.4.40 QR deep-link resume: after Google login, continue the QR flow that opened this page.
+// The scan payload is held in sessionStorage because the URL query is removed on page load.
+async function resumePendingQRCheckinAfterStudentLoginV15440_() {
+    let pending = window.pendingQRCheckin || null;
+    if (!pending) {
+        try { pending = JSON.parse(sessionStorage.getItem('pendingQRCheckin') || 'null'); } catch (ignore) {}
+    }
+    if (!pending || !pending.act) return false;
+    if (!window.currentStudentAuthToken) return false;
+
+    // Login refresh is intentionally background-based; wait for its canonical data pull before resolving the activity.
+    const refreshPromise = window.__sssfnAuthRefreshPromiseV15435;
+    if (refreshPromise && typeof refreshPromise.then === 'function') {
+        await Promise.race([
+            refreshPromise.catch(() => null),
+            new Promise(resolve => setTimeout(resolve, 15000))
+        ]);
+    }
+
+    const wantedTitle = String(pending.act || '').trim();
+    const startedAt = Date.now();
+    let activityFound = false;
+    while (Date.now() - startedAt < 15000) {
+        activityFound = Array.isArray(appSettings.activities) && appSettings.activities.some(a =>
+            String(a && a.title || '').trim() === wantedTitle
+        );
+        if (activityFound) break;
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    if (!activityFound) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'เข้าสู่ระบบแล้ว แต่ยังไม่พบกิจกรรม',
+            text: 'ระบบยังโหลดข้อมูลกิจกรรมไม่ครบ หรือกิจกรรมนี้ไม่เปิดให้เช็กอิน กรุณากลับไปสแกน QR ล่าสุดอีกครั้ง',
+            confirmButtonText: 'รับทราบ'
+        });
+        return false;
+    }
+    if (!pending.token) {
+        window.pendingQRCheckin = null;
+        try { sessionStorage.removeItem('pendingQRCheckin'); } catch (ignore) {}
+        Swal.fire({ icon:'error', title:'QR ไม่มีโทเคน', text:'QR นี้ไม่สมบูรณ์ กรุณาสแกน QR ล่าสุดจากผู้จัดกิจกรรม' });
+        return false;
+    }
+
+    // Clear only after login and activity resolution are ready. Then continue check-in exactly once in this tab.
+    window.pendingQRCheckin = null;
+    try { sessionStorage.removeItem('pendingQRCheckin'); } catch (ignore) {}
+    switchPage('activity');
+    await new Promise(resolve => setTimeout(resolve, 250));
+    processStudentQRCheckin(pending, 'url');
+    return true;
+}
+
 async function handleGoogleCredentialResponse(response) {
     const credential = String(response && response.credential || '');
     if (!credential) return Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูลจาก Google', text: 'กรุณาลองเข้าสู่ระบบอีกครั้ง' });
@@ -4461,8 +4516,11 @@ async function handleGoogleCredentialResponse(response) {
         if (!restoreStudentScopedCacheV15435_(studentResult.studentId)) clearUnsafeGlobalCacheForStudentV15435_(studentResult.studentId);
         applyRoleUI(true);
         switchPage('home');
-        const studentLoadResult = await waitForCanonicalPullAfterLoginV15423_();
-        Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1300 });
+        await waitForCanonicalPullAfterLoginV15423_();
+        const qrResumed = await resumePendingQRCheckinAfterStudentLoginV15440_();
+        if (!qrResumed) {
+            Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1300 });
+        }
     } catch (error) {
         setSssfnPageLoadingV15425_(false);
         console.error('Google student login failed:', error);
@@ -4522,7 +4580,10 @@ async function promptLinkAccount(email, googleCredential) {
         applyRoleUI(true);
         switchPage('home');
         await waitForCanonicalPullAfterLoginV15423_();
-        Swal.fire({icon:'success', title:'ผูกอีเมลและเข้าสู่ระบบสำเร็จ', text:'อีเมลนี้ถูกตั้งเป็นอีเมลสำหรับแจ้งเตือนแล้ว', showConfirmButton:false, timer:1800});
+        const qrResumed = await resumePendingQRCheckinAfterStudentLoginV15440_();
+        if (!qrResumed) {
+            Swal.fire({icon:'success', title:'ผูกอีเมลและเข้าสู่ระบบสำเร็จ', text:'อีเมลนี้ถูกตั้งเป็นอีเมลสำหรับแจ้งเตือนแล้ว', showConfirmButton:false, timer:1800});
+        }
     } catch (error) {
         console.error('Student email activation failed:', error);
         Swal.fire({icon:'error', title:'ผูกอีเมลไม่สำเร็จ', text:String(error && error.message || error)});
@@ -8511,7 +8572,7 @@ window.regenerateLiveQRToken = async function() {
     let progressEl = document.getElementById('live-qr-progressbar');
     if (progressEl) progressEl.style.width = '100%';
 
-    const tokenResult = await callBackend({action:'issueActivityQrTokenV15440',activityTitle:currentMasterActivity.title,activityRef:String(currentMasterActivity.ref || currentMasterActivity.id || ''),roundName:String(liveQrCurrentRule.roundName || 'ทั่วไป'),ttlSeconds:liveQrTotalInterval+20});
+    const tokenResult = await callBackend({action:'issueActivityQrTokenV15440',activityTitle:currentMasterActivity.title,activityRef:String(currentMasterActivity.ref || currentMasterActivity.id || ''),roundName:String(liveQrCurrentRule.roundName || 'ทั่วไป'),ttlSeconds:Math.max(120,liveQrTotalInterval+20)});
     if (!tokenResult || tokenResult.status !== 'success' || !tokenResult.token) {
         showToast((tokenResult && tokenResult.message) || 'ไม่สามารถออก QR จากเซิร์ฟเวอร์ได้', 'error');
         return;
@@ -12933,35 +12994,20 @@ window.checkUrlCheckin = function() {
                 let checkinData = { act, round, lat, lng, rad, token };
 
                 let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-                if (!stuId) {
-                    // 🌟 ถ้ายังไม่ได้เข้าสู่ระบบ ให้จำข้อมูลที่สแกนไว้ แล้วเปิดหน้าต่างล็อกอินนักศึกษาตามปกติทันที!
-                    window.pendingQRCheckin = checkinData;
-                    try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(checkinData)); } catch(e){}
-                    
+                // A remembered student ID is not an authenticated session. QR check-in requires the server-issued token.
+                window.pendingQRCheckin = checkinData;
+                try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(checkinData)); } catch(e){}
+
+                if (!stuId || !window.currentStudentAuthToken) {
                     setTimeout(() => {
                         if (typeof promptStudentLogin === 'function') promptStudentLogin();
                     }, 400);
                     return;
                 }
-                
-                // ถ้ารายการกิจกรรมยังโหลดไม่เสร็จ ให้รอข้อมูล 1.5 วินาที
-                if (!appSettings.activities || appSettings.activities.length === 0) {
-                    let attempts = 0;
-                    let checkInterval = setInterval(() => {
-                        attempts++;
-                        if ((appSettings.activities && appSettings.activities.length > 0) || attempts > 15) {
-                            clearInterval(checkInterval);
-                            switchPage('activity');
-                            processStudentQRCheckin(checkinData, 'url');
-                        }
-                    }, 150);
-                    return;
-                }
-                
-                setTimeout(() => {
-                    switchPage('activity');
-                    processStudentQRCheckin(checkinData, 'url');
-                }, 300);
+
+                // Already authenticated: wait for the activity data and continue the same pending QR path.
+                resumePendingQRCheckinAfterStudentLoginV15440_();
+                return;
             }
         }
     } catch(e) {
