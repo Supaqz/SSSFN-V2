@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.4.47: two-step score-history delete with audit archive; preserve group recipients and attendance -->
+<!-- SSSFN v15.4.49: reliable score-history delete save; server stores canonical deletion audit -->
 <html lang="th">
 <head>
 
@@ -3110,11 +3110,13 @@ async function autoSyncToGS(showStatus = false) {
     const requiresScoreRefresh = changes.some(change => {
         if (!change) return false;
         if (change.collection === 'activityLogs') {
-            return isPassedActivityStatus_(change.base) !== isPassedActivityStatus_(change.value);
+            return isPassedActivityStatus_(change.base) !== isPassedActivityStatus_(change.value) ||
+                !!(change.base && change.base.pointsVoided) !== !!(change.value && change.value.pointsVoided) ||
+                !!(change.base && change.base.scoreHistoryHidden) !== !!(change.value && change.value.scoreHistoryHidden);
         }
         if (change.collection === 'txHistory') {
             const record = change.value || change.base || {};
-            return record.isPointEvent === true || record.pointDelta != null || record.pointNote != null;
+            return record.isPointEvent === true || record.pointDelta != null || record.pointNote != null || record.scoreDeletionLog === true;
         }
         return false;
     });
@@ -3169,7 +3171,7 @@ async function autoSyncToGS(showStatus = false) {
         hasLocalChanges = true;
         const saveErrorMessage = String(error && error.message || error || '');
         authBlocked = /ไม่มีเซสชันผู้ดูแลที่ตรวจสอบได้|เซสชันหมดอายุ|ไม่มีสิทธิ์แก้ไขข้อมูลหลัก|กรุณาเข้าสู่ระบบใหม่|admin session|unauthori[sz]ed/i.test(saveErrorMessage);
-        validationBlocked = /รายการนี้ถูกยกเลิกแล้ว.*ซ่อนประวัติพร้อมเหตุผล|รายการกิจกรรมถูกยกเลิกแล้ว.*ซ่อนประวัติพร้อมเหตุผล|การซ่อนประวัติที่ถูกยกเลิกแล้วแก้ไขได้เฉพาะข้อมูลการตรวจสอบ|การซ่อนประวัติคะแนน|ไม่อนุญาตให้|เฉพาะหัวหน้าเท่านั้น|ต้องระบุ.*ก่อน|ข้อมูล.*ไม่ถูกต้อง/i.test(saveErrorMessage);
+        validationBlocked = /รายการนี้ถูกยกเลิกแล้ว.*ซ่อนประวัติพร้อมเหตุผล|รายการกิจกรรมถูกยกเลิกแล้ว.*ซ่อนประวัติพร้อมเหตุผล|การซ่อนประวัติที่ถูกยกเลิกแล้วแก้ไขได้เฉพาะข้อมูลการตรวจสอบ|การซ่อนประวัติคะแนน|System Log|รายการคะแนนมีการแก้ไขเนื้อหา|รายการคะแนนหรือสถานะยกเลิกเปลี่ยนหลังเปิดหน้า|กรุณาโหลดข้อมูลใหม่ก่อนลบ|พบรายการคะแนนต้นทางซ้ำ|พบรหัส System Log ซ้ำ|ไม่พบ System Log|รหัสนักศึกษาในรายการคะแนน|ไม่สามารถยืนยันเจ้าของประวัติ|ไม่อนุญาตให้|เฉพาะหัวหน้าเท่านั้น|ต้องระบุ.*ก่อน|ข้อมูล.*ไม่ถูกต้อง/i.test(saveErrorMessage);
         if (validationBlocked) syncQueued = false;
         console.error('Incremental Firebase save failed:', error);
         if (authBlocked) {
@@ -11878,7 +11880,7 @@ async function editUserAction(username) {
 // ================= HISTORY =================
         function editTxHistory(index) { let tx = txHistory[index]; Swal.fire({ title: 'แก้ไขประวัติ', html: `<div class="text-left"><label class="text-xs">รายการ</label><input id="e-tx-n" class="modern-input" value="${tx.name}"></div>`, confirmButtonColor: '#059669', preConfirm: () => { tx.name = document.getElementById('e-tx-n').value; saveToLocal(); refreshAll(); } }); }
         function deleteTxHistory(index) { Swal.fire({title: 'ลบประวัตินี้?', showCancelButton: true, confirmButtonColor: '#e3342f'}).then(r=>{if(r.isConfirmed){txHistory.splice(index,1); saveToLocal(); refreshAll();}}); }
-        function renderFinHistory() { const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); const list = document.getElementById('fin-hist-list'); if(!list) return; const visibleHistory = (txHistory || []).filter(t => t && t.scoreAudit !== true); if(visibleHistory.length === 0) { list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ไม่มีประวัติ</td></tr>'; return; } let hHtml = ''; visibleHistory.forEach(t => { const i = txHistory.indexOf(t); let btn = isAdmin ? `<button onclick="deleteTxHistory(${i})" class="text-rose-500" aria-label="ลบรายการ"><i class="fas fa-trash"></i></button>` : '-'; hHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 text-xs text-slate-500 whitespace-nowrap">${formatDisplayDate(t.date)}</td><td class="p-3 whitespace-nowrap"><b class="whitespace-nowrap">${t.name}</b><br><span class="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">${t.user || 'ระบบ'}</span></td><td class="p-3 text-center whitespace-nowrap"><span class="px-2 py-1 rounded text-xs font-bold bg-slate-100 whitespace-nowrap">${t.type}</span></td><td class="p-3 text-right whitespace-nowrap font-mono font-bold">฿${t.amt}</td><td class="p-3 text-center whitespace-nowrap">${btn}</td></tr>`; }); list.innerHTML = hHtml; }
+        function renderFinHistory() { const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); const list = document.getElementById('fin-hist-list'); if(!list) return; const visibleHistory = (txHistory || []).filter(t => t && t.scoreAudit !== true && t.scoreDeletionLog !== true); if(visibleHistory.length === 0) { list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ไม่มีประวัติ</td></tr>'; return; } let hHtml = ''; visibleHistory.forEach(t => { const i = txHistory.indexOf(t); let btn = isAdmin ? `<button onclick="deleteTxHistory(${i})" class="text-rose-500" aria-label="ลบรายการ"><i class="fas fa-trash"></i></button>` : '-'; hHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 text-xs text-slate-500 whitespace-nowrap">${formatDisplayDate(t.date)}</td><td class="p-3 whitespace-nowrap"><b class="whitespace-nowrap">${t.name}</b><br><span class="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">${t.user || 'ระบบ'}</span></td><td class="p-3 text-center whitespace-nowrap"><span class="px-2 py-1 rounded text-xs font-bold bg-slate-100 whitespace-nowrap">${t.type}</span></td><td class="p-3 text-right whitespace-nowrap font-mono font-bold">฿${t.amt}</td><td class="p-3 text-center whitespace-nowrap">${btn}</td></tr>`; }); list.innerHTML = hHtml; }
 
        // ================= สุ่มตัวแทน (LUCKY DRAW) =================
         function initRandomizer() { 
@@ -13898,7 +13900,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
                         ประวัติคะแนนสะสม
                     </h3>
-                    ${currentUserRole === 'leader' && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}
+                    <div class="flex items-center gap-2">${currentUserRole === 'leader' ? `<button type="button" onclick="window.openScoreDeletionLogsV1549_()" class="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-100"><i class="fas fa-clipboard-list mr-1"></i>บันทึกการลบ</button>` : ''}${currentUserRole === 'leader' && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}</div>
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
@@ -14071,13 +14073,74 @@ window.editStudentPointHistoryItemV15436_ = async function(encodedKey, source, e
     setTimeout(()=>window.openStudentProfileModal(student.id),250);
 };
 
-// v15.4.36: leader-only soft delete of one point-history item with audit trail.
+// v15.4.49: leader-only physical deletion of score history with a separate System Log.
 function sssfnPointHistoryIdentityV15427_(tx) {
     if (!tx) return '';
     if (tx.pointSourceKey) return String(tx.pointSourceKey);
     if (tx.id) return String(tx.id);
     return [tx.date || '', tx.name || '', tx.user || '', tx.studentId || '', Array.isArray(tx.studentIds) ? tx.studentIds.join(',') : '', tx.pointRoom || ''].join('\u001f');
 }
+
+function sssfnCapturePointDeleteRollbackV1549_() {
+    return {
+        students: cloneRealtimeValue_(students || []),
+        txHistory: cloneRealtimeValue_(txHistory || []),
+        activityLogs: cloneRealtimeValue_(activityLogs || [])
+    };
+}
+function sssfnRestorePointDeleteRollbackV1549_(snapshot) {
+    if (!snapshot) return;
+    students = cloneRealtimeValue_(snapshot.students || []);
+    txHistory = cloneRealtimeValue_(snapshot.txHistory || []);
+    activityLogs = cloneRealtimeValue_(snapshot.activityLogs || []);
+    if (typeof captureCurrentRealtimeData_ === 'function' && lastServerSnapshot) {
+        hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, captureCurrentRealtimeData_()).length > 0;
+    }
+    syncQueued = false;
+    saveToLocal(false);
+    renderLeaderboard();
+    renderAdminStudentList();
+}
+
+function sssfnCreateScoreDeletionLogV1549_(student, options) {
+    const o = options || {};
+    const now = getNow();
+    const sourceTx = o.tx || null;
+    const sourceEntries = sourceTx ? realtimeArrayEntries_('txHistory', txHistory || []) : [];
+    const sourceEntry = sourceTx ? sourceEntries.find(entry => entry.value === sourceTx) : null;
+    const scope = String(o.scope || 'individual');
+    const sourceTxKey = sourceEntry ? sourceEntry.key : String(o.sourceTxKey || '');
+    const sourceActivityKey = String(o.sourceActivityKey || '');
+    const delta = Number(o.pointDelta || 0) || 0;
+    const sourceName = String(o.sourceName || (sourceTx && (sourceTx.pointNote || sourceTx.name)) || 'คะแนนกิจกรรม');
+    const audit = {
+        action: 'DELETE_POINT_HISTORY', scope: scope, deletedAt: now,
+        reason: String(o.reason || '').trim(), studentId: String(student.id), studentName: String(student.name || ''),
+        sourceTxKey: sourceTxKey, sourceTxId: String(sourceTx && sourceTx.id || ''),
+        sourceTxIdentity: sourceTx ? sssfnPointHistoryIdentityV15427_(sourceTx) : '',
+        sourceActivityKey: sourceActivityKey, sourceName: sourceName,
+        sourcePointDelta: delta, sourcePointSource: String(sourceTx && sourceTx.pointSource || ''),
+        wasVoided: o.wasVoided === true
+    };
+    return {
+        id: 'score_delete_log_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10),
+        date: now, name: 'ลบประวัติคะแนน: ' + String(student.name || student.id),
+        type: 'ระบบ', amt: 0, user: String(currentUsername || 'หัวหน้า'),
+        scoreAudit: true, scoreDeletionLog: true, scoreDeleteAudit: audit
+    };
+}
+
+window.openScoreDeletionLogsV1549_ = function() {
+    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ดูบันทึกการลบได้','warning');
+    const rows = (txHistory || []).filter(item => item && item.scoreDeletionLog === true && item.scoreDeleteAudit)
+        .sort((a,b) => String(b.scoreDeleteAudit.deletedAt || '').localeCompare(String(a.scoreDeleteAudit.deletedAt || '')));
+    const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+    const html = rows.length ? `<div class="text-left max-h-[60vh] overflow-y-auto space-y-2">${rows.map(item => {
+        const a = item.scoreDeleteAudit || {};
+        return `<div class="border border-slate-200 rounded-xl p-3"><div class="font-bold text-sm text-slate-800">${esc(a.studentName || a.studentId || 'นักศึกษา')}</div><div class="text-xs text-slate-500 mt-1">${esc(a.sourceName || 'ประวัติคะแนน')} · ${esc(a.sourcePointDelta || 0)} แต้ม</div><div class="text-xs text-slate-500 mt-1">${esc(a.deletedAt || item.date || '')} · ${esc(a.deletedBy || item.user || '')}</div><div class="text-xs mt-2">เหตุผล: ${esc(a.reason || '-')}</div></div>`;
+    }).join('')}</div>` : '<div class="text-sm text-slate-500 py-6">ยังไม่มีบันทึกการลบประวัติคะแนน</div>';
+    Swal.fire({title:'System Log · การลบประวัติคะแนน', html:html, width:650, showCloseButton:true, showConfirmButton:false});
+};
 
 window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedStudentId) {
     if (currentUserRole !== 'leader') {
@@ -14095,7 +14158,7 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     if (!student) return Swal.fire('ไม่พบข้อมูล', 'ไม่พบนักศึกษาที่ต้องการจัดการคะแนน', 'error');
 
     const isActivity = source === 'activity';
-    let tx = null, pointDelta = 0, activityKey = '', matchingLogs = [];
+    let tx = null, pointDelta = 0, activityKey = '', matchingLogs = [], deletionSourceTxKey = '';
     const matchesActivity = log => {
         if (!log || log.scoreHistoryHidden === true || cleanId(log.studentId) !== cleanId(student.id)) return false;
         const status = String(log.status || '').trim().toUpperCase();
@@ -14128,6 +14191,10 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
         pointDelta = sssfnResolvePointDeltaV15435_(tx);
     }
     if (!Number.isFinite(pointDelta)) return Swal.fire('ไม่สามารถลบได้', 'รายการนี้ไม่มีจำนวนคะแนนที่ตรวจสอบได้', 'warning');
+    if (!isActivity && tx) {
+        const sourceEntry = realtimeArrayEntries_('txHistory', txHistory || []).find(entry => entry.value === tx);
+        deletionSourceTxKey = sourceEntry ? String(sourceEntry.key) : '';
+    }
 
     const isGroupEvent = !isActivity && !String(tx.studentId || '').trim() &&
         ((Array.isArray(tx.studentIds) && tx.studentIds.length > 0) || !!String(tx.pointRoom || '').trim() || /ยกห้อง/.test(String(tx.name || '')));
@@ -14177,6 +14244,7 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     const reason = String(finalConfirm.value || '').trim();
     if (!reason) return Swal.fire('ยังลบไม่ได้', 'กรุณาระบุเหตุผลในการลบ', 'warning');
     const actor = String(currentUsername || 'หัวหน้า');
+    const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
 
     if (isActivity) {
         // Keep the actual attendance/check-in row. Only remove its score contribution
@@ -14230,23 +14298,28 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
             }
         } else {
             const wasVoided = liveTx.voided === true;
-            // The original values stay in this audit-only tombstone for accountability.
-            // scoreAudit=true excludes it from active point totals and score-history screens.
-            liveTx.scoreAudit = true;
-            liveTx.scoreDeleteAudit = {
-                action: 'DELETE_POINT_HISTORY',
-                deletedAt: now,
-                deletedBy: actor,
-                reason: reason,
-                studentId: String(student.id),
-                studentName: String(student.name || '')
-            };
+            const sourceIndex = (txHistory || []).indexOf(liveTx);
+            if (sourceIndex < 0) return Swal.fire('ไม่พบรายการ', 'รายการคะแนนเปลี่ยนแปลงจากอุปกรณ์อื่นแล้ว กรุณาโหลดข้อมูลใหม่', 'warning');
+            // Remove the original score row itself. The cancellation state is checked
+            // before this point, so an already-voided score is never deducted twice.
+            txHistory.splice(sourceIndex, 1);
             if (liveTx.pointSource !== 'payment' && !wasVoided) {
                 student.points = (Number(student.points) || 0) - pointDelta;
             }
         }
     }
 
+    // The deletion event is a separate System Log row; it is marked non-scoring and
+    // is visible only to the leader. For individual txHistory deletes, its sourceTxKey
+    // pairs this log atomically with the physical record delete in Apps Script.
+    let deletionLogOptions;
+    if (isActivity) {
+        deletionLogOptions = {scope:'activity-score', sourceActivityKey:String(student.id) + '|' + String(activityKey), sourceName:'ผ่านกิจกรรม ' + String(activityKey), pointDelta:pointDelta, reason:reason, wasVoided:alreadyVoided};
+    } else {
+        deletionLogOptions = {scope:isGroupEvent ? 'group-recipient' : 'individual', tx:tx, sourceTxKey:deletionSourceTxKey, sourceName:itemName, pointDelta:pointDelta, reason:reason, wasVoided:alreadyVoided};
+    }
+    txHistory = Array.isArray(txHistory) ? txHistory : [];
+    txHistory.unshift(sssfnCreateScoreDeletionLogV1549_(student, deletionLogOptions));
     student.totalPoints = getStudentTotalPoints_(student);
     saveToLocal(false);
     hasLocalChanges = true;
@@ -14254,13 +14327,14 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     renderAdminStudentList();
     const saveResult = await autoSyncToGS(false);
     if (!saveResult || saveResult.status !== 'success') {
+        sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({
-            icon: 'warning', title: 'ลบจากหน้าจอแล้ว แต่ยังบันทึกไม่สำเร็จ',
-            text: String(saveResult && saveResult.message || 'ข้อมูลยังไม่ยืนยันจากเซิร์ฟเวอร์ กรุณาดึงข้อมูลใหม่ก่อนดำเนินการซ้ำ')
+            icon: 'warning', title: 'ยังลบไม่สำเร็จ',
+            text: String(saveResult && saveResult.message || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว กรุณาตรวจสอบก่อนลองใหม่')
         });
     }
     setTimeout(() => openStudentProfileModal(student.id), 350);
-    Swal.fire({toast:true, position:'top-end', icon:'success', title:'ลบประวัติคะแนนแล้ว', text:'นำรายการออกจากประวัติและบันทึกหลักฐานการลบแล้ว', showConfirmButton:false, timer:2200});
+    Swal.fire({toast:true, position:'top-end', icon:'success', title:'ลบประวัติคะแนนแล้ว', text:'ลบรายการออกจากประวัติคะแนนแล้ว และบันทึกเหตุการณ์ไว้ใน System Log', showConfirmButton:false, timer:2200});
 };
 
 // 🌟 ฟังก์ชันบันทึกการตั้งค่าแต้ม
@@ -14866,16 +14940,24 @@ function applyBulkPointVoidsV15435_(studentIds, reason, descriptors) {
     const selectedKeys = new Set((descriptors || []).map(d => String(d.kind || '') + '|' + String(d.identity || '')));
     const onlySelectedRows = Array.isArray(descriptors) && descriptors.length > 0;
     const now = getNow();
+    const txSnapshot = Array.isArray(txHistory) ? txHistory.slice() : [];
+    const sourceEntries = realtimeArrayEntries_('txHistory', txSnapshot);
+    const sourceKeyByObject = new Map(sourceEntries.map(entry => [entry.value, entry.key]));
+    const removeTxRows = new Set();
+    const handledTxStudentPairs = new Set();
+    const deletionLogs = [];
     let txVoids = 0, activityVoids = 0;
+
     targets.forEach(stu => {
         const wantedId = sssfnCleanPointStudentIdV15435_(stu.id);
         (activityLogs || []).forEach(log => {
             if (!log || log.scoreHistoryHidden === true || sssfnCleanPointStudentIdV15435_(log.studentId) !== wantedId) return;
             if (!['C','A'].includes(String(log.status || '').trim().toUpperCase())) return;
             const key = sssfnPointActivityKeyV15435_(log);
-            const preciseActivityIdentity = sssfnPointActivityLogIdentityV15437_(log);
-            if (onlySelectedRows && !selectedKeys.has('activity|' + key) && !selectedKeys.has('activity|' + preciseActivityIdentity)) return;
-            if (log.pointsVoided !== true) {
+            const preciseIdentity = sssfnPointActivityLogIdentityV15437_(log);
+            if (onlySelectedRows && !selectedKeys.has('activity|' + key) && !selectedKeys.has('activity|' + preciseIdentity)) return;
+            const wasVoided = log.pointsVoided === true;
+            if (!wasVoided) {
                 log.pointsVoided = true;
                 log.pointsVoidedAt = now;
                 log.pointsVoidedBy = currentUsername || 'หัวหน้า';
@@ -14885,27 +14967,37 @@ function applyBulkPointVoidsV15435_(studentIds, reason, descriptors) {
             log.scoreHistoryHiddenAt = now;
             log.scoreHistoryHiddenBy = currentUsername || 'หัวหน้า';
             log.scoreHistoryHiddenReason = reason;
+            deletionLogs.push(sssfnCreateScoreDeletionLogV1549_(stu, {
+                scope:'activity-score', sourceActivityKey:String(stu.id) + '|' + preciseIdentity,
+                sourceName:'ผ่านกิจกรรม ' + String(log.scoreNote || log.activityTitle || log.activityName || key),
+                pointDelta:sssfnPointConditionDeltaV15437_(log, true), reason:reason, wasVoided:wasVoided
+            }));
             activityVoids++;
         });
-        (txHistory || []).forEach(tx => {
-            if (!tx || tx.scoreAudit === true || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId)) || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return;
+
+        txSnapshot.forEach(tx => {
+            if (!tx || tx.scoreAudit === true || tx.scoreDeletionLog === true || tx.historyHidden === true ||
+                (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId)) ||
+                !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return;
             if (!sssfnPointAppliesToStudentV15435_(tx, stu)) return;
             const identity = sssfnPointHistoryIdentityV15427_(tx);
             if (onlySelectedRows && !selectedKeys.has('tx|' + identity)) return;
-            const explicitVoids = Array.isArray(tx.voidedStudentIds) ? tx.voidedStudentIds.map(String) : [];
-            const alreadyForStudent = tx.voided === true || explicitVoids.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId);
-            const alreadyExplicitlyVoided = explicitVoids.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId);
-            const wasVoidedBefore = tx.voided === true;
+            const pairKey = identity + '|' + wantedId;
+            if (handledTxStudentPairs.has(pairKey)) return;
+            handledTxStudentPairs.add(pairKey);
             const delta = sssfnResolvePointDeltaV15435_(tx);
             if (!Number.isFinite(delta)) return;
-            const groupEvent = !String(tx.studentId || '').trim() && (Array.isArray(tx.studentIds) && tx.studentIds.length > 0 || !!String(tx.pointRoom || '') || /ยกห้อง/.test(String(tx.name || '')));
+            const groupEvent = !String(tx.studentId || '').trim() &&
+                ((Array.isArray(tx.studentIds) && tx.studentIds.length > 0) || !!String(tx.pointRoom || '') || /ยกห้อง/.test(String(tx.name || '')));
+            const wasVoided = tx.voided === true || (Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId));
             if (groupEvent) {
-                // Group source rows stay active for other recipients. Remove only this
-                // student's share and attach an audit entry for the specific recipient.
-                if (!alreadyExplicitlyVoided) {
-                    tx.voidedStudentIds = Array.from(new Set([...explicitVoids, String(stu.id)]));
+                // A group source remains for all other recipients. Retain a per-recipient
+                // exclusion marker and a separate System Log for the selected student.
+                const voidedIds = Array.isArray(tx.voidedStudentIds) ? tx.voidedStudentIds.map(String) : [];
+                if (!voidedIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId)) {
+                    tx.voidedStudentIds = Array.from(new Set([...voidedIds, String(stu.id)]));
                     tx.voidedStudentsAudit = Array.isArray(tx.voidedStudentsAudit) ? tx.voidedStudentsAudit : [];
-                    tx.voidedStudentsAudit.push({studentId:String(stu.id), at:now, by:currentUsername || 'หัวหน้า', reason:reason});
+                    tx.voidedStudentsAudit.push({studentId:String(stu.id),at:now,by:currentUsername || 'หัวหน้า',reason:reason});
                 }
                 const hiddenIds = Array.isArray(tx.historyHiddenStudentIds) ? tx.historyHiddenStudentIds.map(String) : [];
                 if (!hiddenIds.some(id => sssfnCleanPointStudentIdV15435_(id) === wantedId)) {
@@ -14913,29 +15005,35 @@ function applyBulkPointVoidsV15435_(studentIds, reason, descriptors) {
                     tx.historyHiddenStudentsAudit = Array.isArray(tx.historyHiddenStudentsAudit) ? tx.historyHiddenStudentsAudit : [];
                     tx.historyHiddenStudentsAudit.push({studentId:String(stu.id),at:now,by:currentUsername || 'หัวหน้า',reason:reason});
                 }
-                if (tx.pointSource !== 'payment' && !alreadyForStudent) stu.points = (Number(stu.points) || 0) - delta;
+                if (tx.pointSource !== 'payment' && !wasVoided) stu.points = (Number(stu.points) || 0) - delta;
+                deletionLogs.push(sssfnCreateScoreDeletionLogV1549_(stu, {
+                    scope:'group-recipient', tx:tx, sourceTxKey:sourceKeyByObject.get(tx) || '',
+                    sourceName:String(tx.pointNote || tx.name || 'คะแนนกลุ่ม'), pointDelta:delta, reason:reason, wasVoided:wasVoided
+                }));
             } else {
-                // Single-student rows become audit-only tombstones. They disappear from
-                // active history/calculations, while original values remain inspectable.
-                tx.scoreAudit = true;
-                tx.scoreDeleteAudit = {
-                    action: 'DELETE_POINT_HISTORY',
-                    deletedAt: now,
-                    deletedBy: currentUsername || 'หัวหน้า',
-                    reason: String(reason || ''),
-                    studentId: String(stu.id),
-                    studentName: String(stu.name || '')
-                };
-                if (tx.pointSource !== 'payment' && !wasVoidedBefore) stu.points = (Number(stu.points) || 0) - delta;
+                // Individual point rows are physically removed, regardless of whether they
+                // were already cancelled. The already-voided case must not adjust points again.
+                if (removeTxRows.has(tx)) return;
+                removeTxRows.add(tx);
+                if (tx.pointSource !== 'payment' && !wasVoided) stu.points = (Number(stu.points) || 0) - delta;
+                deletionLogs.push(sssfnCreateScoreDeletionLogV1549_(stu, {
+                    scope:'individual', tx:tx, sourceTxKey:sourceKeyByObject.get(tx) || '',
+                    sourceName:String(tx.pointNote || tx.name || 'รายการคะแนน'), pointDelta:delta, reason:reason, wasVoided:wasVoided
+                }));
             }
             txVoids++;
         });
-        if (typeof getApprovedActivityPointsForStudent_ === 'function') {
-            stu.activityPoints = getApprovedActivityPointsForStudent_(stu.id);
-        }
+
+        if (typeof getApprovedActivityPointsForStudent_ === 'function') stu.activityPoints = getApprovedActivityPointsForStudent_(stu.id);
         stu.totalPoints = getStudentTotalPoints_(stu);
     });
-    return {txVoids, activityVoids, students:targets.length};
+
+    if (removeTxRows.size) txHistory = txSnapshot.filter(tx => !removeTxRows.has(tx));
+    else txHistory = txSnapshot;
+    // Separate immutable System Log records never enter the point calculation.
+    deletionLogs.forEach(log => txHistory.unshift(log));
+    targets.forEach(stu => { stu.totalPoints = getStudentTotalPoints_(stu); });
+    return {txVoids, activityVoids, students:targets.length, physicallyRemoved:removeTxRows.size, systemLogs:deletionLogs.length};
 }
 window.updateScoreStudentSelectionCountV15435_ = function() {
     const checked = document.querySelectorAll('[data-score-bulk-student]:checked').length;
@@ -14951,25 +15049,33 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const ids = Array.from(document.querySelectorAll('[data-score-bulk-student]:checked')).map(el => decodeURIComponent(el.getAttribute('data-score-bulk-student') || ''));
     if (!ids.length) return Swal.fire('ยังไม่ได้เลือกนักศึกษา','เลือกนักศึกษาอย่างน้อยหนึ่งคนก่อน','info');
     const names = students.filter(s => ids.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id))).map(s => s.name).slice(0,8);
-    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะนำประวัติคะแนนออกจากหน้าของคนที่เลือกและปรับยอดคะแนนตามจริง โดยเก็บหลักฐานและเหตุผลไว้ตรวจสอบ คะแนนกลุ่มจะกระทบเฉพาะผู้รับที่เลือก และประวัติเช็กอินจะยังคงอยู่</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label>${pointVoidReasonFormHtmlV15441_('bulk-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', didOpen:()=>bindPointVoidReasonV15441_('bulk-point-reason'), preConfirm:()=>readPointVoidReasonV15441_('bulk-point-reason')});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะนำประวัติคะแนนออกจากหน้าของคนที่เลือกและปรับยอดคะแนนตามจริง โดยลบรายการคะแนนรายบุคคลออกจริง เก็บเหตุการณ์ไว้ใน System Log คะแนนกลุ่มกระทบเฉพาะผู้รับที่เลือก และประวัติเช็กอินยังคงอยู่</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลในการลบ *</label>${pointVoidReasonFormHtmlV15441_('bulk-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', didOpen:()=>bindPointVoidReasonV15441_('bulk-point-reason'), preConfirm:()=>readPointVoidReasonV15441_('bulk-point-reason')});
     if (!res.isConfirmed) return;
+    const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
     const saved = await autoSyncToGS(false);
+    if (!saved || saved.status !== 'success') {
+        sssfnRestorePointDeleteRollbackV1549_(rollbackState);
+        return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
+    }
     renderLeaderboard(); renderAdminStudentList();
-    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ลบจากหน้าจอแล้ว แต่ยังบันทึกไม่ครบ',text:(saved && saved.message) || 'กรุณาตรวจสอบการบันทึกข้อมูลอีกครั้ง'});
-    Swal.fire({icon:'success', title:'ลบประวัติคะแนนแล้ว', text:`จัดการ ${result.students} คน • ซ่อนประวัติคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
+    Swal.fire({icon:'success', title:'ลบประวัติคะแนนแล้ว', text:`จัดการ ${result.students} คน • นำประวัติคะแนนออก ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
 };
 window.bulkVoidAllStudentPointsV15435_ = async function() {
     if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ล้างประวัติคะแนนทุกคนได้','warning');
-    const res = await Swal.fire({title:'ลบประวัติคะแนนทุกคนทั้งระบบ?', html:`<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะนำประวัติคะแนนออกจากหน้าของนักศึกษาทุกคนและปรับยอดคะแนนตามจริง โดยยังเก็บหลักฐาน Audit ไว้ให้หัวหน้าตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label>${pointVoidReasonFormHtmlV15441_('bulk-all-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติทั้งหมด', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', didOpen:()=>bindPointVoidReasonV15441_('bulk-all-point-reason'), preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); return readPointVoidReasonV15441_('bulk-all-point-reason');}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนทุกคนทั้งระบบ?', html:`<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะนำประวัติคะแนนออกจากหน้าของนักศึกษาทุกคนและปรับยอดคะแนนตามจริง โดยลบรายการคะแนนรายบุคคลออกจริง และเก็บเหตุการณ์ลบแยกไว้ใน System Log สำหรับหัวหน้าตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label>${pointVoidReasonFormHtmlV15441_('bulk-all-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติทั้งหมด', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', didOpen:()=>bindPointVoidReasonV15441_('bulk-all-point-reason'), preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); return readPointVoidReasonV15441_('bulk-all-point-reason');}});
     if (!res.isConfirmed) return;
     const ids = (students || []).map(s => s.id);
+    const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
     const saved = await autoSyncToGS(false);
+    if (!saved || saved.status !== 'success') {
+        sssfnRestorePointDeleteRollbackV1549_(rollbackState);
+        return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
+    }
     renderLeaderboard(); renderAdminStudentList();
-    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ลบจากหน้าจอแล้ว แต่ยังบันทึกไม่ครบ',text:(saved && saved.message) || 'กรุณาตรวจสอบการบันทึกข้อมูลอีกครั้ง'});
     Swal.fire({icon:'success', title:'ลบประวัติคะแนนทุกคนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
 };
 window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId) {
@@ -14980,11 +15086,15 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     if (!descriptors.length) return Swal.fire('ยังไม่ได้เลือกรายการ','เลือกประวัติคะแนนที่ต้องการลบก่อน','info');
     const res = await Swal.fire({title:'ลบประวัติคะแนนที่เลือก?', html:`<p class="text-sm text-rose-700">เลือก ${descriptors.length} รายการ</p><label class="block text-left text-xs font-bold mt-3 mb-1">เหตุผล *</label>${pointVoidReasonFormHtmlV15441_('bulk-point-row-reason')}`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', didOpen:()=>bindPointVoidReasonV15441_('bulk-point-row-reason'), preConfirm:()=>readPointVoidReasonV15441_('bulk-point-row-reason')});
     if (!res.isConfirmed) return;
+    const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
     const saved = await autoSyncToGS(false);
+    if (!saved || saved.status !== 'success') {
+        sssfnRestorePointDeleteRollbackV1549_(rollbackState);
+        return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
+    }
     renderLeaderboard(); renderAdminStudentList();
-    if (!saved || saved.status !== 'success') return Swal.fire({icon:'warning',title:'ยังบันทึกไม่สำเร็จ',text:(saved && saved.message) || 'กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่'});
     Swal.fire({icon:'success',title:'ลบประวัติรายการที่เลือกแล้ว',text:`รายการคะแนน ${result.txVoids} • คะแนนกิจกรรม ${result.activityVoids}`,showConfirmButton:false,timer:1700});
     setTimeout(()=>window.openStudentProfileModal(studentId),250);
 };
@@ -15213,9 +15323,9 @@ window.openConditionalScoreHistoryDeleteV15437_ = async function() {
     const uniqueStudents=new Set(found.rows.map(row=>String(row.student.id)));
     const activityCount=found.rows.filter(row=>row.kind==='activity').length;
     const txCount=found.rows.filter(row=>row.kind==='tx').length;
-    const preview=await Swal.fire({title:'ตรวจสอบรายการก่อนลบ',width:900,html:`<div class="text-left"><div class="grid grid-cols-3 gap-2 mb-3"><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">รายการที่พบ</div><div class="text-xl font-extrabold text-rose-600">${found.rows.length}</div></div><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">นักศึกษา</div><div class="text-xl font-extrabold text-slate-800">${uniqueStudents.size}</div></div><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">กิจกรรม / คะแนนทั่วไป</div><div class="text-xl font-extrabold text-slate-800">${activityCount} / ${txCount}</div></div></div><div class="max-h-[48vh] overflow-auto rounded-xl border border-slate-200"><table class="w-full text-left"><thead class="sticky top-0 bg-slate-50"><tr><th class="p-2 text-xs">นักศึกษา</th><th class="p-2 text-xs">ประเภท</th><th class="p-2 text-xs">รายละเอียด</th><th class="p-2 text-xs">วันที่</th><th class="p-2 text-xs text-right">แต้ม</th></tr></thead><tbody>${previewRows}</tbody></table></div>${found.rows.length>60?`<p class="text-xs text-amber-700 mt-2">แสดงตัวอย่าง 60 รายการแรก จากทั้งหมด ${found.rows.length} รายการ</p>`:''}<p class="text-xs text-rose-700 font-bold mt-3">การยืนยันจะยกเลิกคะแนนและซ่อนประวัติเฉพาะรายการข้างต้นเท่านั้น</p></div>`,showCancelButton:true,confirmButtonText:'ไปยืนยันการยกเลิก',cancelButtonText:'กลับไปแก้เงื่อนไข',confirmButtonColor:'#e11d48'});
+    const preview=await Swal.fire({title:'ตรวจสอบรายการก่อนลบ',width:900,html:`<div class="text-left"><div class="grid grid-cols-3 gap-2 mb-3"><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">รายการที่พบ</div><div class="text-xl font-extrabold text-rose-600">${found.rows.length}</div></div><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">นักศึกษา</div><div class="text-xl font-extrabold text-slate-800">${uniqueStudents.size}</div></div><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">กิจกรรม / คะแนนทั่วไป</div><div class="text-xl font-extrabold text-slate-800">${activityCount} / ${txCount}</div></div></div><div class="max-h-[48vh] overflow-auto rounded-xl border border-slate-200"><table class="w-full text-left"><thead class="sticky top-0 bg-slate-50"><tr><th class="p-2 text-xs">นักศึกษา</th><th class="p-2 text-xs">ประเภท</th><th class="p-2 text-xs">รายละเอียด</th><th class="p-2 text-xs">วันที่</th><th class="p-2 text-xs text-right">แต้ม</th></tr></thead><tbody>${previewRows}</tbody></table></div>${found.rows.length>60?`<p class="text-xs text-amber-700 mt-2">แสดงตัวอย่าง 60 รายการแรก จากทั้งหมด ${found.rows.length} รายการ</p>`:''}<p class="text-xs text-rose-700 font-bold mt-3">การยืนยันจะลบประวัติคะแนนของผู้รับที่แสดงเท่านั้น คะแนนที่ยกเลิกไปแล้วจะไม่ถูกหักซ้ำ</p></div>`,showCancelButton:true,confirmButtonText:'ไปยืนยันการลบ',cancelButtonText:'กลับไปแก้เงื่อนไข',confirmButtonColor:'#e11d48'});
     if(!preview.isConfirmed) return window.openConditionalScoreHistoryDeleteV15437_();
-    const finalConfirm=await Swal.fire({title:'ยืนยันยกเลิกคะแนนตามเงื่อนไข?',html:`<div class="text-left text-sm"><p>จะจัดการ ${found.rows.length} รายการ ของนักศึกษา ${uniqueStudents.size} คน</p><p class="text-rose-700 font-bold mt-2">การยกเลิกจะมีผลกับยอดคะแนนสะสมของนักศึกษาตามรายการที่แสดง</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก (บันทึกใน Audit) *</label>${pointVoidReasonFormHtmlV15441_('conditional-score-reason')}</div>`,icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยันยกเลิกคะแนน',cancelButtonText:'ยกเลิก',confirmButtonColor:'#be123c',didOpen:()=>bindPointVoidReasonV15441_('conditional-score-reason'),preConfirm:()=>readPointVoidReasonV15441_('conditional-score-reason')});
+    const finalConfirm=await Swal.fire({title:'ยืนยันลบประวัติคะแนนตามเงื่อนไข?',html:`<div class="text-left text-sm"><p>จะจัดการ ${found.rows.length} รายการ ของนักศึกษา ${uniqueStudents.size} คน</p><p class="text-rose-700 font-bold mt-2">คะแนนที่ยังมีผลจะถูกนำออกจากยอด ส่วนรายการที่ยกเลิกไปแล้วจะไม่ถูกปรับซ้ำ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลในการลบ (บันทึกใน System Log) *</label>${pointVoidReasonFormHtmlV15441_('conditional-score-reason')}</div>`,icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยันลบประวัติ',cancelButtonText:'ยกเลิก',confirmButtonColor:'#be123c',didOpen:()=>bindPointVoidReasonV15441_('conditional-score-reason'),preConfirm:()=>readPointVoidReasonV15441_('conditional-score-reason')});
     if(!finalConfirm.isConfirmed) return;
     if(currentUserRole!=='leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ดำเนินการนี้ได้','warning');
     // Keep a rollback copy until Apps Script confirms the canonical write.
@@ -15245,7 +15355,7 @@ window.openConditionalScoreHistoryDeleteV15437_ = async function() {
         });
     }
     renderLeaderboard(); renderAdminStudentList();
-    Swal.fire({icon:'success',title:'ดำเนินการตามเงื่อนไขแล้ว',text:`ซ่อนประวัติ ${result.txVoids} รายการคะแนนทั่วไป • ${result.activityVoids} รายการกิจกรรม • นักศึกษา ${result.students} คน`,confirmButtonText:'รับทราบ'});
+    Swal.fire({icon:'success',title:'ดำเนินการตามเงื่อนไขแล้ว',text:`ลบ/นำออก ${result.txVoids} รายการคะแนนทั่วไป • ${result.activityVoids} รายการกิจกรรม • นักศึกษา ${result.students} คน`,confirmButtonText:'รับทราบ'});
 };
 
 window.renderAdminStudentList = function() {
