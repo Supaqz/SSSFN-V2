@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.4.40: merge-before-validation for realtime deltas; authenticated Pusher startup guard -->
+<!-- SSSFN v15.4.41: merge-before-validation for realtime deltas; authenticated Pusher startup guard -->
 <html lang="th">
 <head>
 
@@ -5853,6 +5853,7 @@ function canViewPublicActivity_(activity, hasRegistration) {
     if (!activity) return false;
     if (currentUserRole !== 'guest') return canViewActivityInManagementList_(activity);
     if (isActivityAssignedToCurrentUser_(activity)) return true;
+    if (activity.__pendingCardOnly === true && activity.status === 'รออนุมัติ') return true;
     if (hasRegistration) return activity.status === 'อนุมัติแล้ว';
     return activity.isVisible !== false && activity.status === 'อนุมัติแล้ว';
 }
@@ -5939,6 +5940,11 @@ function renderActivities() {
 
         let actHtml = '';
         filtered.forEach(act => {
+            if (currentUserRole === 'guest' && act.__pendingCardOnly === true && act.status === 'รออนุมัติ') {
+                const pendingTitle = String(act.title || 'กิจกรรม').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                actHtml += `<div class="bg-white rounded-2xl border border-amber-200 shadow-sm flex flex-col h-full relative overflow-hidden cursor-not-allowed" aria-disabled="true"><div class="p-5 flex-1 flex flex-col"><div class="flex items-start justify-between gap-2 mb-3"><h3 class="font-bold text-slate-800 text-base leading-snug">${pendingTitle}</h3><span class="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">รออนุมัติ</span></div><p class="text-xs text-slate-500 mt-auto"><i class="fa-solid fa-lock mr-1"></i> แสดงเฉพาะชื่อกิจกรรมจนกว่าจะได้รับอนุมัติ</p></div></div>`;
+                return;
+            }
             let actLogsForCard = activityLogs.filter(l => l.activityTitle === act.title);
             let webRegCount = getActivityWebRegistrationCount_(act.title);
             let isOpen = getActivityRegistrationWindow_(act).isOpen;
@@ -7538,21 +7544,7 @@ window.executeScanLogic = function(barcode, actTitle) {
     // Legacy conditions.blockUnregistered is intentionally not enforced by this flow because
     // the requested business rule is to accept on-site scans as reserve participants.
 
-    // 3. ตรวจสอบการสแกนซ้ำในรอบเดียวกัน
-    let existingLog = activityLogs.find(l => 
-        l.studentId === stu.id && 
-        l.activityTitle === currentMasterActivity.title && 
-        l.roundName === selectedRound
-    );
-    if (existingLog) {
-        return Swal.fire({
-            icon: 'warning',
-            title: 'สแกนซ้ำในรอบนี้!',
-            html: `<p class="font-bold text-slate-800">${stu.name}</p><p class="text-xs text-slate-500 mt-1">ได้เช็กชื่อในรอบ <b>"${selectedRound}"</b> ไปแล้ว<br>เมื่อเวลา ${existingLog.timeIn || '-'}</p>`,
-            timer: 2500,
-            showConfirmButton: false
-        });
-    }
+    // Duplicate state is confirmed by the server under ScriptLock in v15.4.41.
 
     // ตรวจสอบตัวเลือกการแสดงผลและ Auto-Confirm
     let showInfo = (document.getElementById('show-student-data') || document.getElementById('hw-show-info'))?.checked !== false;
@@ -7667,58 +7659,59 @@ window.executeScanLogic = function(barcode, actTitle) {
     }
 };
 
-window.confirmScan = function(stuId, roundName) {
-    let stu = students.find(s => s.id === stuId) || { name: stuId };
-    // Snapshot the registration state at scan time. Later web registration/cancellation
-    // must not silently change whether this participant originally joined as a reserve.
-    const hasWebRegistrationAtScan = !!(currentMasterActivity && hasActivityWebRegistration_(stuId, currentMasterActivity.title));
-    const participantTypeAtScan = hasWebRegistrationAtScan ? 'REAL' : 'RESERVE';
-    
-    // 🌟 บังคับสถานะ "รอพิจารณา (P)" ทันที เพื่อความปลอดภัย
-    activityLogs.unshift({
-        studentId: stuId,
-        activityTitle: currentMasterActivity.title,
-        roundName: roundName,
-        timeIn: getNow(),
-        timeOut: null,
-        status: 'P',
-        participantType: participantTypeAtScan,
-        isWebRegisteredAtCheckin: hasWebRegistrationAtScan,
-        staffUser: currentUsername || 'Staff'
+function sssfnCreateIdempotencyKeyV15441_() {
+    try { if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID(); } catch (ignore) {}
+    return 'sssfn-' + Date.now() + '-' + Math.random().toString(36).slice(2, 14);
+}
+function applyServerConfirmedCheckinV15441_(record) {
+    if (!record || !record.studentId || !record.activityTitle) return;
+    const same = log => {
+        if (!log || String(log.studentId || '').replace(/-/g,'') !== String(record.studentId || '').replace(/-/g,'')) return false;
+        const logRef = String(log.activityRef || log.activityId || '').trim();
+        const recordRef = String(record.activityRef || record.activityId || '').trim();
+        const sameActivity = logRef || recordRef ? !!logRef && logRef === recordRef : String(log.activityTitle || '') === String(record.activityTitle || '');
+        const logRound = String(log.roundId || log.roundName || '').trim();
+        const recordRound = String(record.roundId || record.roundName || '').trim();
+        return sameActivity && logRound === recordRound && (log.isCheckin === true || !!log.timeIn);
+    };
+    const index = (activityLogs || []).findIndex(same);
+    if (index >= 0) activityLogs[index] = Object.assign({}, activityLogs[index], record);
+    else activityLogs.unshift(record);
+    saveToLocal(false);
+    hasLocalChanges = false;
+    try { if (typeof captureCurrentRealtimeData_ === 'function') lastServerSnapshot = captureCurrentRealtimeData_(); } catch (ignore) {}
+    if (typeof renderActivities === 'function') renderActivities();
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+    if (typeof filterMasterTable === 'function' && currentMasterActivity && currentMasterActivity.title === record.activityTitle) filterMasterTable();
+    if (typeof renderMasterDashboard === 'function' && currentMasterActivity && currentMasterActivity.title === record.activityTitle) renderMasterDashboard();
+    if (typeof renderCheckinMapDisplay === 'function' && currentMasterActivity && currentMasterActivity.title === record.activityTitle) renderCheckinMapDisplay();
+    if (typeof renderMasterRoundsTable === 'function' && currentMasterActivity && currentMasterActivity.title === record.activityTitle) renderMasterRoundsTable();
+}
+window.confirmScan = async function(stuId, roundName) {
+    if (!currentMasterActivity) return showToast('ไม่พบกิจกรรมที่กำลังจัดการ', 'error');
+    const stu = students.find(s => String(s.id || '').replace(/-/g,'') === String(stuId || '').replace(/-/g,'')) || { id:stuId, name:stuId };
+    const requestId = sssfnCreateIdempotencyKeyV15441_();
+    showToast('กำลังยืนยันการเช็กชื่อกับเซิร์ฟเวอร์...', 'info');
+    const result = await callBackend({
+        action:'atomicActivityCheckinV15441', mode:'staff', studentId:stu.id,
+        activityRef:String(currentMasterActivity.ref || currentMasterActivity.id || currentMasterActivity.title),
+        activityTitle:currentMasterActivity.title, roundName:String(roundName || ''), idempotencyKey:requestId
     });
-
-    txHistory.unshift({
-        date: getNow(),
-        name: `สแกนเช็กชื่อ: ${stuId} (${roundName})`,
-        type: 'กิจกรรม',
-        amt: 0,
-        user: currentUsername || 'Staff'
-    });
-
-    saveToLocal(true);
-
-    // เสียงแจ้งเตือน Success สั้นๆ ผ่าน Web Audio API
-    try {
-        let ctx = new (window.AudioContext || window.webkitAudioContext)();
-        let osc = ctx.createOscillator();
-        let gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-    } catch(e) {}
-
-    showToast(`เช็กชื่อ "${stu.name}" สำเร็จ (${participantTypeAtScan === 'REAL' ? 'ตัวจริง' : 'ตัวสำรอง'} • รอพิจารณา)`, 'success');
-
-    // โฟกัสกลับไปที่ช่อง Barcode เพื่อเตรียมยิงคนถัดไป
-    let input = document.getElementById('hw-input-focus');
-    if (input) {
-        input.value = '';
-        input.focus();
+    if (!result || result.status !== 'success') {
+        if (result && result.status === 'duplicate') return Swal.fire({icon:'info',title:'เช็กชื่อรายการนี้แล้ว',text:result.message || 'นักศึกษาคนนี้มีรายการเช็กชื่อในรอบนี้อยู่แล้ว',confirmButtonColor:'#2563eb'}).then(()=>{const input=document.getElementById('hw-input-focus');if(input){input.value='';input.focus();}});
+        return Swal.fire({icon:'error',title:'บันทึกเช็กชื่อไม่สำเร็จ',text:(result && result.message) || 'เซิร์ฟเวอร์ไม่สามารถยืนยันรายการได้ กรุณาลองใหม่',confirmButtonColor:'#2563eb'});
     }
+    applyServerConfirmedCheckinV15441_(result.record);
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.15, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.start(); osc.stop(ctx.currentTime + 0.15);
+    } catch (ignore) {}
+    const participant = result.record && result.record.participantType === 'REAL' ? 'ตัวจริง' : 'ตัวสำรอง';
+    showToast(`เช็กชื่อ "${stu.name}" สำเร็จ (${participant} • รอพิจารณา)`, 'success');
+    const input=document.getElementById('hw-input-focus'); if(input){input.value='';input.focus();}
 };
 
 // 7. ตั้งค่า Geofence QR Code (Tab 3: ตั้งค่า QRCODE) - ตรงตาม Image 1
@@ -8428,6 +8421,7 @@ window.renderQRActivityTab = function() {
 
 window.openLiveQRModal = function(roundName) {
     if (!currentMasterActivity) return;
+    if (String(currentMasterActivity.status || '') !== 'อนุมัติแล้ว') return Swal.fire({icon:'warning',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'ไม่สามารถออก QR สำหรับกิจกรรมที่ยังรออนุมัติได้',confirmButtonColor:'#2563eb'});
     let rules = currentMasterActivity.qrRules || [];
     if (currentMasterActivity.isActive === false) {
         return Swal.fire({
@@ -8490,57 +8484,67 @@ window.closeLiveQRModal = function() {
     }
 };
 
-window.regenerateLiveQRToken = function() {
+window.regenerateLiveQRToken = async function() {
     if (!liveQrCurrentRule || !currentMasterActivity) return;
+    if (window._liveQRGeneratingV15441_) return;
+    window._liveQRGeneratingV15441_ = true;
+    const sequence = (Number(window._liveQRRequestSequenceV15441_) || 0) + 1;
+    window._liveQRRequestSequenceV15441_ = sequence;
     liveQrSecondsLeft = liveQrTotalInterval;
-    liveQrExpiryTime = Date.now() + liveQrTotalInterval * 1000;
-
-    let d = new Date(liveQrExpiryTime);
-    let timeStr = d.toTimeString().split(' ')[0];
-    let expiryEl = document.getElementById('live-qr-expiry-text');
-    if (expiryEl) expiryEl.innerText = `หมดอายุ ${timeStr}`;
-
-    let countdownEl = document.getElementById('live-qr-countdown');
+    const countdownEl = document.getElementById('live-qr-countdown');
     if (countdownEl) countdownEl.innerText = liveQrSecondsLeft;
-
-    let progressEl = document.getElementById('live-qr-progressbar');
+    const progressEl = document.getElementById('live-qr-progressbar');
     if (progressEl) progressEl.style.width = '100%';
-
-    let token = 'ACT_' + Math.random().toString(36).substr(2, 8).toUpperCase() + '_' + Date.now();
-    let baseUrl = window.location.href.split('?')[0].split('#')[0];
-    let checkinUrl = `${baseUrl}?checkin=1&act=${encodeURIComponent(currentMasterActivity.title)}&round=${encodeURIComponent(liveQrCurrentRule.roundName)}&lat=${liveQrCurrentRule.lat || ''}&lng=${liveQrCurrentRule.lng || ''}&rad=${liveQrCurrentRule.radius || 50}&token=${token}`;
-
-    window.currentLiveCheckinUrl = checkinUrl;
-
-    // Render QR Code (QRious Client-side or API fallback)
-    let canvas = document.getElementById('live-qr-canvas');
-    let img = document.getElementById('live-qr-img');
-
-    if (typeof QRious !== 'undefined' && canvas) {
-        try {
-            new QRious({
-                element: canvas,
-                value: checkinUrl,
-                size: 240,
-                level: 'H'
-            });
-            canvas.classList.remove('hidden');
-            if (img) img.classList.add('hidden');
-        } catch(e) {
-            let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkinUrl)}`;
-            if (img) {
-                img.src = qrUrl;
-                img.classList.remove('hidden');
+    const expiryEl = document.getElementById('live-qr-expiry-text');
+    if (expiryEl) expiryEl.innerText = 'กำลังออก QR ที่ลงนามโดยเซิร์ฟเวอร์...';
+    try {
+        const tokenResult = await callBackend({
+            action:'issueActivityQrTokenV15441',
+            activityRef:String(currentMasterActivity.ref || currentMasterActivity.id || currentMasterActivity.title),
+            activityTitle:String(currentMasterActivity.title || ''),
+            roundName:String(liveQrCurrentRule.roundName || '')
+        });
+        if (sequence !== window._liveQRRequestSequenceV15441_) return;
+        if (!tokenResult || tokenResult.status !== 'success' || !tokenResult.token) {
+            window.currentLiveCheckinUrl = '';
+            const canvas = document.getElementById('live-qr-canvas'); const img = document.getElementById('live-qr-img');
+            if (canvas) canvas.classList.add('hidden'); if (img) img.classList.add('hidden');
+            if (expiryEl) expiryEl.innerText = 'ออก QR ไม่สำเร็จ';
+            showToast((tokenResult && tokenResult.message) || 'ไม่สามารถออก QR Code จากเซิร์ฟเวอร์ได้', 'error');
+            return;
+        }
+        const expiryDate = new Date(Number(tokenResult.expiresAt) || Date.now());
+        liveQrExpiryTime = expiryDate.getTime();
+        if (expiryEl) expiryEl.innerText = `หมดอายุ ${expiryDate.toLocaleTimeString('th-TH',{hour12:false})}`;
+        const baseUrl = window.location.href.split('?')[0].split('#')[0];
+        const params = new URLSearchParams({
+            checkin:'1', act:String(tokenResult.activityTitle || currentMasterActivity.title),
+            round:String(tokenResult.roundName || liveQrCurrentRule.roundName),
+            lat:tokenResult.lat == null ? '' : String(tokenResult.lat),
+            lng:tokenResult.lng == null ? '' : String(tokenResult.lng),
+            rad:String(tokenResult.radius || 50), token:String(tokenResult.token)
+        });
+        const checkinUrl = `${baseUrl}?${params.toString()}`;
+        window.currentLiveCheckinUrl = checkinUrl;
+        const canvas = document.getElementById('live-qr-canvas');
+        const img = document.getElementById('live-qr-img');
+        if (typeof QRious !== 'undefined' && canvas) {
+            try {
+                new QRious({element:canvas,value:checkinUrl,size:240,level:'H'});
+                canvas.classList.remove('hidden'); if (img) img.classList.add('hidden');
+            } catch (renderError) {
+                if (img) { img.src=`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkinUrl)}`; img.classList.remove('hidden'); }
+                if (canvas) canvas.classList.add('hidden');
             }
+        } else {
+            if (img) { img.src=`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkinUrl)}`; img.classList.remove('hidden'); }
             if (canvas) canvas.classList.add('hidden');
         }
-    } else {
-        let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(checkinUrl)}`;
-        if (img) {
-            img.src = qrUrl;
-            img.classList.remove('hidden');
-        }
-        if (canvas) canvas.classList.add('hidden');
+    } catch (error) {
+        if (expiryEl) expiryEl.innerText = 'ออก QR ไม่สำเร็จ';
+        showToast('ติดต่อเซิร์ฟเวอร์เพื่อออก QR ไม่สำเร็จ: ' + String(error && error.message || error), 'error');
+    } finally {
+        window._liveQRGeneratingV15441_ = false;
     }
 };
 
@@ -12414,12 +12418,53 @@ function addRoundRow() {
         container.appendChild(div);
     }
 }
+
+// v15.4.41: Standardized cancellation reasons; the final text is stored in the legacy Audit field.
+function pointVoidReasonFormHtmlV15441_(prefix) {
+    const safePrefix = String(prefix || 'point-void-reason').replace(/[^a-zA-Z0-9_-]/g, '');
+    return `<select id="${safePrefix}-select" class="swal2-select" style="display:block;width:100%;max-width:100%;margin:0 0 8px;text-align:left">
+        <option value="">เลือกเหตุผลการยกเลิก</option>
+        <option value="ให้คะแนนผิดคน">ให้คะแนนผิดคน</option>
+        <option value="ให้คะแนนซ้ำ">ให้คะแนนซ้ำ</option>
+        <option value="บันทึกข้อมูลผิดพลาด">บันทึกข้อมูลผิดพลาด</option>
+        <option value="กิจกรรมหรือรายการถูกยกเลิก">กิจกรรมหรือรายการถูกยกเลิก</option>
+        <option value="ปรับปรุงข้อมูลตามมติหรือคำสั่ง">ปรับปรุงข้อมูลตามมติหรือคำสั่ง</option>
+        <option value="อื่น ๆ">อื่น ๆ (ระบุเพิ่มเติม)</option>
+    </select>
+    <div id="${safePrefix}-other-wrap" class="hidden">
+        <label class="block text-xs font-bold text-slate-600 mb-1">รายละเอียดเพิ่มเติม *</label>
+        <textarea id="${safePrefix}-other" class="swal2-textarea" style="width:100%;margin:0" rows="2" placeholder="ระบุเหตุผลเพิ่มเติม"></textarea>
+    </div>`;
+}
+function bindPointVoidReasonV15441_(prefix) {
+    const select = document.getElementById(prefix + '-select');
+    const wrap = document.getElementById(prefix + '-other-wrap');
+    if (!select || !wrap) return;
+    const update = () => wrap.classList.toggle('hidden', select.value !== 'อื่น ๆ');
+    select.addEventListener('change', update);
+    update();
+}
+function readPointVoidReasonV15441_(prefix) {
+    const select = document.getElementById(prefix + '-select');
+    const value = String(select && select.value || '').trim();
+    if (!value) { Swal.showValidationMessage('กรุณาเลือกเหตุผลที่ยกเลิกคะแนน'); return false; }
+    if (value === 'อื่น ๆ') {
+        const detail = String(document.getElementById(prefix + '-other')?.value || '').trim();
+        if (!detail) { Swal.showValidationMessage('กรุณาระบุรายละเอียดเพิ่มเติม'); return false; }
+        return 'อื่น ๆ: ' + detail;
+    }
+    return value;
+}
+
 // =========================================================================
 // 🌟 1. ฟังก์ชันเปิดหน้าต่างรายละเอียดกิจกรรม 
 // =========================================================================
 window.openRegistrationModal = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
+    if (currentUserRole === 'guest' && act.status !== 'อนุมัติแล้ว') {
+        return Swal.fire({icon:'info',title:'กิจกรรมยังไม่พร้อมให้เข้าชม',text:'กิจกรรมนี้ยังไม่ได้รับอนุมัติ จึงแสดงได้เฉพาะการ์ดชื่อกิจกรรมเท่านั้น',confirmButtonColor:'#2563eb'});
+    }
 
     const registrationWindow = getActivityRegistrationWindow_(act);
     let isStillOpen = registrationWindow.isOpen;
@@ -12552,6 +12597,7 @@ window.promptConfirmReg = function(title) {
     if (!window.currentStudentAuthToken) return Swal.fire({ icon: 'warning', title: 'ต้องยืนยันบัญชีนักศึกษาด้วย Google', text: 'การลงทะเบียนต้องใช้บัญชี Google ที่ผูกกับรหัสนักศึกษา เพื่อป้องกันการลงทะเบียนแทนผู้อื่น' });
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
+    if (act.status !== 'อนุมัติแล้ว') return Swal.fire({icon:'info',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'ยังไม่สามารถลงทะเบียนกิจกรรมนี้ได้',confirmButtonColor:'#2563eb'});
     const registrationWindow = getActivityRegistrationWindow_(act);
     if (!registrationWindow.isOpen) {
         return Swal.fire({ icon: 'warning', title: 'ยังไม่อยู่ในช่วงรับสมัคร', text: registrationWindow.beforeStart ? 'ยังไม่ถึงวันและเวลาเปิดรับสมัคร' : 'หมดช่วงเวลารับสมัครแล้ว', confirmButtonColor: '#2563eb' });
@@ -12671,190 +12717,69 @@ window.getDistanceFromLatLonInM = function(lat1, lon1, lat2, lon2) {
     return R * c;
 };
 
-window.processStudentQRCheckin = function(data, source) {
-    if (!window.currentStudentAuthToken) return Swal.fire({ icon: 'warning', title: 'ต้องยืนยันบัญชีนักศึกษาด้วย Google', text: 'กรุณาเข้าสู่ระบบด้วย Google ที่ผูกกับรหัสนักศึกษาก่อนเช็กอิน' });
-    if (!data || !data.act) return showToast('ไม่พบข้อมูลกิจกรรมใน QR Code', 'error');
-
-    let act = appSettings.activities.find(a => a.title.trim() === String(data.act).trim());
-    if (!act) return showToast(`ไม่พบกิจกรรม "${data.act}" ในระบบ`, 'error');
-
-    if (act.isActive === false) {
-        return Swal.fire({
-            icon: 'warning',
-            title: 'กิจกรรมยังไม่เปิดใช้งาน',
-            text: 'กิจกรรมนี้ยังไม่เปิดระบบรับเช็กอิน กรุณาติดต่อผู้จัดกิจกรรม',
-            confirmButtonColor: '#2563eb'
-        });
-    }
-
+window.processStudentQRCheckin = async function(data, source) {
+    if (!data || !data.act || !data.token) return showToast('QR Code นี้ไม่มีรหัสยืนยันจากเซิร์ฟเวอร์ กรุณาสร้าง QR ใหม่', 'error');
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-    if (!stuId) {
-        // 🌟 ถ้านักศึกษายังไม่ล็อกอิน: เก็บข้อมูลกิจกรรมที่สแกนไว้ แล้วเปิดหน้าต่างล็อกอินนักศึกษาตามปกติ
+    if (!window.currentStudentAuthToken || !stuId) {
         window.pendingQRCheckin = data;
         try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(data)); } catch(e){}
         return promptStudentLogin();
     }
+    let act = appSettings.activities.find(a => String(a.title || '').trim() === String(data.act).trim());
+    if (!act) return showToast('ไม่พบกิจกรรมนี้ในข้อมูลล่าสุด', 'error');
+    if (act.status !== 'อนุมัติแล้ว') return Swal.fire({icon:'info',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'กิจกรรมนี้ยังไม่เปิดให้เช็กอิน',confirmButtonColor:'#2563eb'});
+    if (act.isActive === false) return Swal.fire({icon:'warning',title:'กิจกรรมยังไม่เปิดใช้งาน',text:'กิจกรรมนี้ยังไม่เปิดระบบรับเช็กอิน กรุณาติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
 
-    let cleanStuId = String(stuId).replace(/-/g, '').trim();
-    let stu = students.find(s => String(s.id).replace(/-/g, '').trim() === cleanStuId) || { id: stuId, name: 'นักศึกษา (' + stuId + ')', room: '-' };
+    const cleanStuId = String(stuId).replace(/-/g, '').trim();
+    const stu = students.find(s => String(s.id || '').replace(/-/g, '').trim() === cleanStuId) || { id:stuId, name:'นักศึกษา (' + stuId + ')', room:'-' };
+    const requestId = data.__sssfnIdempotencyKey || sssfnCreateIdempotencyKeyV15441_();
+    try { data.__sssfnIdempotencyKey = requestId; } catch (ignore) {}
 
-    // ตรวจสอบว่าเคยเช็กอินในรอบนี้ไปแล้วหรือยัง
-    let alreadyCheckedIn = activityLogs.find(l => 
-        String(l.studentId).replace(/-/g, '').trim() === cleanStuId && 
-        l.activityTitle === data.act && 
-        (l.roundName === data.round || !data.round) &&
-        l.timeIn && l.timeIn !== 'จองสิทธิ์ล่วงหน้า'
-    );
-
-    if (alreadyCheckedIn) {
-        return Swal.fire({
-            icon: 'info',
-            title: 'คุณเช็กอินรอบนี้แล้ว',
-            html: `
-                <div class="text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 space-y-1.5 font-sans">
-                    <p><b>กิจกรรม:</b> ${data.act}</p>
-                    <p><b>รอบ:</b> ${alreadyCheckedIn.roundName || data.round || 'ทั่วไป'}</p>
-                    <p><b>นักศึกษา:</b> ${stu.name} (${stuId})</p>
-                    <p><b>เวลาที่เช็กอินแล้ว:</b> <span class="text-emerald-600 font-bold">${alreadyCheckedIn.timeIn}</span></p>
-                    <p class="text-blue-600 font-mono text-[11px] font-bold"><i class="fa-solid fa-ticket mr-1"></i>รหัสคิว: ${alreadyCheckedIn.regId || ('REG-' + String(stuId).slice(-4))}</p>
-                </div>
-            `,
-            confirmButtonText: 'เปิดดูกิจกรรมของฉัน',
-            confirmButtonColor: '#2563eb'
-        }).then(() => {
-            if (typeof openRegistrationModal === 'function') openRegistrationModal(data.act);
+    const doSaveCheckin = async (userLat, userLng, distText) => {
+        Swal.fire({title:'กำลังยืนยันการเช็กชื่อ...',text:'กำลังตรวจสอบสิทธิ์ รอบกิจกรรม และรายการซ้ำจากเซิร์ฟเวอร์',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+        const result = await callBackend({
+            action:'atomicActivityCheckinV15441', mode:'student',
+            activityRef:String(act.ref || act.id || act.title), activityTitle:act.title,
+            roundName:String(data.round || 'ทั่วไป'), qrToken:String(data.token),
+            lat:userLat == null ? null : Number(userLat), lng:userLng == null ? null : Number(userLng),
+            idempotencyKey:requestId
         });
-    }
-
-    // ฟังก์ชันบันทึกข้อมูลเช็กอิน
-    const doSaveCheckin = (userLat, userLng, distText) => {
-        let existingBooking = activityLogs.find(l =>
-            normalizeActivityStudentId_(l.studentId) === cleanStuId &&
-            l.activityTitle === data.act &&
-            !isWebRegistrationOnlyLog_(l) &&
-            String(l.roundName || l.roundId || '').trim() === String(data.round || '').trim()
-        );
-
-        let randomRegId = existingBooking?.regId || ('REG-' + Math.floor(100000 + Math.random() * 900000));
-        let nowStr = getNow();
-        if (existingBooking) {
-            existingBooking.activityRef = String(act.ref || act.id || '');
-            existingBooking.timeIn = nowStr;
-            if (data.round) existingBooking.roundName = data.round;
-            if (userLat) { existingBooking.lat = userLat; existingBooking.lng = userLng; }
-            existingBooking.status = 'P';
-            existingBooking.isCheckin = true;
-            existingBooking.isWebReg = false;
-            existingBooking.webRegistrationOnly = false;
-            if (!existingBooking.regId) existingBooking.regId = randomRegId;
-        } else {
-            activityLogs.unshift({
-                studentId: stuId,
-                activityTitle: data.act,
-                activityRef: String(act.ref || act.id || ''),
-                roundName: data.round || 'ทั่วไป',
-                lat: userLat || null,
-                lng: userLng || null,
-                timeIn: nowStr,
-                timeOut: null,
-                status: 'P',
-                isCheckin: true,
-                isWebReg: false,
-                webRegistrationOnly: false,
-                regId: randomRegId
-            });
+        if (!result || result.status !== 'success') {
+            if (result && result.status === 'duplicate') {
+                const old = result.record || {};
+                return Swal.fire({icon:'info',title:'คุณเช็กอินรอบนี้แล้ว',html:`<div class="text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 space-y-1.5"><p><b>กิจกรรม:</b> ${String(act.title || '')}</p><p><b>รอบ:</b> ${String(old.roundName || data.round || 'ทั่วไป')}</p><p><b>เวลา:</b> ${String(old.timeIn || '-')}</p></div>`,confirmButtonText:'รับทราบ',confirmButtonColor:'#2563eb'});
+            }
+            return Swal.fire({icon:'error',title:'เช็กอินไม่สำเร็จ',text:(result && result.message) || 'เซิร์ฟเวอร์ไม่สามารถยืนยันรายการได้ กรุณาสแกน QR ใหม่หรือติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
         }
-
-        saveToLocal(true);
-        if (typeof renderActivities === 'function') renderActivities();
-        if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
-        if (typeof filterMasterTable === 'function' && currentMasterActivity?.title === data.act) filterMasterTable();
-        if (typeof renderMasterDashboard === 'function' && currentMasterActivity?.title === data.act) renderMasterDashboard();
-        if (typeof renderCheckinMapDisplay === 'function' && currentMasterActivity?.title === data.act) renderCheckinMapDisplay();
-        if (typeof renderMasterRoundsTable === 'function' && currentMasterActivity?.title === data.act) renderMasterRoundsTable();
-
+        applyServerConfirmedCheckinV15441_(result.record);
+        const savedRecord = result.record || {};
         Swal.fire({
-            icon: 'success',
-            title: 'เช็กอินเข้าร่วมกิจกรรมสำเร็จ!',
-            html: `
-                <div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2 font-sans">
-                    <p class="font-bold text-emerald-900 text-sm">${data.act}</p>
-                    <p><b>รอบลงทะเบียน:</b> <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">${data.round || 'ทั่วไป'}</span></p>
-                    <p><b>นักศึกษา:</b> ${stu.name} (${stuId})</p>
-                    <p><b>เวลาเช็กอิน:</b> ${nowStr}</p>
-                    <p class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>สถานะ: ลงทะเบียนและเช็กอินเข้าร่วมแล้ว</p>
-                    <p class="text-blue-700 font-bold font-mono text-[11px]"><i class="fa-solid fa-ticket mr-1"></i>รหัสลงทะเบียน: ${randomRegId}</p>
-                    ${distText ? `<p class="text-slate-500 text-[11px]"><i class="fa-solid fa-location-dot mr-1"></i>${distText}</p>` : ''}
-                </div>
-            `,
-            confirmButtonText: 'เปิดดูกิจกรรมของฉัน',
-            confirmButtonColor: '#10b981'
-        }).then(() => {
-            if (typeof openRegistrationModal === 'function') openRegistrationModal(data.act);
+            icon:'success', title:'เช็กอินเข้าร่วมกิจกรรมสำเร็จ!',
+            html:`<div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2 font-sans"><p class="font-bold text-emerald-900 text-sm">${String(act.title || '')}</p><p><b>รอบกิจกรรม:</b> ${String(savedRecord.roundName || data.round || 'ทั่วไป')}</p><p><b>นักศึกษา:</b> ${String(stu.name || stuId)} (${String(stuId)})</p><p><b>เวลาเช็กอิน:</b> ${String(savedRecord.timeIn || '-')}</p><p class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>บันทึกจากเซิร์ฟเวอร์แล้ว</p>${distText ? `<p class="text-slate-500 text-[11px]">${distText}</p>` : ''}</div>`,
+            confirmButtonText:'รับทราบ', confirmButtonColor:'#10b981'
         });
     };
 
-    // ตรวจสอบพิกัด Geofence ถ้ามีการกำหนด lat/lng
-    let hasTargetGeo = (!isNaN(data.lat) && !isNaN(data.lng) && data.lat !== 0);
-    if (!hasTargetGeo) {
-        return doSaveCheckin(null, null, '');
-    }
-
-    Swal.fire({
-        title: 'กำลังตรวจสอบตำแหน่ง GPS...',
-        text: 'กรุณารอสักครู่ ระบบกำลังยืนยันว่าคุณอยู่ในพื้นที่กิจกรรม',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-    });
-
+    // The QR coordinates are for UX only; the server verifies the signed token and authoritative geofence.
+    const hasTargetGeo = Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng)) && Number(data.lat) !== 0;
+    if (!hasTargetGeo) return doSaveCheckin(null, null, '');
+    Swal.fire({title:'กำลังตรวจสอบตำแหน่ง GPS...',text:'กรุณารอสักครู่ ระบบกำลังยืนยันพื้นที่กิจกรรม',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                let curLat = pos.coords.latitude;
-                let curLng = pos.coords.longitude;
-                let dist = getDistanceFromLatLonInM(curLat, curLng, data.lat, data.lng);
-                let allowed = (data.rad || 50) + 20;
-
-                if (dist <= allowed) {
-                    doSaveCheckin(curLat, curLng, `ตรวจสอบพิกัด Geofence ผ่าน (ห่าง ${Math.round(dist)} เมตร)`);
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'อยู่นอกพื้นที่เช็กอิน!',
-                        html: `
-                            <div class="text-left text-xs bg-rose-50 p-4 rounded-xl border border-rose-200 text-rose-800 mt-2 space-y-2">
-                                <p>คุณอยู่ห่างจากจุดศูนย์กลางเช็กอิน: <b>${Math.round(dist)} เมตร</b></p>
-                                <p>ระยะที่ระบบอนุญาต: <b>ไม่เกิน ${Math.round(data.rad || 50)} เมตร</b></p>
-                                <p class="text-slate-500 text-[11px] mt-1">กรุณาเข้าใกล้บริเวณจุดจัดกิจกรรมแล้วลองสแกนใหม่อีกครั้ง</p>
-                            </div>
-                        `,
-                        confirmButtonText: 'เข้าใจแล้ว',
-                        confirmButtonColor: '#e11d48'
-                    });
-                }
+            pos => {
+                const curLat=pos.coords.latitude, curLng=pos.coords.longitude;
+                const dist=getDistanceFromLatLonInM(curLat,curLng,Number(data.lat),Number(data.lng));
+                const allowed=(Number(data.rad)||50)+20;
+                if (dist<=allowed) doSaveCheckin(curLat,curLng,`ตรวจสอบพิกัด Geofence เบื้องต้นผ่าน (ห่าง ${Math.round(dist)} เมตร)`);
+                else Swal.fire({icon:'error',title:'อยู่นอกพื้นที่เช็กอิน!',text:`คุณอยู่ห่างจากจุด QR ${Math.round(dist)} เมตร เกินระยะที่กำหนด`,confirmButtonColor:'#e11d48'});
             },
-            (err) => {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'ไม่สามารถระบุพิกัด GPS ได้',
-                    text: 'ระบบไม่สามารถเข้าถึงพิกัด GPS ของอุปกรณ์คุณได้ คุณต้องการดำเนินการเช็กอินต่อหรือไม่?',
-                    showCancelButton: true,
-                    confirmButtonText: 'เช็กอินต่อไป',
-                    cancelButtonText: 'ยกเลิก',
-                    confirmButtonColor: '#2563eb'
-                }).then(res => {
-                    if (res.isConfirmed) {
-                        doSaveCheckin(null, null, 'เช็กอินโดยไม่ตรวจสอบพิกัด');
-                    }
-                });
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            err => Swal.fire({icon:'warning',title:'ไม่สามารถระบุพิกัด GPS ได้',text:'ไม่สามารถยืนยันพิกัดอุปกรณ์ได้ จึงยังไม่ส่งคำขอเช็กอินรอบนี้ กรุณาเปิด GPS แล้วลองใหม่',confirmButtonColor:'#2563eb'}),
+            {enableHighAccuracy:true,timeout:10000,maximumAge:0}
         );
     } else {
-        doSaveCheckin(null, null, 'อุปกรณ์ไม่รองรับ GPS');
+        Swal.fire({icon:'warning',title:'อุปกรณ์ไม่รองรับ GPS',text:'กิจกรรมนี้กำหนดพื้นที่เช็กอิน กรุณาใช้อุปกรณ์ที่สามารถระบุตำแหน่งได้',confirmButtonColor:'#2563eb'});
     }
 };
-
 // 🌟 Option B: กล้องสแกน QR ในหน้าเว็บสำหรับนักศึกษา
 window.openStudentCheckinScanner = function() {
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
@@ -14194,13 +14119,10 @@ window.voidStudentPointHistoryItem = function(encodedKey, source, encodedStudent
     const itemName = isActivity ? `ผ่านกิจกรรม ${activityKey}` : String(tx.pointNote || tx.name || 'รายการคะแนน');
     Swal.fire({
         title: 'ยืนยันลบประวัติคะแนน?',
-        html: `<div class="text-left text-sm bg-rose-50 border border-rose-200 rounded-xl p-3 mb-3"><b>${itemName}</b><p class="text-rose-700 mt-1">${verb} ของ ${student.name}</p></div><label class="block text-xs font-bold text-slate-600 text-left mb-1">เหตุผลที่ยกเลิก *</label><textarea id="void-point-reason" class="swal2-textarea" placeholder="เช่น ให้คะแนนผิดคน / ให้คะแนนซ้ำ" style="width:100%;margin:0"></textarea>`,
+        html: `<div class="text-left text-sm bg-rose-50 border border-rose-200 rounded-xl p-3 mb-3"><b>${itemName}</b><p class="text-rose-700 mt-1">${verb} ของ ${student.name}</p></div><label class="block text-xs font-bold text-slate-600 text-left mb-1">เหตุผลที่ยกเลิก *</label>${pointVoidReasonFormHtmlV15441_('void-point-reason')}`,
         icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยันลบประวัติ', cancelButtonText: 'กลับ', confirmButtonColor: '#e11d48',
-        preConfirm: () => {
-            const reason = String(document.getElementById('void-point-reason')?.value || '').trim();
-            if (!reason) return Swal.showValidationMessage('กรุณาระบุเหตุผลที่ยกเลิกคะแนน');
-            return reason;
-        }
+        didOpen: () => bindPointVoidReasonV15441_('void-point-reason'),
+        preConfirm: () => readPointVoidReasonV15441_('void-point-reason')
     }).then(result => {
         if (!result.isConfirmed) return;
         const now = getNow();
@@ -14962,7 +14884,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const ids = Array.from(document.querySelectorAll('[data-score-bulk-student]:checked')).map(el => decodeURIComponent(el.getAttribute('data-score-bulk-student') || ''));
     if (!ids.length) return Swal.fire('ยังไม่ได้เลือกนักศึกษา','เลือกนักศึกษาอย่างน้อยหนึ่งคนก่อน','info');
     const names = students.filter(s => ids.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id))).map(s => s.name).slice(0,8);
-    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label><textarea id="bulk-point-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น ปรับฐานคะแนนใหม่ / บันทึกซ้ำ"></textarea></div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const v=String(document.getElementById('bulk-point-reason')?.value||'').trim(); if(!v) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return v;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนของนักศึกษาที่เลือก?', html:`<div class="text-left text-sm"><p>เลือก ${ids.length} คน${names.length ? ' ได้แก่ ' + names.join(', ') : ''}${ids.length > 8 ? ' และคนอื่น ๆ' : ''}</p><p class="text-amber-700 mt-2">ระบบจะยกเลิกคะแนนที่ยังมีผลทั้งหมดของคนที่เลือก รวมถึงคะแนนกิจกรรมและคะแนนชำระเงิน โดยเก็บประวัติและเหตุผลไว้ในระบบตรวจสอบ</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก *</label>${pointVoidReasonFormHtmlV15441_('bulk-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', didOpen:()=>bindPointVoidReasonV15441_('bulk-point-reason'), preConfirm:()=>readPointVoidReasonV15441_('bulk-point-reason')});
     if (!res.isConfirmed) return;
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
@@ -14973,7 +14895,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
 };
 window.bulkVoidAllStudentPointsV15435_ = async function() {
     if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ล้างประวัติคะแนนทุกคนได้','warning');
-    const res = await Swal.fire({title:'ลบประวัติคะแนนทุกคนทั้งระบบ?', html:'<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะยกเลิกผลคะแนนและซ่อนประวัติจากหน้าของนักศึกษาทุกคน โดยยังเก็บหลักฐานและ audit ไว้ให้หัวหน้าตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-all-point-reason" class="swal2-textarea" style="margin:0;width:100%"></textarea></div>', icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติทั้งหมด', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); const r=String(document.getElementById('bulk-all-point-reason')?.value||'').trim(); if(!r) return Swal.showValidationMessage('กรุณาระบุเหตุผล'); return r;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนทุกคนทั้งระบบ?', html:`<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะยกเลิกผลคะแนนและซ่อนประวัติจากหน้าของนักศึกษาทุกคน โดยยังเก็บหลักฐานและ audit ไว้ให้หัวหน้าตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label>${pointVoidReasonFormHtmlV15441_('bulk-all-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติทั้งหมด', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', didOpen:()=>bindPointVoidReasonV15441_('bulk-all-point-reason'), preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); return readPointVoidReasonV15441_('bulk-all-point-reason');}});
     if (!res.isConfirmed) return;
     const ids = (students || []).map(s => s.id);
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
@@ -14989,7 +14911,7 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     const boxes = Array.from(document.querySelectorAll(`[data-bulk-point-student="${encodeURIComponent(studentId).replace(/"/g,'%22')}"]:checked`));
     const descriptors = boxes.map(el => ({kind:el.getAttribute('data-bulk-point-kind'), identity:decodeURIComponent(el.getAttribute('data-bulk-point-identity') || '')}));
     if (!descriptors.length) return Swal.fire('ยังไม่ได้เลือกรายการ','เลือกประวัติคะแนนที่ต้องการยกเลิกก่อน','info');
-    const res = await Swal.fire({title:'ลบประวัติคะแนนที่เลือก?', html:`<p class="text-sm text-rose-700">เลือก ${descriptors.length} รายการ</p><label class="block text-left text-xs font-bold mt-3 mb-1">เหตุผล *</label><textarea id="bulk-point-row-reason" class="swal2-textarea" style="width:100%;margin:0"></textarea>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', preConfirm:()=>{const r=String(document.getElementById('bulk-point-row-reason')?.value||'').trim();if(!r)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return r;}});
+    const res = await Swal.fire({title:'ลบประวัติคะแนนที่เลือก?', html:`<p class="text-sm text-rose-700">เลือก ${descriptors.length} รายการ</p><label class="block text-left text-xs font-bold mt-3 mb-1">เหตุผล *</label>${pointVoidReasonFormHtmlV15441_('bulk-point-row-reason')}`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติ', cancelButtonText:'กลับ', confirmButtonColor:'#e11d48', didOpen:()=>bindPointVoidReasonV15441_('bulk-point-row-reason'), preConfirm:()=>readPointVoidReasonV15441_('bulk-point-row-reason')});
     if (!res.isConfirmed) return;
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
@@ -15226,7 +15148,7 @@ window.openConditionalScoreHistoryDeleteV15437_ = async function() {
     const txCount=found.rows.filter(row=>row.kind==='tx').length;
     const preview=await Swal.fire({title:'ตรวจสอบรายการก่อนลบ',width:900,html:`<div class="text-left"><div class="grid grid-cols-3 gap-2 mb-3"><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">รายการที่พบ</div><div class="text-xl font-extrabold text-rose-600">${found.rows.length}</div></div><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">นักศึกษา</div><div class="text-xl font-extrabold text-slate-800">${uniqueStudents.size}</div></div><div class="rounded-xl bg-slate-50 p-3 text-center"><div class="text-xs text-slate-500">กิจกรรม / คะแนนทั่วไป</div><div class="text-xl font-extrabold text-slate-800">${activityCount} / ${txCount}</div></div></div><div class="max-h-[48vh] overflow-auto rounded-xl border border-slate-200"><table class="w-full text-left"><thead class="sticky top-0 bg-slate-50"><tr><th class="p-2 text-xs">นักศึกษา</th><th class="p-2 text-xs">ประเภท</th><th class="p-2 text-xs">รายละเอียด</th><th class="p-2 text-xs">วันที่</th><th class="p-2 text-xs text-right">แต้ม</th></tr></thead><tbody>${previewRows}</tbody></table></div>${found.rows.length>60?`<p class="text-xs text-amber-700 mt-2">แสดงตัวอย่าง 60 รายการแรก จากทั้งหมด ${found.rows.length} รายการ</p>`:''}<p class="text-xs text-rose-700 font-bold mt-3">การยืนยันจะยกเลิกคะแนนและซ่อนประวัติเฉพาะรายการข้างต้นเท่านั้น</p></div>`,showCancelButton:true,confirmButtonText:'ไปยืนยันการยกเลิก',cancelButtonText:'กลับไปแก้เงื่อนไข',confirmButtonColor:'#e11d48'});
     if(!preview.isConfirmed) return window.openConditionalScoreHistoryDeleteV15437_();
-    const finalConfirm=await Swal.fire({title:'ยืนยันยกเลิกคะแนนตามเงื่อนไข?',html:`<div class="text-left text-sm"><p>จะจัดการ ${found.rows.length} รายการ ของนักศึกษา ${uniqueStudents.size} คน</p><p class="text-rose-700 font-bold mt-2">การยกเลิกจะมีผลกับยอดคะแนนสะสมของนักศึกษาตามรายการที่แสดง</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก (บันทึกใน Audit) *</label><textarea id="conditional-score-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น คะแนนซ้ำ / บันทึกผิดช่วงวันที่"></textarea></div>`,icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยันยกเลิกคะแนน',cancelButtonText:'ยกเลิก',confirmButtonColor:'#be123c',preConfirm:()=>{const reason=String(document.getElementById('conditional-score-reason')?.value||'').trim();if(!reason)return Swal.showValidationMessage('กรุณาระบุเหตุผล');return reason;}});
+    const finalConfirm=await Swal.fire({title:'ยืนยันยกเลิกคะแนนตามเงื่อนไข?',html:`<div class="text-left text-sm"><p>จะจัดการ ${found.rows.length} รายการ ของนักศึกษา ${uniqueStudents.size} คน</p><p class="text-rose-700 font-bold mt-2">การยกเลิกจะมีผลกับยอดคะแนนสะสมของนักศึกษาตามรายการที่แสดง</p><label class="block font-bold text-xs mt-3 mb-1">เหตุผลที่ยกเลิก (บันทึกใน Audit) *</label>${pointVoidReasonFormHtmlV15441_('conditional-score-reason')}</div>`,icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยันยกเลิกคะแนน',cancelButtonText:'ยกเลิก',confirmButtonColor:'#be123c',didOpen:()=>bindPointVoidReasonV15441_('conditional-score-reason'),preConfirm:()=>readPointVoidReasonV15441_('conditional-score-reason')});
     if(!finalConfirm.isConfirmed) return;
     if(currentUserRole!=='leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ดำเนินการนี้ได้','warning');
     // Keep a rollback copy until Apps Script confirms the canonical write.
