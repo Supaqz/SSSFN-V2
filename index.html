@@ -610,6 +610,10 @@
 
                     <button onclick="startLuckyDraw()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-xl font-bold text-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02] flex items-center justify-center gap-3"><i class="fas fa-play-circle text-2xl"></i> สับสวิตช์เริ่มสุ่ม!</button>
                 </div>
+                <div id="random-draw-history-card" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
+                    <div class="flex items-center justify-between gap-3 mb-3"><h3 class="font-bold text-slate-800"><i class="fas fa-clipboard-list text-purple-600 mr-2"></i>ประวัติการสุ่มแบบละเอียด</h3><span id="random-draw-history-count" class="text-xs text-slate-500"></span></div>
+                    <div id="random-draw-history-list" class="space-y-3"><p class="text-sm text-slate-400">กำลังโหลดประวัติ...</p></div>
+                </div>
             </div>
 
 <!-- ======================================================================= -->
@@ -2558,7 +2562,7 @@ async function callBackend(payload) {
         let currentView = 'home'; let currentUserRole = 'guest'; let currentUsername = '';
         let appSettings = { showPublicAttendance: true, notifyAttendance: true, notifySlip: true, notifyActivity: true, activities: [] };
         let users = []; // บัญชีผู้ใช้ต้องมาจากฐานข้อมูลจริงเท่านั้น ไม่สร้าง admin/1234 สำรองในเบราว์เซอร์
-        let rooms = []; let students = []; let txHistory = []; let fundRounds = []; let fundPayments = []; let expenses = []; let activityLogs = []; let timeLogs = [];
+        let rooms = []; let students = []; let txHistory = []; let fundRounds = []; let fundPayments = []; let expenses = []; let activityLogs = []; let timeLogs = []; let randomDrawHistory = [];
 
         let syncTimeout; let syncWorkerTimer = null; let html5QrcodeScanner = null; let autoRefreshInterval; 
         let quickTargetId = ''; let quickScanner = null;
@@ -2773,7 +2777,7 @@ function recalculateDebts() {
 // ================= Realtime sync: changed records -> Apps Script -> Google Sheets =================
 const REALTIME_COLLECTIONS = [
     'users', 'rooms', 'students', 'txHistory', 'fundRounds',
-    'fundPayments', 'expenses', 'activityLogs', 'timeLogs'
+    'fundPayments', 'expenses', 'activityLogs', 'timeLogs', 'randomDrawHistory'
 ];
 
 function stableRealtimeJson_(value) {
@@ -2846,12 +2850,13 @@ function snapshotRealtimeData_(source) {
         fundPayments: Array.isArray(d.fundPayments) ? d.fundPayments : [],
         expenses: Array.isArray(d.expenses) ? d.expenses : [],
         activityLogs: Array.isArray(d.activityLogs) ? d.activityLogs : [],
-        timeLogs: Array.isArray(d.timeLogs) ? d.timeLogs : []
+        timeLogs: Array.isArray(d.timeLogs) ? d.timeLogs : [],
+        randomDrawHistory: Array.isArray(d.randomDrawHistory) ? d.randomDrawHistory : []
     });
 }
 
 function captureCurrentRealtimeData_() {
-    return snapshotRealtimeData_({ appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs });
+    return snapshotRealtimeData_({ appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs, randomDrawHistory });
 }
 
 function buildRealtimeChanges_(baseline, current) {
@@ -3411,6 +3416,7 @@ function clearUnsafeGlobalCacheForStudentV15435_(studentId) {
     expenses = [];
     activityLogs = [];
     timeLogs = [];
+    randomDrawHistory = [];
     appSettings = {activities:[]};
     saveToLocal(false);
     try { refreshAll(); } catch (error) { console.warn('Student safe shell render skipped:', error); }
@@ -3458,6 +3464,7 @@ function applyLoadedData(d, serverBaselineOverride) {
     expenses = Array.isArray(d.expenses) ? d.expenses : expenses;
     activityLogs = Array.isArray(d.activityLogs) ? d.activityLogs : activityLogs;
     timeLogs = Array.isArray(d.timeLogs) ? d.timeLogs : timeLogs;
+    randomDrawHistory = Array.isArray(d.randomDrawHistory) ? d.randomDrawHistory : randomDrawHistory;
 
     if (currentUserRole === 'guest' && window.currentStudentAuthToken && window.currentGuestStuId) {
         try {
@@ -3495,7 +3502,7 @@ function applyLoadedData(d, serverBaselineOverride) {
 }
         // Keep a local cache for fast page startup, but always reconcile it with server data.
 function saveToLocal(triggerSync = true) {
-    const cache = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs };
+    const cache = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs, randomDrawHistory };
     try { localStorage.setItem('SSSfnDB', JSON.stringify(cache)); }
     catch (error) { console.warn('บันทึกแคชในเครื่องไม่สำเร็จ:', error); }
 
@@ -3546,6 +3553,7 @@ function saveToLocal(triggerSync = true) {
             expenses = p.expenses || [];
             activityLogs = p.activityLogs || [];
             timeLogs = p.timeLogs || [];
+            randomDrawHistory = Array.isArray(p.randomDrawHistory) ? p.randomDrawHistory : randomDrawHistory;
         }
     } catch (error) {
         console.error('อ่านข้อมูลที่เก็บไว้ในเครื่องไม่สำเร็จ:', error);
@@ -11952,135 +11960,129 @@ async function editUserAction(username) {
             renderRandomPills(); 
         }
 
-        function startLuckyDraw() { 
-            let candidates = randomPool.filter(x => x.included); 
-            let countInput = parseInt(document.getElementById('random-count').value) || 1; 
-            
-            if(candidates.length === 0) return Swal.fire('คำเตือน', 'ไม่มีรายชื่อให้สุ่ม! (โดนยกเว้นหมดแล้ว)', 'warning'); 
-            if(countInput > candidates.length) return Swal.fire('คำเตือน', 'จำนวนคนที่ต้องการสุ่ม มากกว่ารายชื่อที่มีอยู่ครับ', 'warning'); 
-            
-            let timerInterval; 
-            Swal.fire({ 
-                title: '🎰 กำลังสุ่มตัวแทน...', 
-                html: '<div id="swal-random-name" class="text-3xl md:text-4xl font-bold text-purple-600 mt-4 mb-4 h-20 flex items-center justify-center bg-purple-50 rounded-xl border-4 border-purple-200 shadow-inner animate-slot">เตรียมพร้อม...</div>', 
-                showConfirmButton: false, 
-                allowOutsideClick: false, 
-                didOpen: () => { 
-                    let swalName = document.getElementById('swal-random-name'); 
-                    let ticks = 0; 
-                    timerInterval = setInterval(() => { 
-                        let randIndex = Math.floor(Math.random() * candidates.length); 
-                        swalName.innerText = candidates[randIndex].name; 
-                        ticks++; 
-                        if(ticks > 30) { 
-                            clearInterval(timerInterval); 
-                            finishLuckyDraw(candidates, countInput); 
-                        } 
-                    }, 100); 
-                }, 
-                willClose: () => { clearInterval(timerInterval); } 
-            }); 
+        function sssfnRandomEscapeHtmlV1553_(value) {
+            return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         }
-
-        function finishLuckyDraw(candidates, count) { 
-            let winners = []; 
-            let tempCandidates = [...candidates]; 
-            
-            // สุ่มรายชื่อตามจำนวนที่แอดมินเลือก (เช่น สุ่มทีละ 1 หรือสุ่มทีละ 3)
-            for(let i=0; i<count; i++) { 
-                let randIndex = Math.floor(Math.random() * tempCandidates.length); 
-                winners.push(tempCandidates[randIndex]); 
-                tempCandidates.splice(randIndex, 1); 
-            } 
-
-            // 🌟 เช็คว่ามีใครในกลุ่มผู้ชนะที่ "มีโล่ป้องกัน" หรือไม่
-            let shieldedWinners = [];
-            let validWinners = [];
-
+        function sssfnRandomDrawIdV1553_() {
+            return 'draw_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        }
+        function sssfnPersistRandomDrawV1553_(record) {
+            if (!Array.isArray(randomDrawHistory)) randomDrawHistory = [];
+            const index = randomDrawHistory.findIndex(item => item && item.id === record.id);
+            if (index >= 0) randomDrawHistory[index] = record;
+            else randomDrawHistory.unshift(record);
+            saveToLocal(true);
+            renderRandomDrawHistory();
+        }
+        function renderRandomDrawHistory() {
+            const card = document.getElementById('random-draw-history-card');
+            const list = document.getElementById('random-draw-history-list');
+            const countEl = document.getElementById('random-draw-history-count');
+            if (!card || !list) return;
+            const canView = ['leader','vice','treasurer'].includes(String(currentUserRole || ''));
+            card.classList.toggle('hidden', !canView);
+            if (!canView) return;
+            const rows = (Array.isArray(randomDrawHistory) ? randomDrawHistory : []).slice().sort((a,b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 30);
+            if (countEl) countEl.textContent = (randomDrawHistory || []).length + ' รายการ';
+            if (!rows.length) { list.innerHTML = '<p class="text-sm text-slate-400 py-3 text-center">ยังไม่มีประวัติการสุ่ม</p>'; return; }
+            list.innerHTML = rows.map((r, idx) => {
+                const statusLabel = r.status === 'saved' ? 'บันทึกผลแล้ว' : r.status === 'shield_only' ? 'โล่ป้องกันทั้งหมด' : r.status === 'result_pending' ? 'รอระบุชื่องาน' : 'สุ่มแล้วแต่ไม่บันทึกผล';
+                const statusClass = r.status === 'saved' ? 'bg-emerald-100 text-emerald-700' : r.status === 'result_pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
+                const names = arr => (Array.isArray(arr) ? arr : []).map(x => sssfnRandomEscapeHtmlV1553_(x.name || x.id || '-')).join(', ') || '-';
+                const pool = Array.isArray(r.pool) ? r.pool : [];
+                const eligible = pool.filter(x => x.included);
+                const excluded = pool.filter(x => !x.included);
+                const detail = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mt-3"><div><b>ห้อง:</b> ${sssfnRandomEscapeHtmlV1553_((r.roomFilter || 'all') === 'all' ? 'ทุกห้อง' : r.roomFilter)}</div><div><b>จำนวนที่ต้องการสุ่ม:</b> ${Number(r.requestedCount) || 0} คน</div><div><b>ผู้มีสิทธิ์ (${eligible.length}):</b> ${names(eligible)}</div><div><b>ผู้ถูกยกเว้น (${excluded.length}):</b> ${names(excluded)}</div><div class="sm:col-span-2"><b>รายชื่อที่สุ่มเจอ:</b> ${names(r.drawn)}</div><div><b>ใช้โล่ป้องกัน (${(r.shielded || []).length}):</b> ${names(r.shielded)}</div><div><b>ผู้ชนะสุดท้าย:</b> ${names(r.winners)}</div><div><b>ผู้บันทึก:</b> ${sssfnRandomEscapeHtmlV1553_(r.actor || '-')}</div><div><b>ชื่องาน:</b> ${sssfnRandomEscapeHtmlV1553_(r.taskName || '-')}</div><div class="sm:col-span-2"><b>รหัสบันทึก:</b> <span class="font-mono">${sssfnRandomEscapeHtmlV1553_(r.id)}</span></div></div>`;
+                return `<details class="border border-slate-200 rounded-xl p-3 bg-slate-50" ${idx === 0 ? 'open' : ''}><summary class="cursor-pointer flex flex-wrap items-center justify-between gap-2"><span class="font-bold text-sm text-slate-800">${sssfnRandomEscapeHtmlV1553_(r.taskName || 'รายการสุ่ม')}</span><span class="text-xs text-slate-500">${sssfnRandomEscapeHtmlV1553_(r.createdAt || '-')}</span><span class="text-[11px] font-bold px-2 py-1 rounded-full ${statusClass}">${statusLabel}</span></summary>${detail}</details>`;
+            }).join('');
+        }
+        function sssfnBuildRandomDrawAuditV1553_(drawn, shielded, winners, requestedCount) {
+            return {
+                id: sssfnRandomDrawIdV1553_(),
+                createdAt: getNow(),
+                actor: currentUsername || 'ไม่ระบุ',
+                roomFilter: (document.getElementById('random-room-filter') || {}).value || 'all',
+                requestedCount: Number(requestedCount) || 1,
+                pool: (randomPool || []).map(p => ({ id: String(p.id || ''), name: String(p.name || ''), room: String(p.room || ''), included: !!p.included })),
+                drawn: (drawn || []).map(p => ({ id: String(p.id || ''), name: String(p.name || ''), room: String(p.room || '') })),
+                shielded: (shielded || []).map(p => ({ id: String(p.id || ''), name: String(p.name || ''), room: String(p.room || '') })),
+                winners: (winners || []).map(p => ({ id: String(p.id || ''), name: String(p.name || ''), room: String(p.room || '') })),
+                taskName: '', status: 'result_pending',
+                settings: { algorithm: 'สุ่มแบบไม่ซ้ำภายในหนึ่งครั้ง', shieldEnabled: true }
+            };
+        }
+        function startLuckyDraw() {
+            let candidates = randomPool.filter(x => x.included);
+            let countInput = parseInt(document.getElementById('random-count').value) || 1;
+            if(candidates.length === 0) return Swal.fire('คำเตือน', 'ไม่มีรายชื่อให้สุ่ม! (โดนยกเว้นหมดแล้ว)', 'warning');
+            if(countInput > candidates.length) return Swal.fire('คำเตือน', 'จำนวนคนที่ต้องการสุ่ม มากกว่ารายชื่อที่มีอยู่ครับ', 'warning');
+            const drawContext = { pool: (randomPool || []).map(p => ({ id:p.id, name:p.name, room:p.room, included:!!p.included })), roomFilter:(document.getElementById('random-room-filter') || {}).value || 'all', requestedCount:countInput };
+            let timerInterval;
+            Swal.fire({
+                title: '🎰 กำลังสุ่มตัวแทน...',
+                html: '<div id="swal-random-name" class="text-3xl md:text-4xl font-bold text-purple-600 mt-4 mb-4 h-20 flex items-center justify-center bg-purple-50 rounded-xl border-4 border-purple-200 shadow-inner animate-slot">เตรียมพร้อม...</div>',
+                showConfirmButton: false, allowOutsideClick: false,
+                didOpen: () => {
+                    let swalName = document.getElementById('swal-random-name'); let ticks = 0;
+                    timerInterval = setInterval(() => {
+                        let randIndex = Math.floor(Math.random() * candidates.length);
+                        swalName.innerText = candidates[randIndex].name;
+                        ticks++;
+                        if(ticks > 30) { clearInterval(timerInterval); finishLuckyDraw(candidates, countInput, drawContext); }
+                    }, 100);
+                },
+                willClose: () => { clearInterval(timerInterval); }
+            });
+        }
+        function finishLuckyDraw(candidates, count, drawContext) {
+            let winners = []; let tempCandidates = [...candidates];
+            for(let i=0; i<count; i++) { let randIndex = Math.floor(Math.random() * tempCandidates.length); winners.push(tempCandidates[randIndex]); tempCandidates.splice(randIndex, 1); }
+            let shieldedWinners = []; let validWinners = [];
             winners.forEach(w => {
                 let stuData = students.find(s => s.id === w.id);
-                if (stuData && stuData.inventory && stuData.inventory.shield > 0) {
-                    // คนนี้มีโล่! หักโล่ทิ้ง 1 อัน แล้วแยกไว้กลุ่มรอดตัว
+                if (stuData && stuData.inventory && Number(stuData.inventory.shield) > 0) {
                     stuData.inventory.shield -= 1;
-                    shieldedWinners.push(stuData);
+                    shieldedWinners.push({id:stuData.id,name:stuData.name,room:stuData.room});
                     txHistory.unshift({ date: getNow(), name: `🛡️ โล่ป้องกันสุ่มทำงาน! ป้องกัน: ${stuData.name}`, type: 'ระบบ', amt: 0, user: 'ระบบ Lucky Draw' });
-                } else {
-                    // คนนี้ไม่มีโล่ โดนจับเป็นผู้โชคดี
-                    validWinners.push(w);
-                }
+                } else validWinners.push(w);
             });
-
-            // ถ้ามีคนใช้โล่ เซฟประวัติการหักโล่ทันที
-            if (shieldedWinners.length > 0) saveToLocal(true);
-
-            // กรณีที่ 1: ทุกคนที่สุ่มได้ ดันมีโล่หมดเลย! (รอดทุกคน)
+            const audit = sssfnBuildRandomDrawAuditV1553_(winners, shieldedWinners, validWinners, count);
+            audit.pool = drawContext.pool; audit.roomFilter = drawContext.roomFilter; audit.requestedCount = drawContext.requestedCount;
             if (validWinners.length === 0 && shieldedWinners.length > 0) {
-                let shieldNames = shieldedWinners.map(s => s.name).join('<br>');
-                Swal.fire({
-                    icon: 'info',
-                    title: '🛡️ โล่ป้องกันทำงาน!',
-                    html: `นักศึกษาเหล่านี้ถูกสุ่มเจอ แต่ใช้สิทธิโล่ป้องกันสุ่ม!<br><br><b class="text-indigo-600">${shieldNames}</b><br><br><span class="text-sm text-slate-500">กรุณากดสุ่มใหม่อีกครั้งครับ</span>`,
-                    confirmButtonText: 'รับทราบ',
-                    confirmButtonColor: '#4f46e5'
-                }).then(() => {
-                    // เตะคนที่มีโล่ออกจากตะกร้าสุ่มในรอบนี้ เพื่อสุ่มใหม่จะได้ไม่โดนซ้ำ
-                    shieldedWinners.forEach(sw => toggleRandomPill(sw.id));
-                });
+                audit.status = 'shield_only'; audit.taskName = 'ไม่มีผู้ชนะ (ทุกคนใช้โล่ป้องกัน)';
+                sssfnPersistRandomDrawV1553_(audit);
+                Swal.fire({ icon:'info', title:'🛡️ โล่ป้องกันทำงาน!', html:`นักศึกษาเหล่านี้ถูกสุ่มเจอ แต่ใช้สิทธิโล่ป้องกันสุ่ม!<br><br><b class="text-indigo-600">${shieldedWinners.map(s=>sssfnRandomEscapeHtmlV1553_(s.name)).join('<br>')}</b><br><br><span class="text-sm text-slate-500">กรุณากดสุ่มใหม่อีกครั้งครับ</span>`, confirmButtonText:'รับทราบ', confirmButtonColor:'#4f46e5' }).then(() => shieldedWinners.forEach(sw => toggleRandomPill(sw.id)));
                 return;
             }
-
-            // กรณีที่ 2: มีคนโดนโล่เด้ง และมีคนที่โดนหวยตก (โชคร้ายไม่มีโล่)
-            if (shieldedWinners.length > 0 && validWinners.length > 0) {
-                let shieldNames = shieldedWinners.map(s => s.name).join(', ');
-                Swal.fire({
-                    toast: true, position: 'top-end', icon: 'info',
-                    title: `โล่ป้องกันทำงาน: ${shieldNames} รอดตัวไป!`,
-                    showConfirmButton: false, timer: 3000
-                });
+            if (shieldedWinners.length > 0) {
+                audit.status = 'result_pending';
+                sssfnPersistRandomDrawV1553_(audit); // Persist shield consumption and pending draw together.
+                Swal.fire({ toast:true, position:'top-end', icon:'info', title:`โล่ป้องกันทำงาน: ${shieldedWinners.map(s=>s.name).join(', ')} รอดตัวไป!`, showConfirmButton:false, timer:3000 });
             }
-
-            // ประกาศผลคนผู้โชคดี (คนที่ไม่มีโล่)
-            let winnersHtml = ''; 
-            validWinners.forEach(w => { 
-                winnersHtml += `<div class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-3 rounded-xl shadow-md font-bold text-lg mb-2 transform hover:scale-105 transition"><i class="fas fa-star text-yellow-300 mr-2"></i> ${w.name} <span class="text-xs font-normal text-emerald-100">(ห้อง ${w.room})</span></div>`; 
-            }); 
-            
-            Swal.fire({ 
-                title: '🎉 โฉมหน้าผู้โชคดี! 🎉', 
-                html: `<div class="mt-4 text-left">${winnersHtml}</div>`, 
-                icon: 'success', 
-                confirmButtonText: '💾 บันทึกประวัติ', 
-                confirmButtonColor: '#8b5cf6', 
-                showCancelButton: true, 
-                cancelButtonText: 'ปิด (ไม่บันทึก)', 
-                cancelButtonColor: '#94a3b8' 
-            }).then((res) => { 
-                if(res.isConfirmed) { 
-                    Swal.fire({ 
-                        title: 'บันทึกประวัติการสุ่ม', 
-                        input: 'text', 
-                        inputLabel: 'ชื่องาน / กิจกรรมที่สุ่มได้ (เช่น เป็นเวร, พรีเซนต์งาน)', 
-                        inputPlaceholder: 'กรอกชื่องานที่นี่...', 
-                        showCancelButton: true, 
-                        confirmButtonText: 'บันทึก', 
-                        confirmButtonColor: '#10b981', 
-                        preConfirm: (taskName) => { 
-                            if (!taskName) Swal.showValidationMessage('กรุณากรอกชื่องานด้วยครับ'); 
-                            return taskName; 
-                        } 
-                    }).then((taskRes) => { 
-                        if(taskRes.isConfirmed) { 
-                            let wNames = validWinners.map(w => w.name).join(', '); 
-                            txHistory.unshift({ date: getNow(), name: `🎲 ตัวแทนงาน [${taskRes.value}]: ${wNames}`, type: 'ระบบ', amt: 0, user: currentUsername }); 
-                            saveToLocal(); 
-                            refreshAll(); 
-                            Swal.fire('บันทึกสำเร็จ!', 'เก็บประวัติผู้โชคดีลงระบบเรียบร้อย', 'success'); 
-                            validWinners.forEach(w => toggleRandomPill(w.id)); 
-                            shieldedWinners.forEach(w => toggleRandomPill(w.id)); // ปิดรายชื่อคนที่เสียโล่ไปด้วย
-                        } 
-                    }); 
-                } 
-            }); 
+            let winnersHtml = '';
+            validWinners.forEach(w => { winnersHtml += `<div class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-3 rounded-xl shadow-md font-bold text-lg mb-2"><i class="fas fa-star text-yellow-300 mr-2"></i> ${sssfnRandomEscapeHtmlV1553_(w.name)} <span class="text-xs font-normal text-emerald-100">(ห้อง ${sssfnRandomEscapeHtmlV1553_(w.room)})</span></div>`; });
+            Swal.fire({ title:'🎉 โฉมหน้าผู้โชคดี! 🎉', html:`<div class="mt-4 text-left">${winnersHtml}</div>`, icon:'success', confirmButtonText:'💾 บันทึกประวัติ', confirmButtonColor:'#8b5cf6', showCancelButton:true, cancelButtonText:'ปิด (ไม่บันทึก)', cancelButtonColor:'#94a3b8' }).then((res) => {
+                if(res.isConfirmed) {
+                    Swal.fire({ title:'บันทึกประวัติการสุ่ม', input:'text', inputLabel:'ชื่องาน / กิจกรรมที่สุ่มได้ (เช่น เป็นเวร, พรีเซนต์งาน)', inputPlaceholder:'กรอกชื่องานที่นี่...', showCancelButton:true, confirmButtonText:'บันทึก', confirmButtonColor:'#10b981', preConfirm:(taskName) => { if (!String(taskName || '').trim()) Swal.showValidationMessage('กรุณากรอกชื่องานด้วยครับ'); return String(taskName || '').trim(); } }).then((taskRes) => {
+                        if(taskRes.isConfirmed) {
+                            audit.taskName = taskRes.value; audit.status = 'saved'; audit.savedAt = getNow();
+                            sssfnPersistRandomDrawV1553_(audit);
+                            let wNames = validWinners.map(w => w.name).join(', ');
+                            txHistory.unshift({ date:getNow(), name:`🎲 ตัวแทนงาน [${taskRes.value}]: ${wNames}`, type:'ระบบ', amt:0, user:currentUsername });
+                            saveToLocal(); refreshAll();
+                            Swal.fire('บันทึกสำเร็จ!', 'เก็บประวัติผลสุ่มและรายละเอียดการสุ่มเรียบร้อย', 'success');
+                            validWinners.forEach(w => toggleRandomPill(w.id)); shieldedWinners.forEach(w => toggleRandomPill(w.id));
+                        } else {
+                            audit.status = 'not_saved'; audit.taskName = 'ยกเลิกการบันทึกชื่อกิจกรรม'; audit.closedAt = getNow();
+                            sssfnPersistRandomDrawV1553_(audit);
+                        }
+                    });
+                } else {
+                    audit.status = 'not_saved'; audit.taskName = 'ปิดผลโดยไม่บันทึก'; audit.closedAt = getNow();
+                    sssfnPersistRandomDrawV1553_(audit);
+                    shieldedWinners.forEach(w => toggleRandomPill(w.id));
+                }
+            });
         }
         // ================= ระบบกระดานโหวต (STUDENT VOICE) =================
 function renderPolls() {
@@ -12289,7 +12291,7 @@ function deletePoll(pollId) { Swal.fire({title: 'ลบโหวตนี้?', 
             let btnCreateAct = document.getElementById('btn-create-act'); if(btnCreateAct) btnCreateAct.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
             let adminRemind = document.getElementById('admin-reminder-tools'); if(adminRemind) adminRemind.classList.toggle('hidden', !(currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'));
 
-            initExpenseUI(); renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();updateRoomDropdowns();updateSidebarBadges();renderLeaderboard();renderShopAdmin();
+            initExpenseUI(); renderExpenseTable(); renderHomeDirectory(); renderActivities(); renderCheckinTableOnly(); renderFinHistory(); renderFundTable(); renderTimeHistoryTable();updateQuickToggleBtn(); renderPolls();renderRandomDrawHistory();updateRoomDropdowns();updateSidebarBadges();renderLeaderboard();renderShopAdmin();
             if(randomPool.length === 0 && students.length > 0) initRandomizer();
             
             // จัดเรียงตาม ห้อง และ เลขที่ ให้สวยงามเสมอ
@@ -14082,11 +14084,11 @@ function sssfnPointHistoryIdentityV15427_(tx) {
     return [tx.date || '', tx.name || '', tx.user || '', tx.studentId || '', Array.isArray(tx.studentIds) ? tx.studentIds.join(',') : '', tx.pointRoom || ''].join('\u001f');
 }
 
-// v15.4.52: critical score-history mutations must not treat an in-flight
+// v15.4.53: critical score-history mutations must not treat an in-flight
 // realtime save/pull as a failed server commit. autoSyncToGS() returns
 // {status:'queued'} in that case; wait for the active operation, then submit
 // the still-pending diff and require an explicit success response.
-async function sssfnSavePointDeleteMutationV1552_() {
+async function sssfnSavePointDeleteMutationV1553_() {
     const deadline = Date.now() + 60000;
     while (Date.now() < deadline) {
         if (isSyncing || remotePullInProgress) {
@@ -14488,7 +14490,7 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     hasLocalChanges = true;
     renderLeaderboard();
     renderAdminStudentList();
-    const saveResult = await sssfnSavePointDeleteMutationV1552_();
+    const saveResult = await sssfnSavePointDeleteMutationV1553_();
     if (!saveResult || saveResult.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({
@@ -15217,7 +15219,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1552_();
+    const saved = await sssfnSavePointDeleteMutationV1553_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15233,7 +15235,7 @@ window.bulkVoidAllStudentPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1552_();
+    const saved = await sssfnSavePointDeleteMutationV1553_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15252,7 +15254,7 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1552_();
+    const saved = await sssfnSavePointDeleteMutationV1553_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
