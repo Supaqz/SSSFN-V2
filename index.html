@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- SSSFN v15.5.2: stable Firebase txHistory record keys; fixes duplicate ordinal drift in score deletion -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
-<!-- SSSFN v15.5.5: leader-only permanent per-student activity-history purge with retained points and immutable audit -->
+<!-- SSSFN v15.5.6: selectable permanent activity/point-history deletion without deletion audit -->
 <html lang="th">
 <head>
 
@@ -2067,6 +2067,29 @@
         const state = snapshotRealtimeData_(sourceState || {});
         (Array.isArray(changes) ? changes : []).forEach(change => {
             if (!change || typeof change !== 'object') return;
+            if (change.__selectedHistoryRefreshOnlyV1556 === true) {
+                const collection = String(change.collection || '');
+                if (!['activityLogs','txHistory'].includes(collection) || !Array.isArray(state[collection])) return;
+                const wanted = String(change.targetStudentId || '').replace(/-/g, '');
+                const entries = realtimeArrayEntries_(collection, state[collection]);
+                const index = entries.findIndex(entry => entry.key === String(change.key || ''));
+                if (index < 0) return;
+                const current = state[collection][index];
+                const currentOwner = String(current && current.studentId || '').replace(/-/g, '');
+                const currentGroup = Array.isArray(current && current.studentIds) ? current.studentIds.map(id => String(id || '').replace(/-/g, '')) : [];
+                if (!wanted || (currentOwner !== wanted && !currentGroup.includes(wanted))) return;
+                if (change.op === 'delete') {
+                    state[collection].splice(index, 1);
+                } else if (change.op === 'upsert' && change.value) {
+                    const next = change.value;
+                    const nextOwner = String(next && next.studentId || '').replace(/-/g, '');
+                    const nextGroup = Array.isArray(next && next.studentIds) ? next.studentIds.map(id => String(id || '').replace(/-/g, '')) : [];
+                    if (collection === 'activityLogs' && nextOwner !== wanted) return;
+                    if (collection === 'txHistory' && (nextOwner === wanted || nextGroup.includes(wanted))) return;
+                    state[collection][index] = cloneRealtimeValue_(next);
+                }
+                return;
+            }
             if (change.collection === 'appSettings' && change.op === 'mergeObject') {
                 state.appSettings = mergeRealtimeValue_(change.base || {}, change.value || {}, state.appSettings || {}, true, true, true, 'appSettings') || {};
                 return;
@@ -2241,6 +2264,23 @@
         }, 650);
     }
 
+    let selectedHistoryCanonicalRefreshTimerV1556_ = null;
+    function scheduleSelectedHistoryCanonicalRefreshV1556_() {
+        if (currentUserRole === 'guest') return;
+        clearTimeout(selectedHistoryCanonicalRefreshTimerV1556_);
+        selectedHistoryCanonicalRefreshTimerV1556_ = setTimeout(() => {
+            selectedHistoryCanonicalRefreshTimerV1556_ = null;
+            Promise.resolve(silentPullFromGS(false, true, true)).then(result => {
+                if (!result || !['success', 'profile-missing'].includes(String(result.status || ''))) {
+                    scheduleRealtimePullRetry_((result && result.message) || 'selected-history-canonical-refresh');
+                }
+            }).catch(error => {
+                console.warn('Selected history canonical refresh failed:', error);
+                scheduleRealtimePullRetry_(error && error.message ? error.message : 'selected-history-canonical-refresh');
+            });
+        }, 700);
+    }
+
     function scheduleActivityScoreRefreshV15426_() {
         clearTimeout(activityScoreRefreshTimerV15426_);
         activityScoreRefreshTimerV15426_ = setTimeout(() => {
@@ -2265,10 +2305,18 @@
         let newest = Date.parse(lastPusherEventCursorV15_ || '') || 0;
         let needsScoreRefresh = false;
         let needsStudentProjectionRefresh = false;
+        let needsSelectedHistoryCanonicalRefresh = false;
         normalized.forEach(event => {
             const eventTime = stagedMutationTime_(event);
             if (event.requiresCanonicalRefresh && currentUserRole === 'guest' && window.currentStudentAuthToken) {
                 needsStudentProjectionRefresh = true;
+            } else if (event.requiresCanonicalRefresh) {
+                needsSelectedHistoryCanonicalRefresh = true;
+            }
+            if ((event.changes || []).some(change => change && change.__selectedHistoryRefreshOnlyV1556 === true)) {
+                // Selected-history deltas already include the recalculated student row. Avoid
+                // an extra full Firestore pull for Leader; scoped/filtered peers refresh below.
+                if (currentUserRole === 'guest' && window.currentStudentAuthToken) needsStudentProjectionRefresh = true;
             }
             if (eventTime > newest) newest = eventTime;
             if (appliedRealtimeEventIds_.has(event.id)) return;
@@ -2277,7 +2325,7 @@
                 return;
             }
             if ((event.changes || []).some(change => {
-                if (!change) return false;
+                if (!change || change.__selectedHistoryRefreshOnlyV1556 === true) return false;
                 if (change.collection === 'activityLogs') {
                     const beforeLog = change.base || {};
                     const afterLog = change.value || {};
@@ -2303,6 +2351,7 @@
         applyPendingStagedRealtimeEvents_();
         if (needsScoreRefresh) scheduleActivityScoreRefreshV15426_();
         if (needsStudentProjectionRefresh) scheduleStudentProjectionRefreshV1548_();
+        if (needsSelectedHistoryCanonicalRefresh) scheduleSelectedHistoryCanonicalRefreshV1556_();
     }
 
     async function fetchPusherRealtimeDeltaV15_(signal) {
@@ -13599,6 +13648,9 @@ window.openStudentProfileModal = function(studentId) {
     if (!stu) return;
 
     const cleanStudentKey = value => String(value == null ? '' : value).replace(/-/g, '').trim();
+    const selectedDeleteStudentAttr = encodeURIComponent(String(stu.id)).replace(/'/g,'%27');
+    const activityHistoryEntryKeyByRef = new Map(realtimeArrayEntries_('activityLogs', activityLogs || []).map(entry => [entry.value, String(entry.key)]));
+    const txHistoryEntryKeyByRef = new Map(realtimeArrayEntries_('txHistory', txHistory || []).map(entry => [entry.value, String(entry.key)]));
     let myActs = activityLogs.filter(l => cleanStudentKey(l.studentId) === cleanStudentKey(stu.id));
     let approvedActivityKeys = new Set();
     let activityPointRows = [];
@@ -13609,10 +13661,11 @@ window.openStudentProfileModal = function(studentId) {
         const ref = String(log.activityRef || log.activityId || '').trim();
         const act = appSettings.activities.find(a => (ref && String(a.ref || a.id || '').trim() === ref) || (title && String(a.title || '').trim() === title));
         const activityKey = ref || String(act && (act.ref || act.id) || title);
+        const activityScoreKey = String(activityKey || '').trim().toLowerCase();
         if (!activityKey || approvedActivityKeys.has(activityKey)) return;
         approvedActivityKeys.add(activityKey);
         const pts = Number(log.score != null ? log.score : (act && act.points != null ? act.points : 0)) || 0;
-        if (pts >= 0) activityPointRows.push({ date:log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '-', name:`ผ่านกิจกรรม ${String(log.scoreNote || title || 'กิจกรรม')} +${pts} แต้ม: ${stu.name}`, user:'ระบบ', pointDelta:pts, isPointEvent:true, source:'activity', studentId:String(stu.id), activityKey:String(activityKey), scoreEditAudit:Array.isArray(log.scoreEditAudit) ? log.scoreEditAudit : [], voided:log.pointsVoided === true, voidedForStudent:log.pointsVoided === true, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''), voidReason:String(log.pointsVoidReason || '') });
+        if (pts >= 0) activityPointRows.push({ date:log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '-', name:`ผ่านกิจกรรม ${String(log.scoreNote || title || 'กิจกรรม')} +${pts} แต้ม: ${stu.name}`, user:'ระบบ', pointDelta:pts, isPointEvent:true, source:'activity', studentId:String(stu.id), activityKey:String(activityKey), activityScoreKey:activityScoreKey, activityRecordKey:String(activityHistoryEntryKeyByRef.get(log) || ''), scoreEditAudit:Array.isArray(log.scoreEditAudit) ? log.scoreEditAudit : [], voided:log.pointsVoided === true, voidedForStudent:log.pointsVoided === true, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''), voidReason:String(log.pointsVoidReason || '') });
     });
     let activityPointTotal = activityPointRows.reduce((sum, item) => sum + Number(item.pointDelta || 0), 0);
     let totalPoints = getStudentTotalPoints_(stu);
@@ -13657,8 +13710,13 @@ window.openStudentProfileModal = function(studentId) {
                 ? '<div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center"><i class="fas fa-check"></i></div>'
                 : '<div class="w-8 h-8 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center"><i class="fas fa-clock"></i></div>';
             
+            const activityEntryKey = String(activityHistoryEntryKeyByRef.get(log) || '');
+            const activitySelectHtml = sssfnCanDeleteScoreHistoryV1555_() && activityEntryKey
+                ? `<input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer shrink-0" data-permanent-delete-student="${selectedDeleteStudentAttr}" data-permanent-delete-kind="activity" data-permanent-delete-key="${encodeURIComponent(activityEntryKey)}" title="เลือกลบประวัติกิจกรรมนี้ถาวร">`
+                : '';
             actHtml += `
             <div class="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1">
+                ${activitySelectHtml}
                 ${actBadge}
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-slate-800 truncate" title="${log.activityTitle}">${log.activityTitle}</p>
@@ -13713,13 +13771,22 @@ window.openStudentProfileModal = function(studentId) {
                 ? '<span class="bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md text-xs font-bold border border-emerald-200 shadow-sm"><i class="fas fa-arrow-up mr-1"></i> ได้รับ</span>'
                 : (isNegative ? '<span class="bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-xs font-bold border border-rose-200 shadow-sm"><i class="fas fa-arrow-down mr-1"></i> ถูกหัก</span>' : '<span class="bg-blue-100 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-200 shadow-sm">อัปเดต</span>'));
             const deltaText = Number.isFinite(delta) ? `${delta > 0 ? '+' : ''}${delta} แต้ม` : '';
-            const canVoidPoint = sssfnCanDeleteScoreHistoryV1555_();
-            const canEditPoint = currentUserRole === 'leader';
+            const canSelectPoint = sssfnCanDeleteScoreHistoryV1555_();
             const pointKind = tx.source === 'activity' ? 'activity' : 'tx';
             const pointIdentity = pointKind === 'activity' ? String(tx.activityKey || '') : sssfnPointHistoryIdentityV15427_(tx);
             const encodedIdentity = encodeURIComponent(pointIdentity).replace(/'/g,'%27');
-            const encodedStudentId = encodeURIComponent(String(stu.id)).replace(/'/g,'%27');
-            const removeButton = canVoidPoint ? `<div class="flex items-center gap-1.5"><input type="checkbox" class="w-4 h-4 accent-indigo-600 cursor-pointer" data-bulk-point-student="${encodedStudentId}" data-bulk-point-kind="${pointKind}" data-bulk-point-identity="${encodedIdentity}" title="เลือกรายการนี้เพื่อลบหลายรายการ">${canEditPoint ? `<button type="button" onclick="editStudentPointHistoryItemV15436_('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" title="แก้ไขประวัติคะแนน"><i class="fas fa-pen text-xs"></i></button>` : ''}<button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ลบประวัติคะแนน"><i class="fas fa-trash-alt text-xs"></i></button></div>` : '';
+            const encodedStudentId = selectedDeleteStudentAttr;
+            const isPaymentPoint = String(tx.pointSource || tx.source || '').trim().toLowerCase() === 'payment';
+            const canEditPoint = currentUserRole === 'leader' && !isPaymentPoint;
+            const permanentDeleteKind = pointKind === 'activity' ? 'activity-score' : 'tx';
+            const permanentDeleteKey = pointKind === 'activity' ? String(tx.activityScoreKey || '') : String(txHistoryEntryKeyByRef.get(tx) || '');
+            const hasExplicitStudentOwner = pointKind === 'activity'
+                ? !!permanentDeleteKey
+                : (cleanStudentKey(tx.studentId) === idKey || (Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanStudentKey(id) === idKey)));
+            const permanentSelectHtml = canSelectPoint && !isPaymentPoint && hasExplicitStudentOwner && permanentDeleteKey
+                ? `<input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer" data-permanent-delete-student="${encodedStudentId}" data-permanent-delete-kind="${permanentDeleteKind}" data-permanent-delete-key="${encodeURIComponent(permanentDeleteKey)}" title="เลือกลบประวัติคะแนนนี้ถาวร">`
+                : (isPaymentPoint ? `<span class="text-[9px] text-slate-400 whitespace-nowrap" title="เก็บประวัติการชำระเงินไว้">การเงิน · ล็อก</span>` : '');
+            const removeButton = (permanentSelectHtml || canEditPoint) ? `<div class="flex items-center gap-1.5">${permanentSelectHtml}${canEditPoint ? `<button type="button" onclick="editStudentPointHistoryItemV15436_('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" title="แก้ไขประวัติคะแนน"><i class="fas fa-pen text-xs"></i></button>` : ''}</div>` : '';
             pointHistoryHtml += `
             <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1 gap-3">
                 <div class="flex-1 min-w-0 pr-1">
@@ -13771,6 +13838,8 @@ window.openStudentProfileModal = function(studentId) {
             </div>
         </div>
 
+        ${sssfnCanDeleteScoreHistoryV1555_() ? `<div class="bg-rose-50 border border-rose-100 rounded-2xl p-3 mb-4"><div class="text-xs font-bold text-rose-800 mb-1">จัดการประวัติที่เลือก</div><p class="text-[11px] text-rose-700 mb-3">ติ๊กเลือกรายการจากประวัติกิจกรรมหรือประวัติคะแนน แล้วลบถาวรเฉพาะรายการที่เลือก • ไม่บันทึกผู้ลบ • ไม่แตะข้อมูลการเงินและประวัติของคนอื่น</p><div class="flex flex-wrap gap-2"><button type="button" onclick="window.toggleSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}',true)" class="text-[11px] font-bold bg-white border border-rose-200 text-rose-700 rounded-lg px-3 py-2">เลือกทั้งหมด</button><button type="button" onclick="window.toggleSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}',false)" class="text-[11px] font-bold bg-white border border-slate-200 text-slate-600 rounded-lg px-3 py-2">ยกเลิกการเลือก</button><button type="button" onclick="window.deleteSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}')" class="text-[11px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg px-3 py-2"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือกถาวร</button></div></div>` : ''}
+
         <!-- Bento Grid Sections -->
         <div class="space-y-4">
             <!-- Finance Section -->
@@ -13791,7 +13860,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
                         ประวัติคะแนนสะสม
                     </h3>
-                    <div class="flex items-center gap-2">${['leader','vice','treasurer'].includes(String(currentUserRole || '')) ? `<button type="button" onclick="window.openScoreDeletionLogsV1549_()" class="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-100"><i class="fas fa-clipboard-list mr-1"></i>บันทึกการลบ</button>` : ''}${currentUserRole === 'leader' ? `<button type="button" onclick="window.openStudentScoreHistoryDiagnosticsV1550_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100"><i class="fas fa-stethoscope mr-1"></i>ตรวจสอบข้อมูล</button>` : ''}${sssfnCanDeleteScoreHistoryV1555_() && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}</div>
+                    <div class="flex items-center gap-2">${currentUserRole === 'leader' ? `<button type="button" onclick="window.openStudentScoreHistoryDiagnosticsV1550_('${selectedDeleteStudentAttr}')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100"><i class="fas fa-stethoscope mr-1"></i>ตรวจสอบข้อมูล</button>` : ''}</div>
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
@@ -13803,7 +13872,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xs"><i class="fas fa-flag"></i></div>
                         กิจกรรมที่เข้าร่วม <span class="text-[10px] text-slate-400 font-normal">${myActs.length} รายการ</span>
                     </h3>
-                    ${['leader','vice'].includes(String(currentUserRole || '')) ? `<button type="button" onclick="window.purgeStudentActivityHistoryV1554_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ล้างประวัติกิจกรรมและคะแนนถาวร</button>` : ''}
+                    ${sssfnCanDeleteScoreHistoryV1555_() ? `<span class="text-[10px] text-slate-400">ติ๊กเลือกรายการที่ต้องการลบ</span>` : ''}
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${actHtml}</div>
             </div>
@@ -13823,37 +13892,73 @@ window.openStudentProfileModal = function(studentId) {
     });
 }
 
-// v15.5.5: two-step permanent purge. Backend independently validates role and scope.
-window.purgeStudentActivityHistoryV1554_ = async function(encodedStudentId) {
-    if (!['leader','vice'].includes(String(currentUserRole || ''))) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้น','warning');
-    let studentId='';
-    try { studentId=decodeURIComponent(String(encodedStudentId||'')); } catch(e) { return Swal.fire('ข้อมูลไม่ถูกต้อง','ไม่สามารถอ่านรหัสนักศึกษาได้','error'); }
-    const cleanId=v=>String(v==null?'':v).replace(/-/g,'').trim();
-    const student=(students||[]).find(s=>cleanId(s.id)===cleanId(studentId));
-    if(!student) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาที่เลือก','warning');
-    const logs=(activityLogs||[]).filter(x=>x && cleanId(x.studentId)===cleanId(student.id));
-    // Even when the browser has no cached activity rows, let the server inspect Firebase and Sheets.
-    const activityPoints=Math.max(0,Number(student.activityPoints)||0);
-    const first=await Swal.fire({
-      icon:'warning',title:'ยืนยันการล้างประวัติกิจกรรมถาวร',
-      html:`<div class="text-left text-sm"><p>นักศึกษา: <b>${String(student.name||'').replace(/[&<>"']/g,'')}</b> (${String(student.id||'')})</p><p class="mt-2">จะลบประวัติสมัคร/เข้าร่วม/เช็กชื่อ <b>${logs.length.toLocaleString()} รายการ</b> และคะแนนจากกิจกรรมประมาณ <b>${activityPoints.toLocaleString()} คะแนน</b></p><p class="mt-2 text-rose-700 font-bold">ไม่สามารถกู้คืนรายละเอียดกิจกรรมที่ลบได้</p><p class="mt-2 text-emerald-700">คะแนนที่ให้ด้วยตนเองและข้อมูลการเงินจะไม่ถูกลบ</p></div>`,
-      showCancelButton:true,confirmButtonText:'ดำเนินการต่อ',cancelButtonText:'ยกเลิก',confirmButtonColor:'#dc2626'
+// v15.5.6: permanent delete only the checked activity/point-history rows. No actor/reason/audit is stored.
+window.toggleSelectedStudentHistoryV1556_ = function(encodedStudentId, checked) {
+    if (!sssfnCanDeleteScoreHistoryV1555_()) return;
+    let studentId = ''; try { studentId = decodeURIComponent(String(encodedStudentId || '')); } catch (e) { return; }
+    const studentAttr = encodeURIComponent(studentId).replace(/'/g,'%27');
+    Array.from(document.querySelectorAll('input[data-permanent-delete-student]')).forEach(box => {
+        if (box.getAttribute('data-permanent-delete-student') === studentAttr) box.checked = checked === true;
     });
-    if(!first.isConfirmed) return;
-    const second=await Swal.fire({
-      title:'ยืนยันขั้นสุดท้าย',
-      html:`<div class="text-left"><p class="text-sm mb-2">พิมพ์ <b class="text-rose-700">ลบถาวร</b> และระบุเหตุผล</p><input id="purge-confirm-v1554" class="swal2-input" placeholder="ลบถาวร"><textarea id="purge-reason-v1554" class="swal2-textarea" placeholder="เหตุผลในการลบ"></textarea></div>`,
-      showCancelButton:true,confirmButtonText:'ลบข้อมูลถาวร',cancelButtonText:'กลับ',confirmButtonColor:'#b91c1c',
-      preConfirm:()=>{const c=String(document.getElementById('purge-confirm-v1554')?.value||'').trim();const r=String(document.getElementById('purge-reason-v1554')?.value||'').trim();if(c!=='ลบถาวร')return Swal.showValidationMessage('กรุณาพิมพ์ ลบถาวร ให้ถูกต้อง');if(!r)return Swal.showValidationMessage('กรุณาระบุเหตุผล');if(r.length>300)return Swal.showValidationMessage('เหตุผลต้องไม่เกิน 300 ตัวอักษร');return {confirmation:c,reason:r};}
+};
+window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
+    if (!sssfnCanDeleteScoreHistoryV1555_()) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้น','warning');
+    let studentId = ''; try { studentId = decodeURIComponent(String(encodedStudentId || '')); } catch (e) { return Swal.fire('ข้อมูลไม่ถูกต้อง','รหัสนักศึกษาไม่ถูกต้อง','error'); }
+    const cleanId = value => String(value == null ? '' : value).replace(/-/g,'').trim();
+    const student = (students || []).find(item => cleanId(item.id) === cleanId(studentId));
+    if (!student) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาที่เลือก กรุณาโหลดข้อมูลใหม่','warning');
+    const studentAttr = encodeURIComponent(studentId).replace(/'/g,'%27');
+    const checked = Array.from(document.querySelectorAll('input[data-permanent-delete-student]:checked')).filter(box => box.getAttribute('data-permanent-delete-student') === studentAttr);
+    if (!checked.length) return Swal.fire('ยังไม่ได้เลือกรายการ','ติ๊กเลือกประวัติกิจกรรมหรือประวัติคะแนนที่ต้องการลบก่อน','info');
+    const activityKeys = new Set(), activityScoreKeys = new Set(), pointKeys = new Set();
+    checked.forEach(box => {
+        let key = ''; try { key = decodeURIComponent(box.getAttribute('data-permanent-delete-key') || ''); } catch (e) { return; }
+        const kind = String(box.getAttribute('data-permanent-delete-kind') || '');
+        if (!key) return;
+        if (kind === 'activity') activityKeys.add(key);
+        else if (kind === 'activity-score') activityScoreKeys.add(key.toLowerCase());
+        else if (kind === 'tx') pointKeys.add(key);
     });
-    if(!second.isConfirmed) return;
-    Swal.fire({title:'กำลังลบข้อมูล...',text:'กำลังตรวจสอบและลบข้อมูลจากฐานข้อมูลหลัก',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
-    const requestId='purge_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
-    const result=await callBackend({action:'purgeStudentActivityHistoryV1553',studentId:String(student.id),expectedCount:logs.length,requestId,confirmation:second.value.confirmation,reason:second.value.reason});
-    if(!result||result.status!=='success') { const msg=String(result&&result.message||'เซิร์ฟเวอร์ไม่ยืนยันผลการลบ กรุณาดึงข้อมูลล่าสุดก่อนลองใหม่'); const detail=/Invalid action or request/i.test(msg) ? 'Backend ที่ API_URL ชี้ไปยังอยู่คนละรุ่นหรือยังไม่ได้ Deploy โค้ด v15.5.5 กรุณา Deploy Apps Script รุ่นใหม่และตรวจ API_URL ให้ตรงกันก่อนลองอีกครั้ง' : msg; return Swal.fire('ลบไม่สำเร็จ',detail,'error'); }
-    await Swal.fire({icon:'success',title:'ล้างประวัติกิจกรรมแล้ว',html:`ลบประวัติกิจกรรม ${Number(result.purgedCount||0).toLocaleString()} รายการ<br>ลบรายการประวัติคะแนนกิจกรรม ${Number(result.purgedPointHistoryCount||0).toLocaleString()} รายการ<br>นำคะแนนกิจกรรมออก ${Number(result.removedActivityPoints||0).toLocaleString()} คะแนน<br>สถานะสำรอง: ${String(result.backupStatus||'pending')}`,confirmButtonText:'ตกลง'});
-    try { await silentPullFromGS(); } catch(e) { console.warn('Post-purge refresh failed',e); }
-    if(typeof window.openStudentProfileModal==='function') window.openStudentProfileModal(student.id);
+    if (!activityKeys.size && !activityScoreKeys.size && !pointKeys.size) return Swal.fire('รายการไม่ถูกต้อง','ไม่พบรหัสรายการที่เลือก กรุณาปิดหน้าต่างแล้วเปิดข้อมูลใหม่','warning');
+    const selectedCount = activityKeys.size + activityScoreKeys.size + pointKeys.size;
+    const safe = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const first = await Swal.fire({
+        icon:'warning',title:'ตรวจสอบรายการที่จะลบ',
+        html:`<div class="text-left text-sm"><p>นักศึกษา <b>${safe(student.name)}</b> (${safe(student.id)})</p><p class="mt-2">เลือกไว้ <b class="text-rose-700">${selectedCount} รายการ</b></p><p class="mt-2 text-slate-600">รายการในหัวข้อกิจกรรมที่เข้าร่วมจะถูกลบเฉพาะแถวที่เลือก ส่วนรายการในหัวข้อประวัติคะแนนจะลบเฉพาะคะแนนและเก็บประวัติการเข้าร่วมกิจกรรมไว้</p><p class="mt-2 text-emerald-700">คะแนนประเภทอื่นที่ไม่ได้เลือก ข้อมูลการเงิน และประวัติของนักศึกษาคนอื่นจะคงเดิม</p><p class="mt-2 text-rose-700 font-bold">การลบเป็นการลบถาวรและไม่มีบันทึกผู้ลบหรือประวัติการลบ</p></div>`,
+        showCancelButton:true,confirmButtonText:'ดำเนินการต่อ',cancelButtonText:'กลับไปตรวจสอบ',confirmButtonColor:'#dc2626'
+    });
+    if (!first.isConfirmed) return;
+    const second = await Swal.fire({
+        title:'ยืนยันลบถาวรขั้นสุดท้าย',
+        html:`<div class="text-left text-sm mb-2">พิมพ์ <b class="text-rose-700">ลบถาวร</b> เพื่อยืนยันลบ ${selectedCount} รายการของ ${safe(student.name)}</div><input id="selected-history-final-confirm-v1556" class="swal2-input" placeholder="ลบถาวร">`,
+        showCancelButton:true,confirmButtonText:'ลบข้อมูลถาวร',cancelButtonText:'ยกเลิก',confirmButtonColor:'#b91c1c',
+        preConfirm:()=>{const value=String(document.getElementById('selected-history-final-confirm-v1556')?.value||'').trim();if(value!=='ลบถาวร')return Swal.showValidationMessage('กรุณาพิมพ์ ลบถาวร ให้ถูกต้อง');return value;}
+    });
+    if (!second.isConfirmed) return;
+    Swal.fire({title:'กำลังลบรายการที่เลือก...',text:'กำลังตรวจสอบเจ้าของรายการและลบจากฐานข้อมูล',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    let result;
+    try {
+        result = await callBackend({
+            action:'deleteSelectedStudentHistoryV1556', studentId:String(student.id),
+            activityKeys:Array.from(activityKeys), activityScoreKeys:Array.from(activityScoreKeys), pointKeys:Array.from(pointKeys),
+            confirmation:second.value
+        });
+    } catch (error) {
+        return Swal.fire('ลบไม่สำเร็จ',String(error && error.message || error || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'),'error');
+    }
+    if (!result || result.status !== 'success') {
+        const message = String(result && result.message || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ');
+        return Swal.fire({icon:result && result.partial ? 'warning' : 'error',title:result && result.partial ? 'ลบได้บางส่วน แต่ยังไม่ครบทุกแหล่ง' : 'ลบไม่สำเร็จ',text:message,confirmButtonText:'รับทราบ'});
+    }
+    try { await silentPullFromGS(false,true); } catch (refreshError) { console.warn('Refresh after selected history delete failed',refreshError); }
+    if (result.storageMode === 'SHEETS' && result.backupStatus === 'firebase-sync-pending') {
+        await Swal.fire({icon:'warning',title:'ลบจาก Google Sheets แล้ว',html:`ลบประวัติกิจกรรม ${Number(result.activityDeleted||0).toLocaleString()} รายการ และลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ (แก้ข้อมูลคะแนน ${Number(result.activityScoreLogsUpdated||0).toLocaleString()} แถว) พร้อมประวัติคะแนนอื่น ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการแล้ว<br><b class="text-amber-700">Firebase ยังรอคิวซิงก์</b><br>ระบบจะรายงานว่าสำเร็จครบทั้งสองฐานเมื่อคิวซิงก์เสร็จ`,confirmButtonText:'รับทราบ'});
+    } else if (result.storageMode === 'SHEETS' && result.backupStatus !== 'verified') {
+        await Swal.fire({icon:'warning',title:'ยังยืนยันการลบไม่ครบ',html:`ไม่พบรายการที่เลือกใน Google Sheets แล้ว แต่ขณะนี้ระบบอยู่ในโหมดสำรอง จึงยังยืนยันสถานะใน Firebase ไม่ได้<br><b class="text-amber-700">ยังไม่ถือว่าลบสำเร็จครบทั้งสองฐาน</b><br>กรุณาโหลดข้อมูลใหม่หลัง Firebase กลับมาทำงาน แล้วตรวจสอบอีกครั้ง`,confirmButtonText:'รับทราบ'});
+    } else {
+        await Swal.fire({icon:'success',title:'ลบรายการที่เลือกถาวรแล้ว',html:`ลบประวัติกิจกรรม ${Number(result.activityDeleted||0).toLocaleString()} รายการ<br>ลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ โดยเก็บประวัติการเข้าร่วมไว้<br>ลบ/นำประวัติคะแนนอื่นออกจากนักศึกษาคนนี้ ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการ<br>คะแนนกิจกรรมและคะแนนคงเหลือคำนวณใหม่แล้ว<br><span class="text-emerald-700">ตรวจสอบ Firebase และ Google Sheets แล้ว</span>`,confirmButtonText:'ตกลง'});
+    }
+    if (typeof window.openStudentProfileModal === 'function') window.openStudentProfileModal(student.id);
 };
 
 function linkLineAccount() {
