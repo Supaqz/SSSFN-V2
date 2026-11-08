@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.5.1: group score-history deletion aligned with canonical backend validation -->
+<!-- SSSFN v15.5.2: stable Firebase txHistory record keys; fixes duplicate ordinal drift in score deletion -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.4.49: reliable score-history delete save; server stores canonical deletion audit -->
 <html lang="th">
@@ -2776,6 +2776,7 @@ function recalculateDebts() {
 }
 
 // ================= Realtime sync: changed records -> Apps Script -> Google Sheets =================
+// v15.5.2: txHistory uses stable canonical record keys supplied by Firebase.
 const REALTIME_COLLECTIONS = [
     'users', 'rooms', 'students', 'txHistory', 'fundRounds',
     'fundPayments', 'expenses', 'activityLogs', 'timeLogs', 'randomDrawHistory'
@@ -2832,6 +2833,12 @@ function realtimeEntityKey_(collection, item) {
 function realtimeArrayEntries_(collection, list) {
     const counts = new Map();
     return (Array.isArray(list) ? list : []).map(item => {
+        // v15.5.2: keep the exact Firestore key for txHistory records. The
+        // fallback #0/#1 ordinal is not stable when duplicate legacy rows move.
+        if (collection === 'txHistory' && item && typeof item === 'object' &&
+            String(item.__sssfnRecordKey || '').trim()) {
+            return { key: String(item.__sssfnRecordKey), value: item };
+        }
         const rootKey = realtimeEntityKey_(collection, item);
         const count = counts.get(rootKey) || 0;
         counts.set(rootKey, count + 1);
