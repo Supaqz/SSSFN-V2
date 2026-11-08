@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- SSSFN v15.5.2: stable Firebase txHistory record keys; fixes duplicate ordinal drift in score deletion -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
-<!-- SSSFN v15.5.4: leader-only permanent per-student activity-history purge with retained points and immutable audit -->
+<!-- SSSFN v15.5.5: leader-only permanent per-student activity-history purge with retained points and immutable audit -->
 <html lang="th">
 <head>
 
@@ -13803,7 +13803,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xs"><i class="fas fa-flag"></i></div>
                         กิจกรรมที่เข้าร่วม <span class="text-[10px] text-slate-400 font-normal">${myActs.length} รายการ</span>
                     </h3>
-                    ${['leader','vice'].includes(String(currentUserRole || '')) && myActs.length ? `<button type="button" onclick="window.purgeStudentActivityHistoryV1554_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ล้างประวัติกิจกรรมและคะแนนถาวร</button>` : ''}
+                    ${['leader','vice'].includes(String(currentUserRole || '')) ? `<button type="button" onclick="window.purgeStudentActivityHistoryV1554_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ล้างประวัติกิจกรรมและคะแนนถาวร</button>` : ''}
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${actHtml}</div>
             </div>
@@ -13823,7 +13823,7 @@ window.openStudentProfileModal = function(studentId) {
     });
 }
 
-// v15.5.4: two-step permanent purge. Backend independently validates role and scope.
+// v15.5.5: two-step permanent purge. Backend independently validates role and scope.
 window.purgeStudentActivityHistoryV1554_ = async function(encodedStudentId) {
     if (!['leader','vice'].includes(String(currentUserRole || ''))) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้น','warning');
     let studentId='';
@@ -13832,7 +13832,7 @@ window.purgeStudentActivityHistoryV1554_ = async function(encodedStudentId) {
     const student=(students||[]).find(s=>cleanId(s.id)===cleanId(studentId));
     if(!student) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาที่เลือก','warning');
     const logs=(activityLogs||[]).filter(x=>x && cleanId(x.studentId)===cleanId(student.id));
-    if(!logs.length) return Swal.fire('ไม่มีประวัติ','ไม่พบประวัติกิจกรรมของนักศึกษาคนนี้','info');
+    // Even when the browser has no cached activity rows, let the server inspect Firebase and Sheets.
     const activityPoints=Math.max(0,Number(student.activityPoints)||0);
     const first=await Swal.fire({
       icon:'warning',title:'ยืนยันการล้างประวัติกิจกรรมถาวร',
@@ -13850,8 +13850,8 @@ window.purgeStudentActivityHistoryV1554_ = async function(encodedStudentId) {
     Swal.fire({title:'กำลังลบข้อมูล...',text:'กำลังตรวจสอบและลบข้อมูลจากฐานข้อมูลหลัก',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
     const requestId='purge_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
     const result=await callBackend({action:'purgeStudentActivityHistoryV1553',studentId:String(student.id),expectedCount:logs.length,requestId,confirmation:second.value.confirmation,reason:second.value.reason});
-    if(!result||result.status!=='success') return Swal.fire('ลบไม่สำเร็จ',(result&&result.message)||'เซิร์ฟเวอร์ไม่ยืนยันผลการลบ กรุณาดึงข้อมูลล่าสุดก่อนลองใหม่','error');
-    await Swal.fire({icon:'success',title:'ล้างประวัติกิจกรรมแล้ว',html:`ลบประวัติกิจกรรม ${Number(result.purgedCount||0).toLocaleString()} รายการ<br>นำคะแนนกิจกรรมออก ${Number(result.removedActivityPoints||0).toLocaleString()} คะแนน<br>สถานะสำรอง: ${String(result.backupStatus||'pending')}`,confirmButtonText:'ตกลง'});
+    if(!result||result.status!=='success') { const msg=String(result&&result.message||'เซิร์ฟเวอร์ไม่ยืนยันผลการลบ กรุณาดึงข้อมูลล่าสุดก่อนลองใหม่'); const detail=/Invalid action or request/i.test(msg) ? 'Backend ที่ API_URL ชี้ไปยังอยู่คนละรุ่นหรือยังไม่ได้ Deploy โค้ด v15.5.5 กรุณา Deploy Apps Script รุ่นใหม่และตรวจ API_URL ให้ตรงกันก่อนลองอีกครั้ง' : msg; return Swal.fire('ลบไม่สำเร็จ',detail,'error'); }
+    await Swal.fire({icon:'success',title:'ล้างประวัติกิจกรรมแล้ว',html:`ลบประวัติกิจกรรม ${Number(result.purgedCount||0).toLocaleString()} รายการ<br>ลบรายการประวัติคะแนนกิจกรรม ${Number(result.purgedPointHistoryCount||0).toLocaleString()} รายการ<br>นำคะแนนกิจกรรมออก ${Number(result.removedActivityPoints||0).toLocaleString()} คะแนน<br>สถานะสำรอง: ${String(result.backupStatus||'pending')}`,confirmButtonText:'ตกลง'});
     try { await silentPullFromGS(); } catch(e) { console.warn('Post-purge refresh failed',e); }
     if(typeof window.openStudentProfileModal==='function') window.openStudentProfileModal(student.id);
 };
