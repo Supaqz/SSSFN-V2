@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- SSSFN v15.5.2: stable Firebase txHistory record keys; fixes duplicate ordinal drift in score deletion -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
-<!-- SSSFN v15.4.49: reliable score-history delete save; server stores canonical deletion audit -->
+<!-- SSSFN v15.5.4: leader-only permanent per-student activity-history purge with retained points and immutable audit -->
 <html lang="th">
 <head>
 
@@ -11764,7 +11764,7 @@ async function editUserAction(username) {
 // ================= HISTORY =================
         function editTxHistory(index) { let tx = txHistory[index]; Swal.fire({ title: 'แก้ไขประวัติ', html: `<div class="text-left"><label class="text-xs">รายการ</label><input id="e-tx-n" class="modern-input" value="${tx.name}"></div>`, confirmButtonColor: '#059669', preConfirm: () => { tx.name = document.getElementById('e-tx-n').value; saveToLocal(); refreshAll(); } }); }
         function deleteTxHistory(index) { Swal.fire({title: 'ลบประวัตินี้?', showCancelButton: true, confirmButtonColor: '#e3342f'}).then(r=>{if(r.isConfirmed){txHistory.splice(index,1); saveToLocal(); refreshAll();}}); }
-        function renderFinHistory() { const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); const list = document.getElementById('fin-hist-list'); if(!list) return; const visibleHistory = (txHistory || []).filter(t => t && t.scoreAudit !== true && t.scoreDeletionLog !== true); if(visibleHistory.length === 0) { list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ไม่มีประวัติ</td></tr>'; return; } let hHtml = ''; visibleHistory.forEach(t => { const i = txHistory.indexOf(t); let btn = isAdmin ? `<button onclick="deleteTxHistory(${i})" class="text-rose-500" aria-label="ลบรายการ"><i class="fas fa-trash"></i></button>` : '-'; hHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 text-xs text-slate-500 whitespace-nowrap">${formatDisplayDate(t.date)}</td><td class="p-3 whitespace-nowrap"><b class="whitespace-nowrap">${t.name}</b><br><span class="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">${t.user || 'ระบบ'}</span></td><td class="p-3 text-center whitespace-nowrap"><span class="px-2 py-1 rounded text-xs font-bold bg-slate-100 whitespace-nowrap">${t.type}</span></td><td class="p-3 text-right whitespace-nowrap font-mono font-bold">฿${t.amt}</td><td class="p-3 text-center whitespace-nowrap">${btn}</td></tr>`; }); list.innerHTML = hHtml; }
+        function renderFinHistory() { const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); const list = document.getElementById('fin-hist-list'); if(!list) return; const visibleHistory = (txHistory || []).filter(t => t && t.scoreAudit !== true && t.scoreDeletionLog !== true); if(visibleHistory.length === 0) { list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ไม่มีประวัติ</td></tr>'; return; } let hHtml = ''; visibleHistory.forEach(t => { const i = txHistory.indexOf(t); let btn = (isAdmin && t.activityHistoryPurgeAudit !== true) ? `<button onclick="deleteTxHistory(${i})" class="text-rose-500" aria-label="ลบรายการ"><i class="fas fa-trash"></i></button>` : (t.activityHistoryPurgeAudit === true ? '<span class="text-[10px] text-slate-400 font-bold">Audit ถาวร</span>' : '-'); hHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 text-xs text-slate-500 whitespace-nowrap">${formatDisplayDate(t.date)}</td><td class="p-3 whitespace-nowrap"><b class="whitespace-nowrap">${t.name}</b><br><span class="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">${t.user || 'ระบบ'}</span></td><td class="p-3 text-center whitespace-nowrap"><span class="px-2 py-1 rounded text-xs font-bold bg-slate-100 whitespace-nowrap">${t.type}</span></td><td class="p-3 text-right whitespace-nowrap font-mono font-bold">฿${t.amt}</td><td class="p-3 text-center whitespace-nowrap">${btn}</td></tr>`; }); list.innerHTML = hHtml; }
 
        // ================= สุ่มตัวแทน (LUCKY DRAW) =================
         function initRandomizer() { 
@@ -13798,11 +13798,12 @@ window.openStudentProfileModal = function(studentId) {
 
             <!-- Activity Section -->
             <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
                         <div class="w-8 h-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center text-xs"><i class="fas fa-flag"></i></div>
-                        กิจกรรมที่เข้าร่วม
+                        กิจกรรมที่เข้าร่วม <span class="text-[10px] text-slate-400 font-normal">${myActs.length} รายการ</span>
                     </h3>
+                    ${['leader','vice'].includes(String(currentUserRole || '')) && myActs.length ? `<button type="button" onclick="window.purgeStudentActivityHistoryV1554_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ล้างประวัติกิจกรรมและคะแนนถาวร</button>` : ''}
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${actHtml}</div>
             </div>
@@ -13821,6 +13822,39 @@ window.openStudentProfileModal = function(studentId) {
         }
     });
 }
+
+// v15.5.4: two-step permanent purge. Backend independently validates role and scope.
+window.purgeStudentActivityHistoryV1554_ = async function(encodedStudentId) {
+    if (!['leader','vice'].includes(String(currentUserRole || ''))) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าหรือรองหัวหน้าเท่านั้น','warning');
+    let studentId='';
+    try { studentId=decodeURIComponent(String(encodedStudentId||'')); } catch(e) { return Swal.fire('ข้อมูลไม่ถูกต้อง','ไม่สามารถอ่านรหัสนักศึกษาได้','error'); }
+    const cleanId=v=>String(v==null?'':v).replace(/-/g,'').trim();
+    const student=(students||[]).find(s=>cleanId(s.id)===cleanId(studentId));
+    if(!student) return Swal.fire('ไม่พบข้อมูล','ไม่พบนักศึกษาที่เลือก','warning');
+    const logs=(activityLogs||[]).filter(x=>x && cleanId(x.studentId)===cleanId(student.id));
+    if(!logs.length) return Swal.fire('ไม่มีประวัติ','ไม่พบประวัติกิจกรรมของนักศึกษาคนนี้','info');
+    const activityPoints=Math.max(0,Number(student.activityPoints)||0);
+    const first=await Swal.fire({
+      icon:'warning',title:'ยืนยันการล้างประวัติกิจกรรมถาวร',
+      html:`<div class="text-left text-sm"><p>นักศึกษา: <b>${String(student.name||'').replace(/[&<>"']/g,'')}</b> (${String(student.id||'')})</p><p class="mt-2">จะลบประวัติสมัคร/เข้าร่วม/เช็กชื่อ <b>${logs.length.toLocaleString()} รายการ</b> และคะแนนจากกิจกรรมประมาณ <b>${activityPoints.toLocaleString()} คะแนน</b></p><p class="mt-2 text-rose-700 font-bold">ไม่สามารถกู้คืนรายละเอียดกิจกรรมที่ลบได้</p><p class="mt-2 text-emerald-700">คะแนนที่ให้ด้วยตนเองและข้อมูลการเงินจะไม่ถูกลบ</p></div>`,
+      showCancelButton:true,confirmButtonText:'ดำเนินการต่อ',cancelButtonText:'ยกเลิก',confirmButtonColor:'#dc2626'
+    });
+    if(!first.isConfirmed) return;
+    const second=await Swal.fire({
+      title:'ยืนยันขั้นสุดท้าย',
+      html:`<div class="text-left"><p class="text-sm mb-2">พิมพ์ <b class="text-rose-700">ลบถาวร</b> และระบุเหตุผล</p><input id="purge-confirm-v1554" class="swal2-input" placeholder="ลบถาวร"><textarea id="purge-reason-v1554" class="swal2-textarea" placeholder="เหตุผลในการลบ"></textarea></div>`,
+      showCancelButton:true,confirmButtonText:'ลบข้อมูลถาวร',cancelButtonText:'กลับ',confirmButtonColor:'#b91c1c',
+      preConfirm:()=>{const c=String(document.getElementById('purge-confirm-v1554')?.value||'').trim();const r=String(document.getElementById('purge-reason-v1554')?.value||'').trim();if(c!=='ลบถาวร')return Swal.showValidationMessage('กรุณาพิมพ์ ลบถาวร ให้ถูกต้อง');if(!r)return Swal.showValidationMessage('กรุณาระบุเหตุผล');if(r.length>300)return Swal.showValidationMessage('เหตุผลต้องไม่เกิน 300 ตัวอักษร');return {confirmation:c,reason:r};}
+    });
+    if(!second.isConfirmed) return;
+    Swal.fire({title:'กำลังลบข้อมูล...',text:'กำลังตรวจสอบและลบข้อมูลจากฐานข้อมูลหลัก',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const requestId='purge_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
+    const result=await callBackend({action:'purgeStudentActivityHistoryV1553',studentId:String(student.id),expectedCount:logs.length,requestId,confirmation:second.value.confirmation,reason:second.value.reason});
+    if(!result||result.status!=='success') return Swal.fire('ลบไม่สำเร็จ',(result&&result.message)||'เซิร์ฟเวอร์ไม่ยืนยันผลการลบ กรุณาดึงข้อมูลล่าสุดก่อนลองใหม่','error');
+    await Swal.fire({icon:'success',title:'ล้างประวัติกิจกรรมแล้ว',html:`ลบประวัติกิจกรรม ${Number(result.purgedCount||0).toLocaleString()} รายการ<br>นำคะแนนกิจกรรมออก ${Number(result.removedActivityPoints||0).toLocaleString()} คะแนน<br>สถานะสำรอง: ${String(result.backupStatus||'pending')}`,confirmButtonText:'ตกลง'});
+    try { await silentPullFromGS(); } catch(e) { console.warn('Post-purge refresh failed',e); }
+    if(typeof window.openStudentProfileModal==='function') window.openStudentProfileModal(student.id);
+};
 
 function linkLineAccount() {
     // ใช้ window.currentGuestStuId ตามระบบของคุณ
@@ -15478,7 +15512,7 @@ window.renderAdminStudentList = function() {
                 </span>
             </td>
             <td class="p-4 text-center">
-                ${['leader','vice'].includes(currentUserRole) ? `<div class="flex flex-wrap justify-center gap-1.5"><button onclick="manageStudentPoints('${s.id}')" class="bg-amber-100 hover:bg-amber-200 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition"><i class="fas fa-gift mr-1"></i> ให้แต้ม</button><button onclick="generateStudentEmailActivationCodeV15435_('${s.id}')" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition"><i class="fas fa-key mr-1"></i> รหัส Gmail</button></div>` : '<span class="text-xs text-slate-300">ดูอย่างเดียว</span>'}
+                ${['leader','vice','treasurer'].includes(currentUserRole) ? `<div class="flex flex-wrap justify-center gap-1.5">${['leader','vice'].includes(String(currentUserRole || '')) ? `<button onclick="openStudentProfileModal('${String(s.id).replace(/'/g,'%27')}')" class="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition"><i class="fas fa-user-clock mr-1"></i> ประวัติ</button>` : ''}<button onclick="manageStudentPoints('${s.id}')" class="bg-amber-100 hover:bg-amber-200 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm transition"><i class="fas fa-gift mr-1"></i> ให้แต้ม</button><button onclick="generateStudentEmailActivationCodeV15435_('${s.id}')" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition"><i class="fas fa-key mr-1"></i> รหัส Gmail</button></div>` : '<span class="text-xs text-slate-300">ดูอย่างเดียว</span>'}
             </td>
         </tr>`;
     });
