@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.5.10: confirmed activity deletion, canonical refresh after score-delete conflict -->
+<!-- SSSFN v15.5.11: bounded load requests and explain file:// hosting limitation -->
 <!-- SSSFN v15.5.8: unified point totals/history and accurate Sheets score projection -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.5.7: selected-history-only Sheets repair; finance tabs untouched; no deletion audit -->
@@ -2582,6 +2582,9 @@
 async function callBackend(payload) {
     try {
         if (!payload || typeof payload !== 'object') payload = {};
+        if (window.location && window.location.protocol === 'file:') {
+            return {status:'error',message:'ไฟล์ HTML ที่เปิดจาก file:// ไม่สามารถเชื่อมต่อระบบ SSSFN ได้ กรุณาเปิดผ่าน URL ของ Web App หรือเว็บไซต์ที่เผยแพร่ไว้'};
+        }
         if (!payload.clientId && typeof realtimeClientId !== 'undefined') payload.clientId = realtimeClientId;
         // 🌟 แนบ authToken อัตโนมัติสำหรับการยืนยันตัวตนแอดมิน
         if (window.currentAuthToken && !payload.authToken) {
@@ -2590,13 +2593,27 @@ async function callBackend(payload) {
         if (window.currentStudentAuthToken && !payload.studentAuthToken) {
             payload.studentAuthToken = window.currentStudentAuthToken;
         }
-        let res = await fetch(API_URL, {
-            method: 'POST',
-            // สำคัญ: ใช้ text/plain เพื่อป้องกันเบราว์เซอร์ส่ง Preflight OPTIONS request ซึ่งจะทำให้ติด CORS
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload),
-            redirect: 'follow'
-        });
+        const isDataLoad = ['loadAll','loadPublicData'].includes(String(payload.action || ''));
+        const controller = isDataLoad && typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timeoutId = controller ? setTimeout(() => controller.abort(), 30000) : null;
+        let res;
+        try {
+            res = await fetch(API_URL, {
+                method: 'POST',
+                // text/plain avoids an OPTIONS preflight for the Apps Script endpoint.
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload),
+                redirect: 'follow',
+                ...(controller ? {signal:controller.signal} : {})
+            });
+        } catch (fetchError) {
+            if (fetchError && fetchError.name === 'AbortError') {
+                return {status:'error',message:'โหลดข้อมูลจากหลังบ้านเกิน 30 วินาที กรุณาตรวจสอบการเชื่อมต่อและ URL ของ Web App แล้วลองใหม่'};
+            }
+            throw fetchError;
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+        }
         
         let textResult = await res.text();
         try {
@@ -4099,6 +4116,9 @@ function openPublicSlipModal(targetRoundId = null) {
                 refreshVisiblePageDataV15422_(currentView || 'home');
             } else if (result && result.status !== 'throttled' && result.status !== 'busy') {
                 console.warn('Initial SSSFN data load was not complete:', result.message || result.status);
+                if (window.location && window.location.protocol === 'file:' && typeof Swal !== 'undefined') {
+                    Swal.fire({icon:'warning',title:'เปิดไฟล์ HTML โดยตรงไม่ได้',text:result.message || 'กรุณาเปิดผ่าน URL ของ SSSFN Web App',confirmButtonText:'รับทราบ'});
+                }
             }
             return result;
         })
@@ -5857,7 +5877,7 @@ function canDeleteActivity_(activity) {
     // Delegated activity admins may manage the activity but may not delete it.
     return !!activity && (isActivityLeader_() || isActivityOwner_(activity));
 }
-// v15.5.10: Confirm activity deletion on the server and refresh canonical state after conflicts.
+// v15.5.11: Stop indefinite data loading and show a clear message for file:// launch.
 function sssfnActivityLogMatchesDefinitionForDeleteV1559_(log, activity) {
     if (!log || !activity) return false;
     const normalize = value => normalizeActivityAccessKey_(value);
