@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.5.0: stabilization release based on v15.4.54; retains existing features/configuration -->
+<!-- SSSFN v15.5.1: group score-history deletion aligned with canonical backend validation -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.4.49: reliable score-history delete save; server stores canonical deletion audit -->
 <html lang="th">
@@ -13957,7 +13957,7 @@ window.editStudentPointHistoryItemV15436_ = async function(encodedKey, source, e
     setTimeout(()=>window.openStudentProfileModal(student.id),250);
 };
 
-// v15.5.0: Leader/Deputy score-history deletion with a separate System Log.
+// v15.5.1: Leader/Deputy score-history deletion with a separate System Log.
 // v15.5.0: score-history deletion is available to Leader and Deputy only.
 function sssfnCanDeleteScoreHistoryV1555_() {
     return ['leader','vice'].includes(String(currentUserRole || ''));
@@ -13970,11 +13970,11 @@ function sssfnPointHistoryIdentityV15427_(tx) {
     return [tx.date || '', tx.name || '', tx.user || '', tx.studentId || '', Array.isArray(tx.studentIds) ? tx.studentIds.join(',') : '', tx.pointRoom || ''].join('\u001f');
 }
 
-// v15.5.0: critical score-history mutations must not treat an in-flight
+// v15.5.1: critical score-history mutations must not treat an in-flight
 // realtime save/pull as a failed server commit. autoSyncToGS() returns
 // {status:'queued'} in that case; wait for the active operation, then submit
 // the still-pending diff and require an explicit success response.
-async function sssfnSavePointDeleteMutationV1555_() {
+async function sssfnSavePointDeleteMutationV1551_() {
     const deadline = Date.now() + 60000;
     while (Date.now() < deadline) {
         if (isSyncing || remotePullInProgress) {
@@ -14376,7 +14376,7 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     hasLocalChanges = true;
     renderLeaderboard();
     renderAdminStudentList();
-    const saveResult = await sssfnSavePointDeleteMutationV1555_();
+    const saveResult = await sssfnSavePointDeleteMutationV1551_();
     if (!saveResult || saveResult.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({
@@ -15105,7 +15105,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1555_();
+    const saved = await sssfnSavePointDeleteMutationV1551_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15121,7 +15121,7 @@ window.bulkVoidAllStudentPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1555_();
+    const saved = await sssfnSavePointDeleteMutationV1551_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15140,7 +15140,7 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1555_();
+    const saved = await sssfnSavePointDeleteMutationV1551_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
