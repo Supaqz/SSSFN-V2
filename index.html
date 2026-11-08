@@ -3340,15 +3340,18 @@ async function silentPullFromGS(showStatus = false, force = false, quietRealtime
         }
         return { status: 'busy', message: 'มีการอ่าน/เขียนข้อมูลอยู่แล้ว' };
     }
+    const now = Date.now();
+    if (!force && lastSuccessfulCanonicalPullAtV13 && now - lastSuccessfulCanonicalPullAtV13 < CANONICAL_PULL_MIN_INTERVAL_MS_V14) {
+        return { status: 'throttled', message: 'รวมคำขออ่านข้อมูลเพื่อลดการใช้โควตา Firestore' };
+    }
+    // Do not show the blocking loader until after the throttle check. A throttled
+    // pull exits before entering the try/finally below, so showing it first can
+    // leave the page stuck behind the loader indefinitely.
     const shouldShowPageLoader = !quietRealtime && ((!!force) || !window.__sssfnInitialDataLoadCompleteV15425);
     if (shouldShowPageLoader) {
         setSssfnPageLoadingV15425_(true, window.currentAuthToken || window.currentStudentAuthToken
             ? 'เข้าสู่ระบบแล้ว กำลังโหลดข้อมูลตามสิทธิ์ของบัญชี...' 
             : 'กำลังดึงข้อมูลล่าสุดจากระบบ...');
-    }
-    const now = Date.now();
-    if (!force && lastSuccessfulCanonicalPullAtV13 && now - lastSuccessfulCanonicalPullAtV13 < CANONICAL_PULL_MIN_INTERVAL_MS_V14) {
-        return { status: 'throttled', message: 'รวมคำขออ่านข้อมูลเพื่อลดการใช้โควตา Firestore' };
     }
     remotePullInProgress = true;
     let pullSucceeded = false;
