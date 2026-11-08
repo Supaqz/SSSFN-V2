@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.5.2: stable Firebase txHistory record keys; fixes duplicate ordinal drift in score deletion -->
+<!-- SSSFN v15.5.8: unified point totals/history and accurate Sheets score projection -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.5.7: selected-history-only Sheets repair; finance tabs untouched; no deletion audit -->
 <html lang="th">
@@ -13001,24 +13001,29 @@ window.updateSidebarBadges = function() {
     }
 }
 // ----------------------------------------------------------------------------
+function sssfnNormalizePointKeyV1558_(value) {
+    return String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function getApprovedActivityPointsForStudent_(studentId) {
     const cleanId = value => String(value == null ? '' : value).replace(/-/g, '').trim();
     const wantedId = cleanId(studentId);
     if (!wantedId) return 0;
+    const activities = Array.isArray(appSettings && appSettings.activities) ? appSettings.activities : [];
     const earnedKeys = new Set();
     let total = 0;
     (activityLogs || []).forEach(log => {
         if (!log || log.pointsVoided === true || log.scoreHistoryHidden === true || cleanId(log.studentId) !== wantedId) return;
         const status = String(log.status || '').trim().toUpperCase();
-        if (status !== 'C' && status !== 'A') return; // C/A are historical/current pass statuses.
-        const title = String(log.activityTitle || '').trim();
-        const ref = String(log.activityRef || log.activityId || '').trim();
-        const activity = (appSettings.activities || []).find(a => {
-            const aTitle = String(a && a.title || '').trim();
-            const aRef = String(a && (a.ref || a.id) || '').trim();
+        if (status !== 'C' && status !== 'A') return;
+        const title = sssfnNormalizePointKeyV1558_(log.activityTitle || log.activityName || log.activity);
+        const ref = sssfnNormalizePointKeyV1558_(log.activityRef || log.activityId || log.activityRefId || log.activityKey);
+        const activity = activities.find(a => {
+            const aTitle = sssfnNormalizePointKeyV1558_(a && a.title);
+            const aRef = sssfnNormalizePointKeyV1558_(a && (a.ref || a.id));
             return (ref && aRef === ref) || (title && aTitle === title);
         });
-        const activityKey = ref || String(activity && (activity.ref || activity.id) || title);
+        const activityKey = ref || sssfnNormalizePointKeyV1558_(activity && (activity.ref || activity.id)) || title;
         if (!activityKey || earnedKeys.has(activityKey)) return;
         earnedKeys.add(activityKey);
         const points = Number(log.score != null ? log.score : (activity && activity.points != null ? activity.points : 0)) || 0;
@@ -13029,18 +13034,21 @@ function getApprovedActivityPointsForStudent_(studentId) {
 
 function getStudentPaymentPoints_(student) {
     if (!student) return 0;
-    const cleanId = value => String(value == null ? '' : value).replace(/-/g,'').trim();
-    const all = Array.isArray(txHistory) ? txHistory : [];
-    const hasPaymentEvents = all.some(tx => tx && tx.pointSource === 'payment');
-    if (!hasPaymentEvents) return Number(student.paymentPoints || 0) || 0;
+    const cleanId = value => String(value == null ? '' : value).replace(/-/g, '').trim();
     const wanted = cleanId(student.id);
+    if (!wanted) return 0;
+    const events = (Array.isArray(txHistory) ? txHistory : []).filter(tx =>
+        tx && tx.pointSource === 'payment' && cleanId(tx.studentId) === wanted
+    );
+    // Legacy paymentPoints is a per-student fallback only when that student has no
+    // canonical payment-point events. Another student's payment event must not zero it.
+    if (!events.length) return Number(student.paymentPoints || 0) || 0;
     const seen = new Set();
     let total = 0;
-    all.forEach(tx => {
-        if (!tx || tx.pointSource !== 'payment' || tx.voided === true || tx.scoreAudit === true) return;
+    events.forEach(tx => {
+        if (tx.voided === true || tx.scoreAudit === true) return;
         if (Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => cleanId(id) === wanted)) return;
-        if (cleanId(tx.studentId) !== wanted) return;
-        const key = String(tx.pointSourceKey || tx.id || [tx.date,tx.name,tx.studentId].join('|'));
+        const key = String(tx.pointSourceKey || tx.id || [tx.date, tx.name, tx.studentId].join('|'));
         if (seen.has(key)) return;
         seen.add(key);
         const delta = Number(tx.pointDelta);
@@ -13051,18 +13059,127 @@ function getStudentPaymentPoints_(student) {
 
 function getStudentTotalPoints_(student) {
     if (!student) return 0;
+    // Non-leader sessions receive a server-calculated score projection. Their local
+    // activityLogs/txHistory are intentionally scoped (often only the signed-in
+    // student's own records), so recomputing a classmate's score in the browser would
+    // undercount it. Trust only the explicitly versioned server projection there.
+    const projectedTotal = Number(student.totalPoints);
+    if (currentUserRole !== 'leader' && Number(student.scoreProjectionVersion) >= 1558 && Number.isFinite(projectedTotal)) {
+        return projectedTotal;
+    }
+    // Leader has the complete canonical data set and can recompute immediately after edits.
     const base = Number(student.points || 0);
-    // Manual points stay in students.points; passed-activity points are derived from
-    // activity logs; payment points are derived from pointSource='payment' audit events.
-    const activity = student.activityPoints != null
-        ? Number(student.activityPoints || 0)
-        : (student.totalPoints != null
-            ? Math.max(0, Number(student.totalPoints || 0) - base - Number(student.paymentPoints || 0))
-            : getApprovedActivityPointsForStudent_(student.id));
+    const activity = getApprovedActivityPointsForStudent_(student.id);
     const payment = getStudentPaymentPoints_(student);
-    return base + (Number.isFinite(activity) ? activity : 0) + (Number.isFinite(payment) ? payment : 0);
+    return base + activity + payment;
 }
 
+function sssfnPointHistoryBelongsToStudentV1558_(tx, student) {
+    if (!tx || !student) return false;
+    const clean = value => String(value == null ? '' : value).replace(/-/g, '').trim();
+    const wanted = clean(student.id);
+    if (!wanted) return false;
+    if (clean(tx.studentId) === wanted) return true;
+    const ids = Array.isArray(tx.studentIds) ? tx.studentIds : [];
+    if (ids.some(id => clean(id) === wanted)) return true;
+    if (String(tx.studentId || '').trim() || ids.length) return false;
+    const name = String(tx.name || '');
+    const room = String(tx.pointRoom || ((name.match(/ยกห้อง\s*\(([^)]+)\)/) || [])[1] || '')).trim().toLowerCase();
+    const isPointLabel = /(แต้ม|คะแนน)/.test(name) || tx.pointDelta != null || tx.pointNote != null || tx.isPointEvent === true;
+    if (!isPointLabel) return false;
+    if (room && room === String(student.room || '').trim().toLowerCase()) return true;
+    return !!String(student.name || '').trim() && name.includes(String(student.name).trim());
+}
+
+function sssfnPointHistoryIsVoidedForStudentV1558_(tx, studentId) {
+    const clean = value => String(value == null ? '' : value).replace(/-/g, '').trim();
+    const wanted = clean(studentId);
+    return !!(tx && (tx.voided === true || (Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => clean(id) === wanted))));
+}
+
+function sssfnPointHistoryDeltaV1558_(tx) {
+    let delta = Number(tx && tx.pointDelta);
+    if (!Number.isFinite(delta)) {
+        const match = String(tx && tx.name || '').match(/([+-]\s*\d+)\s*แต้ม/);
+        delta = match ? Number(match[1].replace(/\s/g, '')) : 0;
+    }
+    return Number.isFinite(delta) ? delta : 0;
+}
+
+function sssfnBuildStudentPointHistoryRowsV1558_(student) {
+    const cleanId = value => String(value == null ? '' : value).replace(/-/g, '').trim();
+    const wantedId = cleanId(student && student.id);
+    const rows = [];
+    (Array.isArray(txHistory) ? txHistory : []).forEach(tx => {
+        if (!tx || tx.scoreAudit === true || tx.scoreDeletionLog === true || tx.historyHidden === true ||
+            (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => cleanId(id) === wantedId)) ||
+            String(tx.pointSource || tx.source || '').toLowerCase() === 'activity') return;
+        const looksLikePoint = tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null || /[+-]\s*\d+\s*แต้ม/.test(String(tx.name || ''));
+        if (!looksLikePoint || !sssfnPointHistoryBelongsToStudentV1558_(tx, student)) return;
+        const delta = sssfnPointHistoryDeltaV1558_(tx);
+        if (!delta) return;
+        const payment = String(tx.pointSource || '').toLowerCase() === 'payment';
+        let title = payment
+            ? (String(tx.name || '').replace(String(student.name || ''), '').trim() || 'ชำระเงินกองกลางตรงเวลา')
+            : String(tx.pointNote || tx.name || 'ปรับคะแนนสะสม').replace(String(student.name || ''), '').trim();
+        title = title.replace(/^ปรับคะแนน\s*/, '').replace(/^แจกคะแนน\s*/, '').trim() || 'รายการคะแนนสะสม';
+        rows.push({
+            key:String(tx.pointSourceKey || tx.id || [tx.date, tx.name, tx.studentId, delta].join('|')),
+            date:String(tx.date || ''), title:title, delta:delta, user:String(tx.user || 'ระบบ'),
+            voided:sssfnPointHistoryIsVoidedForStudentV1558_(tx, student.id),
+            voidedAt:String(tx.voidedAt || ''), voidedBy:String(tx.voidedBy || ''), voidReason:String(tx.voidReason || ''),
+            source:payment ? 'payment' : 'manual', sourceRecord:tx
+        });
+    });
+
+    const activities = Array.isArray(appSettings && appSettings.activities) ? appSettings.activities : [];
+    const activityRowsByKey = new Map();
+    (Array.isArray(activityLogs) ? activityLogs : []).forEach(log => {
+        if (!log || log.scoreHistoryHidden === true || cleanId(log.studentId) !== wantedId) return;
+        const status = String(log.status || '').trim().toUpperCase();
+        const voided = log.pointsVoided === true;
+        if (!voided && status !== 'C' && status !== 'A') return;
+        const title = String(log.scoreNote || log.activityTitle || log.activityName || log.activity || 'กิจกรรม').trim();
+        const ref = sssfnNormalizePointKeyV1558_(log.activityRef || log.activityId || log.activityRefId || log.activityKey);
+        const normalizedTitle = sssfnNormalizePointKeyV1558_(log.activityTitle || log.activityName || log.activity);
+        const activity = activities.find(a =>
+            (ref && sssfnNormalizePointKeyV1558_(a && (a.ref || a.id)) === ref) ||
+            (normalizedTitle && sssfnNormalizePointKeyV1558_(a && a.title) === normalizedTitle)
+        );
+        const activityKey = ref || sssfnNormalizePointKeyV1558_(activity && (activity.ref || activity.id)) || normalizedTitle || sssfnNormalizePointKeyV1558_(title);
+        if (!activityKey) return;
+        const previous = activityRowsByKey.get(activityKey);
+        // The first valid pass is the one used in the score total. If an earlier
+        // duplicate was voided, replace it with the active approved log.
+        if (previous && !(previous.voided && !voided)) return;
+        const delta = Number(log.score != null ? log.score : (activity && activity.points != null ? activity.points : 0)) || 0;
+        if (delta < 0 || (delta === 0 && !voided && !(Array.isArray(log.scoreEditAudit) && log.scoreEditAudit.length))) return;
+        activityRowsByKey.set(activityKey, {
+            key:'activity:' + activityKey, date:String(voided ? (log.pointsVoidedAt || log.assessedAt || log.updatedAt || log.timeIn || '') : (log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '')),
+            title:'ผ่านกิจกรรม ' + title, delta:delta, user:voided ? String(log.pointsVoidedBy || 'ผู้ดูแล') : 'ระบบ',
+            voided:voided, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''),
+            voidReason:String(log.pointsVoidReason || ''), source:'activity', sourceRecord:log,
+            activityKey:String(activityKey), activityScoreKey:String(activityKey), activityRecordKey:''
+        });
+    });
+    activityRowsByKey.forEach(row => rows.push(row));
+
+    const total = getStudentTotalPoints_(student);
+    const listedActive = rows.reduce((sum, row) => sum + (row.voided ? 0 : Number(row.delta || 0)), 0);
+    const carryForward = total - listedActive;
+    if (Math.abs(carryForward) > 0.000001) {
+        rows.push({
+            key:'reconcile:' + wantedId, date:'', title:'คะแนนสะสมเดิม / รายการย้อนหลังที่ไม่มีรายละเอียดแยก',
+            delta:carryForward, user:'ยอดคงเหลือเดิม', voided:false, source:'reconciliation', isReconciliationRow:true
+        });
+    }
+    rows.sort((a,b) => {
+        if (a.isReconciliationRow) return 1;
+        if (b.isReconciliationRow) return -1;
+        return (Date.parse(b.date || '') || 0) - (Date.parse(a.date || '') || 0) || String(b.date || '').localeCompare(String(a.date || ''));
+    });
+    return {rows:rows,total:total,listedActive:listedActive,carryForward:carryForward};
+}
 function calculatePoints() {
     // ใช้คะแนนที่ได้รับจากแอดมินรวมกับคะแนนของกิจกรรมที่ผ่านแล้ว
     let ranked = (students || []).map(s => Object.assign({}, s, { points: getStudentTotalPoints_(s) })).filter(s => s.points > 0);
@@ -13537,60 +13654,8 @@ function renderMyPointsPageV15428_() {
         return;
     }
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-    const rows = [];
-    const txItems = (txHistory || []).filter(tx => {
-        if (!tx || tx.scoreAudit === true || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => cleanId(id) === wantedId)) || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
-        const direct = cleanId(tx.studentId) === wantedId;
-        const grouped = Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanId(id) === wantedId);
-        return direct || grouped;
-    });
-    txItems.forEach(tx => {
-        let delta = Number(tx.pointDelta);
-        if (!Number.isFinite(delta)) {
-            const match = String(tx.name || '').match(/([+-]\s*\d+)\s*แต้ม/);
-            delta = match ? Number(match[1].replace(/\s/g,'')) : 0;
-        }
-        if (!delta) return;
-        const voided = tx.voided === true;
-        let title = tx.pointSource === 'payment'
-            ? (String(tx.name || '').replace(String(student.name || ''), '').trim() || 'ชำระเงินกองกลางตรงเวลา')
-            : String(tx.pointNote || tx.name || 'ปรับคะแนนสะสม').replace(String(student.name || ''), '').trim();
-        title = title.replace(/^ปรับคะแนน\s*/,'').replace(/^แจกคะแนน\s*/,'').trim() || 'รายการคะแนนสะสม';
-        rows.push({
-            key:String(tx.pointSourceKey || tx.id || [tx.date,tx.name,delta].join('|')),
-            date:String(tx.date || ''), title, delta, user:String(tx.user || 'ระบบ'),
-            voided, voidedAt:String(tx.voidedAt || ''), voidedBy:String(tx.voidedBy || ''),
-            voidReason:String(tx.voidReason || ''), source:tx.pointSource === 'payment' ? 'payment' : 'manual'
-        });
-    });
-
-    const seenActivities = new Set();
-    (activityLogs || []).filter(log => log && log.scoreHistoryHidden !== true && cleanId(log.studentId) === wantedId).forEach(log => {
-        const status = String(log.status || '').trim().toUpperCase();
-        const isVoided = log.pointsVoided === true;
-        if (!isVoided && status !== 'C' && status !== 'A') return;
-        const title = String(log.scoreNote || log.activityTitle || log.activityName || 'กิจกรรม').trim();
-        const ref = String(log.activityRef || log.activityId || '').trim();
-        const act = (appSettings.activities || []).find(a =>
-            (ref && String(a.ref || a.id || '').trim() === ref) ||
-            (title && String(a.title || '').trim() === title)
-        );
-        const activityKey = ref || String(act && (act.ref || act.id) || title);
-        if (!activityKey || seenActivities.has(activityKey)) return;
-        seenActivities.add(activityKey);
-        const delta = Number(log.score != null ? log.score : (act && act.points != null ? act.points : 0)) || 0;
-        if (delta < 0 || (delta === 0 && !isVoided && !(Array.isArray(log.scoreEditAudit) && log.scoreEditAudit.length))) return;
-        rows.push({
-            key:'activity:' + activityKey,
-            date:String(isVoided ? (log.pointsVoidedAt || log.assessedAt || log.updatedAt || log.timeIn || '') : (log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '')),
-            title:'ผ่านกิจกรรม ' + title, delta, user:isVoided ? (log.pointsVoidedBy || 'ผู้ดูแล') : 'ระบบ',
-            voided:isVoided, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''),
-            voidReason:String(log.pointsVoidReason || ''), source:'activity'
-        });
-    });
-    rows.sort((a,b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0) || String(b.date).localeCompare(String(a.date)));
-
-    const total = getStudentTotalPoints_(student);
+    const history = sssfnBuildStudentPointHistoryRowsV1558_(student);
+    const rows = history.rows;
     const activeRows = rows.filter(row => !row.voided);
     const earned = activeRows.filter(row => row.delta > 0).reduce((sum,row) => sum + row.delta, 0);
     const deducted = activeRows.filter(row => row.delta < 0).reduce((sum,row) => sum + Math.abs(row.delta), 0);
@@ -13601,7 +13666,7 @@ function renderMyPointsPageV15428_() {
     const earnedEl = document.getElementById('my-points-earned');
     const deductedEl = document.getElementById('my-points-deducted');
     const voidedEl = document.getElementById('my-points-voided-count');
-    if (totalEl) totalEl.innerHTML = `${Number(total || 0).toLocaleString('th-TH')} <span class="text-base font-bold">แต้ม</span>`;
+    if (totalEl) totalEl.innerHTML = `${Number(history.total || 0).toLocaleString('th-TH')} <span class="text-base font-bold">แต้ม</span>`;
     if (nameEl) nameEl.textContent = student.name || '';
     if (idEl) idEl.textContent = student.id || studentId;
     if (earnedEl) earnedEl.textContent = '+' + earned.toLocaleString('th-TH');
@@ -13630,12 +13695,12 @@ function renderMyPointsPageV15428_() {
         const amountClass = row.voided ? 'text-slate-400 line-through' : (row.delta > 0 ? 'text-emerald-600' : 'text-rose-600');
         const amountText = (row.delta > 0 ? '+' : '') + row.delta.toLocaleString('th-TH') + ' แต้ม';
         const auditText = row.voided ? `<p class="text-[11px] text-slate-500 mt-1">ยกเลิกโดย ${esc(row.voidedBy || 'ผู้ดูแล')}${row.voidedAt ? ' · ' + esc(row.voidedAt) : ''}${row.voidReason ? ' · เหตุผล: ' + esc(row.voidReason) : ''}</p>` : '';
-        const sourceText = row.source === 'payment' ? 'ยืนยันรับชำระเงินแล้ว' : (row.source === 'activity' ? 'ประเมินผ่านกิจกรรมแล้ว' : (row.user || 'ระบบ'));
-        return `<div class="py-4 flex items-start justify-between gap-3 ${row.voided ? 'opacity-75' : ''}">
+        const sourceText = row.source === 'payment' ? 'ยืนยันรับชำระเงินแล้ว' : (row.source === 'activity' ? 'ประเมินผ่านกิจกรรมแล้ว' : (row.source === 'reconciliation' ? 'ยอดคงเหลือเดิม / รายการย้อนหลัง' : (row.user || 'ระบบ')));
+        const reconcileNote = row.isReconciliationRow ? '<p class="text-[11px] text-amber-700 mt-1">ยอดส่วนนี้ใช้ปรับยอดประวัติให้ตรงกับคะแนนรวมในทะเบียน เนื่องจากข้อมูลเดิมไม่มีรายการแยกครบถ้วน</p>' : '';
+        return `<div class="py-4 flex items-start justify-between gap-3 ${row.voided ? 'opacity-75' : ''} ${row.isReconciliationRow ? 'bg-amber-50/70 rounded-xl px-3' : ''}">
             <div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2 mb-1">${label}<span class="text-sm font-bold text-slate-800">${esc(row.title)}</span></div>
-                <p class="text-[11px] text-slate-400"><i class="far fa-clock mr-1"></i>${esc(row.date || '-')} · ${esc(sourceText)}</p>${auditText}
-            </div>
-            <div class="shrink-0 text-right"><p class="text-sm font-black ${amountClass}">${esc(amountText)}</p></div>
+                <p class="text-xs text-slate-400">${row.date ? esc(row.date) + ' · ' : ''}${esc(sourceText)}</p>${auditText}${reconcileNote}</div>
+            <div class="shrink-0 text-right"><span class="text-sm font-black ${amountClass}">${amountText}</span></div>
         </div>`;
     }).join('');
 }
@@ -13652,20 +13717,36 @@ window.openStudentProfileModal = function(studentId) {
     const activityHistoryEntryKeyByRef = new Map(realtimeArrayEntries_('activityLogs', activityLogs || []).map(entry => [entry.value, String(entry.key)]));
     const txHistoryEntryKeyByRef = new Map(realtimeArrayEntries_('txHistory', txHistory || []).map(entry => [entry.value, String(entry.key)]));
     let myActs = activityLogs.filter(l => cleanStudentKey(l.studentId) === cleanStudentKey(stu.id));
-    let approvedActivityKeys = new Set();
     let activityPointRows = [];
+    const activityPointCandidates = new Map();
     myActs.forEach(log => {
         const status = String(log.status || '').trim().toUpperCase();
-        if (log.scoreHistoryHidden === true || (log.pointsVoided !== true && status !== 'C' && status !== 'A')) return;
-        const title = String(log.activityTitle || '').trim();
-        const ref = String(log.activityRef || log.activityId || '').trim();
-        const act = appSettings.activities.find(a => (ref && String(a.ref || a.id || '').trim() === ref) || (title && String(a.title || '').trim() === title));
-        const activityKey = ref || String(act && (act.ref || act.id) || title);
-        const activityScoreKey = String(activityKey || '').trim().toLowerCase();
-        if (!activityKey || approvedActivityKeys.has(activityKey)) return;
-        approvedActivityKeys.add(activityKey);
+        const voided = log.pointsVoided === true;
+        if (log.scoreHistoryHidden === true || (!voided && status !== 'C' && status !== 'A')) return;
+        const title = String(log.activityTitle || log.activityName || log.activity || '').trim();
+        const ref = sssfnNormalizePointKeyV1558_(log.activityRef || log.activityId || log.activityRefId || log.activityKey);
+        const normalizedTitle = sssfnNormalizePointKeyV1558_(title);
+        const act = (appSettings.activities || []).find(a =>
+            (ref && sssfnNormalizePointKeyV1558_(a.ref || a.id) === ref) ||
+            (normalizedTitle && sssfnNormalizePointKeyV1558_(a.title) === normalizedTitle)
+        );
+        const activityKey = ref || sssfnNormalizePointKeyV1558_(act && (act.ref || act.id)) || normalizedTitle;
+        if (!activityKey) return;
+        const previous = activityPointCandidates.get(activityKey);
+        if (previous && !(previous.pointsVoided === true && !voided)) return;
+        activityPointCandidates.set(activityKey, log);
+    });
+    activityPointCandidates.forEach(log => {
+        const title = String(log.activityTitle || log.activityName || log.activity || '').trim();
+        const ref = sssfnNormalizePointKeyV1558_(log.activityRef || log.activityId || log.activityRefId || log.activityKey);
+        const normalizedTitle = sssfnNormalizePointKeyV1558_(title);
+        const act = (appSettings.activities || []).find(a =>
+            (ref && sssfnNormalizePointKeyV1558_(a.ref || a.id) === ref) ||
+            (normalizedTitle && sssfnNormalizePointKeyV1558_(a.title) === normalizedTitle)
+        );
+        const activityKey = ref || sssfnNormalizePointKeyV1558_(act && (act.ref || act.id)) || normalizedTitle;
         const pts = Number(log.score != null ? log.score : (act && act.points != null ? act.points : 0)) || 0;
-        if (pts >= 0) activityPointRows.push({ date:log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '-', name:`ผ่านกิจกรรม ${String(log.scoreNote || title || 'กิจกรรม')} +${pts} แต้ม: ${stu.name}`, user:'ระบบ', pointDelta:pts, isPointEvent:true, source:'activity', studentId:String(stu.id), activityKey:String(activityKey), activityScoreKey:activityScoreKey, activityRecordKey:String(activityHistoryEntryKeyByRef.get(log) || ''), scoreEditAudit:Array.isArray(log.scoreEditAudit) ? log.scoreEditAudit : [], voided:log.pointsVoided === true, voidedForStudent:log.pointsVoided === true, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''), voidReason:String(log.pointsVoidReason || '') });
+        if (pts >= 0) activityPointRows.push({ date:log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || '-', name:`ผ่านกิจกรรม ${String(log.scoreNote || title || 'กิจกรรม')} +${pts} แต้ม: ${stu.name}`, user:'ระบบ', pointDelta:pts, isPointEvent:true, source:'activity', studentId:String(stu.id), activityKey:String(activityKey), activityScoreKey:String(activityKey), activityRecordKey:String(activityHistoryEntryKeyByRef.get(log) || ''), scoreEditAudit:Array.isArray(log.scoreEditAudit) ? log.scoreEditAudit : [], voided:log.pointsVoided === true, voidedForStudent:log.pointsVoided === true, voidedAt:String(log.pointsVoidedAt || ''), voidedBy:String(log.pointsVoidedBy || ''), voidReason:String(log.pointsVoidReason || '') });
     });
     let activityPointTotal = activityPointRows.reduce((sum, item) => sum + Number(item.pointDelta || 0), 0);
     let totalPoints = getStudentTotalPoints_(stu);
@@ -13729,21 +13810,22 @@ window.openStudentProfileModal = function(studentId) {
     // 3. ประวัติคะแนน: คะแนนที่ผู้ดูแลให้ + คะแนนจากกิจกรรมที่ได้รับผลผ่าน (C/A).
     const idKey = cleanStudentKey(stu.id);
     let manualPointLogs = (txHistory || []).filter(tx => {
-        if (!tx || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => cleanStudentKey(id) === idKey)) || tx.scoreAudit === true || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null)) return false;
-        const directMatch = cleanStudentKey(tx.studentId) === idKey;
-        const groupMatch = Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanStudentKey(id) === idKey);
-        const txName = String(tx.name || '');
-        const legacyRoom = String(tx.pointRoom || ((txName.match(/ยกห้อง\s*\(([^)]+)\)/) || [])[1] || '')).trim().toLowerCase();
-        const legacyRoomMatch = !tx.studentId && !Array.isArray(tx.studentIds) && !!legacyRoom &&
-            legacyRoom === String(stu.room || '').trim().toLowerCase() && /(แต้ม|คะแนน)/.test(txName);
-        const legacyMatch = !tx.studentId && !Array.isArray(tx.studentIds) &&
-            ((String(tx.name || '').includes(String(stu.name || '')) && /(แต้ม|คะแนน)/.test(String(tx.name || ''))) || legacyRoomMatch);
-        return directMatch || groupMatch || legacyMatch;
+        if (!tx || tx.historyHidden === true || (Array.isArray(tx.historyHiddenStudentIds) && tx.historyHiddenStudentIds.some(id => cleanStudentKey(id) === idKey)) || tx.scoreAudit === true || tx.scoreDeletionLog === true || String(tx.pointSource || tx.source || '').toLowerCase() === 'activity' || !(tx.isPointEvent === true || tx.pointDelta != null || tx.pointNote != null || /[+-]\s*\d+\s*แต้ม/.test(String(tx.name || '')))) return false;
+        return sssfnPointHistoryBelongsToStudentV1558_(tx, stu);
     });
     const myPointLogs = manualPointLogs.concat(activityPointRows).sort((a, b) => {
         const ta = Date.parse(a.date || '') || 0, tb = Date.parse(b.date || '') || 0;
         return tb - ta;
     });
+    const loggedActiveTotal = myPointLogs.reduce((sum, row) => {
+        const isActivity = row.source === 'activity';
+        const isVoided = isActivity ? row.voidedForStudent === true : sssfnPointHistoryIsVoidedForStudentV1558_(row, stu.id);
+        return sum + (isVoided ? 0 : sssfnPointHistoryDeltaV1558_(row));
+    }, 0);
+    const historyCarryForward = totalPoints - loggedActiveTotal;
+    if (Math.abs(historyCarryForward) > 0.000001) {
+        myPointLogs.push({date:'',name:'คะแนนสะสมเดิม / รายการย้อนหลังที่ไม่มีรายละเอียดแยก',user:'ยอดคงเหลือเดิม',pointDelta:historyCarryForward,source:'reconciliation',_scoreReconciliationRow:true,voidedForStudent:false});
+    }
     let pointHistoryHtml = '';
     if (myPointLogs.length === 0) {
         pointHistoryHtml = '<div class="text-center py-6 bg-slate-50 rounded-2xl"><i class="fas fa-star-half-alt text-slate-300 text-2xl mb-2"></i><p class="text-xs text-slate-400 font-bold">ยังไม่มีประวัติรับ/หักคะแนน</p></div>';
@@ -13756,14 +13838,14 @@ window.openStudentProfileModal = function(studentId) {
             }
             const isPositive = delta > 0 || String(tx.name || '').includes('+');
             const isNegative = delta < 0 || /หัก|ลด/.test(String(tx.name || ''));
-            const cleanDesc = tx.source === 'activity'
+            const cleanDesc = tx._scoreReconciliationRow === true ? String(tx.name || '') : (tx.source === 'activity'
                 ? String(tx.name || '').replace(String(stu.name || ''), '').trim()
-                : String(tx.pointNote || tx.name || '').replace(String(stu.name || ''), '').replace(/^ปรับคะแนน\s*/,'').trim();
+                : String(tx.pointNote || tx.name || '').replace(String(stu.name || ''), '').replace(/^ปรับคะแนน\s*/,'').trim());
             const safeCleanDesc = String(cleanDesc || 'ปรับคะแนนสะสม').replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
             const latestEditAudit = Array.isArray(tx.scoreEditAudit) && tx.scoreEditAudit.length ? tx.scoreEditAudit[tx.scoreEditAudit.length - 1] : null;
             const editAuditHtml = latestEditAudit ? `<p class="text-[10px] text-indigo-500 mt-1">แก้ไขล่าสุดโดย ${String(latestEditAudit.by || 'หัวหน้า').replace(/[&<>\"']/g,'')} · ${String(latestEditAudit.at || '').replace(/[&<>\"']/g,'')} · ${String(latestEditAudit.reason || '').replace(/[&<>\"']/g,'')}</p>` : '';
             const individualVoidAudit = Array.isArray(tx.voidedStudentsAudit) ? tx.voidedStudentsAudit.find(a => String(a.studentId || '').replace(/-/g,'') === idKey) : null;
-            tx.voidedForStudent = tx.voided === true || (Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => cleanStudentKey(id) === idKey));
+            tx.voidedForStudent = tx.source === 'activity' ? tx.voidedForStudent === true : (tx._scoreReconciliationRow === true ? false : sssfnPointHistoryIsVoidedForStudentV1558_(tx, stu.id));
             tx.rowVoidAt = tx.voidedAt || (individualVoidAudit && individualVoidAudit.at) || '';
             tx.rowVoidBy = tx.voidedBy || (individualVoidAudit && individualVoidAudit.by) || '';
             tx.rowVoidReason = tx.voidReason || (individualVoidAudit && individualVoidAudit.reason) || '';
@@ -13777,13 +13859,14 @@ window.openStudentProfileModal = function(studentId) {
             const encodedIdentity = encodeURIComponent(pointIdentity).replace(/'/g,'%27');
             const encodedStudentId = selectedDeleteStudentAttr;
             const isPaymentPoint = String(tx.pointSource || tx.source || '').trim().toLowerCase() === 'payment';
-            const canEditPoint = currentUserRole === 'leader' && !isPaymentPoint;
+            const isReconciliationRow = tx._scoreReconciliationRow === true;
+            const canEditPoint = currentUserRole === 'leader' && !isPaymentPoint && !isReconciliationRow;
             const permanentDeleteKind = pointKind === 'activity' ? 'activity-score' : 'tx';
             const permanentDeleteKey = pointKind === 'activity' ? String(tx.activityScoreKey || '') : String(txHistoryEntryKeyByRef.get(tx) || '');
             const hasExplicitStudentOwner = pointKind === 'activity'
                 ? !!permanentDeleteKey
                 : (cleanStudentKey(tx.studentId) === idKey || (Array.isArray(tx.studentIds) && tx.studentIds.some(id => cleanStudentKey(id) === idKey)));
-            const permanentSelectHtml = canSelectPoint && !isPaymentPoint && hasExplicitStudentOwner && permanentDeleteKey
+            const permanentSelectHtml = canSelectPoint && !isPaymentPoint && !isReconciliationRow && hasExplicitStudentOwner && permanentDeleteKey
                 ? `<input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer" data-permanent-delete-student="${encodedStudentId}" data-permanent-delete-kind="${permanentDeleteKind}" data-permanent-delete-key="${encodeURIComponent(permanentDeleteKey)}" title="เลือกลบประวัติคะแนนนี้ถาวร">`
                 : (isPaymentPoint ? `<span class="text-[9px] text-slate-400 whitespace-nowrap" title="เก็บประวัติการชำระเงินไว้">การเงิน · ล็อก</span>` : '');
             const removeButton = (permanentSelectHtml || canEditPoint) ? `<div class="flex items-center gap-1.5">${permanentSelectHtml}${canEditPoint ? `<button type="button" onclick="editStudentPointHistoryItemV15436_('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" title="แก้ไขประวัติคะแนน"><i class="fas fa-pen text-xs"></i></button>` : ''}</div>` : '';
