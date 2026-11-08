@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- SSSFN v15.5.2: stable Firebase txHistory record keys; fixes duplicate ordinal drift in score deletion -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
-<!-- SSSFN v15.5.6: selectable permanent activity/point-history deletion without deletion audit -->
+<!-- SSSFN v15.5.7: selected-history-only Sheets repair; finance tabs untouched; no deletion audit -->
 <html lang="th">
 <head>
 
@@ -13892,7 +13892,7 @@ window.openStudentProfileModal = function(studentId) {
     });
 }
 
-// v15.5.6: permanent delete only the checked activity/point-history rows. No actor/reason/audit is stored.
+// v15.5.7: selected-history-only Google Sheets repair button; repair retry never re-deletes Firebase.
 window.toggleSelectedStudentHistoryV1556_ = function(encodedStudentId, checked) {
     if (!sssfnCanDeleteScoreHistoryV1555_()) return;
     let studentId = ''; try { studentId = decodeURIComponent(String(encodedStudentId || '')); } catch (e) { return; }
@@ -13948,6 +13948,32 @@ window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
     }
     if (!result || result.status !== 'success') {
         const message = String(result && result.message || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ');
+        if (result && result.partial) {
+            const retry = await Swal.fire({
+                icon:'warning',title:'Firebase ลบแล้ว แต่ Google Sheets ยังไม่ครบ',text:message,
+                showCancelButton:true,confirmButtonText:'ซ่อม Google Sheets เท่านั้น',cancelButtonText:'ปิด',confirmButtonColor:'#2563eb'
+            });
+            if (retry.isConfirmed) {
+                Swal.fire({title:'กำลังซ่อม Google Sheets...',text:'ตรวจสอบก่อนว่า Firebase ลบรายการที่เลือกไปแล้ว จากนั้นจะปรับเฉพาะชีตประวัติ/คะแนน',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+                let repair;
+                try {
+                    repair = await callBackend({
+                        action:'repairSelectedStudentHistoryBackupV1557',studentId:String(student.id),
+                        activityKeys:Array.from(activityKeys),activityScoreKeys:Array.from(activityScoreKeys),pointKeys:Array.from(pointKeys),
+                        confirmation:'ลบถาวร'
+                    });
+                } catch (repairError) {
+                    return Swal.fire('ซ่อมข้อมูลสำรองไม่สำเร็จ',String(repairError && repairError.message || repairError),'error');
+                }
+                if (!repair || repair.status !== 'success' || repair.backupStatus !== 'verified') {
+                    return Swal.fire({icon:'error',title:'ยังซ่อมข้อมูลสำรองไม่สำเร็จ',text:String(repair && repair.message || 'ระบบยังยืนยัน Google Sheets ไม่ได้'),confirmButtonText:'รับทราบ'});
+                }
+                try { await silentPullFromGS(false,true); } catch (refreshRepairError) { console.warn('Refresh after selected history sheet repair failed',refreshRepairError); }
+                await Swal.fire({icon:'success',title:'ซ่อม Google Sheets สำเร็จ',text:'ตรวจสอบแล้วว่ารายการที่เลือกหายไปจาก Google Sheets และตรงกับ Firebase โดยไม่ได้ลบ Firebase ซ้ำหรือแก้ไขชีตการเงิน',confirmButtonText:'ตกลง'});
+                if (typeof window.openStudentProfileModal === 'function') window.openStudentProfileModal(student.id);
+                return;
+            }
+        }
         return Swal.fire({icon:result && result.partial ? 'warning' : 'error',title:result && result.partial ? 'ลบได้บางส่วน แต่ยังไม่ครบทุกแหล่ง' : 'ลบไม่สำเร็จ',text:message,confirmButtonText:'รับทราบ'});
     }
     try { await silentPullFromGS(false,true); } catch (refreshError) { console.warn('Refresh after selected history delete failed',refreshError); }
@@ -13956,7 +13982,9 @@ window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
     } else if (result.storageMode === 'SHEETS' && result.backupStatus !== 'verified') {
         await Swal.fire({icon:'warning',title:'ยังยืนยันการลบไม่ครบ',html:`ไม่พบรายการที่เลือกใน Google Sheets แล้ว แต่ขณะนี้ระบบอยู่ในโหมดสำรอง จึงยังยืนยันสถานะใน Firebase ไม่ได้<br><b class="text-amber-700">ยังไม่ถือว่าลบสำเร็จครบทั้งสองฐาน</b><br>กรุณาโหลดข้อมูลใหม่หลัง Firebase กลับมาทำงาน แล้วตรวจสอบอีกครั้ง`,confirmButtonText:'รับทราบ'});
     } else {
-        await Swal.fire({icon:'success',title:'ลบรายการที่เลือกถาวรแล้ว',html:`ลบประวัติกิจกรรม ${Number(result.activityDeleted||0).toLocaleString()} รายการ<br>ลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ โดยเก็บประวัติการเข้าร่วมไว้<br>ลบ/นำประวัติคะแนนอื่นออกจากนักศึกษาคนนี้ ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการ<br>คะแนนกิจกรรมและคะแนนคงเหลือคำนวณใหม่แล้ว<br><span class="text-emerald-700">ตรวจสอบ Firebase และ Google Sheets แล้ว</span>`,confirmButtonText:'ตกลง'});
+        const repairInfo = result.sheetsRepair || {};
+        const alreadyDeleted = Number(result.changedRecords || 0) === 0;
+        await Swal.fire({icon:'success',title:alreadyDeleted ? 'ซ่อม Google Sheets สำเร็จ' : 'ลบรายการที่เลือกถาวรแล้ว',html:`ลบประวัติกิจกรรมจาก Firebase ${Number(result.activityDeleted||0).toLocaleString()} รายการ<br>ลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ โดยเก็บประวัติการเข้าร่วมไว้<br>ลบ/นำประวัติคะแนนอื่นออกจากนักศึกษาคนนี้ ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการ<br>ซ่อม Google Sheets: ลบแถวกิจกรรม ${Number(repairInfo.activityRowsDeleted||0).toLocaleString()} แถว, ปรับแถวคะแนนกิจกรรม ${Number(repairInfo.activityScoreRowsUpdated||0).toLocaleString()} แถว, ลบแถวคะแนน ${Number(repairInfo.pointRowsDeleted||0).toLocaleString()} แถว<br><span class="text-emerald-700">ตรวจสอบ Firebase และ Google Sheets แล้ว โดยไม่เขียนทับชีตการเงิน</span>`,confirmButtonText:'ตกลง'});
     }
     if (typeof window.openStudentProfileModal === 'function') window.openStudentProfileModal(student.id);
 };
