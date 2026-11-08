@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- SSSFN v15.5.0: stabilization release based on v15.4.54; retains existing features/configuration -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.4.49: reliable score-history delete save; server stores canonical deletion audit -->
 <html lang="th">
@@ -4331,26 +4332,6 @@ function switchPage(pageId) {
     
     if (!skipFullRender) refreshAll(); 
 }
-function linkLineAccount() {
-    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-    
-    if (!stuId) {
-        Swal.fire({
-            toast: true, position: 'top', icon: 'warning', 
-            title: 'กรุณาเข้าสู่ระบบนักศึกษาก่อนกดผูกบัญชี', showConfirmButton: false, timer: 2500
-        });
-        return;
-    }
-
-    const LINE_OA_ID = "@ใส่ไอดีบอทของคุณตรงนี้"; 
-
-    let cleanId = String(stuId).replace(/-/g, '').trim();
-    let message = "ผูกบัญชี " + cleanId;
-    let encodedMessage = encodeURIComponent(message);
-    let lineUrl = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodedMessage}`;
-    
-    window.open(lineUrl, '_blank');
-}
         function toggleSetting() { 
             const att = document.getElementById('toggle-att');
             if (att) appSettings.showPublicAttendance = att.checked; 
@@ -4373,14 +4354,6 @@ function getInitials(name) {
 }
 
 // ================= ระบบ Google Sign-In (Real Email Login) =================
-function decodeJwtResponse(token) {
-    let base64Url = token.split('.')[1];
-    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(jsonPayload);
-}
 
 // ================= ระบบ Google Sign-In (Real Email Login & PDPA) =================
 function decodeJwtResponse(token) {
@@ -9733,115 +9706,10 @@ window.approveActivity = function(title) {
         }
 
         // ฟังก์ชันช่วยแปลงตัวเลขเป็นคำอ่านภาษาไทย
-        function ArabicNumberToText(Number) {
-            var Number = Number.toString();
-            var parseIntNumber = parseInt(Number);
-            if (Number == 0 || isNaN(parseIntNumber)) return "ศูนย์บาทถ้วน";
-            var textNumber = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า", "สิบ"];
-            var textPos = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
-            var text = "";
-            var numberSplit = Number.split('.');
-            var intNumber = numberSplit[0];
-            var decNumber = numberSplit[1];
-            if (intNumber.length > 7) return "จำนวนเงินเยอะเกินไป";
-            if (parseInt(intNumber) > 0) {
-                for (var i = 0; i < intNumber.length; i++) {
-                    var n = intNumber.substring(i, i + 1);
-                    if (n != 0) {
-                        if (i == intNumber.length - 1 && n == 1 && intNumber.length > 1) text += "เอ็ด";
-                        else if (i == intNumber.length - 2 && n == 2) text += "ยี่";
-                        else if (i == intNumber.length - 2 && n == 1) text += "";
-                        else text += textNumber[n];
-                        text += textPos[intNumber.length - i - 1];
-                    }
-                }
-                text += "บาท";
-            }
-            if (decNumber && parseInt(decNumber) > 0) {
-                decNumber = decNumber.substring(0, 2);
-                for (var i = 0; i < decNumber.length; i++) {
-                    var n = decNumber.substring(i, i + 1);
-                    if (n != 0) {
-                        if (i == decNumber.length - 1 && n == 1 && decNumber.length > 1) text += "เอ็ด";
-                        else if (i == decNumber.length - 2 && n == 2) text += "ยี่";
-                        else if (i == decNumber.length - 2 && n == 1) text += "";
-                        else text += textNumber[n];
-                        text += textPos[decNumber.length - i - 1];
-                    }
-                }
-                text += "สตางค์";
-            } else {
-                text += "ถ้วน";
-            }
-            return text;
-        }
 
         // =========================================================================
 // 🌟 ฟังก์ชันพิมพ์ใบเสร็จ (ดึงเวลาและชื่อแอดมินจากฐานข้อมูล)
 // =========================================================================
-function printReceipt(roundId, studentId) {
-    const stu = students.find(s => String(s.id) === String(studentId));
-    const round = fundRounds.find(r => String(r.id) === String(roundId));
-    const payment = fundPayments.find(p => String(p.roundId) === String(roundId) && String(p.studentId) === String(studentId));
-    if (!stu || !round || !payment) {
-        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'ไม่พบข้อมูลใบเสร็จ', text: 'กรุณาดึงข้อมูลล่าสุดแล้วลองอีกครั้ง' });
-        return;
-    }
-
-    const paid = Number(payment.paidAmt) || 0;
-    const channel = String(payment.paymentChannel || payment.method || '').trim().toLowerCase();
-    const status = String(payment.status || '');
-    const isCash = status.includes('เงินสด') || channel === 'cash' || channel.includes('เงินสด');
-    const isDeposit = channel === 'deposit' || channel === 'ฝาก';
-    const hasSlipEvidence = !!String(payment.slipUrl || payment.slipFileId || payment.fileId || '').trim();
-    const slipSubmittedAt = payment.lastSlipSubmittedAt || payment.slipSubmittedAt || payment.submittedAt || payment.firstSlipSubmittedAt || '';
-    const isSlipTransfer = !isCash && !isDeposit && (channel === 'transfer' || hasSlipEvidence || !!slipSubmittedAt);
-
-    // ใบเสร็จการโอนใช้เวลาที่นักศึกษาส่งสลิปล่าสุด; เงินสด/ยอดฝากใช้เวลารับเงินจริง
-    const dateCandidates = isSlipTransfer
-        ? [slipSubmittedAt, payment.paidDate, payment.paymentReceivedAt]
-        : [payment.paidDate, payment.paymentReceivedAt, payment.receivedAt, slipSubmittedAt];
-    let receiptDateRaw = dateCandidates.find(value => value != null && String(value).trim() !== '') || '';
-    let approverName = String(payment.paidBy || payment.approvedBy || 'ระบบ');
-
-    // ข้อมูลเก่าบางรายการไม่มีวันเวลาอยู่ในแถวชำระเงิน ให้ย้อนดูประวัติเดิมแทนเวลาเปิดใบเสร็จ
-    if (!receiptDateRaw) {
-        const stuName = String(stu.name || '');
-        const roundTitle = String(round.title || '');
-        const matchLog = (txHistory || []).find(tx => {
-            const logName = String(tx && tx.name || '');
-            return logName.includes(stuName) && logName.includes(roundTitle) &&
-                (logName.includes('รับเงิน') || logName.includes('แอดมินแก้ไขสถานะ') || logName.includes('ตัดหนี้ค้าง'));
-        });
-        if (matchLog && matchLog.date) {
-            receiptDateRaw = matchLog.date;
-            approverName = String(payment.paidBy || matchLog.user || 'ระบบ');
-        }
-    }
-
-    const displayDate = receiptDateRaw ? formatDisplayDate(receiptDateRaw) : '-';
-    const dateDigits = String(receiptDateRaw || '').replace(/\D/g, '');
-    const stableRef = String(payment.receiptRef || payment.slipRequestId || '').replace(/[^A-Za-z0-9]/g, '').slice(-12);
-    const historyRef = dateDigits.length >= 8 ? dateDigits.substring(0, 8) : (stableRef || 'NO-DATE');
-
-    document.getElementById('receiptAmt').innerText = paid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    document.getElementById('receiptAmtThai').innerText = ArabicNumberToText(paid);
-    document.getElementById('receiptStuId').innerText = stu.id;
-    document.getElementById('receiptName').innerText = stu.name;
-    document.getElementById('receiptRoom').innerText = 'ห้อง ' + stu.room;
-    document.getElementById('receiptRound').innerText = round.title;
-    document.getElementById('receiptDate').innerText = displayDate;
-    document.getElementById('receiptRef').innerText = `REF: SSSFN-${roundId}-${historyRef}`;
-
-    const approverElement = document.getElementById('receiptApprover');
-    if (approverElement) {
-        approverElement.innerHTML = '<i class="fas fa-user-check"></i> อนุมัติโดย: ';
-        approverElement.appendChild(document.createTextNode(approverName));
-    }
-
-    document.getElementById('receiptModal').classList.remove('hidden');
-    document.getElementById('receiptModal').classList.add('flex');
-}
 
         // ================= TIME LOGS TABLE =================
         function renderTimeHistoryTable() {
@@ -13147,53 +13015,6 @@ function calculatePoints() {
     return ranked.sort((a, b) => b.points - a.points);
 }
 
-function renderLeaderboard() {
-    let rankedStudents = calculatePoints();
-    let listContainer = document.getElementById('leaderboard-list');
-    let podiumContainer = document.getElementById('leaderboard-podium');
-    if (!listContainer || !podiumContainer) return;
-
-    if (rankedStudents.length === 0) {
-        podiumContainer.innerHTML = '';
-        listContainer.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-slate-400">ยังไม่มีข้อมูลคะแนนสะสมในระบบ</td></tr>';
-        return;
-    }
-
-    // 🌟 สร้างแท่น Podium (Top 3)
-    let podiumHtml = '';
-    const top3 = rankedStudents.slice(0, 3);
-    
-    if (top3[1]) podiumHtml += createPodiumPlace(top3[1], 2, 'h-28 md:h-32', 'bg-slate-300', 'text-slate-600', 'เหรียญเงิน');
-    if (top3[0]) podiumHtml += createPodiumPlace(top3[0], 1, 'h-36 md:h-40', 'bg-yellow-400', 'text-yellow-800', 'เหรียญทอง', 'scale-110 z-10 shadow-2xl');
-    if (top3[2]) podiumHtml += createPodiumPlace(top3[2], 3, 'h-20 md:h-24', 'bg-amber-600', 'text-amber-100', 'เหรียญทองแดง');
-    
-    podiumContainer.innerHTML = podiumHtml;
-
-    // 🌟 สร้าง List อันดับที่เหลือ
-    let listHtml = '';
-    rankedStudents.forEach((s, index) => {
-        let rank = index + 1;
-        let rankDisplay = rank <= 3 ? `<i class="fas fa-medal text-xl ${rank===1?'text-yellow-400':rank===2?'text-slate-400':'text-amber-600'} drop-shadow-md"></i>` : `<span class="font-bold text-slate-400">${rank}</span>`;
-        let highlightClass = rank <= 3 ? 'bg-amber-50/30' : 'hover:bg-slate-50';
-        let isMe = (window.currentGuestStuId === s.id) ? 'border-l-4 border-l-orange-500 bg-orange-50' : highlightClass;
-        
-        listHtml += `
-        <tr class="border-b border-slate-100 transition ${isMe}">
-            <td class="p-4 text-center">${rankDisplay}</td>
-            <td class="p-4 flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-[#111827] text-white flex items-center justify-center font-bold text-xs shadow-sm">${getInitials(s.name)}</div>
-                <div>
-                    <p class="font-bold text-slate-800 text-sm flex items-center gap-2">${s.name} ${window.currentGuestStuId === s.id ? '<span class="text-[11px] bg-orange-500 text-white px-2 py-0.5 rounded-full">คุณ</span>' : ''}</p>
-                    <p class="text-xs text-slate-500 font-mono">${s.id}</p>
-                </div>
-            </td>
-            <td class="p-4 text-center"><span class="bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">${s.room}</span></td>
-            <td class="p-4 text-right font-black text-orange-600 text-lg md:text-xl">${s.points.toLocaleString()}</td>
-        </tr>`;
-    });
-    listContainer.innerHTML = listHtml;
-}
-
 function createPodiumPlace(stu, rank, heightClass, colorClass, textColor, title, extraClass = '') {
     return `
     <div class="flex flex-col items-center justify-end w-24 md:w-32 ${extraClass} transform transition hover:-translate-y-2 cursor-default group">
@@ -13885,12 +13706,13 @@ window.openStudentProfileModal = function(studentId) {
                 ? '<span class="bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md text-xs font-bold border border-emerald-200 shadow-sm"><i class="fas fa-arrow-up mr-1"></i> ได้รับ</span>'
                 : (isNegative ? '<span class="bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-xs font-bold border border-rose-200 shadow-sm"><i class="fas fa-arrow-down mr-1"></i> ถูกหัก</span>' : '<span class="bg-blue-100 text-blue-600 px-2 py-1 rounded-md text-xs font-bold border border-blue-200 shadow-sm">อัปเดต</span>'));
             const deltaText = Number.isFinite(delta) ? `${delta > 0 ? '+' : ''}${delta} แต้ม` : '';
-            const canVoidPoint = currentUserRole === 'leader';
+            const canVoidPoint = sssfnCanDeleteScoreHistoryV1555_();
+            const canEditPoint = currentUserRole === 'leader';
             const pointKind = tx.source === 'activity' ? 'activity' : 'tx';
             const pointIdentity = pointKind === 'activity' ? String(tx.activityKey || '') : sssfnPointHistoryIdentityV15427_(tx);
             const encodedIdentity = encodeURIComponent(pointIdentity).replace(/'/g,'%27');
             const encodedStudentId = encodeURIComponent(String(stu.id)).replace(/'/g,'%27');
-            const removeButton = canVoidPoint ? `<div class="flex items-center gap-1.5"><input type="checkbox" class="w-4 h-4 accent-indigo-600 cursor-pointer" data-bulk-point-student="${encodedStudentId}" data-bulk-point-kind="${pointKind}" data-bulk-point-identity="${encodedIdentity}" title="เลือกรายการนี้เพื่อแก้ไข/ลบหลายรายการ"><button type="button" onclick="editStudentPointHistoryItemV15436_('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" title="แก้ไขประวัติคะแนน"><i class="fas fa-pen text-xs"></i></button><button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ลบประวัติคะแนน"><i class="fas fa-trash-alt text-xs"></i></button></div>` : '';
+            const removeButton = canVoidPoint ? `<div class="flex items-center gap-1.5"><input type="checkbox" class="w-4 h-4 accent-indigo-600 cursor-pointer" data-bulk-point-student="${encodedStudentId}" data-bulk-point-kind="${pointKind}" data-bulk-point-identity="${encodedIdentity}" title="เลือกรายการนี้เพื่อลบหลายรายการ">${canEditPoint ? `<button type="button" onclick="editStudentPointHistoryItemV15436_('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" title="แก้ไขประวัติคะแนน"><i class="fas fa-pen text-xs"></i></button>` : ''}<button type="button" onclick="voidStudentPointHistoryItem('${encodedIdentity}','${pointKind}','${encodedStudentId}')" class="w-8 h-8 rounded-lg border border-rose-100 bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-700 flex items-center justify-center" title="ลบประวัติคะแนน"><i class="fas fa-trash-alt text-xs"></i></button></div>` : '';
             pointHistoryHtml += `
             <div class="flex justify-between items-center py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1 gap-3">
                 <div class="flex-1 min-w-0 pr-1">
@@ -13962,7 +13784,7 @@ window.openStudentProfileModal = function(studentId) {
                         <div class="w-8 h-8 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs"><i class="fas fa-star"></i></div>
                         ประวัติคะแนนสะสม
                     </h3>
-                    <div class="flex items-center gap-2">${currentUserRole === 'leader' ? `<button type="button" onclick="window.openScoreDeletionLogsV1549_()" class="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-100"><i class="fas fa-clipboard-list mr-1"></i>บันทึกการลบ</button>` : ''}${currentUserRole === 'leader' ? `<button type="button" onclick="window.openStudentScoreHistoryDiagnosticsV1550_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100"><i class="fas fa-stethoscope mr-1"></i>ตรวจสอบข้อมูล</button>` : ''}${currentUserRole === 'leader' && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}</div>
+                    <div class="flex items-center gap-2">${['leader','vice','treasurer'].includes(String(currentUserRole || '')) ? `<button type="button" onclick="window.openScoreDeletionLogsV1549_()" class="text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-100"><i class="fas fa-clipboard-list mr-1"></i>บันทึกการลบ</button>` : ''}${currentUserRole === 'leader' ? `<button type="button" onclick="window.openStudentScoreHistoryDiagnosticsV1550_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5 hover:bg-indigo-100"><i class="fas fa-stethoscope mr-1"></i>ตรวจสอบข้อมูล</button>` : ''}${sssfnCanDeleteScoreHistoryV1555_() && myPointLogs.length ? `<button type="button" onclick="bulkVoidStudentPointHistoryRowsV15435_('${encodeURIComponent(String(stu.id)).replace(/'/g,'%27')}')" class="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-2.5 py-1.5 hover:bg-rose-100"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือก</button>` : ''}</div>
                 </div>
                 <div class="max-h-48 overflow-y-auto custom-scrollbar pr-2">${pointHistoryHtml}</div>
             </div>
@@ -14135,7 +13957,12 @@ window.editStudentPointHistoryItemV15436_ = async function(encodedKey, source, e
     setTimeout(()=>window.openStudentProfileModal(student.id),250);
 };
 
-// v15.4.49: leader-only physical deletion of score history with a separate System Log.
+// v15.5.0: Leader/Deputy score-history deletion with a separate System Log.
+// v15.5.0: score-history deletion is available to Leader and Deputy only.
+function sssfnCanDeleteScoreHistoryV1555_() {
+    return ['leader','vice'].includes(String(currentUserRole || ''));
+}
+
 function sssfnPointHistoryIdentityV15427_(tx) {
     if (!tx) return '';
     if (tx.pointSourceKey) return String(tx.pointSourceKey);
@@ -14143,11 +13970,11 @@ function sssfnPointHistoryIdentityV15427_(tx) {
     return [tx.date || '', tx.name || '', tx.user || '', tx.studentId || '', Array.isArray(tx.studentIds) ? tx.studentIds.join(',') : '', tx.pointRoom || ''].join('\u001f');
 }
 
-// v15.4.54: critical score-history mutations must not treat an in-flight
+// v15.5.0: critical score-history mutations must not treat an in-flight
 // realtime save/pull as a failed server commit. autoSyncToGS() returns
 // {status:'queued'} in that case; wait for the active operation, then submit
 // the still-pending diff and require an explicit success response.
-async function sssfnSavePointDeleteMutationV1553_() {
+async function sssfnSavePointDeleteMutationV1555_() {
     const deadline = Date.now() + 60000;
     while (Date.now() < deadline) {
         if (isSyncing || remotePullInProgress) {
@@ -14355,7 +14182,7 @@ window.openStudentScoreHistoryDiagnosticsV1550_ = async function(encodedStudentI
 };
 
 window.openScoreDeletionLogsV1549_ = function() {
-    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ดูบันทึกการลบได้','warning');
+    if (!['leader','vice','treasurer'].includes(String(currentUserRole || ''))) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้า รองหัวหน้า และเหรัญญิกเท่านั้นที่ดูบันทึกการลบได้','warning');
     const rows = (txHistory || []).filter(item => item && item.scoreDeletionLog === true && item.scoreDeleteAudit)
         .sort((a,b) => String(b.scoreDeleteAudit.deletedAt || '').localeCompare(String(a.scoreDeleteAudit.deletedAt || '')));
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
@@ -14367,8 +14194,8 @@ window.openScoreDeletionLogsV1549_ = function() {
 };
 
 window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedStudentId) {
-    if (currentUserRole !== 'leader') {
-        return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าเท่านั้นที่ลบประวัติคะแนนได้', 'warning');
+    if (!sssfnCanDeleteScoreHistoryV1555_()) {
+        return Swal.fire('ไม่มีสิทธิ์', 'เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่ลบประวัติคะแนนได้', 'warning');
     }
     let identity = '', targetStudentId = '';
     try {
@@ -14549,7 +14376,7 @@ window.voidStudentPointHistoryItem = async function(encodedKey, source, encodedS
     hasLocalChanges = true;
     renderLeaderboard();
     renderAdminStudentList();
-    const saveResult = await sssfnSavePointDeleteMutationV1553_();
+    const saveResult = await sssfnSavePointDeleteMutationV1555_();
     if (!saveResult || saveResult.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({
@@ -15269,7 +15096,7 @@ window.toggleVisibleScoreStudentsV15435_ = function(checked) {
     window.updateScoreStudentSelectionCountV15435_();
 };
 window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
-    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่จัดการประวัติคะแนนได้','warning');
+    if (!sssfnCanDeleteScoreHistoryV1555_()) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่จัดการประวัติคะแนนได้','warning');
     const ids = Array.from(document.querySelectorAll('[data-score-bulk-student]:checked')).map(el => decodeURIComponent(el.getAttribute('data-score-bulk-student') || ''));
     if (!ids.length) return Swal.fire('ยังไม่ได้เลือกนักศึกษา','เลือกนักศึกษาอย่างน้อยหนึ่งคนก่อน','info');
     const names = students.filter(s => ids.some(id => sssfnCleanPointStudentIdV15435_(id) === sssfnCleanPointStudentIdV15435_(s.id))).map(s => s.name).slice(0,8);
@@ -15278,7 +15105,7 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1553_();
+    const saved = await sssfnSavePointDeleteMutationV1555_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15287,14 +15114,14 @@ window.bulkVoidSelectedStudentsPointsV15435_ = async function() {
     Swal.fire({icon:'success', title:'ลบประวัติคะแนนแล้ว', text:`จัดการ ${result.students} คน • นำประวัติคะแนนออก ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
 };
 window.bulkVoidAllStudentPointsV15435_ = async function() {
-    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ล้างประวัติคะแนนทุกคนได้','warning');
+    if (!sssfnCanDeleteScoreHistoryV1555_()) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่ลบประวัติคะแนนได้','warning');
     const res = await Swal.fire({title:'ลบประวัติคะแนนทุกคนทั้งระบบ?', html:`<div class="text-left text-sm"><p class="text-rose-700 font-bold">การดำเนินการนี้มีผลกับนักศึกษาทุกห้อง</p><p>ระบบจะนำประวัติคะแนนออกจากหน้าของนักศึกษาทุกคนและปรับยอดคะแนนตามจริง โดยลบรายการคะแนนรายบุคคลออกจริง และเก็บเหตุการณ์ลบแยกไว้ใน System Log สำหรับหัวหน้าตรวจสอบ</p><label class="block text-xs font-bold mt-3 mb-1">พิมพ์คำว่า ล้างคะแนน เพื่อยืนยัน</label><input id="bulk-all-point-confirm" class="swal2-input" style="margin:0;width:100%"><label class="block text-xs font-bold mt-3 mb-1">เหตุผล *</label>${pointVoidReasonFormHtmlV15441_('bulk-all-point-reason')}</div>`, icon:'warning', showCancelButton:true, confirmButtonText:'ยืนยันลบประวัติทั้งหมด', cancelButtonText:'ยกเลิก', confirmButtonColor:'#be123c', didOpen:()=>bindPointVoidReasonV15441_('bulk-all-point-reason'), preConfirm:()=>{if(String(document.getElementById('bulk-all-point-confirm')?.value||'').trim()!=='ล้างคะแนน') return Swal.showValidationMessage('กรุณาพิมพ์คำว่า ล้างคะแนน ให้ถูกต้อง'); return readPointVoidReasonV15441_('bulk-all-point-reason');}});
     if (!res.isConfirmed) return;
     const ids = (students || []).map(s => s.id);
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_(ids, res.value, null);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1553_();
+    const saved = await sssfnSavePointDeleteMutationV1555_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15303,7 +15130,7 @@ window.bulkVoidAllStudentPointsV15435_ = async function() {
     Swal.fire({icon:'success', title:'ลบประวัติคะแนนทุกคนแล้ว', text:`จัดการ ${result.students} คน • รายการคะแนน ${result.txVoids} รายการ • คะแนนกิจกรรม ${result.activityVoids} รายการ`, confirmButtonText:'รับทราบ'});
 };
 window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId) {
-    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่จัดการประวัติคะแนนได้','warning');
+    if (!sssfnCanDeleteScoreHistoryV1555_()) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่จัดการประวัติคะแนนได้','warning');
     let studentId = ''; try { studentId = decodeURIComponent(String(encodedStudentId || '')); } catch (e) { return; }
     const boxes = Array.from(document.querySelectorAll(`[data-bulk-point-student="${encodeURIComponent(studentId).replace(/"/g,'%22')}"]:checked`));
     const descriptors = boxes.map(el => ({kind:el.getAttribute('data-bulk-point-kind'), identity:decodeURIComponent(el.getAttribute('data-bulk-point-identity') || '')}));
@@ -15313,7 +15140,7 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
     const result = applyBulkPointVoidsV15435_([studentId], res.value, descriptors);
     saveToLocal(false); hasLocalChanges = true;
-    const saved = await sssfnSavePointDeleteMutationV1553_();
+    const saved = await sssfnSavePointDeleteMutationV1555_();
     if (!saved || saved.status !== 'success') {
         sssfnRestorePointDeleteRollbackV1549_(rollbackState);
         return Swal.fire({icon:'warning',title:'ยังลบไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบคืนข้อมูลบนหน้าจอแล้ว'});
@@ -15323,7 +15150,7 @@ window.bulkVoidStudentPointHistoryRowsV15435_ = async function(encodedStudentId)
     setTimeout(()=>window.openStudentProfileModal(studentId),250);
 };
 
-// v15.4.39: leader-only cleanup for negative points with no verifiable history.
+// v15.4.39: leader-only cleanup for negative points with no verifiable history (separate from score-history deletion role).
 window.openNegativePointCleanupV15439_ = function() {
     if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ตรวจสอบและล้างคะแนนติดลบได้','warning');
     const rows = (students || []).map(s => ({ id:String(s.id || ''), name:String(s.name || ''), room:String(s.room || ''), total:Number(getStudentTotalPoints_(s)) }))
@@ -15502,7 +15329,7 @@ function sssfnCollectConditionalScoreRowsV15437_(criteria) {
     return { rows, descriptors, studentIds:Array.from(selectedIds) };
 }
 window.openConditionalScoreHistoryDeleteV15437_ = async function() {
-    if (currentUserRole !== 'leader') return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าเท่านั้นที่ลบประวัติคะแนนตามเงื่อนไขได้','warning');
+    if (!sssfnCanDeleteScoreHistoryV1555_()) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่ลบประวัติคะแนนได้','warning');
     const roomOptions = ['<option value="all">ทุกห้อง</option>'].concat((rooms || []).map(room => `<option value="${String(room).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}">ห้อง ${String(room).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</option>`)).join('');
     const form = `
       <div class="text-left space-y-3 text-sm">
@@ -15587,11 +15414,11 @@ window.renderAdminStudentList = function() {
     let roomFilter = document.getElementById('admin-filter-room')?.value || 'all';
     let tbody = document.getElementById('admin-student-list-body');
     if(!tbody) return;
-    const canManageScores = currentUserRole === 'leader';
+    const canManageScores = sssfnCanDeleteScoreHistoryV1555_();
     const bulkToolbar = document.getElementById('admin-score-bulk-toolbar');
     const clearAllButton = document.getElementById('admin-score-clear-all');
     if (bulkToolbar) bulkToolbar.classList.toggle('hidden', !canManageScores);
-    if (clearAllButton) clearAllButton.classList.toggle('hidden', currentUserRole !== 'leader');
+    if (clearAllButton) clearAllButton.classList.toggle('hidden', !sssfnCanDeleteScoreHistoryV1555_());
     const negativeCleanupButton = document.getElementById('admin-score-negative-cleanup');
     if (negativeCleanupButton) negativeCleanupButton.classList.toggle('hidden', currentUserRole !== 'leader');
     const bulkSelect = document.getElementById('admin-score-select-visible');
