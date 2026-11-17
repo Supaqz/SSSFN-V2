@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.6.8-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
+<!-- SSSFN v15.6.11-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
 <!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
 <!-- SSSFN v15.6.4-local: system-generated payment/activity/score alerts and Thai-date report fixes; based on v15.6.3-local -->
 <!-- SSSFN v15.6.3-local: executive dashboard and date-filtered Excel/PDF report; based on v15.6.2-local -->
@@ -429,6 +429,7 @@
             <button onclick="openPublicSlipModal()" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition flex items-center gap-3 shadow-sm"><i class="far fa-paper-plane text-lg w-5 text-center"></i> สแกน & แนบสลิปโอนเงิน</button>
             <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('voting')" id="nav-voting" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-poll text-lg w-5 text-center text-sky-500"></i> กระดานโหวตห้องเรียน <span id="badge-voting" class="ml-auto bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>
+            <button onclick="switchPage('student-card')" id="nav-student-card" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition flex items-center gap-3"><i class="fas fa-id-card text-lg w-5 text-center text-blue-600"></i> บัตรนักศึกษา SSSFN</button>
             <button onclick="switchPage('my-points')" id="nav-my-points" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-star text-lg w-5 text-center text-indigo-500"></i> คะแนนสะสมของฉัน</button>
             <button onclick="switchPage('course-documents')" id="nav-course-documents" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-folder-open text-lg w-5 text-center text-indigo-500"></i> คลังเอกสารรายวิชา</button>
             <button onclick="switchPage('notifications')" id="nav-notifications" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition flex items-center gap-3"><i class="fas fa-bell text-lg w-5 text-center text-sky-500"></i> แจ้งเตือน <span id="notification-unread-badge-v1562" class="hidden ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">0</span></button>
@@ -1988,6 +1989,34 @@
                 </section>
             </div>
 
+
+            <div id="page-student-card" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-4xl mx-auto space-y-5">
+                <section class="rounded-3xl border border-blue-100 bg-white p-4 md:p-6 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div><h2 class="text-xl font-extrabold text-slate-800"><i class="fas fa-id-card mr-2 text-blue-600"></i>บัตรนักศึกษา SSSFN</h2><p class="mt-1 text-xs text-slate-500">ใช้ QR นี้ให้เจ้าหน้าที่สแกนเพื่อยืนยันตัวตนและเช็กชื่อเข้าร่วมกิจกรรม</p></div>
+                        <span class="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><i class="fas fa-shield-alt mr-1"></i> QR ปลอดภัยแบบ Dynamic</span>
+                    </div>
+                    <div class="mx-auto max-w-xl overflow-hidden rounded-3xl bg-[#102B50] text-white shadow-xl">
+                        <div class="p-5 md:p-6">
+                            <div class="flex items-center justify-between gap-3"><div><p class="text-lg font-black tracking-wide">SSSFN STUDENT ID</p><p class="text-[10px] tracking-[.22em] text-blue-200">DIGITAL STUDENT CARD</p></div><i class="fas fa-graduation-cap text-3xl text-blue-200"></i></div>
+                            <div class="mt-5 flex items-center gap-4">
+                                <div class="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-white/30 bg-white/10 flex items-center justify-center"><img id="student-card-photo-v1569" class="hidden h-full w-full object-cover" alt="รูปนักศึกษา"><i id="student-card-photo-fallback-v1569" class="fas fa-user-graduate text-4xl text-blue-100"></i></div>
+                                <div class="min-w-0 flex-1"><p id="student-card-name-v1569" class="truncate text-lg font-extrabold">กำลังโหลดข้อมูล...</p><p id="student-card-id-v1569" class="mt-1 font-mono text-sm text-blue-100">-</p><p id="student-card-room-v1569" class="mt-1 text-xs text-blue-200">-</p><span class="mt-2 inline-flex rounded-full bg-emerald-400/15 px-2.5 py-1 text-[10px] font-bold text-emerald-200">บัญชีนักศึกษาที่ผ่านการยืนยัน</span></div>
+                            </div>
+                        </div>
+                        <div class="border-t border-white/15 bg-white p-5 text-slate-800">
+                            <div class="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="text-center sm:text-left"><p class="text-sm font-extrabold">QR ประจำตัวนักศึกษา</p><p class="mt-1 text-[11px] text-slate-500">แสดง QR ล่าสุดให้เจ้าหน้าที่สแกน</p><p id="student-card-countdown-v1569" class="mt-2 text-xs font-bold text-blue-700">กำลังออก QR...</p></div>
+                                <div class="flex h-44 w-44 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2 shadow-inner"><canvas id="student-card-qr-canvas-v1569" width="220" height="220" class="max-h-full max-w-full"></canvas><div id="student-card-qr-loading-v1569" class="text-center text-xs text-slate-400"><i class="fas fa-spinner fa-spin mb-2 text-xl"></i><br>กำลังสร้าง QR</div></div>
+                            </div>
+                            <div class="mt-4 flex flex-wrap justify-center gap-2"><button type="button" onclick="refreshStudentCardQrV1569_(true)" class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700"><i class="fas fa-sync-alt mr-1"></i> ออก QR ใหม่</button><button type="button" onclick="switchPage('home')" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">กลับหน้าหลัก</button></div>
+                        </div>
+                    </div>
+                    <p class="mx-auto mt-4 max-w-xl text-center text-[11px] leading-relaxed text-slate-500">QR จะเปลี่ยนโดยอัตโนมัติทุก 45 วินาที ห้ามส่งภาพ QR ให้ผู้อื่นใช้แทนตัว และโปรดแสดงรูปบนบัตรให้เจ้าหน้าที่ตรวจสอบประกอบ</p>
+                    <div id="student-card-error-v1569" class="hidden mx-auto mt-4 max-w-xl rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"></div>
+                </section>
+            </div>
+
             <div id="page-my-points" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-5xl mx-auto space-y-5">
     <div class="rounded-3xl bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
         <i class="fas fa-star absolute -right-3 -top-4 text-8xl opacity-10"></i>
@@ -3398,7 +3427,7 @@ async function autoSyncToGS(showStatus = false) {
                 : 'Firebase บันทึกเฉพาะรายการที่เปลี่ยนแล้ว • แจ้งอุปกรณ์อื่นผ่าน Pusher • สำรองชีตเบื้องหลัง',
             showConfirmButton: false, timer: 2600
         });
-        return { status: 'success', changedRecords: Number(result.changedRecords) || 0, realtimeEventId: result.realtimeEventId || '', storageMode: savedMode };
+        return { status: 'success', changedRecords: Number(result.changedRecords) || 0, realtimeEventId: result.realtimeEventId || '', storageMode: savedMode, sheetBackupStatus: result.sheetBackupStatus || 'not-required', sheetBackupMessage: result.sheetBackupMessage || '' };
     } catch (error) {
         saveFailed = true;
         hasLocalChanges = true;
@@ -4601,6 +4630,11 @@ function switchPage(pageId) {
         if (typeof showToast === 'function') showToast('กรุณาเข้าสู่ระบบนักศึกษาด้วย Google ก่อนดูคะแนนสะสม', 'warning');
         pageId = 'home';
     }
+    if (pageId === 'student-card' && !(currentUserRole === 'guest' && window.currentGuestStuId && window.currentStudentAuthToken)) {
+        if (typeof showToast === 'function') showToast('บัตรนักศึกษาจะแสดงเมื่อเข้าสู่ระบบนักศึกษาด้วย Google แล้วเท่านั้น', 'warning');
+        pageId = 'home';
+    }
+    if (currentView === 'student-card' && pageId !== 'student-card' && typeof stopStudentCardQrTimerV1569_ === 'function') stopStudentCardQrTimerV1569_();
     currentView = pageId;
     if (pageId === 'fin-expense' && typeof closeExpenseEntryForm === 'function') closeExpenseEntryForm();
     // v15.4.3: students enter the registration page on the public activity list.
@@ -4640,6 +4674,7 @@ function switchPage(pageId) {
     // (เพิ่ม 2 บรรทัดนี้ต่อท้าย if-else ชุดที่เช็คชื่อหน้าในฟังก์ชัน switchPage)
     else if (pageId === 'leaderboard') { titleText = 'กระดานผู้นำ (Leaderboard)'; titleIcon = '<i class="fas fa-trophy mr-2 text-amber-500"></i>'; }
     else if (pageId === 'my-points') { titleText = 'คะแนนสะสมของฉัน'; titleIcon = '<i class="fas fa-star mr-2 text-indigo-500"></i>'; }
+    else if (pageId === 'student-card') { titleText = 'บัตรนักศึกษา SSSFN'; titleIcon = '<i class="fas fa-id-card mr-2 text-blue-600"></i>'; if (typeof loadStudentCardV1569_ === 'function') loadStudentCardV1569_(); }
     else if (pageId === 'course-documents') { titleText = 'คลังเอกสารรายวิชา'; titleIcon = '<i class="fas fa-folder-open mr-2 text-indigo-500"></i>'; if (typeof loadCourseDocumentsV1_ === 'function') loadCourseDocumentsV1_(); }
     else if (pageId === 'notifications') { titleText = 'ศูนย์แจ้งเตือน'; titleIcon = '<i class="fas fa-bell mr-2 text-sky-500"></i>'; }
     else if (pageId === 'reports') { titleText = 'Dashboard ผู้บริหาร'; titleIcon = '<i class="fas fa-chart-line mr-2 text-emerald-500"></i>'; }
@@ -4762,6 +4797,8 @@ function switchPage(pageId) {
     const isGuest = (role === 'guest');
     const myPointsNav = document.getElementById('nav-my-points');
     if (myPointsNav) myPointsNav.classList.toggle('hidden', !(isGuest && !!window.currentGuestStuId && !!window.currentStudentAuthToken));
+    const studentCardNav = document.getElementById('nav-student-card');
+    if (studentCardNav) studentCardNav.classList.toggle('hidden', !(isGuest && !!window.currentGuestStuId && !!window.currentStudentAuthToken));
     const notificationsNav = document.getElementById('nav-notifications');
     if (notificationsNav) notificationsNav.classList.toggle('hidden', !(!!window.currentAuthToken || !!window.currentStudentAuthToken));
     const announcementForm = document.getElementById('announcement-form-v1562');
@@ -5227,6 +5264,7 @@ function showStudentSelectionModal(stu) {
 }
 
 function guestLogout() {
+    if (typeof stopStudentCardQrTimerV1569_ === 'function') stopStudentCardQrTimerV1569_();
     // Clear both student and staff credentials, then return to the login-choice landing page.
     window.currentGuestStuId = null;
     window.currentStudentAuthToken = '';
@@ -8025,7 +8063,7 @@ function stopWebcamScanner() {
 }
 
 // ตัวประมวลผลการสแกน (หัวใจหลักของความถูกต้องและการบังคับสถานะ P)
-window.executeScanLogic = function(barcode, actTitle) {
+window.executeScanLogic = function(barcode, actTitle, studentCardToken) {
     if (!currentMasterActivity) return;
     
     // ตรวจสอบว่ากิจกรรมเปิดใช้งานหรือไม่
@@ -8052,10 +8090,26 @@ window.executeScanLogic = function(barcode, actTitle) {
         });
     }
 
-    // ค้นหานักศึกษาในฐานข้อมูล
+    // SSSFN v15.6.9: recognize the opaque Dynamic Student ID QR in the existing scanner.
+    if (!studentCardToken && /^SSSFN-ID1\.[A-Za-z0-9_-]{40,100}$/.test(stuId)) {
+        if (window._sssfnStudentCardScanBusyV1569_) return;
+        window._sssfnStudentCardScanBusyV1569_ = true;
+        callBackend({action:'resolveStudentCardQrV1569',cardToken:stuId}).then(result => {
+            if (!result || result.status !== 'success' || !result.studentId) {
+                window._sssfnStudentCardScanBusyV1569_ = false;
+                return Swal.fire({icon:'error',title:'ตรวจสอบบัตรไม่สำเร็จ',text:(result && result.message) || 'QR บัตรนักศึกษาไม่ถูกต้องหรือหมดอายุ',confirmButtonColor:'#2563eb'});
+            }
+            window.executeScanLogic(result.studentId, actTitle, stuId);
+        }).catch(error => {
+            window._sssfnStudentCardScanBusyV1569_ = false;
+            Swal.fire({icon:'error',title:'ตรวจสอบบัตรไม่สำเร็จ',text:String(error && error.message || error),confirmButtonColor:'#2563eb'});
+        });
+        return;
+    }
     let cleanId = formatIdSearch(stuId).replace(/-/g, '');
     let stu = students.find(s => s.id.replace(/-/g, '') === cleanId || s.id === stuId);
     if (!stu) {
+        if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false;
         return Swal.fire({
             icon: 'error',
             title: 'ไม่พบข้อมูลนักศึกษา',
@@ -8073,7 +8127,7 @@ window.executeScanLogic = function(barcode, actTitle) {
 
     // ตรวจสอบตัวเลือกการแสดงผลและ Auto-Confirm
     let showInfo = (document.getElementById('show-student-data') || document.getElementById('hw-show-info'))?.checked !== false;
-    let showPhoto = (document.getElementById('show-profile-image') || document.getElementById('hw-show-photo'))?.checked;
+    let showPhoto = studentCardToken ? true : (document.getElementById('show-profile-image') || document.getElementById('hw-show-photo'))?.checked;
     let autoConfirm = (document.getElementById('enable-auto-confirm') || document.getElementById('hw-auto-confirm'))?.checked;
     let autoConfirmSec = parseInt((document.getElementById('auto-confirm-seconds') || document.getElementById('hw-confirm-seconds'))?.value) || 3;
 
@@ -8089,6 +8143,7 @@ window.executeScanLogic = function(barcode, actTitle) {
             title: '<div class="text-left font-bold text-slate-900 text-lg leading-tight">ยืนยันข้อมูลนักศึกษา</div><div class="text-left text-xs text-slate-500 font-normal mt-1">กรุณาตรวจสอบข้อมูลนักศึกษาและวิทยาเขตให้ถูกต้องก่อนทำการบันทึกเข้ากิจกรรม</div>',
             html: `
                 <div class="space-y-3 text-left font-sans mt-3">
+                    ${studentCardToken ? '<div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"><i class="fas fa-shield-check mr-1"></i>ตรวจสอบ QR บัตรนักศึกษาผ่านแล้ว</div>' : ''}
                     <!-- ข้อมูลนักศึกษา -->
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                         ${showPhoto && stu.photo ? `
@@ -8175,12 +8230,12 @@ window.executeScanLogic = function(barcode, actTitle) {
             }
         }).then(result => {
             if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-                confirmScan(stu.id, selectedRound);
-            }
+                confirmScan(stu.id, selectedRound, studentCardToken).finally(() => { if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false; });
+            } else if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false;
         });
     } else {
         // บันทึกทันทีโดยไม่แสดงพรีวิว
-        confirmScan(stu.id, selectedRound);
+        confirmScan(stu.id, selectedRound, studentCardToken).finally(() => { if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false; });
     }
 };
 
@@ -8212,7 +8267,7 @@ function applyServerConfirmedCheckinV15441_(record) {
     if (typeof renderCheckinMapDisplay === 'function' && currentMasterActivity && currentMasterActivity.title === record.activityTitle) renderCheckinMapDisplay();
     if (typeof renderMasterRoundsTable === 'function' && currentMasterActivity && currentMasterActivity.title === record.activityTitle) renderMasterRoundsTable();
 }
-window.confirmScan = async function(stuId, roundName) {
+window.confirmScan = async function(stuId, roundName, studentCardToken) {
     if (!currentMasterActivity) return showToast('ไม่พบกิจกรรมที่กำลังจัดการ', 'error');
     const stu = students.find(s => String(s.id || '').replace(/-/g,'') === String(stuId || '').replace(/-/g,'')) || { id:stuId, name:stuId };
     const requestId = sssfnCreateIdempotencyKeyV15441_();
@@ -8220,7 +8275,8 @@ window.confirmScan = async function(stuId, roundName) {
     const result = await callBackend({
         action:'atomicActivityCheckinV15441', mode:'staff', studentId:stu.id,
         activityRef:String(currentMasterActivity.ref || currentMasterActivity.id || currentMasterActivity.title),
-        activityTitle:currentMasterActivity.title, roundName:String(roundName || ''), idempotencyKey:requestId
+        activityTitle:currentMasterActivity.title, roundName:String(roundName || ''), idempotencyKey:requestId,
+        ...(studentCardToken ? {studentCardToken:String(studentCardToken)} : {})
     });
     if (!result || result.status !== 'success') {
         if (result && result.status === 'duplicate') return Swal.fire({icon:'info',title:'เช็กชื่อรายการนี้แล้ว',text:result.message || 'นักศึกษาคนนี้มีรายการเช็กชื่อในรอบนี้อยู่แล้ว',confirmButtonColor:'#2563eb'}).then(()=>{const input=document.getElementById('hw-input-focus');if(input){input.value='';input.focus();}});
@@ -12203,25 +12259,50 @@ window.addStudentAlert = function() {
     });
 }
 
-window.deleteStudent = function(id) {
-    let stu = students.find(s => s.id === id);
-    if(!stu) return;
-
-    Swal.fire({
-        title: `ลบรายชื่อนักศึกษา?`,
-        html: `<p>คุณต้องการลบ <b>${stu.name}</b> (เลขที่ ${stu.number}) ออกจากระบบใช่หรือไม่?</p><p class="text-xs text-rose-500 mt-2">* ระบบจะเลื่อนเลขที่คนต่อๆ ไปขึ้นมาอุดรอยรั่วให้อัตโนมัติ</p>`,
-        icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ลบทิ้ง', cancelButtonText: 'ยกเลิก'
-    }).then(res => {
-        if (res.isConfirmed) {
-            let room = stu.room; let num = stu.number;
-            students = students.filter(s => s.id !== id);
-            shiftNumbersOnDelete(room, num); // 🌟 สั่งดึงเลขที่ขึ้นมาอุดรอยรั่ว
-            
-            txHistory.unshift({ date: getNow(), name: `ลบนักศึกษา: ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
-            saveToLocal(true); refreshAll();
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'ลบและจัดเรียงเลขที่ใหม่แล้ว', showConfirmButton:false, timer:1500});
-        }
+window.deleteStudent = async function(id) {
+    if (!['leader','vice'].includes(String(currentUserRole || ''))) {
+        return showToast('เฉพาะหัวหน้าและรองหัวหน้าเท่านั้นที่ลบรายชื่อนักศึกษาได้', 'warning');
+    }
+    const stu = students.find(s => String(s.id) === String(id));
+    if (!stu) return;
+    const result = await Swal.fire({
+        title: 'ลบรายชื่อนักศึกษา?',
+        html: `<p>ต้องการลบ <b>${String(stu.name || '').replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]))}</b> (เลขที่ ${Number(stu.number) || '-'}) ออกจากทะเบียนใช่หรือไม่?</p><p class="text-xs text-rose-600 mt-2">ระบบจะลบรายชื่อจาก Firebase และ Google Sheets พร้อมจัดเลขที่ในห้องเดิมใหม่ให้ต่อเนื่อง</p><p class="text-xs text-slate-500 mt-1">หลักฐานการเงินและประวัติเดิมจะไม่ถูกลบตาม</p>`,
+        icon: 'warning', showCancelButton: true, confirmButtonColor: '#e11d48', confirmButtonText: 'ยืนยันลบรายชื่อ', cancelButtonText: 'ยกเลิก'
     });
+    if (!result.isConfirmed) return;
+
+    const previousStudents = cloneRealtimeValue_(students);
+    const previousTxHistory = cloneRealtimeValue_(txHistory);
+    const previousCache = (() => { try { return localStorage.getItem('SSSfnDB'); } catch (_) { return null; } })();
+    const room = stu.room;
+    const deletedNumber = Number(stu.number) || 0;
+    students = students.filter(s => String(s.id) !== String(id));
+    shiftNumbersOnDelete(room, deletedNumber);
+    txHistory.unshift({ date: getNow(), name: `ลบนักศึกษา: ${stu.name}`, type: 'ระบบ', amt: 0, user: currentUsername });
+    saveToLocal(false);
+    refreshAll();
+
+    try {
+        const saved = await autoSyncToGS(true);
+        if (!saved || saved.status !== 'success') throw new Error(saved && saved.message || 'ไม่สามารถบันทึกการลบรายชื่อได้');
+        const sheetPending = saved.sheetBackupStatus === 'pending';
+        Swal.fire({
+            toast: true, position: 'top-end', icon: sheetPending ? 'warning' : 'success',
+            title: sheetPending ? 'ลบจากฐานหลักแล้ว รอสำรองลงชีต' : 'ลบรายชื่อและจัดเลขที่ใหม่แล้ว',
+            text: sheetPending ? 'ระบบจะพยายามซิงก์ Google Sheets อีกครั้งโดยอัตโนมัติ' : 'อัปเดต Firebase และ Google Sheets แล้ว',
+            showConfirmButton: false, timer: 2600
+        });
+        return saved;
+    } catch (error) {
+        students = previousStudents;
+        txHistory = previousTxHistory;
+        saveToLocal(false);
+        refreshAll();
+        if (previousCache !== null) { try { localStorage.setItem('SSSfnDB', previousCache); } catch (_) {} }
+        await Swal.fire('ลบรายชื่อไม่สำเร็จ', String(error && error.message || error), 'error');
+        return { status: 'error', message: String(error && error.message || error) };
+    }
 }
 
 window.editStudent = function(id) { 
@@ -16711,7 +16792,9 @@ function selectCourseDocumentV1_(courseId) { sssfnCourseDocStateV1_.selectedCour
 function openCourseDocCreateCourseV1_() {
   if(!sssfnCourseDocStateV1_.canCreateCourse) return;
   const isLeader=['leader','vice'].includes(currentUserRole);
-  Swal.fire({title:'เพิ่มรายวิชา',html:'<div class="text-left space-y-2"><input id="cd-course-name" class="swal2-input" placeholder="ชื่อรายวิชา"><input id="cd-course-code" class="swal2-input" placeholder="รหัสวิชา (ไม่บังคับ)"><input id="cd-course-term" class="swal2-input" placeholder="ภาคเรียน เช่น 1/2569"><textarea id="cd-course-desc" class="swal2-textarea" placeholder="คำอธิบาย (ไม่บังคับ)"></textarea>'+(isLeader?'<textarea id="cd-course-managers" class="swal2-textarea" placeholder="บัญชีผู้ดูแลรายวิชา คั่นด้วยบรรทัดใหม่หรือจุลภาค"></textarea>':'')+'</div>',showCancelButton:true,confirmButtonText:'สร้างรายวิชา',cancelButtonText:'ยกเลิก',preConfirm:()=>({name:document.getElementById('cd-course-name').value,code:document.getElementById('cd-course-code').value,term:document.getElementById('cd-course-term').value,description:document.getElementById('cd-course-desc').value,managerUsernames:document.getElementById('cd-course-managers')?.value||''})}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend(Object.assign({action:'courseDocCreateCourseV1'},r.value));if(result.status!=='success'){Swal.fire('สร้างรายวิชาไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire('สร้างรายวิชาแล้ว','','success');});
+  const field=(label,id,placeholder,required=false)=>'<label for="'+id+'" class="block text-xs font-bold text-slate-600 mb-1">'+label+(required?' <span class="text-rose-500">*</span>':'')+'</label><input id="'+id+'" '+(required?'required':'')+' placeholder="'+placeholder+'" class="w-full box-border rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">';
+  const html='<div class="text-left"><div class="rounded-2xl bg-indigo-50 border border-indigo-100 p-3 mb-4 flex gap-3 items-start"><div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0"><i class="fas fa-book-open"></i></div><div><p class="text-sm font-bold text-indigo-950">สร้างพื้นที่จัดเก็บเอกสารรายวิชา</p><p class="text-xs text-indigo-700 mt-0.5">กรอกข้อมูลพื้นฐานเพื่อให้นักศึกษาค้นหารายวิชาและเอกสารได้ง่าย</p></div></div><div class="space-y-3">'+field('ชื่อรายวิชา','cd-course-name','เช่น การจัดการฐานข้อมูล',true)+'<div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div>'+field('รหัสวิชา','cd-course-code','เช่น BIT-204')+'</div><div>'+field('ภาคเรียน / ปีการศึกษา','cd-course-term','เช่น 1/2569',true)+'</div></div><div><label for="cd-course-desc" class="block text-xs font-bold text-slate-600 mb-1">รายละเอียดรายวิชา <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label><textarea id="cd-course-desc" rows="3" placeholder="คำอธิบายหรือรายละเอียดเพิ่มเติมของรายวิชา" class="w-full box-border rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-y"></textarea></div>'+(isLeader?'<div class="rounded-xl border border-slate-200 p-3 bg-slate-50"><label for="cd-course-managers" class="block text-xs font-bold text-slate-700 mb-1"><i class="fas fa-user-shield text-indigo-500 mr-1"></i>มอบหมายผู้ดูแลรายวิชา <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label><textarea id="cd-course-managers" rows="2" placeholder="กรอก Username บัญชีละหนึ่งบรรทัด" class="w-full box-border rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-y"></textarea><p class="text-[11px] text-slate-500 mt-1">ผู้ดูแลที่ได้รับมอบหมายจัดการรายวิชาได้ แต่ไม่มีสิทธิ์อนุมัติเอกสาร</p></div>':'')+'</div></div>';
+  Swal.fire({title:'เพิ่มรายวิชา',html:html,width:620,showCancelButton:true,confirmButtonText:'<i class="fas fa-plus mr-1"></i> สร้างรายวิชา',cancelButtonText:'ยกเลิก',focusConfirm:false,buttonsStyling:false,customClass:{popup:'!rounded-3xl !p-5 sm:!p-6',title:'!text-xl !font-black !text-slate-800',htmlContainer:'!mt-3 !mx-0',actions:'!w-full !gap-2',confirmButton:'!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !px-5 !py-3 !text-sm !font-bold !text-white',cancelButton:'!rounded-xl !bg-slate-100 hover:!bg-slate-200 !px-5 !py-3 !text-sm !font-bold !text-slate-700'},preConfirm:()=>{const name=document.getElementById('cd-course-name').value.trim(),term=document.getElementById('cd-course-term').value.trim();if(!name){Swal.showValidationMessage('กรุณากรอกชื่อรายวิชา');return false;}if(!term){Swal.showValidationMessage('กรุณาระบุภาคเรียน / ปีการศึกษา');return false;}return {name:name,code:document.getElementById('cd-course-code').value.trim(),term:term,description:document.getElementById('cd-course-desc').value.trim(),managerUsernames:document.getElementById('cd-course-managers')?.value||''};}}).then(async r=>{if(!r.isConfirmed)return;Swal.fire({title:'กำลังสร้างรายวิชา',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});try{const result=await callBackend(Object.assign({action:'courseDocCreateCourseV1'},r.value));if(result.status!=='success'){Swal.fire('สร้างรายวิชาไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire({icon:'success',title:'สร้างรายวิชาเรียบร้อย',text:'สามารถเริ่มส่งเอกสารเข้าคลังรายวิชานี้ได้แล้ว',timer:1800,showConfirmButton:false});}catch(error){Swal.fire('สร้างรายวิชาไม่สำเร็จ',String(error&&error.message||error),'error');}});
 }
 function openCourseDocGlobalManagersV1_() {
   if(!sssfnCourseDocStateV1_.canManageGlobalManagers) return;
@@ -16788,6 +16871,88 @@ async function openCourseDocPreviewV1_(documentId, version) {
 }
 function downloadCourseDocCurrentV1_(){const p=sssfnCourseDocStateV1_.currentPreview;if(!p)return;const a=document.createElement('a');a.href=sssfnCourseDocStateV1_.previewUrl;a.download=p.fileName||'document';document.body.appendChild(a);a.click();a.remove();}
 function closeCourseDocPreviewV1_(){const modal=document.getElementById('course-doc-preview-modal');modal.classList.add('hidden');modal.classList.remove('flex');if(sssfnCourseDocStateV1_.previewUrl){URL.revokeObjectURL(sssfnCourseDocStateV1_.previewUrl);sssfnCourseDocStateV1_.previewUrl='';}sssfnCourseDocStateV1_.currentPreview=null;}
+
+
+
+// SSSFN v15.6.9: Digital Student ID — dynamic QR card view.
+window._sssfnStudentCardQrTimerV1569_ = null;
+window._sssfnStudentCardQrExpiryV1569_ = 0;
+window._sssfnStudentCardQrNextRetryV1569_ = 0;
+window._sssfnStudentCardQrBusyV1569_ = false;
+window.stopStudentCardQrTimerV1569_ = function() {
+    if (window._sssfnStudentCardQrTimerV1569_) clearInterval(window._sssfnStudentCardQrTimerV1569_);
+    window._sssfnStudentCardQrTimerV1569_ = null;
+};
+window.loadStudentCardV1569_ = async function() {
+    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !window.currentGuestStuId) {
+        showToast('กรุณาเข้าสู่ระบบนักศึกษาด้วย Google ก่อนเปิดบัตร', 'warning');
+        return;
+    }
+    const clean = value => String(value || '').replace(/-/g,'').trim();
+    const student = (students || []).find(item => clean(item.id) === clean(window.currentGuestStuId));
+    const nameEl = document.getElementById('student-card-name-v1569');
+    const idEl = document.getElementById('student-card-id-v1569');
+    const roomEl = document.getElementById('student-card-room-v1569');
+    const photoEl = document.getElementById('student-card-photo-v1569');
+    const fallbackEl = document.getElementById('student-card-photo-fallback-v1569');
+    if (!student) {
+        const errorEl = document.getElementById('student-card-error-v1569');
+        if (errorEl) { errorEl.textContent = 'ไม่พบข้อมูลนักศึกษาในข้อมูลที่โหลด กรุณากดดึงข้อมูลหรือเข้าสู่ระบบใหม่'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (nameEl) nameEl.textContent = String(student.name || 'นักศึกษา');
+    if (idEl) idEl.textContent = 'รหัสนักศึกษา ' + String(student.id || window.currentGuestStuId);
+    if (roomEl) roomEl.textContent = 'ห้อง ' + String(student.room || '-') + (student.program || student.degree ? ' • ' + String(student.program || student.degree) : '');
+    const photo = String(student.photo || student.photoUrl || student.image || '').trim();
+    if (photoEl && fallbackEl) {
+        if (photo) {
+            photoEl.onerror = () => { photoEl.classList.add('hidden'); fallbackEl.classList.remove('hidden'); };
+            photoEl.onload = () => { photoEl.classList.remove('hidden'); fallbackEl.classList.add('hidden'); };
+            photoEl.src = photo;
+        } else { photoEl.removeAttribute('src'); photoEl.classList.add('hidden'); fallbackEl.classList.remove('hidden'); }
+    }
+    const errorEl = document.getElementById('student-card-error-v1569');
+    if (errorEl) errorEl.classList.add('hidden');
+    await refreshStudentCardQrV1569_(false);
+    if (!window._sssfnStudentCardQrTimerV1569_) {
+        window._sssfnStudentCardQrTimerV1569_ = setInterval(() => {
+            const left = Math.max(0, Math.ceil((window._sssfnStudentCardQrExpiryV1569_ - Date.now()) / 1000));
+            const timerEl = document.getElementById('student-card-countdown-v1569');
+            if (timerEl) timerEl.textContent = left > 0 ? 'QR หมดอายุใน ' + left + ' วินาที' : 'QR หมดอายุ กำลังออก QR ใหม่...';
+            if (left <= 2 && Date.now() >= Number(window._sssfnStudentCardQrNextRetryV1569_ || 0) && !window._sssfnStudentCardQrBusyV1569_) refreshStudentCardQrV1569_(false);
+        }, 1000);
+    }
+};
+window.refreshStudentCardQrV1569_ = async function(force) {
+    if (window._sssfnStudentCardQrBusyV1569_) return;
+    if (!window.currentStudentAuthToken || currentUserRole !== 'guest') return;
+    if (!force && window._sssfnStudentCardQrExpiryV1569_ - Date.now() > 5000) return;
+    window._sssfnStudentCardQrBusyV1569_ = true;
+    const loading = document.getElementById('student-card-qr-loading-v1569');
+    const canvas = document.getElementById('student-card-qr-canvas-v1569');
+    const errorEl = document.getElementById('student-card-error-v1569');
+    const timerEl = document.getElementById('student-card-countdown-v1569');
+    if (loading) loading.classList.remove('hidden');
+    if (canvas) canvas.classList.add('hidden');
+    try {
+        const result = await callBackend({action:'issueStudentCardQrV1569'});
+        if (!result || result.status !== 'success' || !result.token || !Number(result.expiresAt)) throw new Error((result && result.message) || 'เซิร์ฟเวอร์ไม่สามารถออก QR บัตรนักศึกษาได้');
+        if (typeof QRious === 'undefined' || !canvas) throw new Error('ไม่พบไลบรารีสร้าง QR Code กรุณาโหลดหน้าเว็บใหม่');
+        new QRious({element:canvas,value:String(result.token),size:220,level:'H',padding:8});
+        window._sssfnStudentCardQrExpiryV1569_ = Number(result.expiresAt);
+        window._sssfnStudentCardQrNextRetryV1569_ = 0;
+        if (loading) loading.classList.add('hidden');
+        canvas.classList.remove('hidden');
+        if (timerEl) timerEl.textContent = 'QR หมดอายุใน 45 วินาที';
+        if (errorEl) errorEl.classList.add('hidden');
+    } catch (error) {
+        if (loading) loading.classList.add('hidden');
+        if (errorEl) { errorEl.textContent = String(error && error.message || error); errorEl.classList.remove('hidden'); }
+        if (timerEl) timerEl.textContent = 'ไม่สามารถออก QR ได้';
+        window._sssfnStudentCardQrExpiryV1569_ = 0;
+        window._sssfnStudentCardQrNextRetryV1569_ = Date.now() + 15000;
+    } finally { window._sssfnStudentCardQrBusyV1569_ = false; }
+};
 
 </script>
 
