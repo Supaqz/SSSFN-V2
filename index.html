@@ -1,3 +1,4 @@
+<!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
 <!DOCTYPE html>
 <!-- SSSFN v15.6.11-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
 <!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
@@ -439,11 +440,10 @@
             <div id="menu-group-admin" class="hidden pt-4 mt-4 border-t border-slate-200">
                 <p class="px-3 text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">เครื่องมือผู้ดูแล</p>
                 <button onclick="switchPage('fin-fund')" id="nav-fin-fund" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-piggy-bank text-lg w-5 text-center"></i> จัดการการเงิน</button>
-                <button onclick="switchPage('fin-history')" id="nav-fin-history" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-clipboard-check text-lg w-5 text-center text-indigo-500"></i> Audit Log</button>
-                <button onclick="switchPage('reports')" id="nav-reports-v1563" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition flex items-center gap-3"><i class="fas fa-chart-line text-lg w-5 text-center text-emerald-500"></i> Dashboard ผู้บริหาร</button>
+                <button onclick="switchPage('fin-history')" id="nav-fin-history" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-clipboard-check text-lg w-5 text-center text-indigo-500"></i> ประวัติการเงิน</button>
                 <!-- 🌟 เพิ่มเมนู รายชื่อ & คะแนนสะสม 🌟 -->
                 <button onclick="switchPage('admin-students'); renderAdminStudentList();" id="nav-admin-students" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-user-graduate text-lg w-5 text-center"></i> รายชื่อ & คะแนนสะสม</button>
-                <button onclick="openStudentEmailLinkRequestsV15433_()" id="nav-email-link-requests" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-envelope-circle-check text-lg w-5 text-center text-indigo-500"></i> คำขอผูกอีเมล <span id="student-email-link-request-count" class="ml-auto bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ตรวจสอบ</span></button>
+                <button onclick="openStudentEmailLinkRequestsV15433_()" id="nav-email-link-requests" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-envelope-circle-check text-lg w-5 text-center text-indigo-500"></i> คำขอผูกอีเมล <span id="student-email-link-request-count" class="hidden ml-auto bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full" aria-label="จำนวนคำขอผูกอีเมลที่รอตรวจสอบ">0</span></button>
                 <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
                 <button onclick="switchPage('admin-db')" id="nav-admin-db" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-database text-lg w-5 text-center"></i> ฐานข้อมูล นศ.</button>
                 <button onclick="switchPage('admin-users')" id="nav-admin-users" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-users-cog text-lg w-5 text-center"></i> สิทธิ์ผู้ใช้</button>
@@ -1406,7 +1406,7 @@
   <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
     <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
       <div class="relative flex-1"><i class="fas fa-search absolute left-3 top-3 text-slate-400"></i><input id="course-doc-search" oninput="renderCourseDocumentsV1_()" class="w-full border border-slate-200 rounded-xl py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="ค้นหารายวิชา ชื่อเอกสาร หรือหมวดหมู่"></div>
-      <select id="course-doc-term-filter" onchange="renderCourseDocumentsV1_()" class="border border-slate-200 rounded-xl py-2.5 px-3 text-sm bg-white"><option value="">ทุกภาคเรียน</option></select>
+      <div id="course-doc-term-filter" class="flex flex-wrap gap-2 items-center" aria-label="ตัวกรองภาคเรียน"><button type="button" data-term="" onclick="setCourseDocTermFilterV1_(this.dataset.term)" class="course-doc-term-chip px-3 py-2 rounded-xl text-xs font-bold border border-indigo-600 bg-indigo-600 text-white">ทั้งหมด</button></div>
       <button onclick="loadCourseDocumentsV1_()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold"><i class="fas fa-sync-alt mr-1"></i> รีเฟรช</button>
     </div>
   </section>
@@ -1415,7 +1415,7 @@
     <div id="course-doc-course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="col-span-full text-center py-8 text-slate-400 text-sm">กำลังโหลดรายวิชา...</div></div>
   </section>
   <section id="course-doc-selected-section" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-    <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p class="text-xs text-slate-400 font-bold">เอกสารในรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div><div class="flex gap-2"><button id="course-doc-btn-course-managers" onclick="openCourseDocCourseManagersV1_()" class="hidden px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">จัดการผู้ดูแลวิชา</button><button onclick="openCourseDocUploadV1_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มเอกสาร</button></div></div>
+    <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p class="text-xs text-slate-400 font-bold">เอกสารในรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div><div class="flex gap-2"><button onclick="openCourseDocUploadV1_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มเอกสาร</button></div></div>
     <div id="course-doc-list" class="divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">เลือกวิชาเพื่อดูเอกสาร</div></div>
   </section>
   <section id="course-doc-review-section" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5">
@@ -1883,28 +1883,12 @@
             <div id="page-fin-history" class="page-view hidden max-w-4xl mx-auto">
                 <div class="bg-white rounded-2xl border shadow-sm flex flex-col">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center gap-2 flex-wrap">
-                        <h3 class="font-bold text-slate-800"><i class="fas fa-history text-slate-500"></i> ประวัติระบบทั้งหมด (Audit Log)</h3>
+                        <h3 class="font-bold text-slate-800"><i class="fas fa-history text-slate-500"></i> ประวัติรายการการเงิน</h3>
                         <select id="hist-user-filter" onchange="renderFinHistory()" class="p-1.5 border rounded-lg text-sm font-bold text-slate-700 outline-none hidden w-full md:w-auto"></select>
                     </div>
                     <div class="overflow-x-auto"><table class="w-full min-w-[660px] text-left text-sm" id="fin-hist-table"><thead class="bg-white border-b text-slate-600 font-bold whitespace-nowrap text-xs"><tr><th class="p-3.5 whitespace-nowrap min-w-[120px]">วัน/เวลา</th><th class="p-3.5 whitespace-nowrap min-w-[200px]">รายการ/ชื่อ</th><th class="p-3.5 text-center whitespace-nowrap min-w-[100px]">ประเภท</th><th class="p-3.5 text-right whitespace-nowrap min-w-[110px]">จำนวน</th><th class="p-3.5 text-center whitespace-nowrap min-w-[90px]">จัดการ</th></tr></thead><tbody id="fin-hist-list"></tbody></table></div>
                 </div>
-                <section class="bg-white rounded-2xl border shadow-sm mt-5 p-4">
-                    <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
-                        <div><h3 class="font-bold text-slate-800">Audit การเปลี่ยนแปลง</h3><p class="text-xs text-slate-500">แสดง Before/After สำหรับรายการที่ผ่านเส้นทางบันทึกมาตรฐาน; บางงานเฉพาะทางอาจยังไม่อยู่ใน Audit</p></div>
-                        <button type="button" onclick="loadAuditEventsV1560_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">โหลด Audit</button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3">
-                        <input id="audit-filter-actor" class="p-2 border rounded-lg text-sm" placeholder="ผู้ดำเนินการ">
-                        <input id="audit-filter-search" class="p-2 border rounded-lg text-sm" placeholder="ค้นหาประเภท/รายการ">
-                        <select id="audit-filter-collection" class="p-2 border rounded-lg text-sm"><option value="">ทุกประเภทข้อมูล</option><option value="students">นักศึกษา</option><option value="fundRounds">รอบเรียกเก็บ</option><option value="fundPayments">การชำระเงิน</option><option value="expenses">รายจ่าย</option><option value="txHistory">ประวัติ/คะแนน</option><option value="activityLogs">กิจกรรม</option><option value="timeLogs">เช็กชื่อ</option><option value="users">บัญชีผู้ใช้</option></select>
-                        <input id="audit-filter-from" type="date" class="p-2 border rounded-lg text-sm" aria-label="ตั้งแต่วันที่">
-                        <input id="audit-filter-to" type="date" class="p-2 border rounded-lg text-sm" aria-label="ถึงวันที่">
-                        <button type="button" onclick="loadAuditEventsV1560_()" class="px-3 py-2 rounded-lg border text-slate-700 text-xs font-bold">ค้นหา</button>
-                    </div>
-                    <p id="audit-events-status" class="text-xs text-slate-500 mb-2" aria-live="polite">กด “โหลด Audit” เพื่อดึงข้อมูล</p>
-                    <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-xs"><thead class="bg-slate-50 text-slate-600"><tr><th class="p-2">เวลา</th><th class="p-2">ผู้ดำเนินการ</th><th class="p-2">รายการ</th><th class="p-2">การทำงาน</th><th class="p-2">Before / After</th></tr></thead><tbody id="audit-events-list"></tbody></table></div>
-                    <div class="text-right mt-2"><button id="audit-events-next" type="button" onclick="loadAuditEventsV1560_(true)" class="hidden px-3 py-2 rounded-lg border text-xs font-bold">หน้าถัดไป</button></div>
-                </section>
+
             </div>
 
             <div id="page-admin-db" class="page-view hidden max-w-5xl mx-auto">
@@ -1962,15 +1946,7 @@
                 </div>
             </div>
 
-            <div id="page-reports" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-6xl mx-auto space-y-5">
-                <section class="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
-                    <div class="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 class="text-xl font-extrabold text-slate-800"><i class="fas fa-chart-line mr-2 text-emerald-600"></i>Dashboard ผู้บริหาร</h2><p class="mt-1 text-xs text-slate-500">ภาพรวมจากข้อมูลล่าสุดที่โหลดในระบบ ตัวเลขการเงินใช้สูตรสรุปบัญชีเดิม</p></div><div class="flex gap-2"><button onclick="renderExecutiveDashboardV1563_()" class="rounded-xl border px-3 py-2 text-xs font-bold text-slate-600"><i class="fas fa-rotate-right mr-1"></i>คำนวณใหม่</button><button onclick="exportExecutiveReportV1563_()" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><i class="fas fa-file-excel mr-1"></i>Excel</button><button onclick="window.print()" class="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-white"><i class="fas fa-file-pdf mr-1"></i>พิมพ์ / PDF</button></div></div>
-                    <div class="mb-4 flex flex-wrap items-end gap-2 rounded-2xl bg-slate-50 p-3"><label class="text-xs font-semibold text-slate-600">ตั้งแต่ <input id="report-from-v1563" type="date" class="ml-1 rounded-lg border bg-white px-2 py-1.5"></label><label class="text-xs font-semibold text-slate-600">ถึง <input id="report-to-v1563" type="date" class="ml-1 rounded-lg border bg-white px-2 py-1.5"></label><span class="text-[11px] text-slate-500">ตัวกรองใช้กับรายการชำระ รายการบัญชี และกิจกรรมที่มีวันเวลา; ยอดคงเหลือเป็นยอดปัจจุบัน</span></div>
-                    <div id="executive-report-metrics-v1563" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><p class="text-sm text-slate-400">กำลังสรุปข้อมูล...</p></div>
-                    <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2"><section class="rounded-2xl border p-4"><h3 class="mb-3 font-bold text-slate-800">สรุปรายห้อง</h3><div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead><tr class="border-b text-slate-500"><th class="p-2">ห้อง</th><th class="p-2 text-right">นักศึกษา</th><th class="p-2 text-right">คะแนนรวม</th><th class="p-2 text-right">ยอดคงเหลือ</th></tr></thead><tbody id="executive-report-rooms-v1563"></tbody></table></div></section><section class="rounded-2xl border p-4"><h3 class="mb-3 font-bold text-slate-800">ข้อมูลและสถานะระบบ</h3><div id="executive-report-health-v1563" class="space-y-2 text-sm text-slate-600"></div></section></div>
-                    <p id="executive-report-note-v1563" class="mt-4 text-[11px] leading-relaxed text-slate-400"></p>
-                </section>
-            </div>
+            
 
             <div id="page-notifications" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-5xl mx-auto space-y-5">
                 <section class="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm">
@@ -4592,7 +4568,6 @@ function refreshVisiblePageDataV15422_(pageId) {
             break;
         case 'fin-history':
             safe(renderFinHistory);
-            safe(loadAuditEventsV1560_);
             break;
         case 'leaderboard':
             safe(renderLeaderboard);
@@ -4602,9 +4577,6 @@ function refreshVisiblePageDataV15422_(pageId) {
             break;
         case 'notifications':
             safe(() => loadNotificationsV1562_());
-            break;
-        case 'reports':
-            safe(renderExecutiveDashboardV1563_);
             break;
         case 'admin-db':
         case 'admin-users':
@@ -4618,10 +4590,7 @@ function refreshVisiblePageDataV15422_(pageId) {
 }
 
 function switchPage(pageId) {
-    if (pageId === 'reports' && currentUserRole !== 'leader') {
-        if (typeof showToast === 'function') showToast('Dashboard ผู้บริหารเปิดให้เฉพาะหัวหน้า', 'warning');
-        pageId = 'home';
-    }
+    if (pageId === 'reports') pageId = 'home'; // หน้ารายงานผู้บริหารถูกนำออกจากเว็บไซต์
     if (pageId === 'notifications' && !(window.currentAuthToken || window.currentStudentAuthToken)) {
         if (typeof showToast === 'function') showToast('กรุณาเข้าสู่ระบบก่อนดูการแจ้งเตือน', 'warning');
         pageId = 'home';
@@ -4677,9 +4646,8 @@ function switchPage(pageId) {
     else if (pageId === 'student-card') { titleText = 'บัตรนักศึกษา SSSFN'; titleIcon = '<i class="fas fa-id-card mr-2 text-blue-600"></i>'; if (typeof loadStudentCardV1569_ === 'function') loadStudentCardV1569_(); }
     else if (pageId === 'course-documents') { titleText = 'คลังเอกสารรายวิชา'; titleIcon = '<i class="fas fa-folder-open mr-2 text-indigo-500"></i>'; if (typeof loadCourseDocumentsV1_ === 'function') loadCourseDocumentsV1_(); }
     else if (pageId === 'notifications') { titleText = 'ศูนย์แจ้งเตือน'; titleIcon = '<i class="fas fa-bell mr-2 text-sky-500"></i>'; }
-    else if (pageId === 'reports') { titleText = 'Dashboard ผู้บริหาร'; titleIcon = '<i class="fas fa-chart-line mr-2 text-emerald-500"></i>'; }
     else if (pageId === 'fin-fund') { titleText = 'จัดการการเงิน'; titleIcon = '<i class="fas fa-piggy-bank mr-2 text-rose-500"></i>'; }
-    else if (pageId === 'fin-history') { titleText = 'Audit Log'; titleIcon = '<i class="fas fa-clipboard-check mr-2 text-indigo-500"></i>'; }
+    else if (pageId === 'fin-history') { titleText = 'ประวัติการเงิน'; titleIcon = '<i class="fas fa-clipboard-check mr-2 text-indigo-500"></i>'; }
     else if (pageId === 'random') { titleText = 'สุ่มตัวแทน (Lucky Draw)'; titleIcon = '<i class="fas fa-dice mr-2 text-rose-500"></i>'; }
     else if (pageId === 'admin-students') { titleText = 'รายชื่อ & คะแนนสะสม'; titleIcon = '<i class="fas fa-user-graduate mr-2 text-indigo-500"></i>'; }
     else if (pageId === 'admin-db') { titleText = 'ฐานข้อมูล นศ.'; titleIcon = '<i class="fas fa-database mr-2 text-amber-500"></i>'; }
@@ -4803,8 +4771,6 @@ function switchPage(pageId) {
     if (notificationsNav) notificationsNav.classList.toggle('hidden', !(!!window.currentAuthToken || !!window.currentStudentAuthToken));
     const announcementForm = document.getElementById('announcement-form-v1562');
     if (announcementForm) announcementForm.classList.toggle('hidden', !['leader','vice'].includes(role));
-    const reportsNav = document.getElementById('nav-reports-v1563');
-    if (reportsNav) reportsNav.classList.toggle('hidden', role !== 'leader');
     if (window.currentAuthToken || window.currentStudentAuthToken) setTimeout(() => loadNotificationsV1562_(false), 250);
     
     // ตั้งค่าแสดงเมนูหลัก
@@ -4831,20 +4797,20 @@ function switchPage(pageId) {
     let navRand = document.getElementById('nav-random');
     let navDb = document.getElementById('nav-admin-db');
     let navUsers = document.getElementById('nav-admin-users');
-    let navAudit = document.getElementById('nav-fin-history');
+    let navFinanceHistory = document.getElementById('nav-fin-history');
 
     if (!isGuest) {
         if(navFin) navFin.classList.remove('hidden');
         if(navRand) navRand.classList.toggle('hidden', role === 'treasurer');
         if(navDb) navDb.classList.remove('hidden');
         if(navUsers) navUsers.classList.toggle('hidden', role !== 'leader'); // เฉพาะหัวหน้าจัดการสิทธิ์
-        if(navAudit) navAudit.classList.toggle('hidden', role !== 'leader'); // Audit Before/After เปิดให้เฉพาะหัวหน้า
+        if(navFinanceHistory) navFinanceHistory.classList.toggle('hidden', role !== 'leader'); // ประวัติการเงินเปิดให้หัวหน้าตรวจสอบ
     } else {
         if(navFin) navFin.classList.add('hidden');
         if(navRand) navRand.classList.add('hidden');
         if(navDb) navDb.classList.add('hidden');
         if(navUsers) navUsers.classList.add('hidden');
-        if(navAudit) navAudit.classList.add('hidden');
+        if(navFinanceHistory) navFinanceHistory.classList.add('hidden');
     }
     
     if (!skipFullRender) refreshAll(); 
@@ -5741,6 +5707,7 @@ function renderHomeDirectory() {
                            <div class="flex-1">
                                <p class="text-rose-700 font-bold text-sm mb-0.5">${statusText}: ${r.title}</p>
                                <p class="text-xs text-slate-500">ยอดค้าง <span class="font-bold text-rose-600">฿${remain.toFixed(2)}</span> (เต็ม: ฿${r.amt})</p>
+                               ${sssfnGetLumpSumSourceLabelV15613_(p) ? `<p class="mt-1 text-[11px] font-semibold text-indigo-700">${sssfnGetLumpSumSourceLabelV15613_(p)}</p>` : ''}
                            </div>
                            <button onclick="openPublicSlipModal(${r.id})" class="text-xs bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 font-bold transition shadow-md whitespace-nowrap"><i class="fas fa-qrcode mr-1"></i> ชำระเงิน</button>
                        </div>
@@ -5858,6 +5825,7 @@ function renderHomeDirectory() {
                        <div class="flex-1">
                            <p class="${statusConfig.titleColor} font-bold text-sm mb-0.5 truncate pr-2">${r.title}</p>
                            <p class="text-xs text-slate-500">สถานะ: <span class="font-bold">${statusConfig.statusText}</span> | ชำระ: ฿${p.paidAmt || 0}</p>
+                           ${sssfnGetLumpSumSourceLabelV15613_(p) ? `<p class="mt-1 text-[11px] font-semibold text-indigo-700"><i class="fas fa-link mr-1"></i>${sssfnGetLumpSumSourceLabelV15613_(p)}</p>` : ''}
                        </div>
                        ${btnAction}
                    </div>
@@ -11759,7 +11727,8 @@ async function viewSlipPopup(url) {
         }
         nameColHtml += `</div>`;
 
-        fHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 whitespace-nowrap min-w-[150px]">${nameColHtml}</td><td class="p-3 text-center w-32 min-w-[120px]"><span class="${badgeClass} px-2 py-1 rounded text-xs font-bold inline-block">${displayStatus}</span>${progHtml}</td><td class="p-3 text-right font-bold min-w-[80px] ${remain>0?'text-rose-500':'text-slate-300'}">฿${remain.toFixed(2)}</td><td class="p-3 text-center">${actionHtml}</td></tr>`;
+        let lumpSumSourceHtml = sssfnGetLumpSumSourceLabelV15613_(payment) ? `<p class="mt-1 text-[10px] leading-tight font-semibold text-indigo-700">${sssfnGetLumpSumSourceLabelV15613_(payment)}</p>` : '';
+        fHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 whitespace-nowrap min-w-[150px]">${nameColHtml}</td><td class="p-3 text-center w-32 min-w-[120px]"><span class="${badgeClass} px-2 py-1 rounded text-xs font-bold inline-block">${displayStatus}</span>${lumpSumSourceHtml}${progHtml}</td><td class="p-3 text-right font-bold min-w-[80px] ${remain>0?'text-rose-500':'text-slate-300'}">฿${remain.toFixed(2)}</td><td class="p-3 text-center">${actionHtml}</td></tr>`;
     });
     
     listEl.innerHTML = fHtml;
@@ -11843,6 +11812,14 @@ function sssfnGrantOnTimePaymentPointsV15427_(student, round, payment, actor) {
     p.onTimePointEventKey = pointKey;
     return { awarded:true, points:payPoints, event:event };
 }
+
+        function sssfnGetLumpSumSourceLabelV15613_(payment) {
+            const allocations = Array.isArray(payment && payment.lumpSumAllocations) ? payment.lumpSumAllocations : [];
+            if (!allocations.length) return '';
+            const labels = [...new Set(allocations.map(item => String(item && (item.sourceRoundTitle || item.sourceRoundId) || '').trim()).filter(Boolean))];
+            if (!labels.length) return '';
+            return 'ชำระด้วยยอดเหมาจาก ' + labels.join(', ');
+        }
 
         function approveFundPayment(roundId, studentId, maxRemain, isCash = false) {
     let stu = students.find(s => s.id == studentId);
@@ -11988,6 +11965,20 @@ function sssfnGrantOnTimePaymentPointsV15427_(student, round, payment, actor) {
                     otherPaymentsToUpdate.forEach(upd => {
                         let liveOtherP = fundPayments.find(p => p.roundId == upd.round.id && p.studentId == studentId);
                         if(liveOtherP) {
+                            // เก็บต้นทางเงินเหมาจ่ายไว้กับบิลปลายทาง เพื่อให้ตรวจสอบย้อนหลังได้
+                            const sourceTitle = String(liveRound && liveRound.title || round.title || ('รอบ ' + roundId));
+                            const allocations = Array.isArray(liveOtherP.lumpSumAllocations) ? liveOtherP.lumpSumAllocations.slice() : [];
+                            allocations.push({
+                                sourceRoundId: String(roundId),
+                                sourceRoundTitle: sourceTitle,
+                                sourcePaymentDate: getNow(),
+                                allocatedAmount: Number(upd.payAmt) || 0,
+                                approvedBy: currentUsername || 'ผู้ดูแลระบบ',
+                                allocationType: 'lump-sum'
+                            });
+                            liveOtherP.lumpSumAllocations = allocations;
+                            liveOtherP.lumpSumSourceRoundId = String(roundId);
+                            liveOtherP.lumpSumSourceRoundTitle = sourceTitle;
                             liveOtherP.paidAmt = (liveOtherP.paidAmt || 0) + upd.payAmt;
                             liveOtherP.status = (liveOtherP.paidAmt >= upd.round.amt) ? (isCash ? 'จ่ายแล้ว (เงินสด)' : 'จ่ายแล้ว') : 'ค้างชำระ (ผ่อน)';
                             liveOtherP.paidDate = getNow();
@@ -15959,7 +15950,14 @@ window.openStudentEmailLinkRequestsV15433_ = async function() {
     if (!result || result.status !== 'success') return Swal.fire('โหลดคำขอไม่สำเร็จ', (result && result.message) || 'ไม่สามารถอ่านรายการคำขอได้', 'error');
     const requests = Array.isArray(result.requests) ? result.requests : [];
     const countEl = document.getElementById('student-email-link-request-count');
-    if (countEl) countEl.textContent = String(requests.length);
+    if (countEl) {
+        countEl.textContent = String(requests.length);
+        countEl.classList.toggle('hidden', requests.length === 0);
+        countEl.classList.toggle('bg-amber-100', requests.length > 0);
+        countEl.classList.toggle('text-amber-800', requests.length > 0);
+        countEl.classList.toggle('bg-slate-100', requests.length === 0);
+        countEl.classList.toggle('text-slate-600', requests.length === 0);
+    }
     const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const rows = requests.map((r, index) => `
         <div class="border border-slate-200 rounded-xl p-3 mb-3 text-left bg-white">
@@ -16719,6 +16717,8 @@ window.manageStudentPoints = function(studentId) {
 
 // SSSFN Course Document Hub frontend module (integrated into v15.6.7).
 let sssfnCourseDocStateV1_ = { courses:[], documents:[], categories:[], canReview:false, canCreateCourse:false, canManageGlobalManagers:false, selectedCourseId:'', currentPreview:null, previewUrl:'' };
+let sssfnCourseDocTermFilterV1_ = '';
+function setCourseDocTermFilterV1_(term) { sssfnCourseDocTermFilterV1_=String(term||''); renderCourseDocumentsV1_(); }
 function sssfnCourseDocEscV1_(value) {
   return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);});
 }
@@ -16742,13 +16742,13 @@ async function loadCourseDocumentsV1_() {
   renderCourseDocumentsV1_();
 }
 function renderCourseDocumentsV1_() {
-  const s=sssfnCourseDocStateV1_, search=(document.getElementById('course-doc-search')?.value||'').trim().toLowerCase(), term=document.getElementById('course-doc-term-filter')?.value||'';
+  const s=sssfnCourseDocStateV1_, search=(document.getElementById('course-doc-search')?.value||'').trim().toLowerCase(), term=sssfnCourseDocTermFilterV1_;
   const createBtn=document.getElementById('course-doc-btn-create'), managerBtn=document.getElementById('course-doc-btn-managers'), reviewSection=document.getElementById('course-doc-review-section');
   if(createBtn) createBtn.classList.toggle('hidden',!s.canCreateCourse);
   if(managerBtn) managerBtn.classList.toggle('hidden',!s.canManageGlobalManagers);
   if(reviewSection) reviewSection.classList.toggle('hidden',!s.canReview);
   const termFilter=document.getElementById('course-doc-term-filter');
-  if(termFilter) { const current=termFilter.value; const terms=[...new Set(s.courses.map(c=>c.term).filter(Boolean))].sort(); termFilter.innerHTML='<option value="">ทุกภาคเรียน</option>'+terms.map(t=>'<option value="'+sssfnCourseDocEscV1_(t)+'">'+sssfnCourseDocEscV1_(t)+'</option>').join(''); termFilter.value=terms.includes(current)?current:''; }
+  if(termFilter) { const terms=[...new Set(s.courses.map(c=>c.term).filter(Boolean))].sort(); if(term && !terms.includes(term)) sssfnCourseDocTermFilterV1_=''; const active=sssfnCourseDocTermFilterV1_; termFilter.innerHTML='<button type="button" data-term="" onclick="setCourseDocTermFilterV1_(this.dataset.term)" class="course-doc-term-chip px-3 py-2 rounded-xl text-xs font-bold border '+(!active?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')+'">ทั้งหมด</button>'+terms.map(t=>'<button type="button" data-term="'+sssfnCourseDocEscV1_(t)+'" onclick="setCourseDocTermFilterV1_(this.dataset.term)" class="course-doc-term-chip px-3 py-2 rounded-xl text-xs font-bold border '+(active===t?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')+'">'+sssfnCourseDocEscV1_(t)+'</button>').join(''); }
   const courses=s.courses.filter(c=>(!term||c.term===term)&&(!search||[c.name,c.code,c.term,c.description].join(' ').toLowerCase().includes(search)));
   const grid=document.getElementById('course-doc-course-grid');
   if(grid) grid.innerHTML=courses.length?courses.map(c=>{
@@ -16763,7 +16763,6 @@ function renderCourseDocumentsV1_() {
     document.getElementById('course-doc-selected-title').textContent=selected.name;
     document.getElementById('course-doc-selected-subtitle').textContent=[selected.code,selected.term,selected.description].filter(Boolean).join(' • ');
     const canManage=s.canReview || (Array.isArray(selected.managerUsernames)&&selected.managerUsernames.some(x=>String(x).toLowerCase()===String(s.currentUser||'').toLowerCase()));
-    document.getElementById('course-doc-btn-course-managers')?.classList.toggle('hidden',!s.canReview);
     const docs=s.documents.filter(d=>d.courseId===selected.id && (!search||[d.title,d.description,d.category,d.versions&&d.versions.map(v=>v.fileName).join(' ')].join(' ').toLowerCase().includes(search)));
     const list=document.getElementById('course-doc-list');
     if(list) list.innerHTML=docs.length?docs.map(d=>{
@@ -16791,18 +16790,13 @@ function renderCourseDocumentsV1_() {
 function selectCourseDocumentV1_(courseId) { sssfnCourseDocStateV1_.selectedCourseId=courseId; renderCourseDocumentsV1_(); document.getElementById('course-doc-selected-section')?.scrollIntoView({behavior:'smooth',block:'start'}); }
 function openCourseDocCreateCourseV1_() {
   if(!sssfnCourseDocStateV1_.canCreateCourse) return;
-  const isLeader=['leader','vice'].includes(currentUserRole);
   const field=(label,id,placeholder,required=false)=>'<label for="'+id+'" class="block text-xs font-bold text-slate-600 mb-1">'+label+(required?' <span class="text-rose-500">*</span>':'')+'</label><input id="'+id+'" '+(required?'required':'')+' placeholder="'+placeholder+'" class="w-full box-border rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">';
-  const html='<div class="text-left"><div class="rounded-2xl bg-indigo-50 border border-indigo-100 p-3 mb-4 flex gap-3 items-start"><div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0"><i class="fas fa-book-open"></i></div><div><p class="text-sm font-bold text-indigo-950">สร้างพื้นที่จัดเก็บเอกสารรายวิชา</p><p class="text-xs text-indigo-700 mt-0.5">กรอกข้อมูลพื้นฐานเพื่อให้นักศึกษาค้นหารายวิชาและเอกสารได้ง่าย</p></div></div><div class="space-y-3">'+field('ชื่อรายวิชา','cd-course-name','เช่น การจัดการฐานข้อมูล',true)+'<div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div>'+field('รหัสวิชา','cd-course-code','เช่น BIT-204')+'</div><div>'+field('ภาคเรียน / ปีการศึกษา','cd-course-term','เช่น 1/2569',true)+'</div></div><div><label for="cd-course-desc" class="block text-xs font-bold text-slate-600 mb-1">รายละเอียดรายวิชา <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label><textarea id="cd-course-desc" rows="3" placeholder="คำอธิบายหรือรายละเอียดเพิ่มเติมของรายวิชา" class="w-full box-border rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-y"></textarea></div>'+(isLeader?'<div class="rounded-xl border border-slate-200 p-3 bg-slate-50"><label for="cd-course-managers" class="block text-xs font-bold text-slate-700 mb-1"><i class="fas fa-user-shield text-indigo-500 mr-1"></i>มอบหมายผู้ดูแลรายวิชา <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label><textarea id="cd-course-managers" rows="2" placeholder="กรอก Username บัญชีละหนึ่งบรรทัด" class="w-full box-border rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-y"></textarea><p class="text-[11px] text-slate-500 mt-1">ผู้ดูแลที่ได้รับมอบหมายจัดการรายวิชาได้ แต่ไม่มีสิทธิ์อนุมัติเอกสาร</p></div>':'')+'</div></div>';
-  Swal.fire({title:'เพิ่มรายวิชา',html:html,width:620,showCancelButton:true,confirmButtonText:'<i class="fas fa-plus mr-1"></i> สร้างรายวิชา',cancelButtonText:'ยกเลิก',focusConfirm:false,buttonsStyling:false,customClass:{popup:'!rounded-3xl !p-5 sm:!p-6',title:'!text-xl !font-black !text-slate-800',htmlContainer:'!mt-3 !mx-0',actions:'!w-full !gap-2',confirmButton:'!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !px-5 !py-3 !text-sm !font-bold !text-white',cancelButton:'!rounded-xl !bg-slate-100 hover:!bg-slate-200 !px-5 !py-3 !text-sm !font-bold !text-slate-700'},preConfirm:()=>{const name=document.getElementById('cd-course-name').value.trim(),term=document.getElementById('cd-course-term').value.trim();if(!name){Swal.showValidationMessage('กรุณากรอกชื่อรายวิชา');return false;}if(!term){Swal.showValidationMessage('กรุณาระบุภาคเรียน / ปีการศึกษา');return false;}return {name:name,code:document.getElementById('cd-course-code').value.trim(),term:term,description:document.getElementById('cd-course-desc').value.trim(),managerUsernames:document.getElementById('cd-course-managers')?.value||''};}}).then(async r=>{if(!r.isConfirmed)return;Swal.fire({title:'กำลังสร้างรายวิชา',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});try{const result=await callBackend(Object.assign({action:'courseDocCreateCourseV1'},r.value));if(result.status!=='success'){Swal.fire('สร้างรายวิชาไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire({icon:'success',title:'สร้างรายวิชาเรียบร้อย',text:'สามารถเริ่มส่งเอกสารเข้าคลังรายวิชานี้ได้แล้ว',timer:1800,showConfirmButton:false});}catch(error){Swal.fire('สร้างรายวิชาไม่สำเร็จ',String(error&&error.message||error),'error');}});
+  const html='<div class="text-left"><div class="rounded-2xl bg-indigo-50 border border-indigo-100 p-3 mb-4 flex gap-3 items-start"><div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0"><i class="fas fa-book-open"></i></div><div><p class="text-sm font-bold text-indigo-950">สร้างพื้นที่จัดเก็บเอกสารรายวิชา</p><p class="text-xs text-indigo-700 mt-0.5">กรอกข้อมูลพื้นฐานเพื่อให้นักศึกษาค้นหารายวิชาและเอกสารได้ง่าย</p></div></div><div class="space-y-3">'+field('ชื่อรายวิชา','cd-course-name','เช่น การจัดการฐานข้อมูล',true)+'<div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div>'+field('รหัสวิชา','cd-course-code','เช่น BIT-204')+'</div><div>'+field('ภาคเรียน / ปีการศึกษา','cd-course-term','เช่น 1/2569',true)+'</div></div><div><label for="cd-course-desc" class="block text-xs font-bold text-slate-600 mb-1">รายละเอียดรายวิชา <span class="text-slate-400 font-normal">(ไม่บังคับ)</span></label><textarea id="cd-course-desc" rows="3" placeholder="คำอธิบายหรือรายละเอียดเพิ่มเติมของรายวิชา" class="w-full box-border rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 resize-y"></textarea></div>'+'</div></div>';
+  Swal.fire({title:'เพิ่มรายวิชา',html:html,width:620,showCancelButton:true,confirmButtonText:'<i class="fas fa-plus mr-1"></i> สร้างรายวิชา',cancelButtonText:'ยกเลิก',focusConfirm:false,buttonsStyling:false,customClass:{popup:'!rounded-3xl !p-5 sm:!p-6',title:'!text-xl !font-black !text-slate-800',htmlContainer:'!mt-3 !mx-0',actions:'!w-full !gap-2',confirmButton:'!rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !px-5 !py-3 !text-sm !font-bold !text-white',cancelButton:'!rounded-xl !bg-slate-100 hover:!bg-slate-200 !px-5 !py-3 !text-sm !font-bold !text-slate-700'},preConfirm:()=>{const name=document.getElementById('cd-course-name').value.trim(),term=document.getElementById('cd-course-term').value.trim();if(!name){Swal.showValidationMessage('กรุณากรอกชื่อรายวิชา');return false;}if(!term){Swal.showValidationMessage('กรุณาระบุภาคเรียน / ปีการศึกษา');return false;}return {name:name,code:document.getElementById('cd-course-code').value.trim(),term:term,description:document.getElementById('cd-course-desc').value.trim()};}}).then(async r=>{if(!r.isConfirmed)return;Swal.fire({title:'กำลังสร้างรายวิชา',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});try{const result=await callBackend(Object.assign({action:'courseDocCreateCourseV1'},r.value));if(result.status!=='success'){Swal.fire('สร้างรายวิชาไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire({icon:'success',title:'สร้างรายวิชาเรียบร้อย',text:'สามารถเริ่มส่งเอกสารเข้าคลังรายวิชานี้ได้แล้ว',timer:1800,showConfirmButton:false});}catch(error){Swal.fire('สร้างรายวิชาไม่สำเร็จ',String(error&&error.message||error),'error');}});
 }
 function openCourseDocGlobalManagersV1_() {
   if(!sssfnCourseDocStateV1_.canManageGlobalManagers) return;
   Swal.fire({title:'ผู้ดูแลคลังเอกสาร',html:'<p class="text-xs text-slate-500 text-left mb-2">กรอก Username ของบัญชีเจ้าหน้าที่ที่มีอยู่แล้ว บรรทัดละหนึ่งบัญชี ผู้ดูแลเหล่านี้สามารถสร้างและจัดการรายวิชาที่ได้รับมอบหมายได้ แต่ไม่มีสิทธิ์อนุมัติเอกสาร</p><textarea id="cd-global-managers" class="swal2-textarea" placeholder="username1&#10;username2">'+sssfnCourseDocEscV1_((sssfnCourseDocStateV1_.globalManagers||[]).join('\n'))+'</textarea>',showCancelButton:true,confirmButtonText:'บันทึกผู้ดูแล',cancelButtonText:'ยกเลิก',preConfirm:()=>document.getElementById('cd-global-managers').value}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocSaveGlobalManagersV1',usernames:r.value});if(result.status!=='success'){Swal.fire('บันทึกไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire('บันทึกแล้ว','','success');});
-}
-function openCourseDocCourseManagersV1_() {
-  const course=sssfnCourseDocStateV1_.courses.find(c=>c.id===sssfnCourseDocStateV1_.selectedCourseId); if(!course||!sssfnCourseDocStateV1_.canReview)return;
-  Swal.fire({title:'ผู้ดูแลรายวิชา',html:'<p class="text-xs text-slate-500 text-left mb-2">กรอก Username ของบัญชีเจ้าหน้าที่ที่มีอยู่แล้ว บรรทัดละหนึ่งบัญชี</p><textarea id="cd-course-managers" class="swal2-textarea">'+sssfnCourseDocEscV1_((course.managerUsernames||[]).join('\n'))+'</textarea>',showCancelButton:true,confirmButtonText:'บันทึก',cancelButtonText:'ยกเลิก',preConfirm:()=>document.getElementById('cd-course-managers').value}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocAssignManagersV1',courseId:course.id,usernames:r.value});if(result.status!=='success'){Swal.fire('บันทึกไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();selectCourseDocumentV1_(course.id);Swal.fire('บันทึกแล้ว','','success');});
 }
 function openCourseDocUploadV1_() {
   const s=sssfnCourseDocStateV1_; if(!s.courses.length){Swal.fire('ยังไม่มีรายวิชา','ต้องสร้างรายวิชาก่อนจึงจะส่งเอกสารได้','info');return;}
