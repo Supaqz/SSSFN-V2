@@ -1,5 +1,10 @@
 <!DOCTYPE html>
-<!-- SSSFN v15.5.11: bounded load requests and explain file:// hosting limitation -->
+<!-- SSSFN v15.6.8-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
+<!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
+<!-- SSSFN v15.6.4-local: system-generated payment/activity/score alerts and Thai-date report fixes; based on v15.6.3-local -->
+<!-- SSSFN v15.6.3-local: executive dashboard and date-filtered Excel/PDF report; based on v15.6.2-local -->
+<!-- SSSFN v15.6.2-local: central notifications, role-gated announcements and read state; based on v15.6.1-local -->
+<!-- SSSFN v15.6.1-local: Student 360, printable certificates and atomic Point Shop redemption; based on v15.6.0-local -->
 <!-- SSSFN v15.5.8: unified point totals/history and accurate Sheets score projection -->
 <!-- SSSFN v15.4.51: persistent student Google email binding and repeat-login lookup -->
 <!-- SSSFN v15.5.7: selected-history-only Sheets repair; finance tabs untouched; no deletion audit -->
@@ -425,12 +430,16 @@
             <button onclick="switchPage('activity')" id="nav-activity" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition flex items-center gap-3 shadow-sm"><i class="fas fa-map-marker-alt text-lg w-5 text-center"></i> ลงทะเบียนกิจกรรม <span id="badge-activity" class="ml-auto bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('voting')" id="nav-voting" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-poll text-lg w-5 text-center text-sky-500"></i> กระดานโหวตห้องเรียน <span id="badge-voting" class="ml-auto bg-rose-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></button>
             <button onclick="switchPage('my-points')" id="nav-my-points" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-star text-lg w-5 text-center text-indigo-500"></i> คะแนนสะสมของฉัน</button>
+            <button onclick="switchPage('course-documents')" id="nav-course-documents" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-folder-open text-lg w-5 text-center text-indigo-500"></i> คลังเอกสารรายวิชา</button>
+            <button onclick="switchPage('notifications')" id="nav-notifications" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-sky-50 hover:text-sky-700 transition flex items-center gap-3"><i class="fas fa-bell text-lg w-5 text-center text-sky-500"></i> แจ้งเตือน <span id="notification-unread-badge-v1562" class="hidden ml-auto rounded-full bg-rose-500 px-2 py-0.5 text-xs font-bold text-white">0</span></button>
             <button onclick="switchPage('leaderboard')" id="nav-leaderboard" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-trophy text-lg w-5 text-center text-amber-500"></i> กระดานผู้นำ (สะสมแต้ม)</button>
             <button onclick="switchPage('fin-expense')" id="nav-fin-expense" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-history text-lg w-5 text-center"></i> บันทึกบัญชีส่วนกลาง</button>
             <!-- เมนูแอดมิน -->
             <div id="menu-group-admin" class="hidden pt-4 mt-4 border-t border-slate-200">
                 <p class="px-3 text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">เครื่องมือผู้ดูแล</p>
                 <button onclick="switchPage('fin-fund')" id="nav-fin-fund" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-piggy-bank text-lg w-5 text-center"></i> จัดการการเงิน</button>
+                <button onclick="switchPage('fin-history')" id="nav-fin-history" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-clipboard-check text-lg w-5 text-center text-indigo-500"></i> Audit Log</button>
+                <button onclick="switchPage('reports')" id="nav-reports-v1563" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 transition flex items-center gap-3"><i class="fas fa-chart-line text-lg w-5 text-center text-emerald-500"></i> Dashboard ผู้บริหาร</button>
                 <!-- 🌟 เพิ่มเมนู รายชื่อ & คะแนนสะสม 🌟 -->
                 <button onclick="switchPage('admin-students'); renderAdminStudentList();" id="nav-admin-students" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-user-graduate text-lg w-5 text-center"></i> รายชื่อ & คะแนนสะสม</button>
                 <button onclick="openStudentEmailLinkRequestsV15433_()" id="nav-email-link-requests" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-3"><i class="fas fa-envelope-circle-check text-lg w-5 text-center text-indigo-500"></i> คำขอผูกอีเมล <span id="student-email-link-request-count" class="ml-auto bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">ตรวจสอบ</span></button>
@@ -613,7 +622,7 @@
                     <button onclick="startLuckyDraw()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-xl font-bold text-xl shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-[1.02] flex items-center justify-center gap-3"><i class="fas fa-play-circle text-2xl"></i> สับสวิตช์เริ่มสุ่ม!</button>
                 </div>
                 <div id="random-draw-history-card" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6">
-                    <div class="flex items-center justify-between gap-3 mb-3"><h3 class="font-bold text-slate-800"><i class="fas fa-clipboard-list text-purple-600 mr-2"></i>ประวัติการสุ่มแบบละเอียด</h3><span id="random-draw-history-count" class="text-xs text-slate-500"></span></div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-3"><h3 class="font-bold text-slate-800"><i class="fas fa-clipboard-list text-purple-600 mr-2"></i>ประวัติการสุ่มแบบละเอียด</h3><div class="flex items-center gap-2"><span id="random-draw-history-count" class="text-xs text-slate-500"></span><button type="button" onclick="window.exportRandomDrawHistoryExcelV1561_()" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"><i class="fas fa-file-excel mr-1"></i>ส่งออก Excel</button></div></div>
                     <div id="random-draw-history-list" class="space-y-3"><p class="text-sm text-slate-400">กำลังโหลดประวัติ...</p></div>
                 </div>
             </div>
@@ -1386,6 +1395,55 @@
     </div>
 </div>
 
+            <div id="page-course-documents" class="page-view hidden max-w-6xl mx-auto space-y-5 pb-10">
+  <section class="rounded-3xl bg-gradient-to-r from-indigo-700 to-blue-600 text-white p-5 md:p-7 shadow-lg">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">รวมเอกสารทุกวิชา เปิดอ่านผ่านเว็บไซต์ได้ในที่เดียว</p></div>
+      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-managers" onclick="openCourseDocGlobalManagersV1_()" class="hidden bg-indigo-500/40 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-user-shield mr-1"></i> ผู้ดูแลคลัง</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งเอกสาร</button></div>
+    </div>
+  </section>
+  <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+    <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+      <div class="relative flex-1"><i class="fas fa-search absolute left-3 top-3 text-slate-400"></i><input id="course-doc-search" oninput="renderCourseDocumentsV1_()" class="w-full border border-slate-200 rounded-xl py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="ค้นหารายวิชา ชื่อเอกสาร หรือหมวดหมู่"></div>
+      <select id="course-doc-term-filter" onchange="renderCourseDocumentsV1_()" class="border border-slate-200 rounded-xl py-2.5 px-3 text-sm bg-white"><option value="">ทุกภาคเรียน</option></select>
+      <button onclick="loadCourseDocumentsV1_()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold"><i class="fas fa-sync-alt mr-1"></i> รีเฟรช</button>
+    </div>
+  </section>
+  <section class="space-y-3">
+    <div class="flex items-center justify-between"><h3 class="font-bold text-slate-800"><i class="fas fa-book text-indigo-500 mr-2"></i>รายวิชาทั้งหมด</h3><span id="course-doc-course-count" class="text-xs text-slate-400">-</span></div>
+    <div id="course-doc-course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="col-span-full text-center py-8 text-slate-400 text-sm">กำลังโหลดรายวิชา...</div></div>
+  </section>
+  <section id="course-doc-selected-section" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p class="text-xs text-slate-400 font-bold">เอกสารในรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div><div class="flex gap-2"><button id="course-doc-btn-course-managers" onclick="openCourseDocCourseManagersV1_()" class="hidden px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">จัดการผู้ดูแลวิชา</button><button onclick="openCourseDocUploadV1_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มเอกสาร</button></div></div>
+    <div id="course-doc-list" class="divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">เลือกวิชาเพื่อดูเอกสาร</div></div>
+  </section>
+  <section id="course-doc-review-section" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5">
+    <div class="flex items-center justify-between gap-3 mb-3"><h3 class="font-bold text-amber-900"><i class="fas fa-clipboard-check mr-2"></i>รายการรอตรวจสอบ</h3><span id="course-doc-review-count" class="text-xs rounded-full bg-amber-200 text-amber-900 px-2 py-1 font-bold">0</span></div>
+    <div id="course-doc-review-list" class="space-y-2"><p class="text-sm text-amber-800">ไม่มีเอกสารรอตรวจสอบ</p></div>
+  </section>
+  <section class="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500 flex items-start gap-2"><i class="fas fa-shield-alt text-emerald-600 mt-0.5"></i><span>ไฟล์ที่ส่งใหม่จะยังไม่เผยแพร่จนกว่าหัวหน้าหรือรองหัวหน้าจะอนุมัติ ไฟล์ต้นฉบับเก็บแบบไม่เปิดสาธารณะ และเปิดอ่านผ่านระบบที่ตรวจสอบสิทธิ์แล้ว</span></section>
+  <div id="course-doc-upload-modal" class="hidden fixed inset-0 z-[12000] bg-slate-950/60 backdrop-blur-sm p-3 items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[94vh] overflow-y-auto">
+      <div class="p-4 border-b flex items-center justify-between"><h3 id="course-doc-upload-title" class="font-black text-slate-800">ส่งเอกสารเข้าคลัง</h3><button onclick="closeCourseDocUploadV1_()" class="text-slate-400 text-xl"><i class="fas fa-times"></i></button></div>
+      <form id="course-doc-upload-form" onsubmit="submitCourseDocUploadV1_(event)" class="p-4 space-y-3">
+        <input type="hidden" id="course-doc-upload-existing-id" value="">
+        <label class="block text-xs font-bold text-slate-600">รายวิชา<select id="course-doc-upload-course" required class="mt-1 w-full border rounded-xl p-3 text-sm bg-white"></select></label>
+        <label class="block text-xs font-bold text-slate-600">หมวดหมู่<select id="course-doc-upload-category" class="mt-1 w-full border rounded-xl p-3 text-sm bg-white"></select></label>
+        <label class="block text-xs font-bold text-slate-600">ชื่อเอกสาร<input id="course-doc-upload-name" required maxlength="160" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="เช่น บทที่ 1 ความรู้เบื้องต้น"></label>
+        <label class="block text-xs font-bold text-slate-600">คำอธิบาย<textarea id="course-doc-upload-description" rows="2" maxlength="1200" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"></textarea></label>
+        <label class="block text-xs font-bold text-slate-600">เลือกไฟล์<input id="course-doc-upload-file" type="file" required class="mt-1 w-full border rounded-xl p-3 text-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip"></label>
+        <p class="text-xs text-slate-500">ขนาดสูงสุด 100 MB ต่อไฟล์ • ระบบแบ่งอัปโหลดเป็นชิ้นส่วนเพื่อรองรับไฟล์ขนาดใหญ่</p>
+        <div id="course-doc-upload-progress-wrap" class="hidden"><div class="flex justify-between text-xs mb-1"><span id="course-doc-upload-progress-label">กำลังอัปโหลด...</span><span id="course-doc-upload-progress-percent">0%</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div id="course-doc-upload-progress-bar" class="h-full bg-indigo-600 w-0"></div></div></div>
+        <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeCourseDocUploadV1_()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold">ยกเลิก</button><button id="course-doc-upload-submit" type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold">ส่งตรวจสอบ</button></div>
+      </form>
+    </div>
+  </div>
+  <div id="course-doc-preview-modal" class="hidden fixed inset-0 z-[12010] bg-slate-950/80 p-2 md:p-5 items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-6xl h-[94vh] flex flex-col overflow-hidden shadow-2xl"><div class="p-3 border-b flex items-center gap-2"><div class="min-w-0 flex-1"><p id="course-doc-preview-name" class="font-bold text-sm truncate">เอกสาร</p><p id="course-doc-preview-meta" class="text-[11px] text-slate-400"></p></div><button id="course-doc-preview-download" onclick="downloadCourseDocCurrentV1_()" class="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold"><i class="fas fa-download mr-1"></i> ดาวน์โหลด</button><button onclick="closeCourseDocPreviewV1_()" class="px-3 py-2 text-slate-500"><i class="fas fa-times text-lg"></i></button></div><div id="course-doc-preview-content" class="flex-1 min-h-0 overflow-auto bg-slate-100 flex items-center justify-center"><p class="text-sm text-slate-500">กำลังโหลดเอกสาร...</p></div></div>
+  </div>
+</div>
+
+
             <div id="page-time-history" class="page-view hidden max-w-5xl mx-auto">
                 <div class="bg-white rounded-2xl border shadow-sm flex flex-col">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center gap-2 flex-wrap">
@@ -1483,6 +1541,16 @@
                 </button>
             </div>
         </div>
+
+        <section class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+                <div><h3 class="font-bold text-slate-800"><i class="fas fa-scale-balanced text-indigo-500 mr-2"></i>Preview กระทบยอดธนาคาร</h3><p class="text-xs text-slate-500 mt-1">จับคู่ด้วยเลขอ้างอิงที่ตรงกันเท่านั้น; Preview นี้ไม่บันทึกหรือแก้ยอดเงิน</p></div>
+                <div class="flex flex-wrap items-center gap-2"><input id="bank-statement-file-v1560" type="file" accept=".csv,text/csv" class="text-xs max-w-[240px]"><button type="button" onclick="reconcileBankCsvV1560_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">ตรวจไฟล์ CSV</button></div>
+            </div>
+            <p id="bank-reconcile-status-v1560" class="text-xs text-slate-500 mb-2" aria-live="polite">รองรับหัวคอลัมน์วันที่และยอดเงิน พร้อมเลขอ้างอิงถ้ามี</p>
+            <div id="bank-reconcile-summary-v1560" class="hidden flex flex-wrap gap-2 text-xs font-bold mb-3"></div>
+            <div class="overflow-x-auto"><table class="w-full min-w-[760px] text-left text-xs"><thead class="bg-slate-50 text-slate-600"><tr><th class="p-2">แถว</th><th class="p-2">วันที่</th><th class="p-2">เลขอ้างอิง</th><th class="p-2">ยอดเงิน</th><th class="p-2">ผลตรวจ</th><th class="p-2">ผู้ชำระที่ตรงกัน</th></tr></thead><tbody id="bank-reconcile-list-v1560"></tbody></table></div>
+        </section>
 
         <!-- 🟢 กล่องที่ 2 (ล่างสุด): เลือกบิลที่ต้องการจัดการ -->
         <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
@@ -1819,6 +1887,23 @@
                     </div>
                     <div class="overflow-x-auto"><table class="w-full min-w-[660px] text-left text-sm" id="fin-hist-table"><thead class="bg-white border-b text-slate-600 font-bold whitespace-nowrap text-xs"><tr><th class="p-3.5 whitespace-nowrap min-w-[120px]">วัน/เวลา</th><th class="p-3.5 whitespace-nowrap min-w-[200px]">รายการ/ชื่อ</th><th class="p-3.5 text-center whitespace-nowrap min-w-[100px]">ประเภท</th><th class="p-3.5 text-right whitespace-nowrap min-w-[110px]">จำนวน</th><th class="p-3.5 text-center whitespace-nowrap min-w-[90px]">จัดการ</th></tr></thead><tbody id="fin-hist-list"></tbody></table></div>
                 </div>
+                <section class="bg-white rounded-2xl border shadow-sm mt-5 p-4">
+                    <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                        <div><h3 class="font-bold text-slate-800">Audit การเปลี่ยนแปลง</h3><p class="text-xs text-slate-500">แสดง Before/After สำหรับรายการที่ผ่านเส้นทางบันทึกมาตรฐาน; บางงานเฉพาะทางอาจยังไม่อยู่ใน Audit</p></div>
+                        <button type="button" onclick="loadAuditEventsV1560_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold">โหลด Audit</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mb-3">
+                        <input id="audit-filter-actor" class="p-2 border rounded-lg text-sm" placeholder="ผู้ดำเนินการ">
+                        <input id="audit-filter-search" class="p-2 border rounded-lg text-sm" placeholder="ค้นหาประเภท/รายการ">
+                        <select id="audit-filter-collection" class="p-2 border rounded-lg text-sm"><option value="">ทุกประเภทข้อมูล</option><option value="students">นักศึกษา</option><option value="fundRounds">รอบเรียกเก็บ</option><option value="fundPayments">การชำระเงิน</option><option value="expenses">รายจ่าย</option><option value="txHistory">ประวัติ/คะแนน</option><option value="activityLogs">กิจกรรม</option><option value="timeLogs">เช็กชื่อ</option><option value="users">บัญชีผู้ใช้</option></select>
+                        <input id="audit-filter-from" type="date" class="p-2 border rounded-lg text-sm" aria-label="ตั้งแต่วันที่">
+                        <input id="audit-filter-to" type="date" class="p-2 border rounded-lg text-sm" aria-label="ถึงวันที่">
+                        <button type="button" onclick="loadAuditEventsV1560_()" class="px-3 py-2 rounded-lg border text-slate-700 text-xs font-bold">ค้นหา</button>
+                    </div>
+                    <p id="audit-events-status" class="text-xs text-slate-500 mb-2" aria-live="polite">กด “โหลด Audit” เพื่อดึงข้อมูล</p>
+                    <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-xs"><thead class="bg-slate-50 text-slate-600"><tr><th class="p-2">เวลา</th><th class="p-2">ผู้ดำเนินการ</th><th class="p-2">รายการ</th><th class="p-2">การทำงาน</th><th class="p-2">Before / After</th></tr></thead><tbody id="audit-events-list"></tbody></table></div>
+                    <div class="text-right mt-2"><button id="audit-events-next" type="button" onclick="loadAuditEventsV1560_(true)" class="hidden px-3 py-2 rounded-lg border text-xs font-bold">หน้าถัดไป</button></div>
+                </section>
             </div>
 
             <div id="page-admin-db" class="page-view hidden max-w-5xl mx-auto">
@@ -1876,6 +1961,33 @@
                 </div>
             </div>
 
+            <div id="page-reports" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-6xl mx-auto space-y-5">
+                <section class="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
+                    <div class="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 class="text-xl font-extrabold text-slate-800"><i class="fas fa-chart-line mr-2 text-emerald-600"></i>Dashboard ผู้บริหาร</h2><p class="mt-1 text-xs text-slate-500">ภาพรวมจากข้อมูลล่าสุดที่โหลดในระบบ ตัวเลขการเงินใช้สูตรสรุปบัญชีเดิม</p></div><div class="flex gap-2"><button onclick="renderExecutiveDashboardV1563_()" class="rounded-xl border px-3 py-2 text-xs font-bold text-slate-600"><i class="fas fa-rotate-right mr-1"></i>คำนวณใหม่</button><button onclick="exportExecutiveReportV1563_()" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><i class="fas fa-file-excel mr-1"></i>Excel</button><button onclick="window.print()" class="rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-white"><i class="fas fa-file-pdf mr-1"></i>พิมพ์ / PDF</button></div></div>
+                    <div class="mb-4 flex flex-wrap items-end gap-2 rounded-2xl bg-slate-50 p-3"><label class="text-xs font-semibold text-slate-600">ตั้งแต่ <input id="report-from-v1563" type="date" class="ml-1 rounded-lg border bg-white px-2 py-1.5"></label><label class="text-xs font-semibold text-slate-600">ถึง <input id="report-to-v1563" type="date" class="ml-1 rounded-lg border bg-white px-2 py-1.5"></label><span class="text-[11px] text-slate-500">ตัวกรองใช้กับรายการชำระ รายการบัญชี และกิจกรรมที่มีวันเวลา; ยอดคงเหลือเป็นยอดปัจจุบัน</span></div>
+                    <div id="executive-report-metrics-v1563" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><p class="text-sm text-slate-400">กำลังสรุปข้อมูล...</p></div>
+                    <div class="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2"><section class="rounded-2xl border p-4"><h3 class="mb-3 font-bold text-slate-800">สรุปรายห้อง</h3><div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead><tr class="border-b text-slate-500"><th class="p-2">ห้อง</th><th class="p-2 text-right">นักศึกษา</th><th class="p-2 text-right">คะแนนรวม</th><th class="p-2 text-right">ยอดคงเหลือ</th></tr></thead><tbody id="executive-report-rooms-v1563"></tbody></table></div></section><section class="rounded-2xl border p-4"><h3 class="mb-3 font-bold text-slate-800">ข้อมูลและสถานะระบบ</h3><div id="executive-report-health-v1563" class="space-y-2 text-sm text-slate-600"></div></section></div>
+                    <p id="executive-report-note-v1563" class="mt-4 text-[11px] leading-relaxed text-slate-400"></p>
+                </section>
+            </div>
+
+            <div id="page-notifications" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-5xl mx-auto space-y-5">
+                <section class="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div><h2 class="text-xl font-extrabold text-slate-800"><i class="fas fa-bell mr-2 text-sky-500"></i>ศูนย์แจ้งเตือน</h2><p class="mt-1 text-xs text-slate-500">ประกาศและข้อความที่ส่งถึงบัญชีของคุณ</p></div>
+                        <div class="flex gap-2"><button onclick="loadNotificationsV1562_()" class="rounded-xl border px-3 py-2 text-xs font-bold text-slate-600"><i class="fas fa-rotate-right mr-1"></i>รีเฟรช</button><button onclick="markAllNotificationsReadV1562_()" class="rounded-xl bg-sky-600 px-3 py-2 text-xs font-bold text-white">ทำเครื่องหมายอ่าน (ล่าสุด 500)</button></div>
+                    </div>
+                    <div id="announcement-form-v1562" class="mb-5 hidden rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                        <h3 class="mb-3 font-bold text-indigo-900">ส่งประกาศ</h3>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="announcement-title-v1562">หัวข้อ</label><input id="announcement-title-v1562" maxlength="120" class="modern-input mb-3" placeholder="หัวข้อประกาศ">
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="announcement-body-v1562">ข้อความ</label><textarea id="announcement-body-v1562" maxlength="1500" rows="3" class="modern-input mb-3" placeholder="รายละเอียดประกาศ"></textarea>
+                        <div class="flex flex-wrap items-end gap-2"><div><label class="mb-1 block text-xs font-semibold text-slate-600" for="announcement-audience-v1562">ผู้รับ</label><select id="announcement-audience-v1562" onchange="toggleAnnouncementRoomV1562_()" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"><option value="all">ทุกคน</option><option value="room">เลือกห้อง</option></select></div><div id="announcement-room-wrap-v1562" class="hidden"><label class="mb-1 block text-xs font-semibold text-slate-600" for="announcement-room-v1562">ห้อง</label><input id="announcement-room-v1562" maxlength="80" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="เช่น FN A"></div><button id="announcement-submit-v1562" onclick="publishAnnouncementV1562_()" class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">ส่งประกาศ</button></div>
+                        <p class="mt-2 text-[11px] text-slate-500">ส่งโดยบันทึกประกาศและหลักฐาน Audit ใน Firebase; ส่งซ้ำหลังขัดข้องจะใช้รหัสเดิมเพื่อลดรายการซ้ำ</p>
+                    </div>
+                    <div id="notifications-list-v1562" class="space-y-3"><p class="py-8 text-center text-sm text-slate-400">กำลังโหลดแจ้งเตือน...</p></div>
+                </section>
+            </div>
+
             <div id="page-my-points" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-5xl mx-auto space-y-5">
     <div class="rounded-3xl bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-600 p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
         <i class="fas fa-star absolute -right-3 -top-4 text-8xl opacity-10"></i>
@@ -1899,6 +2011,11 @@
         <p class="font-bold mb-1"><i class="fas fa-info-circle mr-1"></i> คะแนนมาจากอะไร?</p>
         <p>คะแนนชำระเงินจะบันทึกเมื่อผู้ดูแลยืนยันรับเงินครบตามบิลและตรวจเวลาส่งหลักฐานแล้ว ส่วนคะแนนกิจกรรมจะบันทึกเมื่อผู้ดูแลประเมินผลผ่าน รายการที่ถูกยกเลิกจะแสดงไว้ตรวจสอบแต่ไม่นำมาคิดคะแนนรวม</p>
     </div>
+
+    <section class="bg-white rounded-3xl border border-amber-200 shadow-sm p-4 md:p-5">
+        <div class="flex items-center justify-between gap-3 mb-3"><div><h3 class="font-bold text-slate-800"><i class="fas fa-certificate text-amber-500 mr-2"></i>เกียรติบัตรกิจกรรม</h3><p class="text-xs text-slate-400 mt-1">ออกจากรายการกิจกรรมที่มีสถานะผ่านในบัญชีของคุณ</p></div><span id="my-certificates-count-v1561" class="text-xs text-slate-500"></span></div>
+        <div id="my-certificates-list-v1561" class="grid grid-cols-1 md:grid-cols-2 gap-2"><p class="text-xs text-slate-400">กำลังตรวจรายการกิจกรรมที่ผ่าน...</p></div>
+    </section>
 
     <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -1962,28 +2079,12 @@
         </div>
     </div>
         <!-- นำเข้า Firebase -->
-        <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-        <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
         <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
     <script data-api-url="https://script.google.com/macros/s/AKfycbwlh_dKnnyBVyjmnsv8_yfij5ll2oZB_Mw9W3kAUE3_9u3nz8qtzL1dkC6_ma2_UR7ylQ/exec" data-pusher-key="a1faa9f3e07af21e4a44" data-pusher-cluster="ap1">
     const API_URL = document.currentScript.dataset.apiUrl;
     // Public Pusher app key only; never put the Pusher app secret in browser code.
     const PUSHER_KEY_V15 = document.currentScript.dataset.pusherKey || 'a1faa9f3e07af21e4a44';
     const PUSHER_CLUSTER_V15 = document.currentScript.dataset.pusherCluster || 'ap1';
-
-    // 🌟 🌟 🌟 วางโค้ด Firebase ขั้นตอนที่ 2 แทรกตรงนี้ครับ 🌟 🌟 🌟
-    const firebaseConfig = {
-      apiKey: "AIzaSyCUKWOibjCub6mLiwaSb0ZwPf-9YtxxwYA",
-      authDomain: "slip-matching-system.firebaseapp.com",
-      projectId: "slip-matching-system",
-      storageBucket: "slip-matching-system.firebasestorage.app",
-      messagingSenderId: "492435847824",
-      appId: "1:492435847824:web:fc26718c2476aed89cf615",
-      measurementId: "G-GH3ZK4DF62"
-    };
-
-    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-    const db = firebase.firestore();
 
     // Firebase is the primary database. Apps Script reads/writes its canonical record store; Google Sheets is an asynchronous backup.
     const realtimeClientId = 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
@@ -2519,11 +2620,16 @@
         const channel = pusher.subscribe('classroom-channel');
         channel.bind('data-updated', function (signal) {
             const notice = signal || {};
+            // Course-document metadata is stored in its own Firebase collections; refresh only this view.
+            if (notice.sourceClientId === 'course-documents' && currentView === 'course-documents' && typeof loadCourseDocumentsV1_ === 'function') {
+                loadCourseDocumentsV1_();
+            }
             // This tab already applied its own optimistic mutation locally. Skipping its own
             // committed event avoids one unnecessary Firestore document read per write.
             if (notice.eventId && notice.sourceClientId && notice.sourceClientId === realtimeClientId && notice.canonicalRefresh !== true) {
                 console.log('Pusher echo ignored for this browser:', notice.eventId);
                 appliedRealtimeEventIds_.add(String(notice.eventId));
+                if (notice.notificationRefresh === true && typeof loadNotificationsV1562_ === 'function') loadNotificationsV1562_(false);
                 return;
             }
             // Activity toggles are safely represented by a small status-only signal. Apply them
@@ -2533,6 +2639,10 @@
                     requestRealtimeCanonicalRefresh_('sheets-fallback-mode', 50);
                 }
                 return;
+            }
+            if (notice.notificationRefresh === true) {
+                if (typeof loadNotificationsV1562_ === 'function' && (window.currentAuthToken || window.currentStudentAuthToken)) loadNotificationsV1562_(false);
+                if (!notice.eventId) return;
             }
             console.log('Pusher received SSSFN update signal:', notice.eventId || 'generic');
             if (notice.eventId || (notice.canonicalRefresh === true && String(notice.storageMode || '').toUpperCase() === 'SHEETS')) {
@@ -3139,6 +3249,46 @@ function scheduleRealtimeSaveRetry_() {
     setTimeout(() => autoSyncToGS(false), baseDelay + jitter);
 }
 
+// v15.6.7: background saves (saveToLocal -> autoSyncToGS(false)) used to fail silently.
+// Count consecutive rejections, stop the 250 ms silent retry loop, and tell the user.
+let bgSaveFailCountV1567_ = 0;
+let bgSaveNoticeOpenV1567_ = false;
+function escapeHtmlV1567_(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function reportBackgroundSaveFailureV1567_(message) {
+    if (typeof Swal === 'undefined' || bgSaveNoticeOpenV1567_) return;
+    bgSaveNoticeOpenV1567_ = true;
+    Swal.fire({
+        icon: 'error',
+        title: 'บันทึกไม่สำเร็จ',
+        html: '<div class="text-left text-sm">เซิร์ฟเวอร์ไม่รับการแก้ไขล่าสุด ข้อมูลบนหน้าจออาจไม่ตรงกับฐานข้อมูล<br><br><b>สาเหตุ:</b> ' + escapeHtmlV1567_(message || 'ไม่ทราบสาเหตุ') + '</div>',
+        showCancelButton: true,
+        confirmButtonText: 'ยกเลิกการแก้ไขและโหลดข้อมูลล่าสุด',
+        cancelButtonText: 'เก็บไว้ก่อน',
+        confirmButtonColor: '#2563eb'
+    }).then(result => {
+        bgSaveNoticeOpenV1567_ = false;
+        if (result.isConfirmed) {
+            bgSaveFailCountV1567_ = 0;
+            hasLocalChanges = false;
+            syncQueued = false;
+            silentPullFromGS(true, true);
+        }
+    });
+}
+
+// Commit the current local diff now and report the server's real answer (used by registration).
+async function commitPendingChangesNowV1567_() {
+    const started = Date.now();
+    while ((isSyncing || remotePullInProgress) && Date.now() - started < 15000) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    clearTimeout(syncTimeout);
+    hasLocalChanges = true;
+    return autoSyncToGS(false);
+}
+
 async function autoSyncToGS(showStatus = false) {
     if (isSyncing || remotePullInProgress) {
         syncQueued = true;
@@ -3220,7 +3370,8 @@ async function autoSyncToGS(showStatus = false) {
         const result = await callBackend({
             action: 'saveDelta',
             changes: changes,
-            clientId: realtimeClientId
+            clientId: realtimeClientId,
+            clientContext: {userAgent:String(navigator && navigator.userAgent || '').slice(0,250),platform:String((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '').slice(0,100),language:String(navigator.language || '').slice(0,40)}
         });
         if (!result || result.status !== 'success') {
             throw new Error((result && result.message) || 'หลังบ้านไม่สามารถบันทึกการเปลี่ยนแปลงลง Firebase ได้');
@@ -3237,6 +3388,7 @@ async function autoSyncToGS(showStatus = false) {
         const currentAfterSave = captureCurrentRealtimeData_();
         hasLocalChanges = buildRealtimeChanges_(lastServerSnapshot, currentAfterSave).length > 0;
         realtimeRetryAttempt = 0;
+        bgSaveFailCountV1567_ = 0;
         const savedMode = String(result.storageMode || 'FIREBASE').toUpperCase();
         if (showStatus && typeof Swal !== 'undefined') Swal.fire({
             toast: true, position: 'top-end', icon: 'success',
@@ -3253,6 +3405,10 @@ async function autoSyncToGS(showStatus = false) {
         const saveErrorMessage = String(error && error.message || error || '');
         authBlocked = /ไม่มีเซสชันผู้ดูแลที่ตรวจสอบได้|เซสชันหมดอายุ|ไม่มีสิทธิ์แก้ไขข้อมูลหลัก|กรุณาเข้าสู่ระบบใหม่|admin session|unauthori[sz]ed/i.test(saveErrorMessage);
         validationBlocked = /รายการนี้ถูกยกเลิกแล้ว.*ซ่อนประวัติพร้อมเหตุผล|รายการกิจกรรมถูกยกเลิกแล้ว.*ซ่อนประวัติพร้อมเหตุผล|การซ่อนประวัติที่ถูกยกเลิกแล้วแก้ไขได้เฉพาะข้อมูลการตรวจสอบ|การซ่อนประวัติคะแนน|System Log|รายการคะแนนมีการแก้ไขเนื้อหา|รายการคะแนนหรือสถานะยกเลิกเปลี่ยนหลังเปิดหน้า|กรุณาโหลดข้อมูลใหม่ก่อนลบ|พบรายการคะแนนต้นทางซ้ำ|พบรหัส System Log ซ้ำ|ไม่พบ System Log|รหัสนักศึกษาในรายการคะแนน|ไม่สามารถยืนยันเจ้าของประวัติ|ไม่อนุญาตให้|เฉพาะหัวหน้าเท่านั้น|ต้องระบุ.*ก่อน|ข้อมูล.*ไม่ถูกต้อง/i.test(saveErrorMessage);
+        // v15.6.7: any rejection that repeats 3 times in a row is treated as a server refusal,
+        // not as a transient network problem, so it is surfaced instead of retried silently.
+        bgSaveFailCountV1567_++;
+        if (!authBlocked && !validationBlocked && bgSaveFailCountV1567_ >= 3) validationBlocked = true;
         if (validationBlocked) syncQueued = false;
         console.error('Incremental Firebase save failed:', error);
         if (authBlocked) {
@@ -3268,6 +3424,8 @@ async function autoSyncToGS(showStatus = false) {
             }).then(result => { if (result.isConfirmed) promptLogin(); });
         } else if (showStatus && typeof Swal !== 'undefined') {
             Swal.fire('บันทึกไม่สำเร็จ', saveErrorMessage || 'ตรวจสอบการเชื่อมต่อแล้วลองใหม่', 'error');
+        } else if (validationBlocked) {
+            reportBackgroundSaveFailureV1567_(saveErrorMessage);
         }
         return { status: 'error', message: saveErrorMessage };
     } finally {
@@ -4151,6 +4309,219 @@ window.toggleSidebar = function() {
         if(sidebar) sidebar.classList.toggle('desktop-sidebar-closed');
     }
 }
+let notificationItemsV1562_ = [];
+let pendingAnnouncementEventIdV1562_ = '';
+
+function sssfnBuildExecutiveReportDataV1563_(state, fromDate, toDate, financeSummary) {
+    const data = state || {};
+    const studentsList = Array.isArray(data.students) ? data.students : [];
+    const roomList = Array.isArray(data.rooms) ? data.rooms : [];
+    const paymentList = Array.isArray(data.fundPayments) ? data.fundPayments : [];
+    const expenseList = Array.isArray(data.expenses) ? data.expenses : [];
+    const activityList = Array.isArray(data.activityLogs) ? data.activityLogs : [];
+    const rounds = Array.isArray(data.fundRounds) ? data.fundRounds : [];
+    const from = String(fromDate || '').trim(); const to = String(toDate || '').trim();
+    const dateOf = row => String(row && (row.date || row.paidAt || row.confirmedAt || row.assessedAt || row.timeIn || row.registeredAt || row.updatedAt || row.createdAt) || '');
+    const dayKey = value => {
+        const text = String(value || '').trim();
+        const thaiDate = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+        if (thaiDate) {
+            const day = Number(thaiDate[1]), month = Number(thaiDate[2]);
+            let year = Number(thaiDate[3]); if (year > 2400) year -= 543;
+            if (day >= 1 && day <= 31 && month >= 1 && month <= 12) return String(year).padStart(4,'0')+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+        }
+        const iso = text.match(/^(\d{4}-\d{2}-\d{2})/); if (iso) return iso[1];
+        const parsed = Date.parse(text); return Number.isFinite(parsed) ? new Date(parsed).toISOString().slice(0,10) : '';
+    };
+    const inRange = row => {
+        if (!from && !to) return true;
+        const day = dayKey(dateOf(row)); if (!day) return false;
+        return (!from || day >= from) && (!to || day <= to);
+    };
+    const paidRows = paymentList.filter(row => row && inRange(row) && Number(row.paidAmt) > 0 && !String(row.status || '').includes('ตีกลับ') && !String(row.status || '').includes('ยกเลิก'));
+    const expensesInRange = expenseList.filter(row => row && inRange(row));
+    const incomeInRange = expensesInRange.filter(row => row.type === 'รายรับ').reduce((sum,row)=>sum+(Number(row.amt)||0),0);
+    const expenseInRange = expensesInRange.filter(row => row.type !== 'รายรับ').reduce((sum,row)=>sum+(Number(row.amt)||0),0);
+    const activitiesInRange = activityList.filter(inRange);
+    const activityNames = [...new Set(activitiesInRange.map(row=>String(row.activityTitle || row.activityName || row.title || '').trim()).filter(Boolean))];
+    const participants = new Set(activitiesInRange.map(row=>String(row.studentId || '').replace(/-/g,'').trim()).filter(Boolean));
+    const unpaid = studentsList.reduce((sum,student)=>{
+        const studentPayments = paymentList.filter(payment=>payment && payment.studentId === student.id);
+        const debt = studentPayments.reduce((studentDebt,payment)=>{
+            if (payment.status === 'ยกเลิก') return studentDebt;
+            const round = rounds.find(item=>item && item.id === payment.roundId);
+            if (!round || typeof isFundRoundOpenNow_ !== 'function' || !isFundRoundOpenNow_(round)) return studentDebt;
+            const expected = round.roomAmounts && round.roomAmounts[student.room] !== undefined ? Number(round.roomAmounts[student.room]) : Number(round.amt);
+            return studentDebt + (expected - (payment.paidAmt || 0));
+        },0);
+        return sum + Math.max(0,debt);
+    },0);
+    const pointTotal = studentsList.reduce((sum,student)=>sum+(typeof getStudentTotalPoints_ === 'function' ? Number(getStudentTotalPoints_(student))||0 : Number(student && (student.totalPoints ?? student.points))||0),0);
+    const roomMetrics = roomList.map(room=>{
+        const roomName = String(room || '').trim();
+        const members = studentsList.filter(student=>String(student && student.room || '').trim() === roomName);
+        const roomFinance = financeSummary && financeSummary.roomBalances && financeSummary.roomBalances[roomName];
+        return {room:roomName,studentCount:members.length,points:members.reduce((sum,student)=>sum+(typeof getStudentTotalPoints_ === 'function' ? Number(getStudentTotalPoints_(student))||0 : Number(student && (student.totalPoints ?? student.points))||0),0),balance:roomFinance ? Number(roomFinance.balance)||0 : null};
+    });
+    const paidTotal = paidRows.reduce((sum,row)=>sum+Math.max(0,(Number(row.paidAmt)||0)-(Number(row.pointShopRewardUsed)||0)),0);
+    return {from:from,to:to,studentCount:studentsList.length,roomCount:roomList.length,openBillCount:rounds.filter(round=>typeof isFundRoundOpenNow_ === 'function' && isFundRoundOpenNow_(round)).length,
+        paymentRecordCount:paidRows.length,paidTotal:paidTotal,unpaidTotal:unpaid,pointTotal:pointTotal,activityCount:activityNames.length,activityRecordCount:activitiesInRange.length,
+        uniqueParticipants:participants.size,periodIncome:paidTotal+incomeInRange,periodExpense:expenseInRange,currentBalance:financeSummary ? Number(financeSummary.currentBalance)||0 : null,
+        rooms:roomMetrics,periodExpenseRows:expensesInRange,periodPaidRows:paidRows,periodActivityRows:activitiesInRange};
+}
+
+function executiveReportEscapeCellV1563_(value) {
+    const text = String(value == null ? '' : value);
+    return /^[=+\-@\t\r]/.test(text) ? "'" + text : text;
+}
+
+function renderExecutiveDashboardV1563_() {
+    if (currentUserRole !== 'leader') return;
+    if (typeof renderExpenseTable === 'function') renderExpenseTable();
+    const from = String((document.getElementById('report-from-v1563') || {}).value || '');
+    const to = String((document.getElementById('report-to-v1563') || {}).value || '');
+    const report = sssfnBuildExecutiveReportDataV1563_({students:students,rooms:rooms,fundPayments:fundPayments,fundRounds:fundRounds,expenses:expenses,activityLogs:activityLogs},from,to,window.__sssfnFinanceSummaryV1563_ || null);
+    window.__sssfnExecutiveReportV1563_ = report;
+    const metrics = document.getElementById('executive-report-metrics-v1563');
+    if (metrics) {
+        metrics.replaceChildren();
+        const cards = [
+            ['นักศึกษาทั้งหมด',report.studentCount.toLocaleString('th-TH')+' คน','text-slate-800'],
+            ['ยอดคงเหลือปัจจุบัน',report.currentBalance == null ? 'ไม่มีข้อมูลบัญชี' : '฿ '+report.currentBalance.toLocaleString('th-TH',{minimumFractionDigits:2}), 'text-emerald-700'],
+            ['ยอดค้างชำระ', '฿ '+report.unpaidTotal.toLocaleString('th-TH',{minimumFractionDigits:2}), 'text-rose-700'],
+            ['คะแนนสะสมรวม',report.pointTotal.toLocaleString('th-TH')+' แต้ม','text-amber-700'],
+            ['รอบบิลที่เปิด',report.openBillCount.toLocaleString('th-TH')+' รอบ','text-indigo-700'],
+            ['รับชำระในช่วงที่เลือก',report.paymentRecordCount.toLocaleString('th-TH')+' รายการ · ฿ '+report.paidTotal.toLocaleString('th-TH',{minimumFractionDigits:2}),'text-sky-700'],
+            ['รายรับตามช่วงที่เลือก','฿ '+report.periodIncome.toLocaleString('th-TH',{minimumFractionDigits:2}),'text-emerald-700'],
+            ['รายจ่ายตามช่วงที่เลือก','฿ '+report.periodExpense.toLocaleString('th-TH',{minimumFractionDigits:2}),'text-rose-700'],
+            ['กิจกรรม / ผู้เข้าร่วม',report.activityCount.toLocaleString('th-TH')+' กิจกรรม · '+report.uniqueParticipants.toLocaleString('th-TH')+' คน','text-violet-700']
+        ];
+        cards.forEach(([label,value,color])=>{const card=document.createElement('div');card.className='rounded-2xl border border-slate-100 bg-slate-50 p-4';const l=document.createElement('p');l.className='text-xs font-semibold text-slate-500';l.textContent=label;const v=document.createElement('p');v.className='mt-2 text-lg font-extrabold '+color;v.textContent=value;card.append(l,v);metrics.appendChild(card);});
+    }
+    const table = document.getElementById('executive-report-rooms-v1563');
+    if (table) { table.replaceChildren(); report.rooms.forEach(row=>{const tr=document.createElement('tr');tr.className='border-b last:border-0';[row.room,row.studentCount.toLocaleString('th-TH'),row.points.toLocaleString('th-TH'),row.balance == null ? '—' : '฿ '+row.balance.toLocaleString('th-TH',{minimumFractionDigits:2})].forEach((value,index)=>{const td=document.createElement('td');td.className='p-2 '+(index ? 'text-right' : '');td.textContent=value;tr.appendChild(td);});table.appendChild(tr);}); }
+    const health = document.getElementById('executive-report-health-v1563');
+    if (health) {
+        health.replaceChildren();
+        const issues = [];
+        if (hasLocalChanges) issues.push('มีการเปลี่ยนแปลงที่ยังรอบันทึก');
+        if (lastCanonicalPullErrorV13) issues.push('การดึงข้อมูลล่าสุดพบข้อผิดพลาด: '+String(lastCanonicalPullErrorV13));
+        if (typeof lastSuccessfulCanonicalPullAtV13 === 'number' && lastSuccessfulCanonicalPullAtV13) issues.push('ดึงข้อมูลสำเร็จล่าสุด '+new Date(lastSuccessfulCanonicalPullAtV13).toLocaleString('th-TH'));
+        const rows = [['สถานะข้อมูล',issues.length ? issues.join(' · ') : 'ไม่พบปัญหาการซิงก์ที่แสดงในเบราว์เซอร์'],['รายการรับชำระตามช่วง',report.paymentRecordCount+' รายการ'],['รายการกิจกรรมตามช่วง',report.activityRecordCount+' รายการ']];
+        rows.forEach(([label,value])=>{const p=document.createElement('p');p.textContent=label+': '+value;health.appendChild(p);});
+    }
+    const note = document.getElementById('executive-report-note-v1563');
+    if (note) note.textContent = 'รายงานนี้คำนวณในเบราว์เซอร์จาก snapshot ที่โหลดอยู่ ไม่เขียนข้อมูลกลับระบบ ยอดคงเหลือและหนี้ใช้ข้อมูล/สูตรบัญชีเดิม; ช่วงวันที่ใช้เฉพาะรายการที่มีวันเวลาในระเบียน ข้อมูลเก่าที่ไม่มีวันที่อาจไม่รวมในรายงานช่วงเวลา';
+}
+
+function exportExecutiveReportV1563_() {
+    if (currentUserRole !== 'leader') return;
+    const report = window.__sssfnExecutiveReportV1563_;
+    if (!report) { renderExecutiveDashboardV1563_(); return; }
+    if (typeof XLSX === 'undefined') { if (typeof showToast === 'function') showToast('ไม่พบไลบรารี Excel กรุณาลองพิมพ์เป็น PDF','error'); return; }
+    const workbook = XLSX.utils.book_new();
+    const summary = [['SSSFN Executive Report'],['ช่วงวันที่',report.from || 'ทั้งหมด',report.to || 'ทั้งหมด'],['นักศึกษา',report.studentCount],['ยอดคงเหลือปัจจุบัน',report.currentBalance],['ยอดค้างชำระ',report.unpaidTotal],['คะแนนสะสม',report.pointTotal],['รอบบิลที่เปิด',report.openBillCount],['รายการรับชำระ',report.paymentRecordCount,report.paidTotal],['รายรับตามช่วง',report.periodIncome],['รายจ่ายตามช่วง',report.periodExpense],['กิจกรรม',report.activityCount,report.activityRecordCount],['ผู้เข้าร่วมไม่ซ้ำ',report.uniqueParticipants]];
+    XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(summary),'ภาพรวม');
+    const roomRows=[['ห้อง','จำนวนนักศึกษา','คะแนนรวม','ยอดคงเหลือ']].concat(report.rooms.map(row=>[executiveReportEscapeCellV1563_(row.room),row.studentCount,row.points,row.balance]));
+    XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(roomRows),'รายห้อง');
+    const ledger=[['วันที่','ประเภท','รายการ','จำนวนเงิน','ห้อง/นักศึกษา']];
+    report.periodExpenseRows.forEach(row=>ledger.push([executiveReportEscapeCellV1563_(row.date || row.updatedAt || ''),executiveReportEscapeCellV1563_(row.type || ''),executiveReportEscapeCellV1563_(row.name || ''),Number(row.amt)||0,executiveReportEscapeCellV1563_(row.room || row.source || '')]));
+    report.periodPaidRows.forEach(row=>ledger.push([executiveReportEscapeCellV1563_(row.date || row.paidAt || row.confirmedAt || ''),'ชำระบิล',executiveReportEscapeCellV1563_(row.studentName || row.studentId || ''),Number(row.paidAmt)||0,executiveReportEscapeCellV1563_(row.room || '')]));
+    XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(ledger),'รายการตามช่วง');
+    XLSX.writeFile(workbook,'SSSFN_Executive_Report.xlsx');
+}
+
+function toggleAnnouncementRoomV1562_() {
+    const audience = document.getElementById('announcement-audience-v1562');
+    const wrap = document.getElementById('announcement-room-wrap-v1562');
+    if (wrap && audience) wrap.classList.toggle('hidden', audience.value !== 'room');
+}
+
+async function loadNotificationsV1562_(showError = true) {
+    const list = document.getElementById('notifications-list-v1562');
+    if (!window.currentAuthToken && !window.currentStudentAuthToken) {
+        if (list) list.textContent = 'กรุณาเข้าสู่ระบบก่อนดูการแจ้งเตือน';
+        return;
+    }
+    if (list) list.textContent = 'กำลังโหลดแจ้งเตือน...';
+    const result = await callBackend({action:'listNotificationsV1562',pageSize:50});
+    if (!result || result.status !== 'success') {
+        if (list) list.textContent = String(result && result.message || 'โหลดแจ้งเตือนไม่สำเร็จ');
+        if (showError && typeof showToast === 'function') showToast(String(result && result.message || 'โหลดแจ้งเตือนไม่สำเร็จ'), 'error');
+        return;
+    }
+    notificationItemsV1562_ = Array.isArray(result.items) ? result.items : [];
+    const badge = document.getElementById('notification-unread-badge-v1562');
+    if (badge) {
+        const count = Number(result.unreadCount) || 0;
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.classList.toggle('hidden', count < 1);
+    }
+    if (!list) return;
+    list.replaceChildren();
+    if (!notificationItemsV1562_.length) {
+        const empty = document.createElement('div');
+        empty.className = 'rounded-2xl bg-slate-50 px-4 py-10 text-center text-sm text-slate-400';
+        empty.textContent = 'ยังไม่มีรายการแจ้งเตือน';
+        list.appendChild(empty);
+        return;
+    }
+    notificationItemsV1562_.forEach(item => {
+        const card = document.createElement('article');
+        card.className = 'rounded-2xl border p-4 ' + (item.read ? 'border-slate-100 bg-white' : 'border-sky-200 bg-sky-50/60');
+        const head = document.createElement('div'); head.className = 'flex flex-wrap items-start justify-between gap-3';
+        const copy = document.createElement('div'); copy.className = 'min-w-0 flex-1';
+        const title = document.createElement('h3'); title.className = 'font-bold text-slate-800'; title.textContent = String(item.title || 'ประกาศ');
+        const body = document.createElement('p'); body.className = 'mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600'; body.textContent = String(item.body || '');
+        const meta = document.createElement('p'); meta.className = 'mt-3 text-[11px] text-slate-400';
+        const date = item.createdAt ? new Date(item.createdAt) : null;
+        meta.textContent = (item.actorName ? 'โดย ' + item.actorName + ' · ' : '') + (date && !Number.isNaN(date.getTime()) ? date.toLocaleString('th-TH') : '');
+        copy.append(title,body,meta); head.appendChild(copy);
+        if (!item.read) {
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'shrink-0 rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-700';
+            button.textContent = 'ทำเครื่องหมายว่าอ่านแล้ว'; button.addEventListener('click',() => markNotificationReadV1562_(item.notificationId)); head.appendChild(button);
+        }
+        card.appendChild(head); list.appendChild(card);
+    });
+}
+
+async function markNotificationReadV1562_(notificationId) {
+    const result = await callBackend({action:'markNotificationsReadV1562',notificationId:String(notificationId || '')});
+    if (!result || result.status !== 'success') { if (typeof showToast === 'function') showToast(String(result && result.message || 'เปลี่ยนสถานะไม่สำเร็จ'),'error'); return; }
+    await loadNotificationsV1562_(false);
+}
+
+async function markAllNotificationsReadV1562_() {
+    const result = await callBackend({action:'markNotificationsReadV1562',markAll:true});
+    if (!result || result.status !== 'success') { if (typeof showToast === 'function') showToast(String(result && result.message || 'เปลี่ยนสถานะไม่สำเร็จ'),'error'); return; }
+    await loadNotificationsV1562_(false);
+}
+
+async function publishAnnouncementV1562_() {
+    const title = String((document.getElementById('announcement-title-v1562') || {}).value || '').trim();
+    const body = String((document.getElementById('announcement-body-v1562') || {}).value || '').trim();
+    const audience = String((document.getElementById('announcement-audience-v1562') || {}).value || 'all');
+    const room = String((document.getElementById('announcement-room-v1562') || {}).value || '').trim();
+    if (title.length < 2 || !body || (audience === 'room' && !room)) { if (typeof showToast === 'function') showToast('กรุณากรอกหัวข้อ ข้อความ และห้องให้ครบ','warning'); return; }
+    if (!pendingAnnouncementEventIdV1562_) {
+        pendingAnnouncementEventIdV1562_ = 'ann_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g,'') : Date.now().toString(36) + Math.random().toString(36).slice(2,14));
+    }
+    const button = document.getElementById('announcement-submit-v1562'); if (button) { button.disabled = true; button.textContent = 'กำลังส่ง...'; }
+    try {
+        const result = await callBackend({action:'publishAnnouncementV1562',title:title,body:body,audience:audience,room:room,eventId:pendingAnnouncementEventIdV1562_,clientContext:{userAgent:navigator.userAgent,platform:navigator.platform,language:navigator.language}});
+        if (!result || result.status !== 'success') {
+            const isPartial = result && result.status === 'partial';
+            if (typeof Swal !== 'undefined') await Swal.fire({icon:isPartial?'warning':'error',title:isPartial?'ส่งประกาศได้บางส่วน':'ส่งประกาศไม่สำเร็จ',text:String(result && result.message || 'เกิดข้อผิดพลาด'),confirmButtonText:'รับทราบ'});
+            return;
+        }
+        pendingAnnouncementEventIdV1562_ = '';
+        const titleInput = document.getElementById('announcement-title-v1562'); const bodyInput = document.getElementById('announcement-body-v1562');
+        if (titleInput) titleInput.value = ''; if (bodyInput) bodyInput.value = '';
+        if (typeof showToast === 'function') showToast(result.message || 'ส่งประกาศสำเร็จ','success');
+        await loadNotificationsV1562_(false);
+    } finally { if (button) { button.disabled = false; button.textContent = 'ส่งประกาศ'; } }
+}
+
 function refreshVisiblePageDataV15422_(pageId) {
     // Render from the latest in-memory canonical snapshot. This intentionally does not
     // issue another Firebase read on every tab click; startup + Pusher keep the snapshot fresh.
@@ -4192,12 +4563,19 @@ function refreshVisiblePageDataV15422_(pageId) {
             break;
         case 'fin-history':
             safe(renderFinHistory);
+            safe(loadAuditEventsV1560_);
             break;
         case 'leaderboard':
             safe(renderLeaderboard);
             break;
         case 'my-points':
             safe(renderMyPointsPageV15428_);
+            break;
+        case 'notifications':
+            safe(() => loadNotificationsV1562_());
+            break;
+        case 'reports':
+            safe(renderExecutiveDashboardV1563_);
             break;
         case 'admin-db':
         case 'admin-users':
@@ -4211,6 +4589,14 @@ function refreshVisiblePageDataV15422_(pageId) {
 }
 
 function switchPage(pageId) {
+    if (pageId === 'reports' && currentUserRole !== 'leader') {
+        if (typeof showToast === 'function') showToast('Dashboard ผู้บริหารเปิดให้เฉพาะหัวหน้า', 'warning');
+        pageId = 'home';
+    }
+    if (pageId === 'notifications' && !(window.currentAuthToken || window.currentStudentAuthToken)) {
+        if (typeof showToast === 'function') showToast('กรุณาเข้าสู่ระบบก่อนดูการแจ้งเตือน', 'warning');
+        pageId = 'home';
+    }
     if (pageId === 'my-points' && !(currentUserRole === 'guest' && window.currentGuestStuId && window.currentStudentAuthToken)) {
         if (typeof showToast === 'function') showToast('กรุณาเข้าสู่ระบบนักศึกษาด้วย Google ก่อนดูคะแนนสะสม', 'warning');
         pageId = 'home';
@@ -4254,7 +4640,11 @@ function switchPage(pageId) {
     // (เพิ่ม 2 บรรทัดนี้ต่อท้าย if-else ชุดที่เช็คชื่อหน้าในฟังก์ชัน switchPage)
     else if (pageId === 'leaderboard') { titleText = 'กระดานผู้นำ (Leaderboard)'; titleIcon = '<i class="fas fa-trophy mr-2 text-amber-500"></i>'; }
     else if (pageId === 'my-points') { titleText = 'คะแนนสะสมของฉัน'; titleIcon = '<i class="fas fa-star mr-2 text-indigo-500"></i>'; }
+    else if (pageId === 'course-documents') { titleText = 'คลังเอกสารรายวิชา'; titleIcon = '<i class="fas fa-folder-open mr-2 text-indigo-500"></i>'; if (typeof loadCourseDocumentsV1_ === 'function') loadCourseDocumentsV1_(); }
+    else if (pageId === 'notifications') { titleText = 'ศูนย์แจ้งเตือน'; titleIcon = '<i class="fas fa-bell mr-2 text-sky-500"></i>'; }
+    else if (pageId === 'reports') { titleText = 'Dashboard ผู้บริหาร'; titleIcon = '<i class="fas fa-chart-line mr-2 text-emerald-500"></i>'; }
     else if (pageId === 'fin-fund') { titleText = 'จัดการการเงิน'; titleIcon = '<i class="fas fa-piggy-bank mr-2 text-rose-500"></i>'; }
+    else if (pageId === 'fin-history') { titleText = 'Audit Log'; titleIcon = '<i class="fas fa-clipboard-check mr-2 text-indigo-500"></i>'; }
     else if (pageId === 'random') { titleText = 'สุ่มตัวแทน (Lucky Draw)'; titleIcon = '<i class="fas fa-dice mr-2 text-rose-500"></i>'; }
     else if (pageId === 'admin-students') { titleText = 'รายชื่อ & คะแนนสะสม'; titleIcon = '<i class="fas fa-user-graduate mr-2 text-indigo-500"></i>'; }
     else if (pageId === 'admin-db') { titleText = 'ฐานข้อมูล นศ.'; titleIcon = '<i class="fas fa-database mr-2 text-amber-500"></i>'; }
@@ -4372,6 +4762,13 @@ function switchPage(pageId) {
     const isGuest = (role === 'guest');
     const myPointsNav = document.getElementById('nav-my-points');
     if (myPointsNav) myPointsNav.classList.toggle('hidden', !(isGuest && !!window.currentGuestStuId && !!window.currentStudentAuthToken));
+    const notificationsNav = document.getElementById('nav-notifications');
+    if (notificationsNav) notificationsNav.classList.toggle('hidden', !(!!window.currentAuthToken || !!window.currentStudentAuthToken));
+    const announcementForm = document.getElementById('announcement-form-v1562');
+    if (announcementForm) announcementForm.classList.toggle('hidden', !['leader','vice'].includes(role));
+    const reportsNav = document.getElementById('nav-reports-v1563');
+    if (reportsNav) reportsNav.classList.toggle('hidden', role !== 'leader');
+    if (window.currentAuthToken || window.currentStudentAuthToken) setTimeout(() => loadNotificationsV1562_(false), 250);
     
     // ตั้งค่าแสดงเมนูหลัก
     let elSysAct = document.getElementById('system-actions'); 
@@ -4397,17 +4794,20 @@ function switchPage(pageId) {
     let navRand = document.getElementById('nav-random');
     let navDb = document.getElementById('nav-admin-db');
     let navUsers = document.getElementById('nav-admin-users');
+    let navAudit = document.getElementById('nav-fin-history');
 
     if (!isGuest) {
         if(navFin) navFin.classList.remove('hidden');
         if(navRand) navRand.classList.toggle('hidden', role === 'treasurer');
         if(navDb) navDb.classList.remove('hidden');
         if(navUsers) navUsers.classList.toggle('hidden', role !== 'leader'); // เฉพาะหัวหน้าจัดการสิทธิ์
+        if(navAudit) navAudit.classList.toggle('hidden', role !== 'leader'); // Audit Before/After เปิดให้เฉพาะหัวหน้า
     } else {
         if(navFin) navFin.classList.add('hidden');
         if(navRand) navRand.classList.add('hidden');
         if(navDb) navDb.classList.add('hidden');
         if(navUsers) navUsers.classList.add('hidden');
+        if(navAudit) navAudit.classList.add('hidden');
     }
     
     if (!skipFullRender) refreshAll(); 
@@ -4526,13 +4926,56 @@ async function handleGoogleCredentialResponse(response) {
         applyRoleUI(true);
         switchPage('home');
         const studentLoadResult = await waitForCanonicalPullAfterLoginV15423_();
-        Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1300 });
+        const resumedQrAction = await resumePendingQRActionV1567_();
+        if (!resumedQrAction) Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบนักศึกษาสำเร็จ', text: `ยินดีต้อนรับ ${studentResult.name || studentResult.studentId}`, showConfirmButton: false, timer: 1300 });
     } catch (error) {
         setSssfnPageLoadingV15425_(false);
         console.error('Google student login failed:', error);
         Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: String(error.message || error) + ' กรุณาติดต่อผู้ดูแลเพื่อผูกอีเมลกับรหัสนักศึกษาก่อน' });
     }
 }
+
+// v15.6.7: after a verified student login, return to the QR action that was interrupted by login.
+function decodeQrTokenPayloadV1567_(token) {
+    try {
+        const part = String(token || '').split('.')[0];
+        if (!part) return null;
+        const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = b64 + '==='.slice((b64.length + 3) % 4);
+        const json = decodeURIComponent(Array.prototype.map.call(atob(padded), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        return JSON.parse(json);
+    } catch (error) { return null; }
+}
+async function resumePendingQRActionV1567_() {
+    let pending = window.pendingQRCheckin || null;
+    if (!pending) {
+        try { pending = JSON.parse(sessionStorage.getItem('pendingQRCheckin') || 'null'); } catch (error) {}
+    }
+    if (!pending || !pending.act) return false;
+    window.pendingQRCheckin = null;
+    try { sessionStorage.removeItem('pendingQRCheckin'); } catch (error) {}
+    if (!window.currentStudentAuthToken) return false;
+    switchPage('activity');
+    const started = Date.now();
+    while ((!appSettings.activities || !appSettings.activities.length) && Date.now() - started < 8000) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    await processStudentQRCheckin(pending, 'login-resume');
+    return true;
+}
+window.handleQRRegisterV1567_ = async function(data) {
+    const stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    if (!window.currentStudentAuthToken || !stuId) {
+        window.pendingQRCheckin = data;
+        try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(data)); } catch (error) {}
+        return promptStudentLogin();
+    }
+    const wanted = String(data.act || '').trim();
+    const act = (appSettings.activities || []).find(a => [a.ref, a.id, a.title].some(v => String(v || '').trim() === wanted));
+    if (!act) return Swal.fire({ icon: 'error', title: 'ไม่พบกิจกรรมจาก QR นี้', text: 'กิจกรรมอาจถูกลบหรือยังไม่เปิดแสดง กรุณาตรวจสอบกับผู้จัดกิจกรรม', confirmButtonColor: '#2563eb' });
+    switchPage('activity');
+    return promptConfirmReg(act.title);
+};
 
 // 🌟 ฟังก์ชันขอรหัสนักศึกษาและยืนยัน PDPA
 async function promptLinkAccount(email, googleCredential) {
@@ -4586,7 +5029,8 @@ async function promptLinkAccount(email, googleCredential) {
         applyRoleUI(true);
         switchPage('home');
         await waitForCanonicalPullAfterLoginV15423_();
-        Swal.fire({icon:'success', title:'ผูกอีเมลและเข้าสู่ระบบสำเร็จ', text:'อีเมลนี้ถูกตั้งเป็นอีเมลสำหรับแจ้งเตือนแล้ว', showConfirmButton:false, timer:1800});
+        const resumedQrActionAfterLink = await resumePendingQRActionV1567_();
+        if (!resumedQrActionAfterLink) Swal.fire({icon:'success', title:'ผูกอีเมลและเข้าสู่ระบบสำเร็จ', text:'อีเมลนี้ถูกตั้งเป็นอีเมลสำหรับแจ้งเตือนแล้ว', showConfirmButton:false, timer:1800});
     } catch (error) {
         console.error('Student email activation failed:', error);
         Swal.fire({icon:'error', title:'ผูกอีเมลไม่สำเร็จ', text:String(error && error.message || error)});
@@ -10409,6 +10853,8 @@ window.approveActivity = function(title) {
             // รวมทั้งระบบ (สำหรับ Admin)
             let grandTotalIncome = centralIncome + totalRoomsIncome;
             let grandTotalExpense = centralExpense + totalRoomsExpense;
+            window.__sssfnFinanceSummaryV1563_ = {centralBalance:centralFund,totalIncome:grandTotalIncome,totalExpense:grandTotalExpense,
+                currentBalance:grandTotalIncome-grandTotalExpense,roomBalances:JSON.parse(JSON.stringify(roomBalances))};
 
             // ตรวจสอบสิทธิ์ว่าเป็นนักศึกษาทั่วไปหรือไม่
             const isStudent = (currentUserRole === 'guest');
@@ -11860,6 +12306,85 @@ async function editUserAction(username) {
 // ================= HISTORY =================
         function editTxHistory(index) { let tx = txHistory[index]; Swal.fire({ title: 'แก้ไขประวัติ', html: `<div class="text-left"><label class="text-xs">รายการ</label><input id="e-tx-n" class="modern-input" value="${tx.name}"></div>`, confirmButtonColor: '#059669', preConfirm: () => { tx.name = document.getElementById('e-tx-n').value; saveToLocal(); refreshAll(); } }); }
         function deleteTxHistory(index) { Swal.fire({title: 'ลบประวัตินี้?', showCancelButton: true, confirmButtonColor: '#e3342f'}).then(r=>{if(r.isConfirmed){txHistory.splice(index,1); saveToLocal(); refreshAll();}}); }
+        let auditEventsNextPageTokenV1560_ = '';
+        async function reconcileBankCsvV1560_() {
+            const status = document.getElementById('bank-reconcile-status-v1560');
+            const summary = document.getElementById('bank-reconcile-summary-v1560');
+            const list = document.getElementById('bank-reconcile-list-v1560');
+            const input = document.getElementById('bank-statement-file-v1560');
+            if (!status || !list || !input) return;
+            if (!['leader','treasurer'].includes(String(currentUserRole || ''))) { status.textContent = 'เฉพาะหัวหน้าหรือเหรัญญิกเท่านั้นที่ใช้ Preview กระทบยอดได้'; return; }
+            const file = input.files && input.files[0];
+            if (!file) { status.textContent = 'กรุณาเลือกไฟล์ CSV ก่อน'; return; }
+            if (file.size > 400000) { status.textContent = 'ไฟล์ CSV ใหญ่เกิน 400 KB'; return; }
+            status.textContent = 'กำลังตรวจไฟล์แบบ Preview (ไม่มีการบันทึกข้อมูล)...';
+            list.textContent = ''; if (summary) { summary.textContent = ''; summary.classList.add('hidden'); }
+            let csvText;
+            try { csvText = await file.text(); }
+            catch (error) { status.textContent = 'อ่านไฟล์ไม่ได้: ' + String(error && error.message || error); return; }
+            const result = await callBackend({action:'previewBankReconciliationV1560',csvText:csvText});
+            if (!result || result.status !== 'success' || result.previewOnly !== true) { status.textContent = result && result.message || 'ตรวจไฟล์ไม่สำเร็จ'; return; }
+            const labels = {matched:'ตรงกัน',amount_mismatch:'ยอดไม่ตรง',duplicate_in_statement:'รายการซ้ำในไฟล์',duplicate_in_system:'เลขอ้างอิงซ้ำในระบบ',unmatched:'ไม่พบรายการ',reference_missing:'ไม่มีเลขอ้างอิง',reference_not_found_amount_candidate:'เลขอ้างอิงไม่ตรง (มียอดใกล้เคียง)'};
+            (result.rows || []).forEach(item => {
+                const row = document.createElement('tr'); row.className = 'border-t';
+                [item.line,item.date,item.reference,Number(item.amount||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}),labels[item.status] || item.status,(item.studentName || item.studentId || '-') + (item.candidateCount ? ' • ผู้สมัครตามยอด ' + item.candidateCount : '')].forEach(value => {
+                    const cell = document.createElement('td'); cell.className = 'p-2'; cell.textContent = String(value == null ? '' : value); row.appendChild(cell);
+                });
+                list.appendChild(row);
+            });
+            if (summary) {
+                const counts = result.counts || {};
+                summary.textContent = `ตรงกัน ${counts.matched||0} • ยอดไม่ตรง ${counts.amountMismatch||0} • ซ้ำในไฟล์ ${counts.duplicateInStatement||0} • ซ้ำในระบบ ${counts.duplicateInSystem||0} • ต้องตรวจเอง ${counts.referenceNeedsReview||0} • ไม่พบ ${counts.unmatched||0} • ข้ามรายการเงินออก ${result.ignoredOutflows||0} • แถวผิดรูปแบบ ${result.invalidRows||0}`;
+                summary.classList.remove('hidden');
+            }
+            status.textContent = result.message || 'Preview เสร็จแล้ว';
+        }
+        async function loadAuditEventsV1560_(nextPage) {
+            const status = document.getElementById('audit-events-status');
+            const list = document.getElementById('audit-events-list');
+            const nextButton = document.getElementById('audit-events-next');
+            if (!status || !list) return;
+            if (String(currentUserRole || '') !== 'leader') { status.textContent = 'Audit Before/After จำกัดเฉพาะหัวหน้า'; return; }
+            if (!nextPage) auditEventsNextPageTokenV1560_ = '';
+            status.textContent = 'กำลังโหลด Audit...';
+            const result = await callBackend({action:'getAuditEventsV1560',pageSize:10,pageToken:nextPage ? auditEventsNextPageTokenV1560_ : '',actor:(document.getElementById('audit-filter-actor')||{}).value||'',search:(document.getElementById('audit-filter-search')||{}).value||'',collection:(document.getElementById('audit-filter-collection')||{}).value||'',from:(document.getElementById('audit-filter-from')||{}).value||'',to:(document.getElementById('audit-filter-to')||{}).value||''});
+            if (!result || result.status !== 'success') { status.textContent = result && result.message ? result.message : 'โหลด Audit ไม่สำเร็จ'; return; }
+            auditEventsNextPageTokenV1560_ = String(result.nextPageToken || '');
+            list.textContent = '';
+            (result.events || []).forEach(event => {
+                const row = document.createElement('tr'); row.className = 'border-t align-top';
+                const addCell = text => { const cell = document.createElement('td'); cell.className = 'p-2'; cell.textContent = String(text == null ? '' : text); row.appendChild(cell); return cell; };
+                addCell(event.at ? new Date(event.at).toLocaleString('th-TH') : '-');
+                addCell((event.actorName || event.actor || '-') + (event.role ? ' (' + event.role + ')' : ''));
+                addCell(String(event.collection || '') + ' / ' + String(event.recordKey || ''));
+                addCell(String(event.operation || '') + (event.source ? ' • ' + event.source : ''));
+                const detailCell = addCell('');
+                const details = document.createElement('details');
+                const summary = document.createElement('summary'); summary.className = 'cursor-pointer text-indigo-700 font-bold'; summary.textContent = 'ดู Before / After';
+                const sourceMeta = document.createElement('p'); sourceMeta.className = 'text-[11px] text-slate-500 my-2'; sourceMeta.textContent = 'แหล่ง: ' + String(event.source || '-') + ' • Client: ' + String(event.clientId || '-') + (event.platform || event.userAgent ? ' • อุปกรณ์ที่ไคลเอนต์แจ้ง: ' + String(event.platform || event.userAgent) + ' (ยังไม่ยืนยัน)' : '');
+                const beforeLabel = document.createElement('strong'); beforeLabel.textContent = 'Before';
+                const beforePre = document.createElement('pre'); beforePre.className = 'whitespace-pre-wrap break-all bg-slate-50 p-2 rounded my-1'; beforePre.textContent = JSON.stringify(event.before, null, 2) || 'null';
+                const afterLabel = document.createElement('strong'); afterLabel.textContent = 'After';
+                const afterPre = document.createElement('pre'); afterPre.className = 'whitespace-pre-wrap break-all bg-slate-50 p-2 rounded my-1'; afterPre.textContent = JSON.stringify(event.after, null, 2) || 'null';
+                details.append(summary,sourceMeta,beforeLabel,beforePre,afterLabel,afterPre); detailCell.appendChild(details); list.appendChild(row);
+                if (event.restoreEligible === true && event.eventId) {
+                    const restoreButton = document.createElement('button'); restoreButton.type = 'button'; restoreButton.className = 'mt-2 px-2 py-1 rounded bg-amber-50 text-amber-800 font-bold'; restoreButton.textContent = 'กู้คืนเป็นรายการใหม่';
+                    restoreButton.addEventListener('click', () => restoreAuditEventV1560_(event.eventId)); details.appendChild(restoreButton);
+                }
+            });
+            status.textContent = 'พบ ' + (result.events || []).length + ' รายการในหน้านี้';
+            if (nextButton) nextButton.classList.toggle('hidden', !auditEventsNextPageTokenV1560_);
+        }
+        async function restoreAuditEventV1560_(eventId) {
+            const prompt = await Swal.fire({title:'กู้คืนข้อมูลจาก Audit?',input:'textarea',inputLabel:'เหตุผลการกู้คืน (อย่างน้อย 5 ตัวอักษร)',inputPlaceholder:'อธิบายเหตุผลและการอนุมัติ',inputAttributes:{maxlength:500},showCancelButton:true,confirmButtonText:'กู้คืน',cancelButtonText:'ยกเลิก',inputValidator:value => String(value||'').trim().length < 5 ? 'กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร' : undefined});
+            if (!prompt.isConfirmed) return;
+            Swal.fire({title:'กำลังกู้คืนข้อมูล',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+            const result = await callBackend({action:'restoreAuditEventV1560',eventId:String(eventId||''),reason:String(prompt.value||'').trim(),clientContext:{userAgent:String(navigator&&navigator.userAgent||'').slice(0,250),platform:String((navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||'').slice(0,100),language:String(navigator.language||'').slice(0,40)}});
+            if (!result || result.status !== 'success') { Swal.fire('กู้คืนไม่สำเร็จ',result && result.message || 'ไม่สามารถกู้คืนข้อมูลได้','error'); return; }
+            await Swal.fire('กู้คืนแล้ว',result.message || 'กู้คืนข้อมูลและเพิ่ม Audit ใหม่แล้ว','success');
+            try { await refreshAll(); } catch (error) { console.warn('Refresh after audit restore failed',error); }
+            await loadAuditEventsV1560_();
+        }
         function renderFinHistory() { const isAdmin = (currentUserRole === 'leader' || currentUserRole === 'vice' || currentUserRole === 'treasurer'); const list = document.getElementById('fin-hist-list'); if(!list) return; const visibleHistory = (txHistory || []).filter(t => t && t.scoreAudit !== true && t.scoreDeletionLog !== true); if(visibleHistory.length === 0) { list.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-slate-400">ไม่มีประวัติ</td></tr>'; return; } let hHtml = ''; visibleHistory.forEach(t => { const i = txHistory.indexOf(t); let btn = (isAdmin && t.activityHistoryPurgeAudit !== true) ? `<button onclick="deleteTxHistory(${i})" class="text-rose-500" aria-label="ลบรายการ"><i class="fas fa-trash"></i></button>` : (t.activityHistoryPurgeAudit === true ? '<span class="text-[10px] text-slate-400 font-bold">Audit ถาวร</span>' : '-'); hHtml += `<tr class="border-b hover:bg-slate-50 transition"><td class="p-3 text-xs text-slate-500 whitespace-nowrap">${formatDisplayDate(t.date)}</td><td class="p-3 whitespace-nowrap"><b class="whitespace-nowrap">${t.name}</b><br><span class="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">${t.user || 'ระบบ'}</span></td><td class="p-3 text-center whitespace-nowrap"><span class="px-2 py-1 rounded text-xs font-bold bg-slate-100 whitespace-nowrap">${t.type}</span></td><td class="p-3 text-right whitespace-nowrap font-mono font-bold">฿${t.amt}</td><td class="p-3 text-center whitespace-nowrap">${btn}</td></tr>`; }); list.innerHTML = hHtml; }
 
        // ================= สุ่มตัวแทน (LUCKY DRAW) =================
@@ -11937,6 +12462,43 @@ async function editUserAction(username) {
         function sssfnRandomDrawIdV1553_() {
             return 'draw_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
         }
+        function sssfnBuildRandomDrawExportDataV1561_(history) {
+            const cell = value => {
+                if (typeof value === 'number' && Number.isFinite(value)) return value;
+                const safe = String(value == null ? '' : value).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,' ').slice(0,2000);
+                return /^[=+\-@]/.test(safe.trimStart()) ? "'" + safe : safe;
+            };
+            const draws = [['Draw ID','Created At','Actor','Task','Status','Room','Requested','Eligible','Excluded','Drawn','Shielded','Winners']];
+            const participants = [['Draw ID','Created At','Task','Room Filter','Group','Student ID','Student Name','Student Room']];
+            const rows = Array.isArray(history) ? history : [];
+            rows.forEach(record => {
+                if (!record || typeof record !== 'object') return;
+                const pool = Array.isArray(record.pool) ? record.pool : [];
+                const included = pool.filter(item => item && item.included === true);
+                const excluded = pool.filter(item => item && item.included !== true);
+                const drawn = Array.isArray(record.drawn) ? record.drawn : [];
+                const shielded = Array.isArray(record.shielded) ? record.shielded : [];
+                const winners = Array.isArray(record.winners) ? record.winners : [];
+                draws.push([cell(record.id),cell(record.createdAt),cell(record.actor),cell(record.taskName),cell(record.status),cell(record.roomFilter || 'all'),Number(record.requestedCount)||0,included.length,excluded.length,drawn.length,shielded.length,winners.map(item => String(item && (item.name || item.id) || '')).join(', ')]);
+                const groups = [['eligible',included],['excluded',excluded],['drawn',drawn],['shielded',shielded],['winner',winners]];
+                groups.forEach(([group,items]) => items.forEach(item => participants.push([cell(record.id),cell(record.createdAt),cell(record.taskName),cell(record.roomFilter || 'all'),cell(group),cell(item && item.id),cell(item && item.name),cell(item && item.room)])));
+            });
+            if (participants.length > 1000000) throw new Error('ข้อมูลผู้เข้าร่วมเกินขนาดที่ Excel รองรับ กรุณาจำกัดช่วงข้อมูลก่อนส่งออก');
+            return {draws:draws,participants:participants};
+        }
+        window.exportRandomDrawHistoryExcelV1561_ = function() {
+            if (!['leader','vice','treasurer'].includes(String(currentUserRole || ''))) return Swal.fire('ไม่มีสิทธิ์','เฉพาะหัวหน้า รองหัวหน้า หรือเหรัญญิกส่งออกประวัติสุ่มได้','warning');
+            if (!window.XLSX || !XLSX.utils || typeof XLSX.writeFile !== 'function') return Swal.fire('ส่งออกไม่ได้','ไม่พบไลบรารี Excel กรุณาตรวจการเชื่อมต่อแล้วลองใหม่','error');
+            try {
+                const data = sssfnBuildRandomDrawExportDataV1561_(randomDrawHistory);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(data.draws),'Draws');
+                XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet(data.participants),'Participants');
+                const dateTag = new Date().toISOString().slice(0,10);
+                XLSX.writeFile(workbook,'SSSFN_random_draw_history_' + dateTag + '.xlsx');
+                Swal.fire({toast:true,position:'top-end',icon:'success',title:'ส่งออกประวัติสุ่มแล้ว',showConfirmButton:false,timer:1800});
+            } catch (error) { Swal.fire('ส่งออกไม่สำเร็จ',String(error && error.message || error),'error'); }
+        };
         function sssfnPersistRandomDrawV1553_(record) {
             if (!Array.isArray(randomDrawHistory)) randomDrawHistory = [];
             const index = randomDrawHistory.findIndex(item => item && item.id === record.id);
@@ -12213,7 +12775,7 @@ function createPollModal() {
             if(opts.length < 2) return Swal.showValidationMessage('ต้องมีอย่างน้อย 2 ตัวเลือก');
             return { id: Date.now(), question: q, options: opts, isOpen: true };
         }
-    }).then(res => {
+    }).then(async res => {
         if(res.isConfirmed) {
             if(!appSettings.polls) appSettings.polls = []; 
             appSettings.polls.push(res.value);
@@ -12646,14 +13208,14 @@ window.promptConfirmReg = function(title) {
             <p class="text-sm text-slate-600 mb-5">การกดยืนยันนี้จะบันทึกเฉพาะการลงทะเบียนผ่านเว็บไซต์เท่านั้น <b>ไม่จองคิวและไม่เลือกหรือผูกกับรอบกิจกรรม</b> รอบกิจกรรมจะใช้สำหรับสแกนนักศึกษาเข้าร่วมหน้างาน</p>
             <div class="bg-blue-50/70 border border-blue-100 p-4 rounded-xl text-blue-800 text-sm leading-relaxed font-bold flex gap-3 shadow-inner">
                 <i class="fas fa-thumbtack text-rose-500 mt-1 text-lg"></i>
-                <p>${act.title}</p>
+                <p>${escapeHtmlV1567_(act.title)}</p>
             </div>
         </div>
         `,
         showCancelButton: true, confirmButtonText: 'ยืนยันลงทะเบียนผ่านเว็บ', cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#111827', cancelButtonColor: '#64748b', reverseButtons: true,
         customClass: { popup: 'rounded-3xl p-4', confirmButton: 'rounded-xl px-6 py-3 font-bold', cancelButton: 'rounded-xl px-6 py-3 font-bold' }
-    }).then((res) => {
+    }).then(async (res) => {
         if (!res.isConfirmed) return;
         let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
         if (!stuId) {
@@ -12674,7 +13236,7 @@ window.promptConfirmReg = function(title) {
         }
 
         const randomRegId = 'REG-' + Math.floor(100000 + Math.random() * 900000);
-        activityLogs.unshift({
+        const newRegistrationLogV1567 = {
             studentId: stuId,
             activityTitle: act.title,
             activityRef: String(act.ref || act.id || ''),
@@ -12683,8 +13245,20 @@ window.promptConfirmReg = function(title) {
             registeredAt: getNow(),
             status: 'P',
             regId: randomRegId
-        });
-        saveToLocal(true);
+        };
+        activityLogs.unshift(newRegistrationLogV1567);
+        saveToLocal(false);
+        // v15.6.7: wait for the server's answer; never show "success" for a registration the server rejected.
+        Swal.fire({ title: 'กำลังยืนยันการลงทะเบียนกับเซิร์ฟเวอร์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const registrationSave = await commitPendingChangesNowV1567_();
+        if (!registrationSave || registrationSave.status === 'error') {
+            activityLogs = activityLogs.filter(log => log !== newRegistrationLogV1567);
+            hasLocalChanges = false; syncQueued = false; bgSaveFailCountV1567_ = 0;
+            saveToLocal(false);
+            if (typeof renderActivities === 'function') renderActivities();
+            if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+            return Swal.fire({ icon: 'error', title: 'ลงทะเบียนไม่สำเร็จ', text: (registrationSave && registrationSave.message) || 'เซิร์ฟเวอร์ไม่รับการลงทะเบียน กรุณาลองใหม่', confirmButtonColor: '#2563eb' });
+        }
         if (typeof renderActivities === 'function') renderActivities();
         if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
         if (typeof filterMasterTable === 'function' && currentMasterActivity?.title === act.title) filterMasterTable();
@@ -12706,11 +13280,12 @@ window.promptConfirmReg = function(title) {
 window.parseQRCheckinData = function(text) {
     if (!text) return null;
     // 1. ถ้ารูปแบบเป็น URL หรือมี Query params
-    if (text.includes('checkin=1') || text.includes('act=')) {
+    if (text.includes('checkin=1') || text.includes('reg=1') || text.includes('act=')) {
         try {
             let q = text.includes('?') ? text.split('?')[1] : text;
             let params = new URLSearchParams(q);
             return {
+                kind: params.get('reg') === '1' && params.get('checkin') !== '1' ? 'register' : 'checkin',
                 act: decodeURIComponent(params.get('act') || ''),
                 round: decodeURIComponent(params.get('round') || ''),
                 lat: parseFloat(params.get('lat')),
@@ -12753,6 +13328,7 @@ window.getDistanceFromLatLonInM = function(lat1, lon1, lat2, lon2) {
 };
 
 window.processStudentQRCheckin = async function(data, source) {
+    if (data && data.kind === 'register') return window.handleQRRegisterV1567_(data);
     if (!data || !data.act || !data.token) return showToast('QR Code นี้ไม่มีรหัสยืนยันจากเซิร์ฟเวอร์ กรุณาสร้าง QR ใหม่', 'error');
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
     if (!window.currentStudentAuthToken || !stuId) {
@@ -12796,6 +13372,15 @@ window.processStudentQRCheckin = async function(data, source) {
     };
 
     // The QR coordinates are for UX only; the server verifies the signed token and authoritative geofence.
+    // v15.6.7: the geofence the server enforces lives inside the signed token; read it from there
+    // so a QR text without coordinates can no longer make the browser skip the GPS request.
+    const tokenPayloadV1567 = decodeQrTokenPayloadV1567_(data.token);
+    if (tokenPayloadV1567 && Number(tokenPayloadV1567.exp || 0) > 0 && Number(tokenPayloadV1567.exp) <= Date.now()) {
+        return Swal.fire({icon:'warning',title:'QR Code หมดอายุแล้ว',text:'QR เปลี่ยนทุกไม่กี่วินาทีเพื่อป้องกันการส่งต่อ กรุณาสแกน QR ที่แสดงอยู่ล่าสุดอีกครั้ง',confirmButtonColor:'#2563eb'});
+    }
+    if (tokenPayloadV1567 && tokenPayloadV1567.lat != null && tokenPayloadV1567.lng != null && Number.isFinite(Number(tokenPayloadV1567.lat)) && Number.isFinite(Number(tokenPayloadV1567.lng))) {
+        data.lat = Number(tokenPayloadV1567.lat); data.lng = Number(tokenPayloadV1567.lng); data.rad = Number(tokenPayloadV1567.radius) || data.rad;
+    }
     const hasTargetGeo = Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng)) && Number(data.lat) !== 0;
     if (!hasTargetGeo) return doSaveCheckin(null, null, '');
     Swal.fire({title:'กำลังตรวจสอบตำแหน่ง GPS...',text:'กรุณารอสักครู่ ระบบกำลังยืนยันพื้นที่กิจกรรม',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
@@ -12901,7 +13486,7 @@ window.openStudentCheckinScanner = function() {
 window.checkUrlCheckin = function() {
     try {
         let params = new URLSearchParams(window.location.search);
-        if (params.get('checkin') === '1') {
+        if (params.get('checkin') === '1' || params.get('reg') === '1') {
             let act = params.get('act');
             let round = params.get('round');
             let lat = parseFloat(params.get('lat'));
@@ -12911,7 +13496,7 @@ window.checkUrlCheckin = function() {
             if (act) {
                 // ล้าง URL ไม่ให้ค้าง search params เพื่อไม่ให้กดรีเฟรชแล้วเด้งซ้ำ
                 window.history.replaceState({}, document.title, window.location.pathname);
-                let checkinData = { act, round, lat, lng, rad, token };
+                let checkinData = { kind: (params.get('reg') === '1' && params.get('checkin') !== '1') ? 'register' : 'checkin', act, round, lat, lng, rad, token };
 
                 let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
                 if (!stuId) {
@@ -12960,7 +13545,7 @@ window.promptCancelReg = function(title) {
             <p class="text-sm text-slate-600 mb-5">คุณแน่ใจหรือไม่ที่จะยกเลิกเฉพาะการลงทะเบียนผ่านเว็บไซต์? ประวัติการสแกนและข้อมูลรอบกิจกรรมจะไม่ถูกลบ</p>
             <div class="bg-rose-50/70 border border-rose-100 p-4 rounded-xl text-rose-800 text-sm leading-relaxed font-bold flex gap-3 shadow-inner">
                 <i class="fas fa-exclamation-triangle text-amber-500 mt-1 text-lg"></i>
-                <p>${title}</p>
+                <p>${escapeHtmlV1567_(title)}</p>
             </div>
         </div>
         `,
@@ -13679,6 +14264,56 @@ function printReceipt(roundId, studentId) {
 // v15.4.28: Student-only score history page (read-only; no score mutation controls).
 // =========================================================================
 window.__sssfnMyPointsFilterV15428 = 'all';
+window.__sssfnStudentCertificatesV1561 = [];
+function sssfnBuildStudentCertificatesV1561_(logs, student) {
+    const cleanId = value => String(value == null ? '' : value).replace(/-/g,'').trim();
+    if (!student || !cleanId(student.id)) return [];
+    const rows = new Map();
+    (Array.isArray(logs) ? logs : []).forEach(log => {
+        if (!log || cleanId(log.studentId) !== cleanId(student.id) || !['C','A'].includes(String(log.status || '').trim().toUpperCase())) return;
+        const title = String(log.activityTitle || log.activityName || log.activity || '').trim();
+        if (!title) return;
+        const round = String(log.roundId || log.roundName || 'general').trim();
+        const identity = String(log.regId || log.id || [log.activityRef || log.activityId || title, round].join('|'));
+        if (!rows.has(identity)) rows.set(identity, {identity:identity,title:title,round:round,date:String(log.assessedAt || log.updatedAt || log.timeIn || log.registeredAt || log.date || ''),status:String(log.status || '').toUpperCase()});
+    });
+    return [...rows.values()].sort((a,b) => String(b.date).localeCompare(String(a.date)));
+}
+window.renderStudentCertificatesV1561_ = function() {
+    const list = document.getElementById('my-certificates-list-v1561');
+    const count = document.getElementById('my-certificates-count-v1561');
+    if (!list) return;
+    const studentId = String(window.currentGuestStuId || '').trim();
+    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !studentId) {
+        list.innerHTML = '<p class="text-xs text-slate-500">เข้าสู่ระบบนักศึกษาเพื่อดูเกียรติบัตรของตนเอง</p>';
+        if (count) count.textContent = '';
+        window.__sssfnStudentCertificatesV1561 = [];
+        return;
+    }
+    const cleanId = value => String(value == null ? '' : value).replace(/-/g,'').trim();
+    const student = (students || []).find(row => cleanId(row.id) === cleanId(studentId));
+    if (!student) { list.innerHTML = '<p class="text-xs text-rose-500">ยังไม่พบข้อมูลบัญชี กรุณาโหลดข้อมูลใหม่</p>'; return; }
+    const certs = sssfnBuildStudentCertificatesV1561_(activityLogs, student);
+    window.__sssfnStudentCertificatesV1561 = certs;
+    if (count) count.textContent = `${certs.length} รายการ`;
+    if (!certs.length) { list.innerHTML = '<p class="text-xs text-slate-400">ยังไม่มีรายการกิจกรรมที่ผ่าน</p>'; return; }
+    const esc = value => String(value == null ? '' : value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+    list.innerHTML = certs.map((cert,index) => `<div class="flex items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/60 p-3"><div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">${esc(cert.title)}</p><p class="text-[11px] text-slate-500">${esc(cert.date || 'วันที่ไม่ได้ระบุ')}${cert.round && cert.round !== 'general' ? ' · รอบ ' + esc(cert.round) : ''}</p></div><button type="button" onclick="window.printStudentCertificateV1561_(${index})" class="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-amber-600"><i class="fas fa-print mr-1"></i>พิมพ์</button></div>`).join('');
+};
+window.printStudentCertificateV1561_ = function(index) {
+    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !window.currentGuestStuId) return Swal.fire('ไม่มีสิทธิ์','เข้าสู่ระบบนักศึกษาเพื่อพิมพ์เกียรติบัตรของตนเอง','warning');
+    const student = (students || []).find(row => String(row.id || '').replace(/-/g,'') === String(window.currentGuestStuId || '').replace(/-/g,''));
+    const cert = window.__sssfnStudentCertificatesV1561[Number(index)];
+    if (!student || !cert || !sssfnBuildStudentCertificatesV1561_(activityLogs, student).some(row => row.identity === cert.identity)) return Swal.fire('ข้อมูลเปลี่ยนแล้ว','กรุณาโหลดข้อมูลใหม่ก่อนพิมพ์','warning');
+    const esc = value => String(value == null ? '' : value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+    const printWindow = window.open('about:blank', '_blank', 'width=1000,height=720');
+    if (!printWindow) return Swal.fire('เปิดหน้าต่างไม่สำเร็จ','อนุญาตป๊อปอัปสำหรับพิมพ์เกียรติบัตรแล้วลองใหม่','info');
+    try { printWindow.opener = null; } catch (ignore) {}
+    const certificateId = 'SSSFN-' + String(student.id || '').replace(/[^A-Za-z0-9]/g,'').slice(-12) + '-' + String(cert.identity).split('').reduce((hash,char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 7).toString(36).toUpperCase();
+    printWindow.document.write(`<!doctype html><html lang="th"><meta charset="utf-8"><title>เกียรติบัตร ${esc(cert.title)}</title><style>@page{size:A4 landscape;margin:14mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,'Noto Sans Thai',sans-serif;color:#1e293b}.paper{height:180mm;border:8px double #d6a83e;padding:18mm;text-align:center;display:flex;flex-direction:column;justify-content:center}.brand{font-weight:700;letter-spacing:.16em;color:#64748b}.title{font-size:42px;color:#9a6b08;margin:12px}.name{font-size:36px;font-weight:700;margin:10px}.activity{font-size:24px;font-weight:700;margin:8px}.meta{color:#475569;margin:10px}.id{position:absolute;bottom:12mm;left:18mm;font-size:10px;color:#64748b}@media screen{body{background:#e2e8f0;padding:20px}.paper{max-width:1100px;margin:auto;background:#fff}}</style><div class="paper"><div class="brand">SSSFN · STUDENT SERVICE SYSTEM</div><h1 class="title">เกียรติบัตร</h1><p>ขอมอบเกียรติบัตรฉบับนี้ให้แก่</p><div class="name">${esc(student.name || student.id)}</div><p>เพื่อแสดงว่าได้ผ่านการเข้าร่วมกิจกรรม</p><div class="activity">${esc(cert.title)}</div><div class="meta">${cert.round && cert.round !== 'general' ? 'รอบ ' + esc(cert.round) + ' · ' : ''}${esc(cert.date || 'วันที่ไม่ได้ระบุ')}</div><div class="id">รหัสอ้างอิง ${esc(certificateId)} · สร้างจากข้อมูลกิจกรรมในระบบ SSSFN</div></div><script>window.onload=()=>window.print()<\/script></html>`);
+    printWindow.document.close();
+};
+
 window.setMyPointsFilterV15428_ = function(filter) {
     const allowed = ['all','earned','deducted','voided'];
     window.__sssfnMyPointsFilterV15428 = allowed.includes(filter) ? filter : 'all';
@@ -13713,6 +14348,7 @@ function renderMyPointsPageV15428_() {
     const earnedEl = document.getElementById('my-points-earned');
     const deductedEl = document.getElementById('my-points-deducted');
     const voidedEl = document.getElementById('my-points-voided-count');
+    window.renderStudentCertificatesV1561_();
     if (totalEl) totalEl.innerHTML = `${Number(history.total || 0).toLocaleString('th-TH')} <span class="text-base font-bold">แต้ม</span>`;
     if (nameEl) nameEl.textContent = student.name || '';
     if (idEl) idEl.textContent = student.id || studentId;
@@ -13797,6 +14433,16 @@ window.openStudentProfileModal = function(studentId) {
     });
     let activityPointTotal = activityPointRows.reduce((sum, item) => sum + Number(item.pointDelta || 0), 0);
     let totalPoints = getStudentTotalPoints_(stu);
+    const escapeStudent360Text = value => String(value == null ? '' : value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+    const isOwnStudent360 = currentUserRole === 'guest' && !!window.currentStudentAuthToken && !!window.currentGuestStuId && String(window.currentGuestStuId || '').replace(/-/g,'') === String(stu.id || '').replace(/-/g,'');
+    const canViewStudent360Contact = isOwnStudent360 || ['leader','vice'].includes(String(currentUserRole || ''));
+    const student360Email = isOwnStudent360 ? String(stu.email || window.currentStudentEmail || '') : (['leader','vice'].includes(String(currentUserRole || '')) ? String(stu.email || '') : '');
+    const student360Phone = canViewStudent360Contact ? String(stu.phone || stu.tel || stu.mobile || '') : '';
+    const myTimeLogs360 = (timeLogs || []).filter(log => String(log && (log.id || log.studentId) || '').replace(/-/g,'') === String(stu.id || '').replace(/-/g,''));
+    const timeLogHtml360 = myTimeLogs360.length
+        ? myTimeLogs360.slice(-20).reverse().map(log => `<div class="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0"><span class="text-xs font-semibold text-slate-700">${escapeStudent360Text(log.date || log.day || 'เช็กชื่อ')}</span><span class="text-xs text-slate-500 text-right">${escapeStudent360Text(log.checkIn || log.timeIn || log.status || '-')} ${log.checkOut || log.timeOut ? ' · ' + escapeStudent360Text(log.checkOut || log.timeOut) : ''}</span></div>`).join('')
+        : '<p class="text-xs text-slate-400 py-4 text-center">ยังไม่มีประวัติเช็กชื่อในข้อมูลที่เข้าถึงได้</p>';
+    const student360AccountHtml = canViewStudent360Contact ? `<section class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm"><h3 class="font-bold text-slate-800 text-sm mb-3"><i class="fas fa-id-card text-indigo-500 mr-2"></i>ข้อมูลบัญชีและการติดต่อ</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs"><div><span class="text-slate-400">อีเมลที่ผูก</span><p class="font-semibold text-slate-700 break-all">${escapeStudent360Text(student360Email || 'ยังไม่พบอีเมลที่ผูก')}</p></div><div><span class="text-slate-400">โทรศัพท์</span><p class="font-semibold text-slate-700">${escapeStudent360Text(student360Phone || 'ไม่มีข้อมูล')}</p></div><div><span class="text-slate-400">สถานะบัญชี</span><p class="font-semibold text-emerald-700">${isOwnStudent360 || student360Email ? 'ผูกบัญชีแล้ว' : 'ตรวจสอบจากข้อมูลทะเบียน'}</p></div><div><span class="text-slate-400">LINE</span><p class="font-semibold text-slate-700">${stu.lineLinked === true ? 'ผูกแล้ว' : 'ไม่พบสถานะในข้อมูลนี้'}</p></div></div></section>` : '';
 
     // 🌟 1. ดึงข้อมูลประวัติการเงิน
     let myPayments = fundPayments.filter(p => p.studentId === stu.id);
@@ -13972,6 +14618,8 @@ window.openStudentProfileModal = function(studentId) {
 
         <!-- Bento Grid Sections -->
         <div class="space-y-4">
+            ${student360AccountHtml}
+            <section class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm"><h3 class="font-bold text-slate-800 text-sm mb-3"><i class="fas fa-clipboard-check text-emerald-500 mr-2"></i>ประวัติการเข้าเช็กชื่อ</h3><div class="max-h-48 overflow-y-auto custom-scrollbar">${timeLogHtml360}</div></section>
             <!-- Finance Section -->
             <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
                 <div class="flex items-center justify-between mb-4">
@@ -14767,19 +15415,17 @@ function renderLeaderboard() {
 
 // 🛒 โหลดหน้าต่างร้านค้าให้นักศึกษา
 function openPointShop(studentId) {
+    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !window.currentGuestStuId || String(window.currentGuestStuId).replace(/-/g,'') !== String(studentId || '').replace(/-/g,'')) {
+        return Swal.fire('เข้าสู่ระบบก่อน','ร้านค้าคะแนนเปิดได้เฉพาะนักศึกษาที่เข้าสู่ระบบและแลกของให้บัญชีตัวเอง','warning');
+    }
     let stu = students.find(s => s.id === studentId);
     if(!stu) return;
-    if(!stu.inventory) stu.inventory = {};
+    const inventory = stu.inventory && typeof stu.inventory === 'object' ? stu.inventory : {};
 
-    // ถ้าแอดมินยังไม่เคยสร้างสินค้าเลย ให้มีสินค้าตั้งต้น 2 อย่าง
-    if(!appSettings.shopItems){
-        appSettings.shopItems = [
-            { id: 'shield', name: 'โล่ป้องกันสุ่ม', price: 100, type: 'shield', value: 1, icon: 'fa-shield-alt', color: 'indigo', desc: 'ป้องกันการโดนสุ่มชื่อ 1 ครั้ง' }
-        ];
-    }
+    const shopItems = Array.isArray(appSettings.shopItems) ? appSettings.shopItems : [];
 
     let itemsHtml = '';
-    appSettings.shopItems.forEach((itm, idx) => {
+    shopItems.forEach((itm, idx) => {
         // จัดการสีให้สวยงาม
         let th = { bg:'bg-blue-50', border:'border-blue-200', text:'text-blue-700', sub:'text-blue-600', badge:'bg-blue-600 text-white' };
         if(itm.color==='emerald') th = { bg:'bg-emerald-50', border:'border-emerald-200', text:'text-emerald-700', sub:'text-emerald-600', badge:'bg-emerald-600 text-white' };
@@ -14787,20 +15433,22 @@ function openPointShop(studentId) {
 
         // โชว์จำนวนที่มีอยู่ในกระเป๋า
         let badgeInfo = '';
-        if(itm.type === 'shield') badgeInfo = `<span class="${th.badge} text-xs px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${stu.inventory.shield || 0} อัน</span>`;
-        else if(itm.type === 'custom') badgeInfo = `<span class="${th.badge} text-xs px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${stu.inventory[itm.name] || 0} อัน</span>`;
+        if(itm.type === 'shield') badgeInfo = `<span class="${th.badge} text-xs px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${inventory.shield || 0} อัน</span>`;
+        else if(itm.type === 'custom') badgeInfo = `<span class="${th.badge} text-xs px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${inventory[itm.id] || inventory[itm.name] || 0} อัน</span>`;
+        const unavailable = itm.type === 'deposit';
 
         itemsHtml += `
-        <div class="border ${th.border} ${th.bg} p-3 rounded-xl flex justify-between items-center cursor-pointer hover:opacity-80 transition shadow-sm mb-2" onclick="buyShopItem('${studentId}', ${idx})">
+        <div class="border ${th.border} ${th.bg} p-3 rounded-xl flex justify-between items-center ${unavailable ? 'opacity-60' : 'cursor-pointer hover:opacity-80'} transition shadow-sm mb-2" ${unavailable ? '' : `onclick="buyShopItem('${studentId}', ${idx})"`}>
             <div>
                 <p class="font-bold ${th.text} mb-0.5"><i class="fas ${itm.icon} text-lg mr-2"></i>${itm.name} ${badgeInfo}</p>
-                <p class="text-xs ${th.sub} leading-tight">${itm.desc}</p>
+                <p class="text-xs ${th.sub} leading-tight">${unavailable ? 'ปิดแลกชั่วคราว: ต้องเชื่อมรายการรับ/จ่ายเข้าบัญชีก่อน' : itm.desc}</p>
             </div>
             <div class="bg-white px-3 py-1.5 rounded-lg border ${th.border} shadow-sm font-black ${th.text} text-sm shrink-0">
                 ${itm.price} ✨
             </div>
         </div>`;
     });
+    if (!shopItems.length) itemsHtml = '<div class="rounded-xl border border-dashed border-slate-300 p-5 text-center text-xs text-slate-500">ยังไม่มีสินค้าที่ผู้ดูแลบันทึกไว้ในระบบ</div>';
 
     Swal.fire({
         title: '🛒 ร้านค้าสิทธิพิเศษ (Point Shop)',
@@ -14818,36 +15466,40 @@ function openPointShop(studentId) {
 }
 
 // 🛍️ ระบบตัดคะแนนเมื่อกดซื้อสินค้า
-function buyShopItem(studentId, itemIdx) {
+async function buyShopItem(studentId, itemIdx) {
+    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !window.currentGuestStuId || String(window.currentGuestStuId).replace(/-/g,'') !== String(studentId || '').replace(/-/g,'')) return Swal.fire('ไม่มีสิทธิ์','เข้าสู่ระบบนักศึกษาและเลือกบัญชีของตนเอง','warning');
     let stu = students.find(s => s.id === studentId);
-    let itm = appSettings.shopItems[itemIdx];
+    let itm = Array.isArray(appSettings.shopItems) ? appSettings.shopItems[itemIdx] : null;
     if(!stu || !itm) return;
-
-    if((stu.points || 0) < itm.price) return Swal.fire('แต้มไม่พอ', `คุณต้องมีอย่างน้อย ${itm.price} แต้ม`, 'error').then(()=>openPointShop(studentId));
+    if (itm.type === 'deposit') return Swal.fire('ปิดแลกชั่วคราว','รายการเงินฝากต้องเชื่อมกับบัญชีรายรับ/รายจ่ายก่อน ระบบจึงยังไม่เปลี่ยนยอดเงินฝาก','info');
+    if (!['shield','custom'].includes(String(itm.type || '')) || !itm.id) return Swal.fire('รายการไม่พร้อม','สินค้าไม่มีรหัสหรือประเภทยังไม่รองรับ กรุณาแจ้งผู้ดูแล','warning');
+    if((Number(stu.points) || 0) < Number(itm.price)) return Swal.fire('แต้มไม่พอ', `คุณต้องมีอย่างน้อย ${itm.price} แต้ม`, 'error').then(()=>openPointShop(studentId));
 
     Swal.fire({
         title: `ยืนยันการแลก "${itm.name}"?`,
         text: `ใช้ ${itm.price} แต้มในการแลกเปลี่ยน`,
         icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยันแลก', confirmButtonColor: '#10b981'
-    }).then(res => {
+    }).then(async res => {
         if(res.isConfirmed) {
-            stu.points -= itm.price;
-            
-            if(itm.type === 'deposit') {
-                stu.dep = (stu.dep || 0) + itm.value;
-                txHistory.unshift({ date: getNow(), name: `แลกแต้มซื้อ "${itm.name}" (เพิ่มเงินฝาก ${itm.value}฿)`, type: 'ฝาก', amt: itm.value, user: stu.name });
-            } 
-            else if (itm.type === 'shield') {
-                stu.inventory.shield = (stu.inventory.shield || 0) + itm.value;
-                txHistory.unshift({ date: getNow(), name: `แลกแต้มซื้อ "${itm.name}"`, type: 'ระบบ', amt: 0, user: stu.name });
+            const pendingStorageKey = 'sssfn_shop_request_v1561_' + String(studentId).replace(/[^A-Za-z0-9_-]/g,'') + '_' + String(itm.id).replace(/[^A-Za-z0-9_-]/g,'');
+            let requestId = '';
+            try { requestId = sessionStorage.getItem(pendingStorageKey) || ''; } catch (ignore) {}
+            if (!requestId) {
+                requestId = 'shop_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
+                try { sessionStorage.setItem(pendingStorageKey,requestId); } catch (ignore) {}
             }
-            else {
-                stu.inventory[itm.name] = (stu.inventory[itm.name] || 0) + itm.value;
-                txHistory.unshift({ date: getNow(), name: `แลกแต้มซื้อไอเทม "${itm.name}"`, type: 'ระบบ', amt: 0, user: stu.name });
+            Swal.fire({title:'กำลังแลกของรางวัล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+            try {
+                const result = await callBackend({action:'redeemPointShopItemV1561',itemId:String(itm.id),requestId:requestId,studentAuthToken:window.currentStudentAuthToken,clientId:'point-shop-v1561',clientContext:{userAgent:navigator.userAgent,platform:navigator.platform,language:navigator.language}});
+                if (!result || result.status !== 'success') throw new Error(result && result.message || 'ระบบไม่สามารถยืนยันการแลกได้');
+                try { sessionStorage.removeItem(pendingStorageKey); } catch (ignore) {}
+                await silentPullFromGS(false,true);
+                refreshAll();
+                const refreshedStudent = (students || []).find(row => String(row.id || '').replace(/-/g,'') === String(studentId || '').replace(/-/g,''));
+                Swal.fire({icon:'success',title:'แลกสำเร็จ',text:`${result.itemName || itm.name} · คะแนนคงเหลือ ${Number(result.pointBalance ?? (refreshedStudent && refreshedStudent.points) ?? 0).toLocaleString('th-TH')} แต้ม`,confirmButtonText:'ตกลง'}).then(()=>openPointShop(studentId));
+            } catch (error) {
+                Swal.fire('ยังยืนยันการแลกไม่ได้',String(error && error.message || error),'error');
             }
-            
-            saveToLocal(true); refreshAll();
-            Swal.fire({icon:'success', title:'สำเร็จ!', text:`ได้รับ ${itm.name} เรียบร้อยแล้ว`, timer: 1500, showConfirmButton: false}).then(()=> openPointShop(studentId));
         }
     });
 }
@@ -15982,7 +16634,162 @@ window.manageStudentPoints = function(studentId) {
         }
     });
 }
-    </script>
+    
+
+// SSSFN Course Document Hub frontend module (integrated into v15.6.7).
+let sssfnCourseDocStateV1_ = { courses:[], documents:[], categories:[], canReview:false, canCreateCourse:false, canManageGlobalManagers:false, selectedCourseId:'', currentPreview:null, previewUrl:'' };
+function sssfnCourseDocEscV1_(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);});
+}
+function sssfnCourseDocSizeV1_(bytes) {
+  const n=Number(bytes)||0; if(n<1024) return n+' B'; if(n<1024*1024) return (n/1024).toFixed(1)+' KB'; return (n/1024/1024).toFixed(1)+' MB';
+}
+function sssfnCourseDocStatusV1_(doc) {
+  if (doc && doc.pendingVersion) return Number(doc.currentVersion||0)>0 ? 'มีฉบับใหม่รอตรวจสอบ' : 'รอตรวจสอบ';
+  return ({published:'เผยแพร่แล้ว',pending:'รอตรวจสอบ',rejected:'ไม่อนุมัติ',withdrawn:'ถอนเผยแพร่'})[String(doc && doc.status || '')] || 'ไม่ทราบสถานะ';
+}
+async function loadCourseDocumentsV1_() {
+  if (!window.currentAuthToken && !window.currentStudentAuthToken) {
+    if (typeof Swal !== 'undefined') await Swal.fire('กรุณาเข้าสู่ระบบ','เข้าสู่ระบบนักศึกษาด้วย Google หรือบัญชีเจ้าหน้าที่ก่อนใช้งานคลังเอกสาร','info');
+    return;
+  }
+  const box=document.getElementById('course-doc-course-grid'); if(box) box.innerHTML='<div class="col-span-full py-8 text-center text-sm text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i>กำลังโหลดคลังเอกสาร...</div>';
+  const result=await callBackend({action:'courseDocListV1'});
+  if(!result || result.status!=='success') { if(box) box.innerHTML='<div class="col-span-full py-8 text-center text-sm text-rose-500">'+sssfnCourseDocEscV1_(result&&result.message||'โหลดคลังเอกสารไม่สำเร็จ')+'</div>'; return; }
+  sssfnCourseDocStateV1_=Object.assign(sssfnCourseDocStateV1_,result);
+  if(!sssfnCourseDocStateV1_.courses.some(c=>c.id===sssfnCourseDocStateV1_.selectedCourseId)) sssfnCourseDocStateV1_.selectedCourseId='';
+  renderCourseDocumentsV1_();
+}
+function renderCourseDocumentsV1_() {
+  const s=sssfnCourseDocStateV1_, search=(document.getElementById('course-doc-search')?.value||'').trim().toLowerCase(), term=document.getElementById('course-doc-term-filter')?.value||'';
+  const createBtn=document.getElementById('course-doc-btn-create'), managerBtn=document.getElementById('course-doc-btn-managers'), reviewSection=document.getElementById('course-doc-review-section');
+  if(createBtn) createBtn.classList.toggle('hidden',!s.canCreateCourse);
+  if(managerBtn) managerBtn.classList.toggle('hidden',!s.canManageGlobalManagers);
+  if(reviewSection) reviewSection.classList.toggle('hidden',!s.canReview);
+  const termFilter=document.getElementById('course-doc-term-filter');
+  if(termFilter) { const current=termFilter.value; const terms=[...new Set(s.courses.map(c=>c.term).filter(Boolean))].sort(); termFilter.innerHTML='<option value="">ทุกภาคเรียน</option>'+terms.map(t=>'<option value="'+sssfnCourseDocEscV1_(t)+'">'+sssfnCourseDocEscV1_(t)+'</option>').join(''); termFilter.value=terms.includes(current)?current:''; }
+  const courses=s.courses.filter(c=>(!term||c.term===term)&&(!search||[c.name,c.code,c.term,c.description].join(' ').toLowerCase().includes(search)));
+  const grid=document.getElementById('course-doc-course-grid');
+  if(grid) grid.innerHTML=courses.length?courses.map(c=>{
+    const count=s.documents.filter(d=>d.courseId===c.id && d.status==='published').length;
+    const selected=s.selectedCourseId===c.id;
+    return '<button onclick="selectCourseDocumentV1_(\''+sssfnCourseDocEscV1_(c.id)+'\')" class="text-left bg-white border '+(selected?'border-indigo-400 ring-2 ring-indigo-100':'border-slate-200')+' rounded-2xl p-4 shadow-sm hover:shadow-md transition"><div class="flex items-start justify-between gap-3"><div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg"><i class="fas fa-book-open"></i></div><span class="text-[10px] font-bold text-slate-400">'+sssfnCourseDocEscV1_(c.term||'ไม่ระบุภาคเรียน')+'</span></div><h4 class="font-black text-slate-800 mt-3">'+sssfnCourseDocEscV1_(c.name)+'</h4><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(c.code||'')+'</p><div class="flex justify-between items-center mt-4 pt-3 border-t border-slate-100"><span class="text-xs text-slate-500"><i class="fas fa-file-alt mr-1"></i>'+count+' เอกสารเผยแพร่</span><span class="text-xs font-bold text-indigo-600">เปิดดู <i class="fas fa-arrow-right ml-1"></i></span></div></button>';
+  }).join(''):'<div class="col-span-full bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">ยังไม่มีรายวิชาที่ตรงกับการค้นหา</div>';
+  const count=document.getElementById('course-doc-course-count'); if(count) count.textContent=courses.length+' รายวิชา';
+  const selected=s.courses.find(c=>c.id===s.selectedCourseId); const section=document.getElementById('course-doc-selected-section');
+  if(section) section.classList.toggle('hidden',!selected);
+  if(selected) {
+    document.getElementById('course-doc-selected-title').textContent=selected.name;
+    document.getElementById('course-doc-selected-subtitle').textContent=[selected.code,selected.term,selected.description].filter(Boolean).join(' • ');
+    const canManage=s.canReview || (Array.isArray(selected.managerUsernames)&&selected.managerUsernames.some(x=>String(x).toLowerCase()===String(s.currentUser||'').toLowerCase()));
+    document.getElementById('course-doc-btn-course-managers')?.classList.toggle('hidden',!s.canReview);
+    const docs=s.documents.filter(d=>d.courseId===selected.id && (!search||[d.title,d.description,d.category,d.versions&&d.versions.map(v=>v.fileName).join(' ')].join(' ').toLowerCase().includes(search)));
+    const list=document.getElementById('course-doc-list');
+    if(list) list.innerHTML=docs.length?docs.map(d=>{
+      const current=(d.versions||[]).find(v=>Number(v.version)===Number(d.currentVersion));
+      const pending=(d.versions||[]).find(v=>Number(v.version)===Number(d.pendingVersion));
+      const file=current||pending||(d.versions||[])[0]||{};
+      const status=sssfnCourseDocStatusV1_(d);
+      const badge=d.status==='published'?'bg-emerald-50 text-emerald-700':d.status==='rejected'?'bg-rose-50 text-rose-700':d.status==='withdrawn'?'bg-slate-100 text-slate-600':'bg-amber-50 text-amber-700';
+      let actions='';
+      if(current && d.status==='published') actions+='<button onclick="openCourseDocPreviewV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-eye mr-1"></i>เปิดอ่าน</button><button onclick="downloadCourseDocV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold"><i class="fas fa-download mr-1"></i>ดาวน์โหลด</button>';
+      if(canManage && d.status==='published' && !d.pendingVersion) actions+='<button onclick="openCourseDocNewVersionV1_(\''+d.id+'\')" class="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold">เพิ่มฉบับใหม่</button>';
+      if(s.canReview && d.pendingVersion) actions+='<button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติฉบับ '+Number(d.pendingVersion)+'</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button>';
+      if(s.canReview && d.status==='published') actions+='<button onclick="withdrawCourseDocumentV1_(\''+d.id+'\')" class="px-2 py-2 text-slate-400 hover:text-rose-600 text-xs" title="ถอนเผยแพร่"><i class="fas fa-eye-slash"></i></button>';
+      return '<div class="p-4 flex flex-col md:flex-row md:items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="'+(String(file.mimeType||'').includes('pdf')?'fas fa-file-pdf':String(file.mimeType||'').startsWith('image/')?'fas fa-file-image':'fas fa-file-alt')+'"></i></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><span class="text-[10px] px-2 py-1 rounded-full '+badge+'">'+status+'</span></div><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(d.category||'เอกสารเพิ่มเติม')+' • '+sssfnCourseDocEscV1_(file.fileName||'')+' • '+sssfnCourseDocSizeV1_(file.fileSize)+'</p><p class="text-[11px] text-slate-400 mt-1">ผู้ส่ง: '+sssfnCourseDocEscV1_(d.uploaderName||'-')+' • '+(d.currentVersion?'ฉบับเผยแพร่ '+d.currentVersion:'ยังไม่มีฉบับเผยแพร่')+(d.pendingVersion?' • ฉบับ '+d.pendingVersion+' รอตรวจ':'')+'</p></div><div class="flex flex-wrap gap-2">'+actions+'</div></div>';
+    }).join(''):'<div class="p-8 text-center text-sm text-slate-400">ยังไม่มีเอกสารที่ตรงกับเงื่อนไข</div>';
+  }
+  if(s.canReview) {
+    const queue=s.documents.filter(d=>d.pendingVersion);
+    const q=document.getElementById('course-doc-review-list'); document.getElementById('course-doc-review-count').textContent=String(queue.length);
+    if(q) q.innerHTML=queue.length?queue.map(d=>'<div class="bg-white border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><p class="text-xs text-slate-500">'+sssfnCourseDocEscV1_((s.courses.find(c=>c.id===d.courseId)||{}).name||'')+' • '+sssfnCourseDocEscV1_(d.uploaderName||'')+' • ฉบับ '+Number(d.pendingVersion)+'</p></div><div class="flex gap-2"><button onclick="selectCourseDocumentV1_(\''+d.courseId+'\')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">ดูรายการ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button></div></div>').join(''):'<p class="text-sm text-amber-800">ไม่มีเอกสารรอตรวจสอบ</p>';
+  }
+  const courseSelect=document.getElementById('course-doc-upload-course'); if(courseSelect) { const chosen=courseSelect.value; courseSelect.innerHTML=s.courses.map(c=>'<option value="'+sssfnCourseDocEscV1_(c.id)+'">'+sssfnCourseDocEscV1_(c.name)+' — '+sssfnCourseDocEscV1_(c.term||'')+'</option>').join(''); if(s.courses.some(c=>c.id===chosen)) courseSelect.value=chosen; }
+  const categorySelect=document.getElementById('course-doc-upload-category'); if(categorySelect) { const old=categorySelect.value; categorySelect.innerHTML=s.categories.map(c=>'<option value="'+sssfnCourseDocEscV1_(c)+'">'+sssfnCourseDocEscV1_(c)+'</option>').join(''); if(s.categories.includes(old)) categorySelect.value=old; }
+}
+function selectCourseDocumentV1_(courseId) { sssfnCourseDocStateV1_.selectedCourseId=courseId; renderCourseDocumentsV1_(); document.getElementById('course-doc-selected-section')?.scrollIntoView({behavior:'smooth',block:'start'}); }
+function openCourseDocCreateCourseV1_() {
+  if(!sssfnCourseDocStateV1_.canCreateCourse) return;
+  const isLeader=['leader','vice'].includes(currentUserRole);
+  Swal.fire({title:'เพิ่มรายวิชา',html:'<div class="text-left space-y-2"><input id="cd-course-name" class="swal2-input" placeholder="ชื่อรายวิชา"><input id="cd-course-code" class="swal2-input" placeholder="รหัสวิชา (ไม่บังคับ)"><input id="cd-course-term" class="swal2-input" placeholder="ภาคเรียน เช่น 1/2569"><textarea id="cd-course-desc" class="swal2-textarea" placeholder="คำอธิบาย (ไม่บังคับ)"></textarea>'+(isLeader?'<textarea id="cd-course-managers" class="swal2-textarea" placeholder="บัญชีผู้ดูแลรายวิชา คั่นด้วยบรรทัดใหม่หรือจุลภาค"></textarea>':'')+'</div>',showCancelButton:true,confirmButtonText:'สร้างรายวิชา',cancelButtonText:'ยกเลิก',preConfirm:()=>({name:document.getElementById('cd-course-name').value,code:document.getElementById('cd-course-code').value,term:document.getElementById('cd-course-term').value,description:document.getElementById('cd-course-desc').value,managerUsernames:document.getElementById('cd-course-managers')?.value||''})}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend(Object.assign({action:'courseDocCreateCourseV1'},r.value));if(result.status!=='success'){Swal.fire('สร้างรายวิชาไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire('สร้างรายวิชาแล้ว','','success');});
+}
+function openCourseDocGlobalManagersV1_() {
+  if(!sssfnCourseDocStateV1_.canManageGlobalManagers) return;
+  Swal.fire({title:'ผู้ดูแลคลังเอกสาร',html:'<p class="text-xs text-slate-500 text-left mb-2">กรอก Username ของบัญชีเจ้าหน้าที่ที่มีอยู่แล้ว บรรทัดละหนึ่งบัญชี ผู้ดูแลเหล่านี้สามารถสร้างและจัดการรายวิชาที่ได้รับมอบหมายได้ แต่ไม่มีสิทธิ์อนุมัติเอกสาร</p><textarea id="cd-global-managers" class="swal2-textarea" placeholder="username1&#10;username2">'+sssfnCourseDocEscV1_((sssfnCourseDocStateV1_.globalManagers||[]).join('\n'))+'</textarea>',showCancelButton:true,confirmButtonText:'บันทึกผู้ดูแล',cancelButtonText:'ยกเลิก',preConfirm:()=>document.getElementById('cd-global-managers').value}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocSaveGlobalManagersV1',usernames:r.value});if(result.status!=='success'){Swal.fire('บันทึกไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire('บันทึกแล้ว','','success');});
+}
+function openCourseDocCourseManagersV1_() {
+  const course=sssfnCourseDocStateV1_.courses.find(c=>c.id===sssfnCourseDocStateV1_.selectedCourseId); if(!course||!sssfnCourseDocStateV1_.canReview)return;
+  Swal.fire({title:'ผู้ดูแลรายวิชา',html:'<p class="text-xs text-slate-500 text-left mb-2">กรอก Username ของบัญชีเจ้าหน้าที่ที่มีอยู่แล้ว บรรทัดละหนึ่งบัญชี</p><textarea id="cd-course-managers" class="swal2-textarea">'+sssfnCourseDocEscV1_((course.managerUsernames||[]).join('\n'))+'</textarea>',showCancelButton:true,confirmButtonText:'บันทึก',cancelButtonText:'ยกเลิก',preConfirm:()=>document.getElementById('cd-course-managers').value}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocAssignManagersV1',courseId:course.id,usernames:r.value});if(result.status!=='success'){Swal.fire('บันทึกไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();selectCourseDocumentV1_(course.id);Swal.fire('บันทึกแล้ว','','success');});
+}
+function openCourseDocUploadV1_() {
+  const s=sssfnCourseDocStateV1_; if(!s.courses.length){Swal.fire('ยังไม่มีรายวิชา','ต้องสร้างรายวิชาก่อนจึงจะส่งเอกสารได้','info');return;}
+  const modal=document.getElementById('course-doc-upload-modal'); if(!modal)return;
+  document.getElementById('course-doc-upload-existing-id').value=''; document.getElementById('course-doc-upload-title').textContent='ส่งเอกสารเข้าคลัง'; document.getElementById('course-doc-upload-name').value=''; document.getElementById('course-doc-upload-description').value=''; document.getElementById('course-doc-upload-file').value=''; document.getElementById('course-doc-upload-file').required=true;
+  if(s.selectedCourseId) document.getElementById('course-doc-upload-course').value=s.selectedCourseId;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function openCourseDocNewVersionV1_(documentId) {
+  const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId); if(!doc)return;
+  document.getElementById('course-doc-upload-existing-id').value=documentId; document.getElementById('course-doc-upload-title').textContent='ส่งฉบับแก้ไขใหม่'; document.getElementById('course-doc-upload-course').value=doc.courseId; document.getElementById('course-doc-upload-name').value=doc.title; document.getElementById('course-doc-upload-description').value=doc.description||''; document.getElementById('course-doc-upload-file').value=''; document.getElementById('course-doc-upload-file').required=true;
+  const modal=document.getElementById('course-doc-upload-modal'); modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function closeCourseDocUploadV1_() { const modal=document.getElementById('course-doc-upload-modal'); if(modal){modal.classList.add('hidden');modal.classList.remove('flex');} }
+function sssfnCourseDocArrayBufferBase64V1_(buffer) { const bytes=new Uint8Array(buffer); let binary=''; for(let i=0;i<bytes.length;i+=0x8000) binary+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+0x8000,bytes.length))); return btoa(binary); }
+async function submitCourseDocUploadV1_(event) {
+  event.preventDefault();
+  const file=document.getElementById('course-doc-upload-file').files[0]; if(!file){Swal.fire('กรุณาเลือกไฟล์','','warning');return;}
+  if(file.size<=0||file.size>100*1024*1024){Swal.fire('ขนาดไฟล์ไม่ถูกต้อง','ระบบรับไฟล์ขนาดไม่เกิน 100 MB ต่อไฟล์','warning');return;}
+  const title=document.getElementById('course-doc-upload-name').value.trim(); if(!title){Swal.fire('กรุณาระบุชื่อเอกสาร','','warning');return;}
+  const submit=document.getElementById('course-doc-upload-submit'); submit.disabled=true; submit.textContent='กำลังเริ่มอัปโหลด...';
+  const progressWrap=document.getElementById('course-doc-upload-progress-wrap'); progressWrap.classList.remove('hidden');
+  try {
+    const begin=await callBackend({action:'courseDocBeginUploadV1',courseId:document.getElementById('course-doc-upload-course').value,category:document.getElementById('course-doc-upload-category').value,title:title,description:document.getElementById('course-doc-upload-description').value,fileName:file.name,fileSize:file.size,mimeType:file.type,documentId:document.getElementById('course-doc-upload-existing-id').value});
+    if(!begin||begin.status!=='success') throw new Error(begin&&begin.message||'เริ่มอัปโหลดไม่สำเร็จ');
+    const chunkSize=Number(begin.chunkSize)||4*1024*1024; let offset=0;
+    while(offset<file.size){const end=Math.min(file.size,offset+chunkSize);const base64=sssfnCourseDocArrayBufferBase64V1_(await file.slice(offset,end).arrayBuffer());const chunk=await callBackend({action:'courseDocUploadChunkV1',uploadId:begin.uploadId,start:offset,chunkBase64:base64});if(!chunk||chunk.status!=='success')throw new Error(chunk&&chunk.message||'ส่งชิ้นส่วนไฟล์ไม่สำเร็จ');offset=end;const pct=Math.floor(offset/file.size*100);document.getElementById('course-doc-upload-progress-label').textContent='กำลังอัปโหลด '+sssfnCourseDocSizeV1_(offset)+' / '+sssfnCourseDocSizeV1_(file.size);document.getElementById('course-doc-upload-progress-percent').textContent=pct+'%';document.getElementById('course-doc-upload-progress-bar').style.width=pct+'%';if(chunk.complete)break;}
+    closeCourseDocUploadV1_(); await loadCourseDocumentsV1_(); Swal.fire('ส่งเอกสารแล้ว','ไฟล์ถูกส่งเข้าคิวรอตรวจสอบ ยังไม่เผยแพร่จนกว่าจะได้รับอนุมัติ','success');
+  } catch(error) { Swal.fire('อัปโหลดไม่สำเร็จ',String(error.message||error),'error'); }
+  finally { submit.disabled=false; submit.textContent='ส่งตรวจสอบ'; }
+}
+async function reviewCourseDocumentV1_(documentId, decision) {
+  let reason=''; if(decision==='reject'){const r=await Swal.fire({title:'ไม่อนุมัติเอกสาร',input:'textarea',inputLabel:'เหตุผลที่ไม่อนุมัติ',inputPlaceholder:'ระบุเหตุผลให้ผู้ส่งทราบ',showCancelButton:true,confirmButtonText:'ยืนยันไม่อนุมัติ',cancelButtonText:'ยกเลิก',inputValidator:v=>!String(v||'').trim()?'กรุณาระบุเหตุผล':''});if(!r.isConfirmed)return;reason=r.value;}
+  else {const r=await Swal.fire({title:'อนุมัติเอกสาร?',text:'เอกสารฉบับนี้จะถูกเผยแพร่ให้นักศึกษาทุกคนเปิดอ่านได้',icon:'question',showCancelButton:true,confirmButtonText:'อนุมัติและเผยแพร่',cancelButtonText:'ยกเลิก'});if(!r.isConfirmed)return;}
+  const result=await callBackend({action:'courseDocReviewV1',documentId:documentId,decision:decision,reason:reason}); if(!result||result.status!=='success'){Swal.fire('ดำเนินการไม่สำเร็จ',result&&result.message||'เกิดข้อผิดพลาด','error');return;} await loadCourseDocumentsV1_(); Swal.fire('บันทึกผลแล้ว',result.message||'','success');
+}
+async function withdrawCourseDocumentV1_(documentId) { const r=await Swal.fire({title:'ถอนเอกสารออกจากคลัง?',text:'นักศึกษาจะไม่สามารถเปิดเอกสารนี้ผ่านคลังได้ แต่ไฟล์ต้นฉบับจะยังไม่ถูกลบ',icon:'warning',showCancelButton:true,confirmButtonText:'ถอนเผยแพร่',cancelButtonText:'ยกเลิก'});if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocWithdrawV1',documentId:documentId});if(!result||result.status!=='success'){Swal.fire('ถอนเผยแพร่ไม่สำเร็จ',result&&result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_();Swal.fire('ถอนเผยแพร่แล้ว','','success'); }
+async function sssfnCourseDocFetchBlobV1_(documentId, version, progressFn) {
+  const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);const ver=(doc&&doc.versions||[]).find(v=>Number(v.version)===Number(version));if(!ver)throw new Error('ไม่พบข้อมูลเวอร์ชันเอกสาร');
+  const chunks=[]; let offset=0; const chunkSize=4*1024*1024;
+  while(offset<Number(ver.fileSize)){const result=await callBackend({action:'courseDocReadChunkV1',documentId:documentId,version:version,start:offset});if(!result||result.status!=='success')throw new Error(result&&result.message||'อ่านไฟล์ไม่สำเร็จ');const binary=atob(result.dataBase64||'');const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);if(!bytes.length)throw new Error('ได้รับข้อมูลไฟล์ว่าง');chunks.push(bytes);offset+=bytes.length;if(progressFn)progressFn(offset,Number(ver.fileSize));}
+  return {blob:new Blob(chunks,{type:ver.mimeType||'application/octet-stream'}),version:ver};
+}
+async function downloadCourseDocV1_(documentId, version) {
+  try{const result=await sssfnCourseDocFetchBlobV1_(documentId,version);const url=URL.createObjectURL(result.blob);const a=document.createElement('a');a.href=url;a.download=result.version.fileName||'document';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(error){Swal.fire('ดาวน์โหลดไม่สำเร็จ',String(error.message||error),'error');}
+}
+async function openCourseDocPreviewV1_(documentId, version) {
+  const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);if(!doc)return;
+  const modal=document.getElementById('course-doc-preview-modal'), content=document.getElementById('course-doc-preview-content');modal.classList.remove('hidden');modal.classList.add('flex');content.innerHTML='<div class="text-center text-slate-500"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="text-sm mt-2">กำลังโหลดเอกสาร...</p></div>';
+  try{
+    const result=await sssfnCourseDocFetchBlobV1_(documentId,version,(done,total)=>{document.getElementById('course-doc-preview-meta').textContent='กำลังโหลด '+Math.floor(done/total*100)+'%';});
+    if(sssfnCourseDocStateV1_.previewUrl)URL.revokeObjectURL(sssfnCourseDocStateV1_.previewUrl);
+    const url=URL.createObjectURL(result.blob);sssfnCourseDocStateV1_.previewUrl=url;sssfnCourseDocStateV1_.currentPreview={documentId:documentId,version:version,blob:result.blob,fileName:result.version.fileName};
+    document.getElementById('course-doc-preview-name').textContent=doc.title;document.getElementById('course-doc-preview-meta').textContent=(result.version.fileName||'')+' • '+sssfnCourseDocSizeV1_(result.version.fileSize)+' • ฉบับ '+version;
+    const mime=result.version.mimeType||'';
+    if(mime==='application/pdf')content.innerHTML='<iframe title="ตัวอ่าน PDF" src="'+url+'" class="w-full h-full bg-white"></iframe>';
+    else if(mime.startsWith('image/'))content.innerHTML='<img src="'+url+'" alt="'+sssfnCourseDocEscV1_(doc.title)+'" class="max-w-full max-h-full object-contain p-3">';
+    else if(mime==='text/plain'||mime==='text/csv'){const text=await result.blob.text();content.innerHTML='<pre class="w-full h-full overflow-auto whitespace-pre-wrap bg-white p-5 text-sm text-slate-800">'+sssfnCourseDocEscV1_(text.slice(0,2000000))+'</pre>';}
+    else if(mime.includes('spreadsheet')||mime==='application/vnd.ms-excel'||mime==='text/csv'){
+      if(typeof XLSX==='undefined')throw new Error('ตัวอ่าน Excel ยังไม่พร้อม');const wb=XLSX.read(await result.blob.arrayBuffer(),{type:'array'});const htmlTable=XLSX.utils.sheet_to_html(wb.Sheets[wb.SheetNames[0]]);content.innerHTML='<div class="w-full h-full overflow-auto bg-white p-4"><div class="overflow-auto">'+htmlTable+'</div></div>';content.querySelectorAll('table').forEach(t=>t.classList.add('border-collapse','text-xs'));content.querySelectorAll('td,th').forEach(c=>c.classList.add('border','border-slate-200','p-2'));
+    } else if(mime.includes('wordprocessingml')){
+      if(!window.mammoth){await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';script.onload=resolve;script.onerror=()=>reject(new Error('โหลดตัวอ่าน Word ไม่สำเร็จ'));document.head.appendChild(script);});}
+      const converted=await mammoth.convertToHtml({arrayBuffer:await result.blob.arrayBuffer()});const parsed=new DOMParser().parseFromString(converted.value,'text/html');parsed.querySelectorAll('script,iframe,object,embed,style').forEach(n=>n.remove());parsed.querySelectorAll('*').forEach(n=>Array.from(n.attributes).forEach(a=>{if(/^on/i.test(a.name)||a.name==='src'||a.name==='href')n.removeAttribute(a.name);}));content.innerHTML='<article class="prose max-w-4xl bg-white min-h-full mx-auto p-6 md:p-10">'+parsed.body.innerHTML+'</article>';
+    } else {content.innerHTML='<div class="text-center p-8"><i class="fas fa-file-download text-4xl text-indigo-400"></i><p class="font-bold text-slate-700 mt-3">ไฟล์นี้ยังไม่มีตัวอ่านตัวอย่างในเว็บไซต์</p><p class="text-sm text-slate-500 mt-1">กดปุ่มดาวน์โหลดเพื่อเปิดด้วยโปรแกรมที่รองรับ</p></div>';}
+  } catch(error){content.innerHTML='<div class="text-center p-8 text-rose-600"><i class="fas fa-exclamation-circle text-3xl"></i><p class="mt-2">'+sssfnCourseDocEscV1_(error.message||error)+'</p></div>';}
+}
+function downloadCourseDocCurrentV1_(){const p=sssfnCourseDocStateV1_.currentPreview;if(!p)return;const a=document.createElement('a');a.href=sssfnCourseDocStateV1_.previewUrl;a.download=p.fileName||'document';document.body.appendChild(a);a.click();a.remove();}
+function closeCourseDocPreviewV1_(){const modal=document.getElementById('course-doc-preview-modal');modal.classList.add('hidden');modal.classList.remove('flex');if(sssfnCourseDocStateV1_.previewUrl){URL.revokeObjectURL(sssfnCourseDocStateV1_.previewUrl);sssfnCourseDocStateV1_.previewUrl='';}sssfnCourseDocStateV1_.currentPreview=null;}
+
+</script>
 
    <!-- ================= Modal E-Receipt (Minimalist Glow Style) ================= -->
 
