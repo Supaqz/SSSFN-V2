@@ -1,4 +1,4 @@
-<!-- SSSFN v15.6.26-local: frontend unchanged from v15.6.25; scheduled pre-due email reminder cadence updated in Apps Script. -->
+<!-- SSSFN v15.6.27-local: one-link Google Drive share library for approved course documents. -->
 <!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
 <!DOCTYPE html>
 <!-- SSSFN v15.6.11-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
@@ -1401,7 +1401,7 @@
   <section class="rounded-3xl bg-gradient-to-r from-indigo-700 to-blue-600 text-white p-5 md:p-7 shadow-lg">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">รวมเอกสารทุกวิชา เปิดอ่านผ่านเว็บไซต์ได้ในที่เดียว</p></div>
-      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-managers" onclick="openCourseDocGlobalManagersV1_()" class="hidden bg-indigo-500/40 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-user-shield mr-1"></i> ผู้ดูแลคลัง</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งเอกสาร</button></div>
+      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-managers" onclick="openCourseDocGlobalManagersV1_()" class="hidden bg-indigo-500/40 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-user-shield mr-1"></i> ผู้ดูแลคลัง</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งเอกสาร</button></div>
     </div>
   </section>
   <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
@@ -16860,6 +16860,33 @@ window.__sssfnCourseDocLastLoadedAtV1 = 0;
 window.__sssfnCourseDocDataStaleV1 = true;
 window.__sssfnCourseDocRefreshTimerV1 = null;
 function clearCourseDocFiltersV1_() { ['course-doc-filter-instructor','course-doc-filter-course','course-doc-filter-term','course-doc-filter-category'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';}); renderCourseDocumentsV1_(); }
+async function openCourseDocShareRootV1_() {
+  if (!sssfnCourseDocStateV1_.canReview) return;
+  Swal.fire({title:'กำลังเตรียมลิงก์แชร์คลังเอกสาร',html:'กำลังจัดโฟลเดอร์รายวิชาและซิงก์เฉพาะเอกสารที่อนุมัติแล้ว',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+  try {
+    const result = await callBackend({action:'courseDocShareRootV1'});
+    if (!result || result.status !== 'success' || !result.shareUrl) {
+      Swal.fire('สร้างลิงก์แชร์ไม่สำเร็จ',result && result.message || 'ไม่สามารถเตรียมโฟลเดอร์แชร์ได้','error');
+      return;
+    }
+    const url = String(result.shareUrl);
+    const stats = 'มีโฟลเดอร์รายวิชา '+Number(result.coursesCount||0)+' วิชา และเอกสารเผยแพร่ '+Number(result.documentsCount||0)+' รายการ';
+    Swal.fire({
+      title:'ลิงก์แชร์คลังเอกสารทุกวิชา',
+      html:'<div class="text-left space-y-3"><p class="text-sm text-slate-600">'+sssfnCourseDocEscV1_(stats)+'</p><input id="course-doc-share-url" readonly value="'+sssfnCourseDocEscV1_(url)+'" class="w-full box-border rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700"><a href="'+sssfnCourseDocEscV1_(url)+'" target="_blank" rel="noopener noreferrer" class="inline-flex text-sm font-bold text-indigo-600 underline">เปิดโฟลเดอร์แชร์ใน Google Drive</a><div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"><b>โปรดทราบ:</b> ทุกคนที่มีลิงก์นี้สามารถดูและดาวน์โหลดเอกสารที่อนุมัติแล้วได้ โฟลเดอร์ต้นฉบับ เอกสารรอตรวจสอบ และเอกสารที่ไม่อนุมัติจะไม่อยู่ในพื้นที่แชร์นี้</div></div>',
+      showCancelButton:true,confirmButtonText:'<i class="fas fa-copy mr-1"></i> คัดลอกลิงก์',cancelButtonText:'ปิด',buttonsStyling:false,
+      customClass:{popup:'!rounded-2xl !p-5',title:'!text-lg !font-black',htmlContainer:'!mx-0 !mt-3',confirmButton:'!rounded-xl !bg-indigo-600 !px-5 !py-3 !text-sm !font-bold !text-white',cancelButton:'!rounded-xl !bg-slate-100 !px-5 !py-3 !text-sm !font-bold !text-slate-700'},
+      preConfirm:async()=>{
+        const input=document.getElementById('course-doc-share-url');
+        try { await navigator.clipboard.writeText(url); }
+        catch (error) { if(input){input.focus();input.select();if(!document.execCommand('copy')){Swal.showValidationMessage('คัดลอกอัตโนมัติไม่ได้ กรุณาเลือกและคัดลอกลิงก์จากช่องด้านบน');return false;}} }
+        return true;
+      }
+    }).then(r=>{if(r.isConfirmed) Swal.fire({icon:'success',title:'คัดลอกลิงก์แล้ว',text:'ส่งลิงก์นี้ให้เพื่อนได้เลย',timer:1600,showConfirmButton:false});});
+  } catch (error) {
+    Swal.fire('สร้างลิงก์แชร์ไม่สำเร็จ',String(error && error.message || error),'error');
+  }
+}
 function sssfnCourseDocEscV1_(value) {
   return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);});
 }
@@ -16956,9 +16983,10 @@ async function loadCourseDocumentsForCourseV1_(courseId, force) {
 
 function renderCourseDocumentsV1_() {
   const s=sssfnCourseDocStateV1_, instructor=(document.getElementById('course-doc-filter-instructor')?.value||'').trim().toLowerCase(), courseQuery=(document.getElementById('course-doc-filter-course')?.value||'').trim().toLowerCase(), term=(document.getElementById('course-doc-filter-term')?.value||''), category=(document.getElementById('course-doc-filter-category')?.value||'');
-  const createBtn=document.getElementById('course-doc-btn-create'), managerBtn=document.getElementById('course-doc-btn-managers'), reviewSection=document.getElementById('course-doc-review-section');
+  const createBtn=document.getElementById('course-doc-btn-create'), managerBtn=document.getElementById('course-doc-btn-managers'), shareBtn=document.getElementById('course-doc-btn-share'), reviewSection=document.getElementById('course-doc-review-section');
   if(createBtn) createBtn.classList.toggle('hidden',!s.canCreateCourse);
   if(managerBtn) managerBtn.classList.toggle('hidden',!s.canManageGlobalManagers);
+  if(shareBtn) shareBtn.classList.toggle('hidden',!s.canReview);
   if(reviewSection) reviewSection.classList.toggle('hidden',!s.canReview);
   const fillCourseDocSelect=(id,placeholder,values,selected)=>{const el=document.getElementById(id);if(!el)return;const list=[...new Set(values.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));el.innerHTML='<option value="">'+placeholder+'</option>'+list.map(v=>'<option value="'+sssfnCourseDocEscV1_(v)+'">'+sssfnCourseDocEscV1_(v)+'</option>').join('');if(list.includes(selected))el.value=selected;};
   const termSelect=document.getElementById('course-doc-filter-term'), oldTerm=termSelect?termSelect.value:'';
