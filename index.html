@@ -1,3 +1,4 @@
+<!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
 <!-- SSSFN v15.6.27-local: one-link Google Drive share library for approved course documents. -->
 <!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
 <!DOCTYPE html>
@@ -1400,8 +1401,8 @@
             <div id="page-course-documents" class="page-view hidden max-w-6xl mx-auto space-y-5 pb-10">
   <section class="rounded-3xl bg-gradient-to-r from-indigo-700 to-blue-600 text-white p-5 md:p-7 shadow-lg">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">รวมเอกสารทุกวิชา เปิดอ่านผ่านเว็บไซต์ได้ในที่เดียว</p></div>
-      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-managers" onclick="openCourseDocGlobalManagersV1_()" class="hidden bg-indigo-500/40 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-user-shield mr-1"></i> ผู้ดูแลคลัง</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งเอกสาร</button></div>
+      <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">รวมเอกสารทุกวิชา เปิดอ่านผ่านเว็บไซต์ได้ในที่เดียว • นักศึกษาทุกคนส่งเอกสารได้ โดยหัวหน้า/รองหัวหน้าอนุมัติก่อนเผยแพร่</p></div>
+      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งเอกสาร</button></div>
     </div>
   </section>
   <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
@@ -16852,7 +16853,7 @@ window.manageStudentPoints = function(studentId) {
     
 
 // SSSFN Course Document Hub frontend module (integrated into v15.6.7).
-let sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, canManageGlobalManagers:false, selectedCourseId:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
+let sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, selectedCourseId:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
 let sssfnCourseDocListPromiseV1_ = null;
 let sssfnCourseDocSelectedPromiseV1_ = null;
 window.__sssfnCourseDocRootLoadedAtV1 = 0;
@@ -16905,7 +16906,7 @@ async function loadCourseDocumentsV1_(options) {
     window.__sssfnCourseDocSessionKeyV1 = courseDocSessionKey;
     window.__sssfnCourseDocRootLoadedAtV1 = 0;
     window.__sssfnCourseDocDataStaleV1 = true;
-    sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, canManageGlobalManagers:false, selectedCourseId:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
+    sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, selectedCourseId:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
   }
   if (!window.currentAuthToken && !window.currentStudentAuthToken) {
     if (typeof Swal !== 'undefined') await Swal.fire('กรุณาเข้าสู่ระบบ','เข้าสู่ระบบนักศึกษาด้วย Google หรือบัญชีเจ้าหน้าที่ก่อนใช้งานคลังเอกสาร','info');
@@ -16983,9 +16984,8 @@ async function loadCourseDocumentsForCourseV1_(courseId, force) {
 
 function renderCourseDocumentsV1_() {
   const s=sssfnCourseDocStateV1_, instructor=(document.getElementById('course-doc-filter-instructor')?.value||'').trim().toLowerCase(), courseQuery=(document.getElementById('course-doc-filter-course')?.value||'').trim().toLowerCase(), term=(document.getElementById('course-doc-filter-term')?.value||''), category=(document.getElementById('course-doc-filter-category')?.value||'');
-  const createBtn=document.getElementById('course-doc-btn-create'), managerBtn=document.getElementById('course-doc-btn-managers'), shareBtn=document.getElementById('course-doc-btn-share'), reviewSection=document.getElementById('course-doc-review-section');
+  const createBtn=document.getElementById('course-doc-btn-create'), shareBtn=document.getElementById('course-doc-btn-share'), reviewSection=document.getElementById('course-doc-review-section');
   if(createBtn) createBtn.classList.toggle('hidden',!s.canCreateCourse);
-  if(managerBtn) managerBtn.classList.toggle('hidden',!s.canManageGlobalManagers);
   if(shareBtn) shareBtn.classList.toggle('hidden',!s.canReview);
   if(reviewSection) reviewSection.classList.toggle('hidden',!s.canReview);
   const fillCourseDocSelect=(id,placeholder,values,selected)=>{const el=document.getElementById(id);if(!el)return;const list=[...new Set(values.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));el.innerHTML='<option value="">'+placeholder+'</option>'+list.map(v=>'<option value="'+sssfnCourseDocEscV1_(v)+'">'+sssfnCourseDocEscV1_(v)+'</option>').join('');if(list.includes(selected))el.value=selected;};
@@ -17065,10 +17065,6 @@ async function deleteCourseDocCourseV1_(courseId) {
   const confirm=await Swal.fire({title:mode==='delete'?'ยืนยันลบรายวิชาและเอกสาร?':'ยืนยันนำรายวิชาออก?',text:mode==='delete'?'ไฟล์เอกสารทุกเวอร์ชันจะถูกย้ายไปถังขยะ Google Drive และข้อมูลเอกสารจะถูกลบจาก Firebase':'ไฟล์เอกสารจะยังคงอยู่ แต่รายวิชาจะไม่แสดงในหน้าเว็บ',icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยัน',cancelButtonText:'กลับไปตรวจสอบ',confirmButtonColor:'#dc2626'});
   if(!confirm.isConfirmed)return;
   try{Swal.fire({title:'กำลังดำเนินการ',text:'กำลังจัดการรายวิชาและเอกสาร',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const out=await callBackend({action:'courseDocDeleteCourseV1',courseId:c.id,deleteDocuments:mode==='delete'});if(!out||out.status!=='success')throw new Error(out&&out.message||'ลบรายวิชาไม่สำเร็จ');if(s.selectedCourseId===c.id)s.selectedCourseId='';await loadCourseDocumentsV1_({force:true});Swal.fire('ดำเนินการแล้ว',out.message||'ลบรายวิชาเรียบร้อย','success');}catch(e){Swal.fire('ดำเนินการไม่สำเร็จ',String(e.message||e),'error');}
-}
-function openCourseDocGlobalManagersV1_() {
-  if(!sssfnCourseDocStateV1_.canManageGlobalManagers) return;
-  Swal.fire({title:'ผู้ดูแลคลังเอกสาร',html:'<p class="text-xs text-slate-500 text-left mb-2">กรอก Username ของบัญชีเจ้าหน้าที่ที่มีอยู่แล้ว บรรทัดละหนึ่งบัญชี ผู้ดูแลเหล่านี้สามารถสร้างและจัดการรายวิชาที่ได้รับมอบหมายได้ แต่ไม่มีสิทธิ์อนุมัติเอกสาร</p><textarea id="cd-global-managers" class="swal2-textarea" placeholder="username1&#10;username2">'+sssfnCourseDocEscV1_((sssfnCourseDocStateV1_.globalManagers||[]).join('\n'))+'</textarea>',showCancelButton:true,confirmButtonText:'บันทึกผู้ดูแล',cancelButtonText:'ยกเลิก',preConfirm:()=>document.getElementById('cd-global-managers').value}).then(async r=>{if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocSaveGlobalManagersV1',usernames:r.value});if(result.status!=='success'){Swal.fire('บันทึกไม่สำเร็จ',result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_({force:true});Swal.fire('บันทึกแล้ว','','success');});
 }
 function openCourseDocUploadV1_() {
   const s=sssfnCourseDocStateV1_; if(!s.courses.length){Swal.fire('ยังไม่มีรายวิชา','ต้องสร้างรายวิชาก่อนจึงจะส่งเอกสารได้','info');return;}
