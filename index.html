@@ -1,8 +1,9 @@
-<!-- SSSFN v15.6.30-local: full-history document deletion; auto-renamed course folders; restored legacy PPT preview flags. -->
+<!-- SSSFN v15.6.31-local: fix stray literal \\n before DOCTYPE; package local SSSFN favicon/logo assets. -->
 <!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
 <!-- SSSFN v15.6.29-local: one-link Google Drive share library for approved course documents. -->
 <!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
-<!-- SSSFN v15.6.30-local: full document-history removal and course-folder rename-in-place in Drive. -->\n<!DOCTYPE html>
+<!-- SSSFN v15.6.30-local: full document-history removal and course-folder rename-in-place in Drive. -->
+<!DOCTYPE html>
 <!-- SSSFN v15.6.11-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
 <!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
 <!-- SSSFN v15.6.4-local: system-generated payment/activity/score alerts and Thai-date report fixes; based on v15.6.3-local -->
@@ -18,8 +19,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบบริการนักศึกษา SSSFN</title>
-    <link rel="icon" type="image/png" href="logo-2.png">
-    <link rel="apple-touch-icon" href="logo-2.png">
+    <!-- ใช้โลโก้ไฟล์เดียวเป็น Favicon: วาง logo-2.png ไว้ระดับเดียวกับ index.html -->
+    <link rel="icon" type="image/png" href="./logo-2.png?v=15.6.32">
 
     <meta name="apple-mobile-web-app-title" content="SSSFN">
     <meta name="mobile-web-app-capable" content="yes">
@@ -5709,7 +5710,7 @@ function renderHomeDirectory() {
 
                     <!-- ฝั่งขวา: โลโก้และชื่อระบบ (สีขาว) -->
                     <div class="w-full md:w-1/2 bg-white p-6 md:p-8 flex flex-col items-center justify-center relative">
-                        <img src="logo-2.png" alt="SSSFN Logo" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=SSSFN&background=ea580c&color=fff&size=128&bold=true&font-size=0.4';" class="w-24 md:w-36 mb-4 drop-shadow-md hover:scale-105 transition duration-500 rounded-2xl">
+                        <img src="./logo-2.png?v=15.6.31" alt="SSSFN Logo" onerror="this.onerror=null; this.src='./favicon.svg?v=15.6.31';" class="w-24 md:w-36 mb-4 drop-shadow-md hover:scale-105 transition duration-500 rounded-2xl">
                         <h2 class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-1">SSSFN</h2>
                         <p class="text-slate-400 font-bold text-xs tracking-widest uppercase">Student Service System</p>
                     </div>
