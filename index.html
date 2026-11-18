@@ -4,7 +4,7 @@
 <!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
 <!-- SSSFN v15.6.30-local: full document-history removal and course-folder rename-in-place in Drive. -->
 <!DOCTYPE html>
-<!-- SSSFN v15.6.34-local: compact course cards, course detail view, and per-course category dropdown; based on v15.6.33. -->
+<!-- SSSFN v15.6.35-local: responsive layout refinements for phones, tablets, laptops and large displays; based on v15.6.34. -->
 <!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
 <!-- SSSFN v15.6.4-local: system-generated payment/activity/score alerts and Thai-date report fixes; based on v15.6.3-local -->
 <!-- SSSFN v15.6.3-local: executive dashboard and date-filtered Excel/PDF report; based on v15.6.2-local -->
@@ -19,8 +19,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบบริการนักศึกษา SSSFN</title>
-    <link rel="icon" type="image/png" href="./logo-2.png?v=15.6.34">
-    <link rel="apple-touch-icon" href="./logo-2.png?v=15.6.34">
+    <link rel="icon" type="image/png" href="./logo-2.png?v=15.6.35">
+    <link rel="apple-touch-icon" href="./logo-2.png?v=15.6.35">
 
     <meta name="apple-mobile-web-app-title" content="SSSFN">
     <meta name="mobile-web-app-capable" content="yes">
@@ -367,6 +367,239 @@
         }
         .swal2-popup.sssfn-email-requests-popup .sssfn-email-empty-state {
             min-height: 160px;
+        }
+    }
+
+
+    /* SSSFN v15.6.35: responsive layout baseline for phones, tablets, laptops and large displays. */
+    :root {
+        --sssfn-content-max: 84rem;
+        --sssfn-page-gutter: clamp(12px, 2vw, 28px);
+    }
+    html {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: clip;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+    body {
+        width: 100%;
+        min-width: 320px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-x: clip;
+        overscroll-behavior-x: none;
+    }
+    body > main.flex-1 {
+        min-width: 0;
+        max-width: 100%;
+    }
+    body > main.flex-1 > header {
+        flex: 0 0 auto;
+        min-width: 0;
+        gap: 12px;
+    }
+    body > main.flex-1 > header > div {
+        min-width: 0;
+    }
+    body > main.flex-1 > header > div:first-child {
+        flex: 1 1 auto;
+    }
+    body > main.flex-1 > header > div:last-child {
+        flex: 0 0 auto;
+    }
+    body > main.flex-1 > .flex-1.overflow-y-auto {
+        width: 100%;
+        min-width: 0;
+        overscroll-behavior: contain;
+        scroll-padding-block: 12px;
+    }
+    .page-view {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        max-width: min(100%, var(--sssfn-content-max));
+        margin-inline: auto;
+    }
+    /* Wider data-oriented pages get more room; focused forms retain a narrower measure. */
+    .page-view.max-w-3xl { max-width: min(100%, 56rem); }
+    .page-view.max-w-4xl { max-width: min(100%, 64rem); }
+    .page-view.max-w-5xl { max-width: min(100%, 72rem); }
+    .page-view.max-w-6xl { max-width: min(100%, 80rem); }
+    .page-view.max-w-7xl { max-width: min(100%, 84rem); }
+    #activity-main-dashboard {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: min(100%, 84rem);
+        margin-inline: auto;
+    }
+    .page-view .flex > *,
+    .page-view .grid > *,
+    #activity-main-dashboard .flex > *,
+    #activity-main-dashboard .grid > * {
+        min-width: 0;
+    }
+    .page-view input,
+    .page-view select,
+    .page-view textarea,
+    #activity-main-dashboard input,
+    #activity-main-dashboard select,
+    #activity-main-dashboard textarea {
+        box-sizing: border-box;
+        max-width: 100%;
+    }
+    .page-view img,
+    .page-view video,
+    .page-view iframe,
+    .page-view canvas,
+    #activity-main-dashboard img,
+    #activity-main-dashboard video,
+    #activity-main-dashboard iframe,
+    #activity-main-dashboard canvas {
+        max-width: 100%;
+    }
+    .overflow-x-auto {
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-inline: contain;
+    }
+    pre, code {
+        overflow-wrap: anywhere;
+    }
+
+    /* Tablet: use the available content width instead of leaving narrow desktop max-widths. */
+    @media (min-width: 640px) and (max-width: 1023px) {
+        body > main.flex-1 > .flex-1.overflow-y-auto {
+            padding: 18px !important;
+        }
+        .page-view,
+        .page-view.max-w-3xl,
+        .page-view.max-w-4xl,
+        .page-view.max-w-5xl,
+        .page-view.max-w-6xl,
+        .page-view.max-w-7xl {
+            max-width: 100%;
+        }
+        #activity-main-dashboard {
+            max-width: 100%;
+            padding-inline: 16px;
+        }
+    }
+
+    /* Phones: one readable column, touch-friendly controls and safe-area-aware scrolling. */
+    @media (max-width: 639px) {
+        body {
+            height: 100vh;
+            height: 100dvh;
+        }
+        body > main.flex-1 {
+            height: 100vh;
+            height: 100dvh;
+            padding-top: 4rem;
+        }
+        body > main.flex-1 > header {
+            padding: 10px 12px !important;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        body > main.flex-1 > header > div:first-child {
+            flex: 1 1 145px;
+        }
+        body > main.flex-1 > header > div:last-child {
+            flex: 0 0 auto;
+            gap: 6px;
+        }
+        #header-title {
+            font-size: 1rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        body > main.flex-1 > .flex-1.overflow-y-auto {
+            padding: 12px !important;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+        }
+        .page-view,
+        .page-view.max-w-3xl,
+        .page-view.max-w-4xl,
+        .page-view.max-w-5xl,
+        .page-view.max-w-6xl,
+        .page-view.max-w-7xl {
+            width: 100%;
+            max-width: 100%;
+            margin-inline: 0;
+        }
+        #activity-main-dashboard {
+            max-width: 100%;
+            padding: 12px !important;
+        }
+        .page-view .grid.grid-cols-2,
+        .page-view .grid.grid-cols-3,
+        .page-view .grid.grid-cols-4,
+        .page-view .grid.grid-cols-5,
+        .page-view .grid.grid-cols-6,
+        #activity-main-dashboard .grid.grid-cols-2,
+        #activity-main-dashboard .grid.grid-cols-3,
+        #activity-main-dashboard .grid.grid-cols-4,
+        #activity-main-dashboard .grid.grid-cols-5,
+        #activity-main-dashboard .grid.grid-cols-6 {
+            grid-template-columns: minmax(0, 1fr) !important;
+        }
+        .page-view .overflow-x-auto,
+        #activity-main-dashboard .overflow-x-auto {
+            width: 100%;
+            max-width: 100%;
+        }
+        .page-view button,
+        #activity-main-dashboard button {
+            min-height: 36px;
+            max-width: 100%;
+        }
+        .page-view .playful-card:hover,
+        .page-view .executive-card:hover,
+        #activity-main-dashboard .playful-card:hover,
+        #activity-main-dashboard .executive-card:hover {
+            transform: none;
+        }
+        .swal2-popup {
+            box-sizing: border-box !important;
+            width: calc(100vw - 24px) !important;
+            max-width: calc(100vw - 24px) !important;
+            max-height: calc(100dvh - 24px) !important;
+            margin: 12px auto !important;
+            padding: 18px !important;
+            overflow-y: auto !important;
+        }
+        .swal2-actions {
+            flex-wrap: wrap;
+        }
+    }
+
+    /* Very narrow phones: keep action bars and course/data cards from clipping. */
+    @media (max-width: 380px) {
+        body > main.flex-1 > header > div:last-child {
+            margin-left: auto;
+        }
+        .page-view .flex.flex-wrap,
+        #activity-main-dashboard .flex.flex-wrap {
+            gap: 6px;
+        }
+        .page-view .text-2xl,
+        #activity-main-dashboard .text-2xl {
+            font-size: 1.25rem;
+        }
+        .swal2-popup {
+            padding: 14px !important;
+        }
+    }
+
+    /* Landscape phones: avoid squeezing the main area while retaining vertical scrolling. */
+    @media (max-width: 767px) and (orientation: landscape) {
+        body > main.flex-1 > .flex-1.overflow-y-auto {
+            padding-top: 10px !important;
+        }
+        .swal2-popup {
+            max-height: calc(100dvh - 16px) !important;
         }
     }
 
