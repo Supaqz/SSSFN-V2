@@ -1,7 +1,8 @@
+<!-- SSSFN v15.6.30-local: full-history document deletion; auto-renamed course folders; restored legacy PPT preview flags. -->
 <!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
-<!-- SSSFN v15.6.27-local: one-link Google Drive share library for approved course documents. -->
+<!-- SSSFN v15.6.29-local: one-link Google Drive share library for approved course documents. -->
 <!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
-<!DOCTYPE html>
+<!-- SSSFN v15.6.30-local: full document-history removal and course-folder rename-in-place in Drive. -->\n<!DOCTYPE html>
 <!-- SSSFN v15.6.11-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
 <!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
 <!-- SSSFN v15.6.4-local: system-generated payment/activity/score alerts and Thai-date report fixes; based on v15.6.3-local -->
@@ -1402,7 +1403,7 @@
   <section class="rounded-3xl bg-gradient-to-r from-indigo-700 to-blue-600 text-white p-5 md:p-7 shadow-lg">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">รวมเอกสารทุกวิชา เปิดอ่านผ่านเว็บไซต์ได้ในที่เดียว • นักศึกษาทุกคนส่งเอกสารได้ โดยหัวหน้า/รองหัวหน้าอนุมัติก่อนเผยแพร่</p></div>
-      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งเอกสาร</button></div>
+      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button onclick="openCourseDocLinkV1_()" class="bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> วางลิงก์</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งไฟล์</button></div>
     </div>
   </section>
   <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
@@ -1419,7 +1420,7 @@
     <div id="course-doc-course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="col-span-full text-center py-8 text-slate-400 text-sm">กำลังโหลดรายวิชา...</div></div>
   </section>
   <section id="course-doc-selected-section" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-    <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p class="text-xs text-slate-400 font-bold">เอกสารในรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div><div class="flex gap-2"><button onclick="openCourseDocUploadV1_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มเอกสาร</button></div></div>
+    <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p class="text-xs text-slate-400 font-bold">เอกสารในรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div><div class="flex flex-wrap gap-2"><button onclick="openCourseDocLinkV1_()" class="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold"><i class="fas fa-link mr-1"></i> เพิ่มลิงก์</button><button onclick="openCourseDocUploadV1_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มไฟล์</button></div></div>
     <div id="course-doc-list" class="divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">เลือกวิชาเพื่อดูเอกสาร</div></div>
   </section>
   <section id="course-doc-review-section" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5">
@@ -1436,10 +1437,24 @@
         <label class="block text-xs font-bold text-slate-600">หมวดหมู่<select id="course-doc-upload-category" class="mt-1 w-full border rounded-xl p-3 text-sm bg-white"></select></label>
         <label class="block text-xs font-bold text-slate-600">ชื่อเอกสาร<input id="course-doc-upload-name" required maxlength="160" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="เช่น บทที่ 1 ความรู้เบื้องต้น"></label>
         <label class="block text-xs font-bold text-slate-600">คำอธิบาย<textarea id="course-doc-upload-description" rows="2" maxlength="1200" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"></textarea></label>
-        <label class="block text-xs font-bold text-slate-600">เลือกไฟล์<input id="course-doc-upload-file" type="file" required class="mt-1 w-full border rounded-xl p-3 text-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip"></label>
-        <p class="text-xs text-slate-500">ขนาดสูงสุด 100 MB ต่อไฟล์ • ระบบแบ่งอัปโหลดเป็นชิ้นส่วนเพื่อรองรับไฟล์ขนาดใหญ่</p>
+        <label class="block text-xs font-bold text-slate-600">เลือกไฟล์<input id="course-doc-upload-file" type="file" required class="mt-1 w-full border rounded-xl p-3 text-sm" accept=".pdf,.doc,.docx,.odt,.rtf,.md,.xls,.xlsx,.xlsm,.ods,.csv,.tsv,.ppt,.pptx,.pptm,.pps,.ppsx,.odp,.txt,.log,.json,.xml,.html,.htm,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.tif,.tiff,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov,.zip,.7z,.rar"></label>
+        <p class="text-xs text-slate-500">ขนาดสูงสุด 100 MB ต่อไฟล์ • รองรับ Office/OpenDocument, PDF, ไฟล์ข้อความ, รูปภาพ, เสียง, วิดีโอ และ ZIP/7Z/RAR • ไฟล์บางชนิดอาจเปิดดูได้เฉพาะดาวน์โหลด</p>
         <div id="course-doc-upload-progress-wrap" class="hidden"><div class="flex justify-between text-xs mb-1"><span id="course-doc-upload-progress-label">กำลังอัปโหลด...</span><span id="course-doc-upload-progress-percent">0%</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div id="course-doc-upload-progress-bar" class="h-full bg-indigo-600 w-0"></div></div></div>
         <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeCourseDocUploadV1_()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold">ยกเลิก</button><button id="course-doc-upload-submit" type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold">ส่งตรวจสอบ</button></div>
+      </form>
+    </div>
+  </div>
+  <div id="course-doc-link-modal" class="hidden fixed inset-0 z-[12005] bg-slate-950/60 backdrop-blur-sm p-3 items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-xl shadow-2xl max-h-[94vh] overflow-y-auto">
+      <div class="p-4 border-b flex items-center justify-between"><h3 class="font-black text-slate-800">ส่งลิงก์แหล่งข้อมูลเข้าคลัง</h3><button type="button" onclick="closeCourseDocLinkV1_()" class="text-slate-400 text-xl"><i class="fas fa-times"></i></button></div>
+      <form class="p-4 space-y-3" onsubmit="submitCourseDocLinkV1_(event)">
+        <label class="block text-xs font-bold text-slate-600">รายวิชา<select id="course-doc-link-course" required class="mt-1 w-full border rounded-xl p-3 text-sm bg-white"></select></label>
+        <label class="block text-xs font-bold text-slate-600">หมวดหมู่<select id="course-doc-link-category" class="mt-1 w-full border rounded-xl p-3 text-sm bg-white"></select></label>
+        <label class="block text-xs font-bold text-slate-600">ชื่อแหล่งข้อมูล<input id="course-doc-link-name" required maxlength="160" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="เช่น วิดีโอสอนบทที่ 1"></label>
+        <label class="block text-xs font-bold text-slate-600">URL ของเว็บไซต์<input id="course-doc-link-url" type="url" required maxlength="2048" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="https://..."></label>
+        <label class="block text-xs font-bold text-slate-600">คำอธิบาย<textarea id="course-doc-link-description" rows="2" maxlength="1200" class="mt-1 w-full border rounded-xl p-3 text-sm" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"></textarea></label>
+        <p class="text-xs text-slate-500">ลิงก์ที่ส่งจะรออนุมัติก่อน นักศึกษาคนอื่นจะยังเปิดไม่ได้จนกว่าจะได้รับอนุมัติ • รองรับ http:// และ https://</p>
+        <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeCourseDocLinkV1_()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold">ยกเลิก</button><button id="course-doc-link-submit" type="submit" class="px-5 py-2 rounded-xl bg-sky-600 text-white text-sm font-bold">ส่งตรวจสอบ</button></div>
       </form>
     </div>
   </div>
@@ -17021,14 +17036,18 @@ function renderCourseDocumentsV1_() {
       const current=(d.versions||[]).find(v=>Number(v.version)===Number(d.currentVersion));
       const pending=(d.versions||[]).find(v=>Number(v.version)===Number(d.pendingVersion));
       const file=current||pending||(d.versions||[])[0]||{};
+      const isLink=d.docType==='link' || !!file.url;
       const status=sssfnCourseDocStatusV1_(d);
       const badge=d.status==='published'?'bg-emerald-50 text-emerald-700':d.status==='rejected'?'bg-rose-50 text-rose-700':d.status==='withdrawn'?'bg-slate-100 text-slate-600':'bg-amber-50 text-amber-700';
       let actions='';
-      if(current && d.status==='published') actions+='<button onclick="openCourseDocPreviewV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-eye mr-1"></i>เปิดอ่าน</button><button onclick="downloadCourseDocV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold"><i class="fas fa-download mr-1"></i>ดาวน์โหลด</button>';
+      if(current && d.status==='published' && isLink) actions+='<button onclick="openCourseDocExternalLinkV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-sky-600 text-white text-xs font-bold"><i class="fas fa-external-link-alt mr-1"></i>เปิดลิงก์</button>';
+      else if(current && d.status==='published') actions+='<button onclick="openCourseDocPreviewV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-eye mr-1"></i>เปิดอ่าน</button><button onclick="downloadCourseDocV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold"><i class="fas fa-download mr-1"></i>ดาวน์โหลด</button>';
       if(canManage && d.status==='published' && !d.pendingVersion) actions+='<button onclick="openCourseDocNewVersionV1_(\''+d.id+'\')" class="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold">เพิ่มฉบับใหม่</button>';
       if(s.canReview && d.pendingVersion) actions+='<button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติฉบับ '+Number(d.pendingVersion)+'</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button>';
-      if(s.canReview && d.status==='published') actions+='<button onclick="withdrawCourseDocumentV1_(\''+d.id+'\')" class="px-2 py-2 text-slate-400 hover:text-rose-600 text-xs" title="ถอนเผยแพร่"><i class="fas fa-eye-slash"></i></button>';
-      return '<div class="p-4 flex flex-col md:flex-row md:items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="'+(String(file.mimeType||'').includes('pdf')?'fas fa-file-pdf':String(file.mimeType||'').startsWith('image/')?'fas fa-file-image':'fas fa-file-alt')+'"></i></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><span class="text-[10px] px-2 py-1 rounded-full '+badge+'">'+status+'</span></div><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(d.category||'เอกสารเพิ่มเติม')+' • '+sssfnCourseDocEscV1_(file.fileName||'')+' • '+sssfnCourseDocSizeV1_(file.fileSize)+'</p><p class="text-[11px] text-slate-400 mt-1">ผู้ส่ง: '+sssfnCourseDocEscV1_(d.uploaderName||'-')+' • '+(d.currentVersion?'ฉบับเผยแพร่ '+d.currentVersion:'ยังไม่มีฉบับเผยแพร่')+(d.pendingVersion?' • ฉบับ '+d.pendingVersion+' รอตรวจ':'')+'</p></div><div class="flex flex-wrap gap-2">'+actions+'</div></div>';
+      if(s.canReview && d.status!=='rejected' && d.status!=='withdrawn') actions += "<button type=\"button\" onclick=\"withdrawCourseDocumentV1_('"+d.id+"')\" class=\"px-2.5 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold\" title=\"ลบเอกสารและประวัติทั้งหมดถาวร\"><i class=\"fas fa-trash-alt\"></i><span class=\"ml-1\">ลบถาวร</span></button>";
+      const fileLabel=isLink?'ลิงก์ภายนอก':(file.fileName||'');
+      const fileIcon=isLink?'fas fa-link':String(file.mimeType||'').includes('pdf')?'fas fa-file-pdf':String(file.mimeType||'').startsWith('image/')?'fas fa-file-image':String(file.mimeType||'').startsWith('video/')?'fas fa-file-video':String(file.mimeType||'').startsWith('audio/')?'fas fa-file-audio':'fas fa-file-alt';
+      return '<div class="p-4 flex flex-col md:flex-row md:items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="'+fileIcon+'"></i></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><span class="text-[10px] px-2 py-1 rounded-full '+badge+'">'+status+'</span></div><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(d.category||'เอกสารเพิ่มเติม')+' • '+sssfnCourseDocEscV1_(fileLabel)+' • '+(isLink?'เว็บไซต์ภายนอก':sssfnCourseDocSizeV1_(file.fileSize))+'</p><p class="text-[11px] text-slate-400 mt-1">ผู้ส่ง: '+sssfnCourseDocEscV1_(d.uploaderName||'-')+' • '+(d.currentVersion?'ฉบับเผยแพร่ '+d.currentVersion:'ยังไม่มีฉบับเผยแพร่')+(d.pendingVersion?' • ฉบับ '+d.pendingVersion+' รอตรวจ':'')+'</p></div><div class="flex flex-wrap gap-2">'+actions+'</div></div>';
     }).join(''):'<div class="p-8 text-center text-sm text-slate-400">ยังไม่มีเอกสารที่ตรงกับเงื่อนไข</div>';
   }
   if(s.canReview) {
@@ -17053,7 +17072,7 @@ function openCourseDocEditCourseV1_(courseId) {
   if(!allowed){Swal.fire('ไม่มีสิทธิ์','แก้ไขได้เฉพาะผู้สร้างรายวิชา ผู้ดูแลรายวิชา หรือหัวหน้า/รองหัวหน้า','error');return;}
   const field=(label,id,value,placeholder)=>'<label class="block text-xs font-bold text-slate-600">'+label+'<input id="'+id+'" value="'+sssfnCourseDocEscV1_(value||'')+'" placeholder="'+placeholder+'" class="mt-1 w-full box-border rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal"></label>';
   const html='<div class="space-y-3 text-left">'+field('ชื่อรายวิชา *','cd-edit-name',c.name,'ชื่อรายวิชา')+field('ชื่ออาจารย์ผู้สอน','cd-edit-instructor',c.instructorName||c.teacherName,'ชื่ออาจารย์')+'<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">'+field('รหัสวิชา','cd-edit-code',c.code,'รหัสวิชา')+field('ภาคเรียน / ปีการศึกษา *','cd-edit-term',c.term,'เช่น 1/2569')+'</div><label class="block text-xs font-bold text-slate-600">รายละเอียดรายวิชา<textarea id="cd-edit-description" rows="3" class="mt-1 w-full box-border rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-normal">'+sssfnCourseDocEscV1_(c.description||'')+'</textarea></label></div>';
-  Swal.fire({title:'แก้ไขข้อมูลรายวิชา',html:html,width:620,showCancelButton:true,confirmButtonText:'บันทึกการแก้ไข',cancelButtonText:'ยกเลิก',focusConfirm:false,preConfirm:()=>{const name=document.getElementById('cd-edit-name').value.trim(),term=document.getElementById('cd-edit-term').value.trim();if(!name||!term){Swal.showValidationMessage('กรุณากรอกชื่อรายวิชาและภาคเรียน');return false;}return {courseId:c.id,name,code:document.getElementById('cd-edit-code').value.trim(),instructorName:document.getElementById('cd-edit-instructor').value.trim(),term,description:document.getElementById('cd-edit-description').value.trim()};}}).then(async r=>{if(!r.isConfirmed)return;try{Swal.fire({title:'กำลังบันทึก',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const out=await callBackend(Object.assign({action:'courseDocUpdateCourseV1'},r.value));if(!out||out.status!=='success')throw new Error(out&&out.message||'บันทึกไม่สำเร็จ');await loadCourseDocumentsV1_({force:true});Swal.fire('บันทึกแล้ว','อัปเดตข้อมูลรายวิชาเรียบร้อย','success');}catch(e){Swal.fire('แก้ไขไม่สำเร็จ',String(e.message||e),'error');}});
+  Swal.fire({title:'แก้ไขข้อมูลรายวิชา',html:html,width:620,showCancelButton:true,confirmButtonText:'บันทึกการแก้ไข',cancelButtonText:'ยกเลิก',focusConfirm:false,preConfirm:()=>{const name=document.getElementById('cd-edit-name').value.trim(),term=document.getElementById('cd-edit-term').value.trim();if(!name||!term){Swal.showValidationMessage('กรุณากรอกชื่อรายวิชาและภาคเรียน');return false;}return {courseId:c.id,name,code:document.getElementById('cd-edit-code').value.trim(),instructorName:document.getElementById('cd-edit-instructor').value.trim(),term,description:document.getElementById('cd-edit-description').value.trim()};}}).then(async r=>{if(!r.isConfirmed)return;try{Swal.fire({title:'กำลังบันทึก',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const out=await callBackend(Object.assign({action:'courseDocUpdateCourseV1'},r.value));if(!out||out.status!=='success')throw new Error(out&&out.message||'บันทึกไม่สำเร็จ');await loadCourseDocumentsV1_({force:true});if(Array.isArray(out.driveWarnings)&&out.driveWarnings.length){Swal.fire('บันทึกแล้ว แต่มีคำเตือน',sssfnCourseDocEscV1_(out.driveWarnings.map(sssfnCourseDocEscV1_).join('<br>')),'warning');}else{Swal.fire('บันทึกแล้ว',out.message||'อัปเดตข้อมูลรายวิชาและชื่อโฟลเดอร์ Drive เรียบร้อย','success');}}catch(e){Swal.fire('แก้ไขไม่สำเร็จ',String(e.message||e),'error');}});
 }
 async function deleteCourseDocCourseV1_(courseId) {
   const s=sssfnCourseDocStateV1_, c=s.courses.find(x=>String(x.id)===String(courseId)); if(!c||!s.canReview)return;
@@ -17072,6 +17091,34 @@ function openCourseDocUploadV1_() {
   document.getElementById('course-doc-upload-existing-id').value=''; document.getElementById('course-doc-upload-title').textContent='ส่งเอกสารเข้าคลัง'; document.getElementById('course-doc-upload-name').value=''; document.getElementById('course-doc-upload-description').value=''; document.getElementById('course-doc-upload-file').value=''; document.getElementById('course-doc-upload-file').required=true;
   if(s.selectedCourseId) document.getElementById('course-doc-upload-course').value=s.selectedCourseId;
   modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function openCourseDocLinkV1_() {
+  const s=sssfnCourseDocStateV1_;
+  if(!s.courses.length){Swal.fire('ยังไม่มีรายวิชา','ต้องสร้างรายวิชาก่อนจึงจะส่งลิงก์ได้','info');return;}
+  const courseSelect=document.getElementById('course-doc-link-course'),categorySelect=document.getElementById('course-doc-link-category');
+  courseSelect.innerHTML=s.courses.map(c=>'<option value="'+sssfnCourseDocEscV1_(c.id)+'">'+sssfnCourseDocEscV1_(c.name)+' — '+sssfnCourseDocEscV1_(c.term||'')+'</option>').join('');
+  categorySelect.innerHTML=s.categories.map(c=>'<option value="'+sssfnCourseDocEscV1_(c)+'">'+sssfnCourseDocEscV1_(c)+'</option>').join('');
+  if(s.selectedCourseId) courseSelect.value=s.selectedCourseId;
+  document.getElementById('course-doc-link-name').value='';document.getElementById('course-doc-link-url').value='';document.getElementById('course-doc-link-description').value='';
+  const modal=document.getElementById('course-doc-link-modal');modal.classList.remove('hidden');modal.classList.add('flex');
+}
+function closeCourseDocLinkV1_(){const modal=document.getElementById('course-doc-link-modal');if(modal){modal.classList.add('hidden');modal.classList.remove('flex');}}
+async function submitCourseDocLinkV1_(event){
+  event.preventDefault();
+  const button=document.getElementById('course-doc-link-submit');button.disabled=true;button.textContent='กำลังส่งตรวจสอบ...';
+  try{
+    const result=await callBackend({action:'courseDocSubmitLinkV1',courseId:document.getElementById('course-doc-link-course').value,category:document.getElementById('course-doc-link-category').value,title:document.getElementById('course-doc-link-name').value.trim(),url:document.getElementById('course-doc-link-url').value.trim(),description:document.getElementById('course-doc-link-description').value.trim()});
+    if(!result||result.status!=='success')throw new Error(result&&result.message||'ส่งลิงก์ไม่สำเร็จ');
+    closeCourseDocLinkV1_();await loadCourseDocumentsV1_({force:true});
+    Swal.fire('ส่งลิงก์แล้ว','ลิงก์เข้าสู่คิวรอหัวหน้าหรือรองหัวหน้าอนุมัติก่อนเผยแพร่','success');
+  }catch(error){Swal.fire('ส่งลิงก์ไม่สำเร็จ',String(error&&error.message||error),'error');}
+  finally{button.disabled=false;button.textContent='ส่งตรวจสอบ';}
+}
+function openCourseDocExternalLinkV1_(documentId,version){
+  const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);const ver=(doc&&doc.versions||[]).find(v=>Number(v.version)===Number(version));
+  if(!doc||doc.status!=='published'||!ver||ver.status!=='published'||!ver.url){Swal.fire('ไม่สามารถเปิดลิงก์ได้','ไม่พบลิงก์ที่ได้รับอนุมัติแล้ว','warning');return;}
+  try{const u=new URL(ver.url);if(!['http:','https:'].includes(u.protocol))throw new Error('scheme');window.open(u.href,'_blank','noopener,noreferrer');}
+  catch(error){Swal.fire('ลิงก์ไม่ถูกต้อง','ระบบยอมรับเฉพาะ http:// และ https://','error');}
 }
 function openCourseDocNewVersionV1_(documentId) {
   const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId); if(!doc)return;
@@ -17101,7 +17148,20 @@ async function reviewCourseDocumentV1_(documentId, decision) {
   else {const r=await Swal.fire({title:'อนุมัติเอกสาร?',text:'เอกสารฉบับนี้จะถูกเผยแพร่ให้นักศึกษาทุกคนเปิดอ่านได้',icon:'question',showCancelButton:true,confirmButtonText:'อนุมัติและเผยแพร่',cancelButtonText:'ยกเลิก'});if(!r.isConfirmed)return;}
   const result=await callBackend({action:'courseDocReviewV1',documentId:documentId,decision:decision,reason:reason}); if(!result||result.status!=='success'){Swal.fire('ดำเนินการไม่สำเร็จ',result&&result.message||'เกิดข้อผิดพลาด','error');return;} await loadCourseDocumentsV1_({force:true}); Swal.fire('บันทึกผลแล้ว',result.message||'','success');
 }
-async function withdrawCourseDocumentV1_(documentId) { const r=await Swal.fire({title:'ถอนเอกสารออกจากคลัง?',text:'นักศึกษาจะไม่สามารถเปิดเอกสารนี้ผ่านคลังได้ แต่ไฟล์ต้นฉบับจะยังไม่ถูกลบ',icon:'warning',showCancelButton:true,confirmButtonText:'ถอนเผยแพร่',cancelButtonText:'ยกเลิก'});if(!r.isConfirmed)return;const result=await callBackend({action:'courseDocWithdrawV1',documentId:documentId});if(!result||result.status!=='success'){Swal.fire('ถอนเผยแพร่ไม่สำเร็จ',result&&result.message||'เกิดข้อผิดพลาด','error');return;}await loadCourseDocumentsV1_({force:true});Swal.fire('ถอนเผยแพร่แล้ว','','success'); }
+async function withdrawCourseDocumentV1_(documentId) {
+  const first=await Swal.fire({title:'ลบเอกสารและประวัติทั้งหมด?',html:'<div class=\"text-left text-sm space-y-2\"><p>ระบบจะลบรายการเอกสารและประวัติทุกฉบับออกจากคลัง รวมถึงฉบับที่เคยเผยแพร่และฉบับที่รอตรวจสอบ</p><p class=\"text-rose-700 font-bold\">ไฟล์ต้นฉบับ ไฟล์ PDF ตัวอย่าง และสำเนาในโฟลเดอร์แชร์จะถูกย้ายลงถังขยะ Google Drive</p><p>การดำเนินการนี้ไม่สามารถกู้คืนจากหน้าเว็บ SSSFN ได้</p></div>',icon:'warning',showCancelButton:true,confirmButtonText:'ดำเนินการต่อ',cancelButtonText:'ยกเลิก'});
+  if(!first.isConfirmed)return;
+  const second=await Swal.fire({title:'ยืนยันการลบถาวร',text:'ยืนยันลบเอกสารและประวัติทุกฉบับใช่หรือไม่?',icon:'error',showCancelButton:true,confirmButtonText:'ยืนยันลบทั้งหมด',cancelButtonText:'กลับไปตรวจสอบ',confirmButtonColor:'#be123c'});
+  if(!second.isConfirmed)return;
+  try {
+    Swal.fire({title:'กำลังลบเอกสาร',text:'กำลังจัดการไฟล์และประวัติทุกฉบับ',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const result=await callBackend({action:'courseDocWithdrawV1',documentId:documentId});
+    if(!result||result.status!=='success')throw new Error(result&&result.message||'ลบเอกสารไม่สำเร็จ');
+    const state=sssfnCourseDocStateV1_;state.documents=(state.documents||[]).filter(d=>String(d.id)!==String(documentId));state.reviewQueue=(state.reviewQueue||[]).filter(d=>String(d.id)!==String(documentId));
+    await loadCourseDocumentsV1_({force:true});
+    Swal.fire('ลบเอกสารเรียบร้อย',result.message||'ลบเอกสารและประวัติทุกฉบับแล้ว','success');
+  }catch(error){Swal.fire('ลบเอกสารไม่สำเร็จ',String(error&&error.message||error),'error');}
+}
 async function sssfnCourseDocLoadScriptV1_(src, globalName) {
   if (globalName && window[globalName]) return window[globalName];
   window._sssfnCourseDocScriptPromisesV1_ = window._sssfnCourseDocScriptPromisesV1_ || {};
@@ -17118,13 +17178,15 @@ async function sssfnCourseDocLoadScriptV1_(src, globalName) {
   });
   return window._sssfnCourseDocScriptPromisesV1_[src];
 }
-async function sssfnCourseDocFetchBlobV1_(documentId, version, progressFn) {
+async function sssfnCourseDocFetchBlobV1_(documentId, version, progressFn, previewOnly) {
   const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);const ver=(doc&&doc.versions||[]).find(v=>Number(v.version)===Number(version));if(!ver)throw new Error('ไม่พบข้อมูลเวอร์ชันเอกสาร');
-  const total=Number(ver.fileSize||0);if(!Number.isSafeInteger(total)||total<=0)throw new Error('ขนาดไฟล์ในข้อมูลเอกสารไม่ถูกต้อง');
-  const chunks=[]; let offset=0; const maxChunks=Math.ceil(total/262144)+1;let count=0;
+  const isLegacyPpt=previewOnly===true && /\.ppt$/i.test(String(ver.fileName||''));
+  if(isLegacyPpt&&!ver.previewPdfAvailable)throw new Error('ไฟล์ .ppt นี้ยังไม่มี PDF ตัวอย่าง กรุณาดาวน์โหลดไฟล์ไปเปิดด้วย PowerPoint หรือบันทึกใหม่เป็น .pptx/PDF');
+  const total=isLegacyPpt?Number(ver.previewPdfSize||0):Number(ver.fileSize||0);if(!Number.isSafeInteger(total)||total<=0)throw new Error('ขนาดไฟล์ในข้อมูลเอกสารไม่ถูกต้อง');
+  const chunks=[];let offset=0;const maxChunks=Math.ceil(total/262144)+1;let count=0;let responseName='';let responseMime='';
   while(offset<total){
     if(++count>maxChunks)throw new Error('อ่านไฟล์ไม่ครบตามขนาดที่บันทึกไว้ กรุณาลองใหม่');
-    const result=await callBackend({action:'courseDocReadChunkV1',documentId:documentId,version:version,start:offset});
+    const result=await callBackend({action:'courseDocReadChunkV1',documentId:documentId,version:version,start:offset,previewOnly:previewOnly===true});
     if(!result||result.status!=='success')throw new Error(result&&result.message||'อ่านไฟล์ไม่สำเร็จ');
     if(Number(result.start)!==offset)throw new Error('ข้อมูลไฟล์ที่ได้รับไม่ต่อเนื่อง กรุณาลองเปิดใหม่');
     if(Number(result.totalBytes)!==total)throw new Error('ขนาดไฟล์จาก Google Drive ไม่ตรงกับข้อมูลรายวิชา กรุณาติดต่อผู้ดูแล');
@@ -17132,12 +17194,13 @@ async function sssfnCourseDocFetchBlobV1_(documentId, version, progressFn) {
     if(Number(result.bytesLength)!==binary.length)throw new Error('ข้อมูลไฟล์บางส่วนมาไม่ครบ กรุณาลองเปิดใหม่');
     const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
     if(offset+bytes.length>total)throw new Error('ข้อมูลไฟล์มีขนาดเกินกว่าที่ระบบบันทึกไว้');
-    chunks.push(bytes);offset+=bytes.length;
+    chunks.push(bytes);offset+=bytes.length;responseName=result.fileName||responseName;responseMime=result.mimeType||responseMime;
     if(progressFn)progressFn(offset,total);
   }
   if(offset!==total)throw new Error('อ่านไฟล์ได้ไม่ครบ ('+sssfnCourseDocSizeV1_(offset)+' / '+sssfnCourseDocSizeV1_(total)+')');
-  return {blob:new Blob(chunks,{type:ver.mimeType||'application/octet-stream'}),version:ver};
+  return {blob:new Blob(chunks,{type:responseMime||ver.mimeType||'application/octet-stream'}),version:Object.assign({},ver,{fileName:responseName||ver.fileName,mimeType:responseMime||ver.mimeType,fileSize:total})};
 }
+
 async function downloadCourseDocV1_(documentId, version) {
   try{const result=await sssfnCourseDocFetchBlobV1_(documentId,version);const url=URL.createObjectURL(result.blob);const a=document.createElement('a');a.href=url;a.download=result.version.fileName||'document';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(error){Swal.fire('ดาวน์โหลดไม่สำเร็จ',String(error.message||error),'error');}
 }
@@ -17195,6 +17258,12 @@ async function sssfnCourseDocRenderExcelV1_(blob, content) {
   visibleNames.forEach((name,index)=>{const btn=document.createElement('button');btn.type='button';btn.dataset.courseDocSheetIndex=String(index);btn.className='px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-700';btn.textContent=name;btn.addEventListener('click',()=>sssfnCourseDocRenderSheetPreviewV1_(index));tabs.appendChild(btn);});
   sssfnCourseDocRenderSheetPreviewV1_(0);
 }
+async function sssfnCourseDocRenderZipV1_(blob,content){
+  await sssfnCourseDocLoadScriptV1_('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js','JSZip');
+  const archive=await window.JSZip.loadAsync(blob);const entries=Object.values(archive.files).filter(f=>!f.dir).sort((a,b)=>a.name.localeCompare(b.name));
+  content.innerHTML='<div class="w-full h-full overflow-auto bg-white rounded-xl p-4"><div class="font-bold text-sm text-slate-800 mb-3">รายการไฟล์ภายใน ZIP ('+entries.length+' รายการ)</div><div id="course-doc-zip-entries" class="divide-y divide-slate-100"></div></div>';
+  const host=content.querySelector('#course-doc-zip-entries');host.innerHTML=entries.map(f=>'<div class="py-2 flex items-center justify-between gap-3 text-xs"><span class="min-w-0 break-all text-slate-700">'+sssfnCourseDocEscV1_(f.name)+'</span><span class="shrink-0 text-slate-400">'+(f._data&&f._data.uncompressedSize?sssfnCourseDocSizeV1_(f._data.uncompressedSize):'')+'</span></div>').join('')||'<p class="text-xs text-slate-400">ไม่พบไฟล์ภายใน ZIP</p>';
+}
 async function sssfnCourseDocRenderDocxV1_(blob, content) {
   await sssfnCourseDocLoadScriptV1_('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js','JSZip');
   await sssfnCourseDocLoadScriptV1_('https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js','docx');
@@ -17225,7 +17294,7 @@ async function openCourseDocPreviewV1_(documentId, version) {
   const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);if(!doc)return;
   const modal=document.getElementById('course-doc-preview-modal'),content=document.getElementById('course-doc-preview-content');modal.classList.remove('hidden');modal.classList.add('flex');content.classList.add('flex','items-center','justify-center');content.classList.remove('block');content.style.display='';content.style.padding='';content.innerHTML='<div class="text-center text-slate-500"><i class="fas fa-spinner fa-spin text-2xl"></i><p class="text-sm mt-2">กำลังโหลดเอกสาร...</p><p id="course-doc-preview-loading-progress" class="text-xs mt-1"></p></div>';
   try{
-    const result=await sssfnCourseDocFetchBlobV1_(documentId,version,(done,total)=>{const meta=document.getElementById('course-doc-preview-meta');if(meta)meta.textContent='กำลังโหลดไฟล์ '+Math.floor(done/total*100)+'%';const progress=document.getElementById('course-doc-preview-loading-progress');if(progress)progress.textContent=sssfnCourseDocSizeV1_(done)+' / '+sssfnCourseDocSizeV1_(total);});
+    const result=await sssfnCourseDocFetchBlobV1_(documentId,version,(done,total)=>{const meta=document.getElementById('course-doc-preview-meta');if(meta)meta.textContent='กำลังโหลดไฟล์ '+Math.floor(done/total*100)+'%';const progress=document.getElementById('course-doc-preview-loading-progress');if(progress)progress.textContent=sssfnCourseDocSizeV1_(done)+' / '+sssfnCourseDocSizeV1_(total);},true);
     if(sssfnCourseDocStateV1_.previewUrl)URL.revokeObjectURL(sssfnCourseDocStateV1_.previewUrl);
     const url=URL.createObjectURL(result.blob);sssfnCourseDocStateV1_.previewUrl=url;sssfnCourseDocStateV1_.currentPreview={documentId:documentId,version:version,blob:result.blob,fileName:result.version.fileName};
     document.getElementById('course-doc-preview-name').textContent=doc.title;document.getElementById('course-doc-preview-meta').textContent=(result.version.fileName||'')+' • '+sssfnCourseDocSizeV1_(result.version.fileSize)+' • ฉบับ '+version;
@@ -17233,11 +17302,14 @@ async function openCourseDocPreviewV1_(documentId, version) {
     const fileName=String(result.version.fileName||'').toLowerCase();const mime=String(result.version.mimeType||'').toLowerCase();
     if(mime==='application/pdf'||fileName.endsWith('.pdf'))await sssfnCourseDocRenderPdfV1_(result.blob,content);
     else if(mime.startsWith('image/')||/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(fileName)){const img=document.createElement('img');img.src=url;img.alt=doc.title;img.className='block max-w-full max-h-full object-contain mx-auto';img.style.maxHeight='100%';content.appendChild(img);}
-    else if(mime==='text/plain'||mime==='text/csv'||/\.(txt|csv)$/i.test(fileName)){const text=await result.blob.text();const pre=document.createElement('pre');pre.className='w-full min-h-full overflow-auto whitespace-pre-wrap break-words bg-white p-5 text-sm text-slate-800';pre.textContent=text;content.appendChild(pre);}
+    else if(mime.startsWith('audio/')||/\.(mp3|wav|m4a|ogg)$/i.test(fileName)){const audio=document.createElement('audio');audio.controls=true;audio.src=url;audio.className='w-full max-w-3xl';content.appendChild(audio);}
+    else if(mime.startsWith('video/')||/\.(mp4|webm|mov)$/i.test(fileName)){const video=document.createElement('video');video.controls=true;video.src=url;video.className='max-w-full max-h-full rounded-xl bg-black';video.style.maxHeight='100%';content.appendChild(video);}
+    else if(mime==='text/plain'||mime==='text/csv'||mime==='text/markdown'||mime==='application/json'||mime==='application/xml'||mime==='text/xml'||mime==='application/rtf'||/\.(txt|csv|tsv|md|json|xml|log|rtf|html|htm)$/i.test(fileName)){const text=await result.blob.text();const pre=document.createElement('pre');pre.className='w-full min-h-full overflow-auto whitespace-pre-wrap break-words bg-white p-5 text-sm text-slate-800';pre.textContent=text;content.appendChild(pre);}
     else if(mime.includes('spreadsheet')||mime==='application/vnd.ms-excel'||/\.(xlsx|xls|xlsm|ods)$/i.test(fileName))await sssfnCourseDocRenderExcelV1_(result.blob,content);
     else if(mime.includes('wordprocessingml')||fileName.endsWith('.docx'))await sssfnCourseDocRenderDocxV1_(result.blob,content);
     else if(mime.includes('presentationml')||fileName.endsWith('.pptx'))await sssfnCourseDocRenderPptxV1_(result.blob,content);
-    else {content.innerHTML='<div class="max-w-xl mx-auto text-center p-8 bg-white rounded-2xl"><i class="fas fa-file-download text-4xl text-indigo-400"></i><p class="font-bold text-slate-700 mt-3">ยังไม่มีตัวอ่านตัวอย่างสำหรับไฟล์ชนิดนี้</p><p class="text-sm text-slate-500 mt-1">รองรับการเปิดอ่าน PDF, Word (.docx), Excel (.xlsx/.xls) และ PowerPoint (.pptx) ในหน้าเว็บ ส่วนไฟล์ชนิดเก่าหรือ ZIP อาจต้องดาวน์โหลดเพื่อเปิดด้วยโปรแกรมที่รองรับ</p></div>';}
+    else if(/\.zip$/i.test(fileName))await sssfnCourseDocRenderZipV1_(result.blob,content);
+    else {content.innerHTML='<div class="max-w-xl mx-auto text-center p-8 bg-white rounded-2xl"><i class="fas fa-file-download text-4xl text-indigo-400"></i><p class="font-bold text-slate-700 mt-3">ไฟล์นี้ยังไม่สามารถแสดงตัวอย่างในเบราว์เซอร์ได้</p><p class="text-sm text-slate-500 mt-1">ระบบเก็บไฟล์ไว้และดาวน์โหลดได้ตามปกติ หากเป็น .ppt รุ่นเก่า ระบบจะแสดงตัวอย่าง PDF ที่แปลงไว้ให้อัตโนมัติเมื่อ Drive แปลงไฟล์สำเร็จ ไฟล์ Office รุ่นเก่า/OpenDocument และไฟล์บีบอัดบางชนิดอาจต้องเปิดด้วยโปรแกรมต้นทาง</p></div>';}
   }catch(error){content.innerHTML='<div class="text-center p-8 text-rose-600"><i class="fas fa-exclamation-circle text-3xl"></i><p class="mt-2">เปิดเอกสารไม่สำเร็จ</p><p class="text-sm mt-1">'+sssfnCourseDocEscV1_(error&&error.message||error)+'</p><p class="text-xs text-slate-500 mt-2">ไฟล์ต้นฉบับยังอยู่ในคลัง สามารถลองเปิดใหม่หรือดาวน์โหลดได้</p></div>';}
 }
 function downloadCourseDocCurrentV1_(){const p=sssfnCourseDocStateV1_.currentPreview;if(!p)return;const a=document.createElement('a');a.href=sssfnCourseDocStateV1_.previewUrl;a.download=p.fileName||'document';document.body.appendChild(a);a.click();a.remove();}
