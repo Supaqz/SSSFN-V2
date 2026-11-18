@@ -4,7 +4,7 @@
 <!-- SSSFN v15.6.13-local: lump-sum allocation provenance; hide executive dashboard and web audit UI; preserve Sheets audit. -->
 <!-- SSSFN v15.6.30-local: full document-history removal and course-folder rename-in-place in Drive. -->
 <!DOCTYPE html>
-<!-- SSSFN v15.6.11-local: integrated Course Document Hub into v15.6.7; Drive uploads, approval and version history. -->
+<!-- SSSFN v15.6.34-local: compact course cards, course detail view, and per-course category dropdown; based on v15.6.33. -->
 <!-- SSSFN v15.6.5-local: exact bounded read-state queries and composite index; based on v15.6.4-local -->
 <!-- SSSFN v15.6.4-local: system-generated payment/activity/score alerts and Thai-date report fixes; based on v15.6.3-local -->
 <!-- SSSFN v15.6.3-local: executive dashboard and date-filtered Excel/PDF report; based on v15.6.2-local -->
@@ -19,8 +19,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบบริการนักศึกษา SSSFN</title>
-    <!-- ใช้โลโก้ไฟล์เดียวเป็น Favicon: วาง logo-2.png ไว้ระดับเดียวกับ index.html -->
-    <link rel="icon" type="image/png" href="./logo-2.png?v=15.6.32">
+    <link rel="icon" type="image/png" href="./logo-2.png?v=15.6.34">
+    <link rel="apple-touch-icon" href="./logo-2.png?v=15.6.34">
 
     <meta name="apple-mobile-web-app-title" content="SSSFN">
     <meta name="mobile-web-app-capable" content="yes">
@@ -1403,25 +1403,36 @@
             <div id="page-course-documents" class="page-view hidden max-w-6xl mx-auto space-y-5 pb-10">
   <section class="rounded-3xl bg-gradient-to-r from-indigo-700 to-blue-600 text-white p-5 md:p-7 shadow-lg">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">รวมเอกสารทุกวิชา เปิดอ่านผ่านเว็บไซต์ได้ในที่เดียว • นักศึกษาทุกคนส่งเอกสารได้ โดยหัวหน้า/รองหัวหน้าอนุมัติก่อนเผยแพร่</p></div>
-      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button onclick="openCourseDocLinkV1_()" class="bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> วางลิงก์</button><button onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งไฟล์</button></div>
+      <div><p class="text-indigo-100 text-xs font-bold tracking-widest uppercase">SSSFN • Course Document Hub</p><h2 class="text-2xl md:text-3xl font-black mt-1"><i class="fas fa-folder-open mr-2"></i>คลังเอกสารรายวิชา</h2><p class="text-sm text-indigo-100 mt-2">เลือกรายวิชาเพื่อดูเอกสารตามหมวดหมู่ • นักศึกษาทุกคนส่งเอกสารได้ โดยหัวหน้า/รองหัวหน้าอนุมัติก่อนเผยแพร่</p></div>
+      <div class="flex flex-wrap gap-2"><button id="course-doc-btn-create" onclick="openCourseDocCreateCourseV1_()" class="hidden bg-white text-indigo-700 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-plus mr-1"></i> เพิ่มรายวิชา</button><button id="course-doc-btn-share" onclick="openCourseDocShareRootV1_()" class="hidden bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> ลิงก์แชร์ทุกวิชา</button><button id="course-doc-btn-link" onclick="openCourseDocLinkV1_()" class="bg-white/15 hover:bg-white/25 border border-white/30 text-white px-4 py-2.5 rounded-xl text-sm font-bold"><i class="fas fa-link mr-1"></i> วางลิงก์</button><button id="course-doc-btn-upload" onclick="openCourseDocUploadV1_()" class="bg-emerald-400 hover:bg-emerald-300 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-bold shadow"><i class="fas fa-file-upload mr-1"></i> ส่งไฟล์</button></div>
     </div>
   </section>
-  <section class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><h3 class="text-sm font-black text-slate-800"><i class="fas fa-filter text-indigo-500 mr-2"></i>ค้นหาและกรองรายวิชา</h3><p class="text-xs text-slate-500 mt-1">เลือกหลายเงื่อนไขพร้อมกันได้ เช่น อาจารย์ผู้สอน ชื่อวิชา และภาคเรียน</p></div><div class="flex gap-2"><button type="button" onclick="clearCourseDocFiltersV1_()" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold"><i class="fas fa-eraser mr-1"></i> ล้างตัวกรอง</button><button onclick="loadCourseDocumentsV1_({force:true})" class="px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold"><i class="fas fa-sync-alt mr-1"></i> รีเฟรช</button></div></div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+  <section id="course-doc-course-filters" class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><h3 class="text-sm font-black text-slate-800"><i class="fas fa-filter text-indigo-500 mr-2"></i>ค้นหาและกรองรายวิชา</h3><p class="text-xs text-slate-500 mt-1">กรองตามอาจารย์ผู้สอน รายวิชา และภาคเรียน</p></div><div class="flex gap-2"><button type="button" onclick="clearCourseDocFiltersV1_()" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold"><i class="fas fa-eraser mr-1"></i> ล้างตัวกรอง</button><button onclick="loadCourseDocumentsV1_({force:true})" class="px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold"><i class="fas fa-sync-alt mr-1"></i> รีเฟรช</button></div></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       <label class="block text-xs font-bold text-slate-600">ชื่ออาจารย์ผู้สอน<select id="course-doc-filter-instructor" onchange="renderCourseDocumentsV1_()" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal bg-white outline-none focus:ring-2 focus:ring-indigo-100"><option value="">อาจารย์ทั้งหมด</option></select></label>
       <label class="block text-xs font-bold text-slate-600">รายวิชา<select id="course-doc-filter-course" onchange="renderCourseDocumentsV1_()" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal bg-white outline-none focus:ring-2 focus:ring-indigo-100"><option value="">ทุกรายวิชา</option></select></label>
       <label class="block text-xs font-bold text-slate-600">ภาคเรียน<select id="course-doc-filter-term" onchange="renderCourseDocumentsV1_()" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal bg-white outline-none focus:ring-2 focus:ring-indigo-100"><option value="">ทุกภาคเรียน</option></select></label>
-      <label class="block text-xs font-bold text-slate-600">หมวดหมู่เอกสาร<select id="course-doc-filter-category" onchange="renderCourseDocumentsV1_()" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal bg-white outline-none focus:ring-2 focus:ring-indigo-100"><option value="">ทุกหมวดหมู่</option></select></label>
     </div>
   </section>
-  <section class="space-y-3">
+  <section id="course-doc-course-list-section" class="space-y-3">
     <div class="flex items-center justify-between"><h3 class="font-bold text-slate-800"><i class="fas fa-book text-indigo-500 mr-2"></i>รายวิชาทั้งหมด</h3><span id="course-doc-course-count" class="text-xs text-slate-400">-</span></div>
-    <div id="course-doc-course-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="col-span-full text-center py-8 text-slate-400 text-sm">กำลังโหลดรายวิชา...</div></div>
+    <p id="course-doc-scroll-hint" class="hidden text-xs text-slate-400"><i class="fas fa-arrow-down mr-1"></i>เลื่อนลงเพื่อดูรายวิชาเพิ่มเติม</p>
+    <div id="course-doc-course-grid" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="col-span-full text-center py-8 text-slate-400 text-sm">กำลังโหลดรายวิชา...</div></div>
   </section>
   <section id="course-doc-selected-section" class="hidden bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-    <div class="p-4 md:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p class="text-xs text-slate-400 font-bold">เอกสารในรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div><div class="flex flex-wrap gap-2"><button onclick="openCourseDocLinkV1_()" class="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold"><i class="fas fa-link mr-1"></i> เพิ่มลิงก์</button><button onclick="openCourseDocUploadV1_()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มไฟล์</button></div></div>
+    <div class="p-4 md:p-5 border-b border-slate-100 space-y-4">
+      <button type="button" onclick="backToCourseDocumentListV1_()" class="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-800"><i class="fas fa-arrow-left"></i> กลับไปรายวิชาทั้งหมด</button>
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+        <div class="min-w-0"><p class="text-xs text-slate-400 font-bold">เอกสารประจำรายวิชา</p><h3 id="course-doc-selected-title" class="font-black text-xl text-slate-800">-</h3><p id="course-doc-selected-subtitle" class="text-xs text-slate-500 mt-1"></p></div>
+        <div class="flex flex-wrap items-end gap-2">
+          <div id="course-doc-selected-manage" class="flex flex-wrap gap-2"></div>
+          <label class="block min-w-[190px] flex-1 text-xs font-bold text-slate-600">เลือกหมวดหมู่เอกสาร<select id="course-doc-selected-category" onchange="setCourseDocCategoryV1_(this.value)" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-normal bg-white outline-none focus:ring-2 focus:ring-indigo-100"><option value="">ทั้งหมด</option></select></label>
+          <button onclick="openCourseDocLinkV1_()" class="px-3 py-2.5 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold"><i class="fas fa-link mr-1"></i> เพิ่มลิงก์</button>
+          <button onclick="openCourseDocUploadV1_()" class="px-3 py-2.5 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-upload mr-1"></i> เพิ่มไฟล์</button>
+        </div>
+      </div>
+    </div>
     <div id="course-doc-list" class="divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">เลือกวิชาเพื่อดูเอกสาร</div></div>
   </section>
   <section id="course-doc-review-section" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5">
@@ -5710,7 +5721,7 @@ function renderHomeDirectory() {
 
                     <!-- ฝั่งขวา: โลโก้และชื่อระบบ (สีขาว) -->
                     <div class="w-full md:w-1/2 bg-white p-6 md:p-8 flex flex-col items-center justify-center relative">
-                        <img src="./logo-2.png?v=15.6.31" alt="SSSFN Logo" onerror="this.onerror=null; this.src='./favicon.svg?v=15.6.31';" class="w-24 md:w-36 mb-4 drop-shadow-md hover:scale-105 transition duration-500 rounded-2xl">
+                        <img src="./logo-2.png?v=15.6.31" alt="SSSFN Logo" onerror="this.onerror=null; this.style.display='none';" class="w-24 md:w-36 mb-4 drop-shadow-md hover:scale-105 transition duration-500 rounded-2xl">
                         <h2 class="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500 text-center tracking-tight mb-1">SSSFN</h2>
                         <p class="text-slate-400 font-bold text-xs tracking-widest uppercase">Student Service System</p>
                     </div>
@@ -16869,14 +16880,14 @@ window.manageStudentPoints = function(studentId) {
     
 
 // SSSFN Course Document Hub frontend module (integrated into v15.6.7).
-let sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, selectedCourseId:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
+let sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, selectedCourseId:'', selectedCategory:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
 let sssfnCourseDocListPromiseV1_ = null;
 let sssfnCourseDocSelectedPromiseV1_ = null;
 window.__sssfnCourseDocRootLoadedAtV1 = 0;
 window.__sssfnCourseDocLastLoadedAtV1 = 0;
 window.__sssfnCourseDocDataStaleV1 = true;
 window.__sssfnCourseDocRefreshTimerV1 = null;
-function clearCourseDocFiltersV1_() { ['course-doc-filter-instructor','course-doc-filter-course','course-doc-filter-term','course-doc-filter-category'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';}); renderCourseDocumentsV1_(); }
+function clearCourseDocFiltersV1_() { ['course-doc-filter-instructor','course-doc-filter-course','course-doc-filter-term'].forEach(function(id){const el=document.getElementById(id);if(el)el.value='';}); renderCourseDocumentsV1_(); }
 async function openCourseDocShareRootV1_() {
   if (!sssfnCourseDocStateV1_.canReview) return;
   Swal.fire({title:'กำลังเตรียมลิงก์แชร์คลังเอกสาร',html:'กำลังจัดโฟลเดอร์รายวิชาและซิงก์เฉพาะเอกสารที่อนุมัติแล้ว',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
@@ -16922,7 +16933,7 @@ async function loadCourseDocumentsV1_(options) {
     window.__sssfnCourseDocSessionKeyV1 = courseDocSessionKey;
     window.__sssfnCourseDocRootLoadedAtV1 = 0;
     window.__sssfnCourseDocDataStaleV1 = true;
-    sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, selectedCourseId:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
+    sssfnCourseDocStateV1_ = { courses:[], documents:[], reviewQueue:[], courseCounts:{}, loadedCourseId:'', categories:[], canReview:false, canCreateCourse:false, selectedCourseId:'', selectedCategory:'', currentPreview:null, previewUrl:'', previewPdf:null, previewObserver:null, previewWorkbook:null, previewSheetNames:[], previewPptxViewer:null, previewPptxCanvas:null, previewSlideIndex:0, previewSlideCount:0 };
   }
   if (!window.currentAuthToken && !window.currentStudentAuthToken) {
     if (typeof Swal !== 'undefined') await Swal.fire('กรุณาเข้าสู่ระบบ','เข้าสู่ระบบนักศึกษาด้วย Google หรือบัญชีเจ้าหน้าที่ก่อนใช้งานคลังเอกสาร','info');
@@ -16999,12 +17010,20 @@ async function loadCourseDocumentsForCourseV1_(courseId, force) {
 }
 
 function renderCourseDocumentsV1_() {
-  const s=sssfnCourseDocStateV1_, instructor=(document.getElementById('course-doc-filter-instructor')?.value||'').trim().toLowerCase(), courseQuery=(document.getElementById('course-doc-filter-course')?.value||'').trim().toLowerCase(), term=(document.getElementById('course-doc-filter-term')?.value||''), category=(document.getElementById('course-doc-filter-category')?.value||'');
+  const s=sssfnCourseDocStateV1_;
+  const instructor=(document.getElementById('course-doc-filter-instructor')?.value||'').trim().toLowerCase();
+  const courseQuery=(document.getElementById('course-doc-filter-course')?.value||'').trim().toLowerCase();
+  const term=(document.getElementById('course-doc-filter-term')?.value||'');
   const createBtn=document.getElementById('course-doc-btn-create'), shareBtn=document.getElementById('course-doc-btn-share'), reviewSection=document.getElementById('course-doc-review-section');
   if(createBtn) createBtn.classList.toggle('hidden',!s.canCreateCourse);
   if(shareBtn) shareBtn.classList.toggle('hidden',!s.canReview);
   if(reviewSection) reviewSection.classList.toggle('hidden',!s.canReview);
-  const fillCourseDocSelect=(id,placeholder,values,selected)=>{const el=document.getElementById(id);if(!el)return;const list=[...new Set(values.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));el.innerHTML='<option value="">'+placeholder+'</option>'+list.map(v=>'<option value="'+sssfnCourseDocEscV1_(v)+'">'+sssfnCourseDocEscV1_(v)+'</option>').join('');if(list.includes(selected))el.value=selected;};
+  const fillCourseDocSelect=(id,placeholder,values,selected)=>{
+    const el=document.getElementById(id); if(!el)return;
+    const list=[...new Set((values||[]).map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+    el.innerHTML='<option value="">'+placeholder+'</option>'+list.map(v=>'<option value="'+sssfnCourseDocEscV1_(v)+'">'+sssfnCourseDocEscV1_(v)+'</option>').join('');
+    if(list.includes(selected))el.value=selected;
+  };
   const termSelect=document.getElementById('course-doc-filter-term'), oldTerm=termSelect?termSelect.value:'';
   fillCourseDocSelect('course-doc-filter-term','ทุกภาคเรียน',s.courses.map(c=>c.term),oldTerm);
   const instructorSelect=document.getElementById('course-doc-filter-instructor'), oldInstructor=instructorSelect?instructorSelect.value:'';
@@ -17012,25 +17031,61 @@ function renderCourseDocumentsV1_() {
   const courseSelectFilter=document.getElementById('course-doc-filter-course'), oldCourse=courseSelectFilter?courseSelectFilter.value:'';
   const courseOptions=s.courses.map(c=>({value:String(c.id),label:[c.name,c.code].filter(Boolean).join(' • ')}));
   if(courseSelectFilter){courseSelectFilter.innerHTML='<option value="">ทุกรายวิชา</option>'+courseOptions.map(o=>'<option value="'+sssfnCourseDocEscV1_(o.value)+'">'+sssfnCourseDocEscV1_(o.label)+'</option>').join('');if(courseOptions.some(o=>o.value===oldCourse))courseSelectFilter.value=oldCourse;}
-  const filterCategorySelect=document.getElementById('course-doc-filter-category'), oldCategory=filterCategorySelect?filterCategorySelect.value:'';
-  fillCourseDocSelect('course-doc-filter-category','ทุกหมวดหมู่',s.categories||[],oldCategory);
-  const courses=s.courses.filter(c=>{const teacher=String(c.instructorName||c.teacherName||c.instructor||'').trim();return (!term||String(c.term||'')===term)&&(!instructor||teacher.toLowerCase()===instructor)&&(!courseQuery||String(c.id).toLowerCase()===courseQuery);});
+
+  const courses=s.courses.filter(c=>{
+    const teacher=String(c.instructorName||c.teacherName||c.instructor||'').trim().toLowerCase();
+    return (!term||String(c.term||'')===term)&&(!instructor||teacher===instructor)&&(!courseQuery||String(c.id).toLowerCase()===courseQuery);
+  });
   const grid=document.getElementById('course-doc-course-grid');
   if(grid) grid.innerHTML=courses.length?courses.map(c=>{
-    const knownCount=Object.prototype.hasOwnProperty.call(s.courseCounts||{},c.id); const count=knownCount?Number(s.courseCounts[c.id])||0:null;
-    const selected=s.selectedCourseId===c.id;
+    const knownCount=Object.prototype.hasOwnProperty.call(s.courseCounts||{},c.id);
+    const count=knownCount?Number(s.courseCounts[c.id])||0:null;
     const canEditCourse=s.canReview || String(c.createdBy||'').toLowerCase()===String(s.currentUser||'').toLowerCase() || (Array.isArray(c.managerUsernames)&&c.managerUsernames.some(x=>String(x).toLowerCase()===String(s.currentUser||'').toLowerCase()));
     const manageButtons=(canEditCourse?'<button type="button" onclick="event.stopPropagation();openCourseDocEditCourseV1_(\''+sssfnCourseDocEscV1_(c.id)+'\')" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold"><i class="fas fa-pen mr-1"></i>แก้ไข</button>':'')+(s.canReview?'<button type="button" onclick="event.stopPropagation();deleteCourseDocCourseV1_(\''+sssfnCourseDocEscV1_(c.id)+'\')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-bold"><i class="fas fa-trash-alt mr-1"></i>ลบ</button>':'');
-    return '<div class="bg-white border '+(selected?'border-indigo-400 ring-2 ring-indigo-100':'border-slate-200')+' rounded-2xl p-4 shadow-sm hover:shadow-md transition"><button type="button" onclick="selectCourseDocumentV1_(\''+sssfnCourseDocEscV1_(c.id)+'\')" class="w-full text-left"><div class="flex items-start justify-between gap-3"><div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg"><i class="fas fa-book-open"></i></div><span class="text-[10px] font-bold text-slate-400">'+sssfnCourseDocEscV1_(c.term||'ไม่ระบุภาคเรียน')+'</span></div><h4 class="font-black text-slate-800 mt-3">'+sssfnCourseDocEscV1_(c.name)+'</h4><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(c.code||'')+'</p><p class="text-xs text-slate-500 mt-1"><i class="fas fa-chalkboard-teacher mr-1"></i>'+sssfnCourseDocEscV1_(c.instructorName||c.teacherName||'ไม่ระบุอาจารย์')+'</p><div class="flex justify-between items-center mt-4 pt-3 border-t border-slate-100"><span class="text-xs text-slate-500"><i class="fas fa-file-alt mr-1"></i>'+(count===null?'โหลดเมื่อเปิดรายวิชา':count+' เอกสารเผยแพร่')+'</span><span class="text-xs font-bold text-indigo-600">เปิดดู <i class="fas fa-arrow-right ml-1"></i></span></div></button>'+(manageButtons?'<div class="flex justify-end gap-2 mt-3 pt-2 border-t border-slate-100">'+manageButtons+'</div>':'')+'</div>';
+    const teacher=c.instructorName||c.teacherName||c.instructor||'ไม่ระบุอาจารย์';
+    return '<div class="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow-md hover:border-indigo-200 transition">'+
+      '<button type="button" onclick="selectCourseDocumentV1_(\''+sssfnCourseDocEscV1_(c.id)+'\')" class="w-full text-left">'+
+        '<div class="flex items-center justify-between gap-2"><span class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fas fa-book-open"></i></span><span class="text-[10px] font-semibold text-slate-400">'+sssfnCourseDocEscV1_(c.term||'ไม่ระบุภาคเรียน')+'</span></div>'+
+        '<h4 class="font-black text-sm text-slate-800 mt-2 leading-snug break-words">'+sssfnCourseDocEscV1_(c.name||'ไม่ระบุชื่อรายวิชา')+'</h4>'+
+        '<p class="text-[11px] text-slate-500 mt-1">'+sssfnCourseDocEscV1_(c.code||'ไม่ระบุรหัสวิชา')+'</p>'+
+        '<p class="text-[11px] text-slate-500 mt-1.5 flex items-start gap-1.5"><i class="fas fa-chalkboard-teacher mt-0.5 text-slate-400"></i><span class="min-w-0 break-words">'+sssfnCourseDocEscV1_(teacher)+'</span></p>'+
+        '<div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-100"><span class="text-[10px] text-slate-500"><i class="fas fa-file-alt mr-1"></i>'+(count===null?'ดูเอกสาร':count+' เอกสารเผยแพร่')+'</span><span class="text-[11px] font-bold text-indigo-600">เปิดรายวิชา <i class="fas fa-arrow-right ml-1"></i></span></div>'+
+      '</button>'+(manageButtons?'<div class="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">'+manageButtons+'</div>':'')+'</div>';
   }).join(''):'<div class="col-span-full bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">ยังไม่มีรายวิชาที่ตรงกับการค้นหา</div>';
   const count=document.getElementById('course-doc-course-count'); if(count) count.textContent=courses.length+' รายวิชา';
-  const selected=courses.find(c=>c.id===s.selectedCourseId); const section=document.getElementById('course-doc-selected-section');
-  if(section) section.classList.toggle('hidden',!selected);
+  const selected=s.courses.find(c=>String(c.id)===String(s.selectedCourseId));
+  const section=document.getElementById('course-doc-selected-section');
+  const filterSection=document.getElementById('course-doc-course-filters');
+  const courseListSection=document.getElementById('course-doc-course-list-section');
+  const inCourse=!!selected;
+  if(section) section.classList.toggle('hidden',!inCourse);
+  if(filterSection) filterSection.classList.toggle('hidden',inCourse);
+  if(courseListSection) courseListSection.classList.toggle('hidden',inCourse);
+  ['course-doc-btn-link','course-doc-btn-upload'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('hidden',inCourse);});
+  const scrollHint=document.getElementById('course-doc-scroll-hint');
+  if(scrollHint) scrollHint.classList.toggle('hidden',inCourse||courses.length<=1);
+
   if(selected) {
-    document.getElementById('course-doc-selected-title').textContent=selected.name;
-    document.getElementById('course-doc-selected-subtitle').textContent=[selected.code,selected.instructorName||selected.teacherName,selected.term,selected.description].filter(Boolean).join(' • ');
+    const titleEl=document.getElementById('course-doc-selected-title');
+    const subtitleEl=document.getElementById('course-doc-selected-subtitle');
+    if(titleEl) titleEl.textContent=selected.name||'-';
+    if(subtitleEl) subtitleEl.textContent=[selected.code,selected.instructorName||selected.teacherName||selected.instructor,selected.term,selected.description].filter(Boolean).join(' • ');
     const canManage=s.canReview || String(selected.createdBy||'').toLowerCase()===String(s.currentUser||'').toLowerCase() || (Array.isArray(selected.managerUsernames)&&selected.managerUsernames.some(x=>String(x).toLowerCase()===String(s.currentUser||'').toLowerCase()));
-    const docs=s.documents.filter(d=>d.courseId===selected.id && String(d.status||'')!=='rejected' && (!category||String(d.category||'')===category));
+    const selectedManage=document.getElementById('course-doc-selected-manage');
+    if(selectedManage) selectedManage.innerHTML=(canManage?'<button type="button" onclick="openCourseDocEditCourseV1_(\''+sssfnCourseDocEscV1_(selected.id)+'\')" class="px-3 py-2.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold"><i class="fas fa-pen mr-1"></i>แก้ไขวิชา</button>':'')+(s.canReview?'<button type="button" onclick="deleteCourseDocCourseV1_(\''+sssfnCourseDocEscV1_(selected.id)+'\')" class="px-3 py-2.5 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold"><i class="fas fa-trash-alt mr-1"></i>ลบวิชา</button>':'');
+    const allCourseDocs=s.documents.filter(d=>String(d.courseId)===String(selected.id) && String(d.status||'')!=='rejected');
+    const selectedCategory=document.getElementById('course-doc-selected-category');
+    const priorCategory=String(s.selectedCategory|| (selectedCategory?selectedCategory.value:''));
+    const usedCourseCategories=allCourseDocs.map(d=>d.category);
+    const categoryValues=usedCourseCategories.length?usedCourseCategories:(s.categories||[]);
+    const uniqueCategories=[...new Set(categoryValues.map(v=>String(v||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+    if(selectedCategory){
+      selectedCategory.innerHTML='<option value="">ทั้งหมด</option>'+uniqueCategories.map(v=>'<option value="'+sssfnCourseDocEscV1_(v)+'">'+sssfnCourseDocEscV1_(v)+'</option>').join('');
+      selectedCategory.value=uniqueCategories.includes(priorCategory)?priorCategory:'';
+      s.selectedCategory=selectedCategory.value;
+    }
+    const category=String(s.selectedCategory||'');
+    const docs=allCourseDocs.filter(d=>!category||String(d.category||'')===category);
     const list=document.getElementById('course-doc-list');
     if(s.loadedCourseId!==selected.id) { if(list) list.innerHTML='<div class="p-8 text-center text-sm text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i>กำลังโหลดเอกสารของรายวิชานี้...</div>'; }
     else if(list) list.innerHTML=docs.length?docs.map(d=>{
@@ -17045,21 +17100,37 @@ function renderCourseDocumentsV1_() {
       else if(current && d.status==='published') actions+='<button onclick="openCourseDocPreviewV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold"><i class="fas fa-eye mr-1"></i>เปิดอ่าน</button><button onclick="downloadCourseDocV1_(\''+d.id+'\','+Number(d.currentVersion)+')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold"><i class="fas fa-download mr-1"></i>ดาวน์โหลด</button>';
       if(canManage && d.status==='published' && !d.pendingVersion) actions+='<button onclick="openCourseDocNewVersionV1_(\''+d.id+'\')" class="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold">เพิ่มฉบับใหม่</button>';
       if(s.canReview && d.pendingVersion) actions+='<button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติฉบับ '+Number(d.pendingVersion)+'</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button>';
-      if(s.canReview && d.status!=='rejected' && d.status!=='withdrawn') actions += "<button type=\"button\" onclick=\"withdrawCourseDocumentV1_('"+d.id+"')\" class=\"px-2.5 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold\" title=\"ลบเอกสารและประวัติทั้งหมดถาวร\"><i class=\"fas fa-trash-alt\"></i><span class=\"ml-1\">ลบถาวร</span></button>";
+      if(s.canReview && d.status!=='rejected') actions += '<button type="button" onclick="withdrawCourseDocumentV1_(\''+d.id+'\')" class="px-2.5 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold" title="ลบเอกสารและประวัติทั้งหมดถาวร"><i class="fas fa-trash-alt"></i><span class="ml-1">'+(d.status==='withdrawn'?'ลบรายการที่ถอนแล้ว':'ลบถาวร')+'</span></button>';
       const fileLabel=isLink?'ลิงก์ภายนอก':(file.fileName||'');
       const fileIcon=isLink?'fas fa-link':String(file.mimeType||'').includes('pdf')?'fas fa-file-pdf':String(file.mimeType||'').startsWith('image/')?'fas fa-file-image':String(file.mimeType||'').startsWith('video/')?'fas fa-file-video':String(file.mimeType||'').startsWith('audio/')?'fas fa-file-audio':'fas fa-file-alt';
       return '<div class="p-4 flex flex-col md:flex-row md:items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="'+fileIcon+'"></i></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><span class="text-[10px] px-2 py-1 rounded-full '+badge+'">'+status+'</span></div><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(d.category||'เอกสารเพิ่มเติม')+' • '+sssfnCourseDocEscV1_(fileLabel)+' • '+(isLink?'เว็บไซต์ภายนอก':sssfnCourseDocSizeV1_(file.fileSize))+'</p><p class="text-[11px] text-slate-400 mt-1">ผู้ส่ง: '+sssfnCourseDocEscV1_(d.uploaderName||'-')+' • '+(d.currentVersion?'ฉบับเผยแพร่ '+d.currentVersion:'ยังไม่มีฉบับเผยแพร่')+(d.pendingVersion?' • ฉบับ '+d.pendingVersion+' รอตรวจ':'')+'</p></div><div class="flex flex-wrap gap-2">'+actions+'</div></div>';
-    }).join(''):'<div class="p-8 text-center text-sm text-slate-400">ยังไม่มีเอกสารที่ตรงกับเงื่อนไข</div>';
+    }).join(''):'<div class="p-8 text-center text-sm text-slate-400">'+(category?'ไม่มีเอกสารในหมวดหมู่นี้':'ยังไม่มีเอกสารในรายวิชานี้')+'</div>';
   }
   if(s.canReview) {
     const queue=Array.isArray(s.reviewQueue)?s.reviewQueue.filter(d=>d.pendingVersion):[];
-    const q=document.getElementById('course-doc-review-list'); document.getElementById('course-doc-review-count').textContent=String(queue.length);
+    const q=document.getElementById('course-doc-review-list');
+    const reviewCount=document.getElementById('course-doc-review-count'); if(reviewCount) reviewCount.textContent=String(queue.length);
     if(q) q.innerHTML=queue.length?queue.map(d=>'<div class="bg-white border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><p class="text-xs text-slate-500">'+sssfnCourseDocEscV1_((s.courses.find(c=>c.id===d.courseId)||{}).name||'')+' • '+sssfnCourseDocEscV1_(d.uploaderName||'')+' • ฉบับ '+Number(d.pendingVersion)+'</p></div><div class="flex gap-2"><button onclick="selectCourseDocumentV1_(\''+d.courseId+'\')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">ดูรายการ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button></div></div>').join(''):'<p class="text-sm text-amber-800">ไม่มีเอกสารรอตรวจสอบ</p>';
   }
-  const courseSelect=document.getElementById('course-doc-upload-course'); if(courseSelect) { const chosen=courseSelect.value; courseSelect.innerHTML=s.courses.map(c=>'<option value="'+sssfnCourseDocEscV1_(c.id)+'">'+sssfnCourseDocEscV1_(c.name)+' — '+sssfnCourseDocEscV1_(c.term||'')+'</option>').join(''); if(s.courses.some(c=>c.id===chosen)) courseSelect.value=chosen; }
-  const categorySelect=document.getElementById('course-doc-upload-category'); if(categorySelect) { const old=categorySelect.value; categorySelect.innerHTML=s.categories.map(c=>'<option value="'+sssfnCourseDocEscV1_(c)+'">'+sssfnCourseDocEscV1_(c)+'</option>').join(''); if(s.categories.includes(old)) categorySelect.value=old; }
+  const courseSelect=document.getElementById('course-doc-upload-course');
+  if(courseSelect) { const chosen=courseSelect.value; courseSelect.innerHTML=s.courses.map(c=>'<option value="'+sssfnCourseDocEscV1_(c.id)+'">'+sssfnCourseDocEscV1_(c.name)+' — '+sssfnCourseDocEscV1_(c.term||'')+'</option>').join(''); if(s.courses.some(c=>c.id===chosen)) courseSelect.value=chosen; else if(s.selectedCourseId && s.courses.some(c=>String(c.id)===String(s.selectedCourseId))) courseSelect.value=s.selectedCourseId; }
+  const categorySelect=document.getElementById('course-doc-upload-category');
+  if(categorySelect) { const old=categorySelect.value; categorySelect.innerHTML=(s.categories||[]).map(c=>'<option value="'+sssfnCourseDocEscV1_(c)+'">'+sssfnCourseDocEscV1_(c)+'</option>').join(''); if((s.categories||[]).includes(old)) categorySelect.value=old; }
 }
-async function selectCourseDocumentV1_(courseId) { sssfnCourseDocStateV1_.selectedCourseId=String(courseId||''); if(sssfnCourseDocStateV1_.loadedCourseId!==sssfnCourseDocStateV1_.selectedCourseId) { sssfnCourseDocStateV1_.documents=[]; sssfnCourseDocStateV1_.loadedCourseId=''; } renderCourseDocumentsV1_(); await loadCourseDocumentsForCourseV1_(sssfnCourseDocStateV1_.selectedCourseId,false); document.getElementById('course-doc-selected-section')?.scrollIntoView({behavior:'smooth',block:'start'}); }
+
+function setCourseDocCategoryV1_(category) {
+  sssfnCourseDocStateV1_.selectedCategory=String(category||'');
+  renderCourseDocumentsV1_();
+}
+
+function backToCourseDocumentListV1_() {
+  sssfnCourseDocStateV1_.selectedCourseId='';
+  sssfnCourseDocStateV1_.selectedCategory='';
+  renderCourseDocumentsV1_();
+  document.getElementById('course-doc-course-filters')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function selectCourseDocumentV1_(courseId) { sssfnCourseDocStateV1_.selectedCourseId=String(courseId||''); sssfnCourseDocStateV1_.selectedCategory=''; if(sssfnCourseDocStateV1_.loadedCourseId!==sssfnCourseDocStateV1_.selectedCourseId) { sssfnCourseDocStateV1_.documents=[]; sssfnCourseDocStateV1_.loadedCourseId=''; } renderCourseDocumentsV1_(); await loadCourseDocumentsForCourseV1_(sssfnCourseDocStateV1_.selectedCourseId,false); document.getElementById('course-doc-selected-section')?.scrollIntoView({behavior:'smooth',block:'start'}); }
 function openCourseDocCreateCourseV1_() {
   if(!sssfnCourseDocStateV1_.canCreateCourse) return;
   const field=(label,id,placeholder,required=false)=>'<label for="'+id+'" class="block text-xs font-bold text-slate-600 mb-1">'+label+(required?' <span class="text-rose-500">*</span>':'')+'</label><input id="'+id+'" '+(required?'required':'')+' placeholder="'+placeholder+'" class="w-full box-border rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">';
