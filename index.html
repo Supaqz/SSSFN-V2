@@ -1,3 +1,4 @@
+<!-- SSSFN v15.6.37: fix legacy PPT preview bootstrap size and undefined isLegacyPpt. -->
 <!-- SSSFN v15.6.31-local: fix stray literal \\n before DOCTYPE; package local SSSFN favicon/logo assets. -->
 <!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
 <!-- SSSFN v15.6.29-local: one-link Google Drive share library for approved course documents. -->
@@ -17485,15 +17486,22 @@ async function sssfnCourseDocLoadScriptV1_(src, globalName) {
 }
 async function sssfnCourseDocFetchBlobV1_(documentId, version, progressFn, previewOnly) {
   const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);const ver=(doc&&doc.versions||[]).find(v=>Number(v.version)===Number(version));if(!ver)throw new Error('ไม่พบข้อมูลเวอร์ชันเอกสาร');
-  // Legacy .ppt files without a stored preview are converted on-demand by the backend.
-  const total=isLegacyPpt?Number(ver.previewPdfSize||0):Number(ver.fileSize||0);if(!Number.isSafeInteger(total)||total<=0)throw new Error('ขนาดไฟล์ในข้อมูลเอกสารไม่ถูกต้อง');
-  const chunks=[];let offset=0;const maxChunks=Math.ceil(total/262144)+1;let count=0;let responseName='';let responseMime='';
-  while(offset<total){
-    if(++count>maxChunks)throw new Error('อ่านไฟล์ไม่ครบตามขนาดที่บันทึกไว้ กรุณาลองใหม่');
+  // Legacy .ppt previews may not have a known PDF size until the backend creates the PDF.
+  const isLegacyPpt=/\.ppt$/i.test(String(ver.fileName||''));
+  const useLegacyPptPreview=isLegacyPpt&&previewOnly===true;
+  let total=useLegacyPptPreview?Number(ver.previewPdfSize||0):Number(ver.fileSize||0);
+  if(!Number.isSafeInteger(total)||total<0||(total===0&&!useLegacyPptPreview))throw new Error('ขนาดไฟล์ในข้อมูลเอกสารไม่ถูกต้อง');
+  const chunks=[];let offset=0;let count=0;let responseName='';let responseMime='';
+  let needsInitialPreviewRead=useLegacyPptPreview&&total===0;
+  while(needsInitialPreviewRead||offset<total){
     const result=await callBackend({action:'courseDocReadChunkV1',documentId:documentId,version:version,start:offset,previewOnly:previewOnly===true});
     if(!result||result.status!=='success')throw new Error(result&&result.message||'อ่านไฟล์ไม่สำเร็จ');
     if(Number(result.start)!==offset)throw new Error('ข้อมูลไฟล์ที่ได้รับไม่ต่อเนื่อง กรุณาลองเปิดใหม่');
-    if(Number(result.totalBytes)!==total)throw new Error('ขนาดไฟล์จาก Google Drive ไม่ตรงกับข้อมูลรายวิชา กรุณาติดต่อผู้ดูแล');
+    const responseTotal=Number(result.totalBytes);
+    if(!Number.isSafeInteger(responseTotal)||responseTotal<=0)throw new Error('ระบบไม่สามารถระบุขนาดไฟล์ตัวอย่างจาก Google Drive ได้');
+    if(needsInitialPreviewRead){total=responseTotal;needsInitialPreviewRead=false;}
+    else if(responseTotal!==total)throw new Error('ขนาดไฟล์จาก Google Drive ไม่ตรงกับข้อมูลรายวิชา กรุณาติดต่อผู้ดูแล');
+    if(++count>Math.ceil(total/262144)+1)throw new Error('อ่านไฟล์ไม่ครบตามขนาดที่บันทึกไว้ กรุณาลองใหม่');
     const binary=atob(result.dataBase64||'');if(!binary.length)throw new Error('ได้รับข้อมูลไฟล์ว่าง');
     if(Number(result.bytesLength)!==binary.length)throw new Error('ข้อมูลไฟล์บางส่วนมาไม่ครบ กรุณาลองเปิดใหม่');
     const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
