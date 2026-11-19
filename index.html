@@ -1667,7 +1667,7 @@
         </div>
       </div>
     </div>
-    <div id="course-doc-list" class="divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">เลือกวิชาเพื่อดูเอกสาร</div></div>
+    <div class="px-4 py-2 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between gap-2"><span><i class="fas fa-sort-amount-down-alt mr-1"></i>เรียงตามวันที่อัปโหลด: ใหม่ไปเก่า</span><span>แสดงเวลาอัปโหลดล่าสุดของแต่ละเอกสาร</span></div><div id="course-doc-list" class="divide-y divide-slate-100"><div class="p-6 text-center text-sm text-slate-400">เลือกวิชาเพื่อดูเอกสาร</div></div>
   </section>
   <section id="course-doc-review-section" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5">
     <div class="flex items-center justify-between gap-3 mb-3"><h3 class="font-bold text-amber-900"><i class="fas fa-clipboard-check mr-2"></i>รายการรอตรวจสอบ</h3><span id="course-doc-review-count" class="text-xs rounded-full bg-amber-200 text-amber-900 px-2 py-1 font-bold">0</span></div>
@@ -17243,6 +17243,36 @@ async function loadCourseDocumentsForCourseV1_(courseId, force) {
   finally { sssfnCourseDocSelectedPromiseV1_ = null; }
 }
 
+// v15.6.38: sort course documents using the actual latest version upload timestamp.
+function sssfnCourseDocUploadTimeV1_(doc) {
+  const versions = Array.isArray(doc && doc.versions) ? doc.versions : [];
+  let latest = 0;
+  const toMillis = value => {
+    if (value && typeof value.toMillis === 'function') return Number(value.toMillis()) || 0;
+    if (value && typeof value.toDate === 'function') return Number(value.toDate().getTime()) || 0;
+    if (typeof value === 'number') return value > 0 && value < 1000000000000 ? value * 1000 : value;
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  versions.forEach(version => {
+    const stamp = toMillis(version && version.uploadedAt);
+    if (stamp > latest) latest = stamp;
+  });
+  if (!latest) latest = toMillis(doc && (doc.createdAt || doc.updatedAt));
+  return latest;
+}
+
+function sssfnCourseDocUploadDateLabelV1_(doc) {
+  const stamp = sssfnCourseDocUploadTimeV1_(doc);
+  if (!stamp) return '';
+  const date = new Date(stamp);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('th-TH', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
 function renderCourseDocumentsV1_() {
   const s=sssfnCourseDocStateV1_;
   const instructor=(document.getElementById('course-doc-filter-instructor')?.value||'').trim().toLowerCase();
@@ -17319,7 +17349,10 @@ function renderCourseDocumentsV1_() {
       s.selectedCategory=selectedCategory.value;
     }
     const category=String(s.selectedCategory||'');
-    const docs=allCourseDocs.filter(d=>!category||String(d.category||'')===category);
+    const docs=allCourseDocs.filter(d=>!category||String(d.category||'')===category).slice().sort((a,b)=>{
+      const timeDiff=sssfnCourseDocUploadTimeV1_(b)-sssfnCourseDocUploadTimeV1_(a);
+      return timeDiff || String(a.title||'').localeCompare(String(b.title||''),'th');
+    });
     const list=document.getElementById('course-doc-list');
     if(s.loadedCourseId!==selected.id) { if(list) list.innerHTML='<div class="p-8 text-center text-sm text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i>กำลังโหลดเอกสารของรายวิชานี้...</div>'; }
     else if(list) list.innerHTML=docs.length?docs.map(d=>{
@@ -17335,16 +17368,19 @@ function renderCourseDocumentsV1_() {
       if(canManage && d.status==='published' && !d.pendingVersion) actions+='<button onclick="openCourseDocNewVersionV1_(\''+d.id+'\')" class="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-bold">เพิ่มฉบับใหม่</button>';
       if(s.canReview && d.pendingVersion) actions+='<button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติฉบับ '+Number(d.pendingVersion)+'</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button>';
       if(s.canReview && d.status!=='rejected') actions += '<button type="button" onclick="withdrawCourseDocumentV1_(\''+d.id+'\')" class="px-2.5 py-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold" title="ลบเอกสารและประวัติทั้งหมดถาวร"><i class="fas fa-trash-alt"></i><span class="ml-1">'+(d.status==='withdrawn'?'ลบรายการที่ถอนแล้ว':'ลบถาวร')+'</span></button>';
-      const fileLabel=isLink?'ลิงก์ภายนอก':(file.fileName||'');
+      const fileLabel=isLink?'ลิงก์ภายนอก':(file.fileName||'');const uploadDateLabel=sssfnCourseDocUploadDateLabelV1_(d);
       const fileIcon=isLink?'fas fa-link':String(file.mimeType||'').includes('pdf')?'fas fa-file-pdf':String(file.mimeType||'').startsWith('image/')?'fas fa-file-image':String(file.mimeType||'').startsWith('video/')?'fas fa-file-video':String(file.mimeType||'').startsWith('audio/')?'fas fa-file-audio':'fas fa-file-alt';
-      return '<div class="p-4 flex flex-col md:flex-row md:items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="'+fileIcon+'"></i></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><span class="text-[10px] px-2 py-1 rounded-full '+badge+'">'+status+'</span></div><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(d.category||'เอกสารเพิ่มเติม')+' • '+sssfnCourseDocEscV1_(fileLabel)+' • '+(isLink?'เว็บไซต์ภายนอก':sssfnCourseDocSizeV1_(file.fileSize))+'</p><p class="text-[11px] text-slate-400 mt-1">ผู้ส่ง: '+sssfnCourseDocEscV1_(d.uploaderName||'-')+' • '+(d.currentVersion?'ฉบับเผยแพร่ '+d.currentVersion:'ยังไม่มีฉบับเผยแพร่')+(d.pendingVersion?' • ฉบับ '+d.pendingVersion+' รอตรวจ':'')+'</p></div><div class="flex flex-wrap gap-2">'+actions+'</div></div>';
+      return '<div class="p-4 flex flex-col md:flex-row md:items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"><i class="'+fileIcon+'"></i></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><span class="text-[10px] px-2 py-1 rounded-full '+badge+'">'+status+'</span></div><p class="text-xs text-slate-500 mt-1">'+sssfnCourseDocEscV1_(d.category||'เอกสารเพิ่มเติม')+' • '+sssfnCourseDocEscV1_(fileLabel)+' • '+(isLink?'เว็บไซต์ภายนอก':sssfnCourseDocSizeV1_(file.fileSize))+'</p><p class="text-[11px] text-slate-400 mt-1">ผู้ส่ง: '+sssfnCourseDocEscV1_(d.uploaderName||'-')+' • '+(d.currentVersion?'ฉบับเผยแพร่ '+d.currentVersion:'ยังไม่มีฉบับเผยแพร่')+(d.pendingVersion?' • ฉบับ '+d.pendingVersion+' รอตรวจ':'')+(uploadDateLabel?' • อัปโหลด '+sssfnCourseDocEscV1_(uploadDateLabel):'')+'</p></div><div class="flex flex-wrap gap-2">'+actions+'</div></div>';
     }).join(''):'<div class="p-8 text-center text-sm text-slate-400">'+(category?'ไม่มีเอกสารในหมวดหมู่นี้':'ยังไม่มีเอกสารในรายวิชานี้')+'</div>';
   }
   if(s.canReview) {
-    const queue=Array.isArray(s.reviewQueue)?s.reviewQueue.filter(d=>d.pendingVersion):[];
+    const queue=Array.isArray(s.reviewQueue)?s.reviewQueue.filter(d=>d.pendingVersion).slice().sort((a,b)=>{
+      const timeDiff=sssfnCourseDocUploadTimeV1_(b)-sssfnCourseDocUploadTimeV1_(a);
+      return timeDiff || String(a.title||'').localeCompare(String(b.title||''),'th');
+    }):[];
     const q=document.getElementById('course-doc-review-list');
     const reviewCount=document.getElementById('course-doc-review-count'); if(reviewCount) reviewCount.textContent=String(queue.length);
-    if(q) q.innerHTML=queue.length?queue.map(d=>'<div class="bg-white border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><p class="text-xs text-slate-500">'+sssfnCourseDocEscV1_((s.courses.find(c=>c.id===d.courseId)||{}).name||'')+' • '+sssfnCourseDocEscV1_(d.uploaderName||'')+' • ฉบับ '+Number(d.pendingVersion)+'</p></div><div class="flex gap-2"><button onclick="selectCourseDocumentV1_(\''+d.courseId+'\')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">ดูรายการ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button></div></div>').join(''):'<p class="text-sm text-amber-800">ไม่มีเอกสารรอตรวจสอบ</p>';
+    if(q) q.innerHTML=queue.length?queue.map(d=>'<div class="bg-white border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><p class="font-bold text-sm text-slate-800">'+sssfnCourseDocEscV1_(d.title)+'</p><p class="text-xs text-slate-500">'+sssfnCourseDocEscV1_((s.courses.find(c=>c.id===d.courseId)||{}).name||'')+' • '+sssfnCourseDocEscV1_(d.uploaderName||'')+' • ฉบับ '+Number(d.pendingVersion)+(sssfnCourseDocUploadDateLabelV1_(d)?' • อัปโหลด '+sssfnCourseDocEscV1_(sssfnCourseDocUploadDateLabelV1_(d)):'')+'</p></div><div class="flex gap-2"><button onclick="selectCourseDocumentV1_(\''+d.courseId+'\')" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">ดูรายการ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'approve\')" class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">อนุมัติ</button><button onclick="reviewCourseDocumentV1_(\''+d.id+'\',\'reject\')" class="px-3 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-bold">ไม่อนุมัติ</button></div></div>').join(''):'<p class="text-sm text-amber-800">ไม่มีเอกสารรอตรวจสอบ</p>';
   }
   const courseSelect=document.getElementById('course-doc-upload-course');
   if(courseSelect) { const chosen=courseSelect.value; courseSelect.innerHTML=s.courses.map(c=>'<option value="'+sssfnCourseDocEscV1_(c.id)+'">'+sssfnCourseDocEscV1_(c.name)+' — '+sssfnCourseDocEscV1_(c.term||'')+'</option>').join(''); if(s.courses.some(c=>c.id===chosen)) courseSelect.value=chosen; else if(s.selectedCourseId && s.courses.some(c=>String(c.id)===String(s.selectedCourseId))) courseSelect.value=s.selectedCourseId; }
