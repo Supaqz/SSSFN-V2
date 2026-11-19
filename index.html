@@ -17485,8 +17485,7 @@ async function sssfnCourseDocLoadScriptV1_(src, globalName) {
 }
 async function sssfnCourseDocFetchBlobV1_(documentId, version, progressFn, previewOnly) {
   const doc=sssfnCourseDocStateV1_.documents.find(d=>d.id===documentId);const ver=(doc&&doc.versions||[]).find(v=>Number(v.version)===Number(version));if(!ver)throw new Error('ไม่พบข้อมูลเวอร์ชันเอกสาร');
-  const isLegacyPpt=previewOnly===true && /\.ppt$/i.test(String(ver.fileName||''));
-  if(isLegacyPpt&&!ver.previewPdfAvailable)throw new Error('ไฟล์ .ppt นี้ยังไม่มี PDF ตัวอย่าง กรุณาดาวน์โหลดไฟล์ไปเปิดด้วย PowerPoint หรือบันทึกใหม่เป็น .pptx/PDF');
+  // Legacy .ppt files without a stored preview are converted on-demand by the backend.
   const total=isLegacyPpt?Number(ver.previewPdfSize||0):Number(ver.fileSize||0);if(!Number.isSafeInteger(total)||total<=0)throw new Error('ขนาดไฟล์ในข้อมูลเอกสารไม่ถูกต้อง');
   const chunks=[];let offset=0;const maxChunks=Math.ceil(total/262144)+1;let count=0;let responseName='';let responseMime='';
   while(offset<total){
