@@ -8336,7 +8336,7 @@ window.deleteParticipant = function(stuId) {
 };
 
 // 6. สแกนเนอร์และตัวรับสัญญาณ Barcode (Tab 2: Scan)
-window.switchScannerMode = function(mode) {
+window.switchScannerMode = async function(mode) {
     let btnBarcode = document.getElementById('tabBtnBarcode');
     let btnCamera = document.getElementById('tabBtnCamera');
     let secManual = document.getElementById('manual-section');
@@ -8347,7 +8347,7 @@ window.switchScannerMode = function(mode) {
         if (btnCamera) btnCamera.className = 'p-3.5 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition hover:bg-slate-50';
         if (secManual) secManual.classList.remove('hidden');
         if (secCamera) secCamera.classList.add('hidden');
-        stopWebcamScanner();
+        await stopWebcamScanner();
         let input = document.getElementById('hw-input-focus');
         if (input) input.focus();
     } else {
@@ -8355,104 +8355,190 @@ window.switchScannerMode = function(mode) {
         if (btnBarcode) btnBarcode.className = 'p-3.5 rounded-xl border-2 border-slate-200 bg-white text-slate-600 font-bold text-xs flex flex-col items-center justify-center gap-1 shadow-sm transition hover:bg-slate-50';
         if (secManual) secManual.classList.add('hidden');
         if (secCamera) secCamera.classList.remove('hidden');
-        startWebcamScanner();
+        await startWebcamScanner();
     }
 };
 
-var _sssfnAdminCameraStartSeqV15646_ = 0;
-var _sssfnAdminScannerHandlingV15646_ = false;
-function setAdminScannerStatusV15646_(message, tone) {
+var _sssfnAdminCameraStartSeqV15647_ = 0;
+var _sssfnAdminScannerHandlingV15647_ = false;
+var _sssfnAdminCameraStartPromiseV15647_ = null;
+var _sssfnAdminCameraStopPromiseV15647_ = null;
+
+function setAdminScannerStatusV15647_(message, tone) {
     const status = document.getElementById('hw-scanner-status');
     const help = document.getElementById('hw-scanner-help');
     const tones = {success:'text-emerald-700',error:'text-rose-700',warning:'text-amber-700',info:'text-blue-700'};
     if (status) { status.className = 'text-xs font-bold ' + (tones[tone] || tones.info); status.textContent = message; }
-    if (help && tone === 'error') help.textContent = 'ตรวจสอบสิทธิ์กล้อง ปิดแอปอื่นที่ใช้กล้อง หรือเปิดเว็บไซต์ผ่าน HTTPS แล้วลองอีกครั้ง';
+    if (help && tone === 'error') help.textContent = 'ตรวจสอบสิทธิ์กล้อง ปิดโปรแกรมอื่นที่ใช้กล้อง แล้วลองใหม่ หากยังไม่สำเร็จให้ตรวจสอบการอนุญาต Camera ของ Chrome';
 }
-async function startWebcamScanner() {
-    if (html5QrScannerInstance || window._sssfnAdminCameraStartingV15646_) return;
-    const seq = ++_sssfnAdminCameraStartSeqV15646_;
-    window._sssfnAdminCameraStartingV15646_ = true;
-    const cameraSection = document.getElementById('camera-section');
-    setAdminScannerStatusV15646_('กำลังเตรียมกล้อง...', 'info');
+
+function getAdminScannerFormatsV15647_() {
+    const supported = window.Html5QrcodeSupportedFormats || {};
+    const names = ['QR_CODE','CODE_128','CODE_39','CODE_93','EAN_13','EAN_8','UPC_A','UPC_E','CODABAR','ITF','DATA_MATRIX','PDF_417'];
+    return Array.from(new Set(names.map(name => supported[name]).filter(value => typeof value === 'number')));
+}
+
+async function waitForAdminCameraPreviewV15647_(reader, timeoutMs) {
+    const deadline = Date.now() + (timeoutMs || 6000);
+    while (Date.now() < deadline) {
+        const video = reader && reader.querySelector ? reader.querySelector('video') : null;
+        if (video && video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) return true;
+        await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    return false;
+}
+
+async function releaseAdminScannerInstanceV15647_(scanner) {
+    if (!scanner) return;
     try {
-        if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') throw new Error('การใช้กล้องต้องเปิดเว็บไซต์ผ่าน HTTPS');
-        const loaded = await ensureHtml5QrcodeLoadedV15644_();
-        if (!loaded) throw new Error('โหลดไลบรารีกล้องไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต');
-        if (seq !== _sssfnAdminCameraStartSeqV15646_ || !cameraSection || cameraSection.classList.contains('hidden')) return;
-        setAdminScannerStatusV15646_('กำลังค้นหากล้อง...', 'info');
-        let cameras = [];
-        try { cameras = await window.Html5Qrcode.getCameras(); } catch (error) { console.warn('Admin camera enumeration failed; fallback will be attempted:', error); }
-        if (seq !== _sssfnAdminCameraStartSeqV15646_ || cameraSection.classList.contains('hidden')) return;
-        const supported = window.Html5QrcodeSupportedFormats || {};
-        const formatNames = ['QR_CODE','CODE_128','CODE_39','CODE_93','EAN_13','EAN_8','UPC_A','UPC_E','CODABAR','ITF','DATA_MATRIX','PDF_417'];
-        const formats = formatNames.map(name => supported[name]).filter(value => typeof value === 'number');
-        const scanner = new window.Html5Qrcode('hw-reader', formats.length ? {formatsToSupport:formats, verbose:false} : {verbose:false});
-        html5QrScannerInstance = scanner;
-        const scanConfig = {fps:10, qrbox:{width:250,height:250}, aspectRatio:1.0, disableFlip:false};
-        const onDecoded = async decodedText => {
-            const text = String(decodedText || '').trim();
-            if (!text || _sssfnAdminScannerHandlingV15646_) return;
-            _sssfnAdminScannerHandlingV15646_ = true;
-            setAdminScannerStatusV15646_('อ่านข้อมูลสำเร็จ กำลังตรวจสอบนักศึกษา...', 'success');
-            try {
-                await Promise.resolve(window.executeScanLogic(text, currentMasterActivity && currentMasterActivity.title));
-            } catch (error) {
-                console.error('Admin student scan processing failed:', error);
-                await Swal.fire({icon:'error',title:'ประมวลผลข้อมูลที่สแกนไม่สำเร็จ',text:String(error && error.message || error),confirmButtonColor:'#2563eb'});
-            } finally {
-                _sssfnAdminScannerHandlingV15646_ = false;
-                if (html5QrScannerInstance === scanner && cameraSection && !cameraSection.classList.contains('hidden')) setAdminScannerStatusV15646_('พร้อมสแกน QR / Barcode', 'success');
-            }
-        };
-        const attempts = [];
-        const preferred = Array.isArray(cameras) && cameras.length ? (cameras.find(c => /back|rear|environment|หลัง/i.test(c.label || '')) || cameras[cameras.length - 1]) : null;
-        if (preferred && preferred.id) attempts.push({label:preferred.label || 'กล้องหลัง',config:{deviceId:{exact:preferred.id}}});
-        (Array.isArray(cameras) ? cameras : []).filter(c => c && c.id && (!preferred || c.id !== preferred.id)).forEach(c => attempts.push({label:c.label || 'กล้องสำรอง',config:{deviceId:{exact:c.id}}}));
-        attempts.push({label:'กล้องหลัง',config:{facingMode:{ideal:'environment'}}});
-        attempts.push({label:'กล้องทั่วไป',config:{facingMode:'user'}});
-        let lastError = null;
-        for (const attempt of attempts) {
-            if (seq !== _sssfnAdminCameraStartSeqV15646_ || cameraSection.classList.contains('hidden')) return;
-            try {
-                setAdminScannerStatusV15646_('กำลังเปิด' + attempt.label + '...', 'info');
-                await scanner.start(attempt.config, scanConfig, onDecoded, () => {});
-                lastError = null;
-                break;
-            } catch (error) {
-                lastError = error;
-                console.warn('Admin camera attempt failed:', attempt.label, error);
-                try { if (scanner.getState && scanner.getState() === 2) await scanner.stop(); } catch (ignore) {}
-            }
-        }
-        if (seq !== _sssfnAdminCameraStartSeqV15646_) return;
-        if (lastError) throw lastError;
-        setAdminScannerStatusV15646_('พร้อมสแกน QR / Barcode', 'success');
-        const help = document.getElementById('hw-scanner-help');
-        if (help) help.textContent = 'สแกน QR บัตรนักศึกษาหรือ Barcode ให้ชัดและอยู่กลางกรอบ ระบบจะแสดงข้อมูลก่อนยืนยัน';
+        const state = typeof scanner.getState === 'function' ? scanner.getState() : null;
+        if (state === 2) await scanner.stop();
     } catch (error) {
-        console.error('Admin student camera start failed:', error);
-        if (html5QrScannerInstance) {
-            const scanner = html5QrScannerInstance;
-            html5QrScannerInstance = null;
-            try { if (scanner.getState && scanner.getState() === 2) await scanner.stop(); } catch (ignore) {}
-            try { scanner.clear(); } catch (ignore) {}
+        console.warn('Admin camera cleanup warning:', error);
+    }
+    try { scanner.clear(); } catch (error) {}
+    if (html5QrScannerInstance === scanner) html5QrScannerInstance = null;
+}
+
+async function startWebcamScanner() {
+    if (_sssfnAdminCameraStopPromiseV15647_) {
+        try { await _sssfnAdminCameraStopPromiseV15647_; } catch (ignore) {}
+    }
+    if (html5QrScannerInstance && typeof html5QrScannerInstance.getState === 'function' && html5QrScannerInstance.getState() === 2) return html5QrScannerInstance;
+    if (_sssfnAdminCameraStartPromiseV15647_) return _sssfnAdminCameraStartPromiseV15647_;
+
+    const seq = ++_sssfnAdminCameraStartSeqV15647_;
+    const cameraSection = document.getElementById('camera-section');
+    if (!cameraSection || cameraSection.classList.contains('hidden')) return null;
+    setAdminScannerStatusV15647_('กำลังเตรียมกล้อง...', 'info');
+
+    const run = (async () => {
+        let lastError = null;
+        try {
+            if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                throw new Error('การใช้กล้องต้องเปิดเว็บไซต์ผ่าน HTTPS');
+            }
+            const loaded = await ensureHtml5QrcodeLoadedV15644_();
+            if (!loaded) throw new Error('โหลดไลบรารีกล้องไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต');
+            if (seq !== _sssfnAdminCameraStartSeqV15647_ || cameraSection.classList.contains('hidden')) return null;
+
+            const formats = getAdminScannerFormatsV15647_();
+            const scannerOptions = formats.length ? {formatsToSupport:formats, verbose:false} : {verbose:false};
+            const scanConfig = {fps:10, qrbox:{width:250,height:250}, disableFlip:false};
+            const reader = document.getElementById('hw-reader');
+            if (!reader) throw new Error('ไม่พบพื้นที่แสดงภาพกล้อง กรุณาสลับแท็บแล้วลองใหม่');
+
+            const onDecoded = async decodedText => {
+                const text = String(decodedText || '').trim();
+                if (!text || _sssfnAdminScannerHandlingV15647_) return;
+                _sssfnAdminScannerHandlingV15647_ = true;
+                setAdminScannerStatusV15647_('อ่านข้อมูลสำเร็จ กำลังตรวจสอบนักศึกษา...', 'success');
+                try {
+                    await Promise.resolve(window.executeScanLogic(text, currentMasterActivity && currentMasterActivity.title));
+                } catch (error) {
+                    console.error('Admin student scan processing failed:', error);
+                    await Swal.fire({icon:'error',title:'ประมวลผลข้อมูลที่สแกนไม่สำเร็จ',text:String(error && error.message || error),confirmButtonColor:'#2563eb'});
+                } finally {
+                    _sssfnAdminScannerHandlingV15647_ = false;
+                    if (html5QrScannerInstance && cameraSection && !cameraSection.classList.contains('hidden')) {
+                        setAdminScannerStatusV15647_('พร้อมสแกน QR / Barcode', 'success');
+                    }
+                }
+            };
+
+            // First attempt deliberately matches the previously working v15.6.45 flow.
+            // Do not enumerate devices and select the last one before trying the browser's default rear/environment camera.
+            const attempts = [{label:'กล้องเริ่มต้น', config:{facingMode:'environment'}}];
+            let cameras = [];
+            let enumerated = false;
+
+            for (let index = 0; index < 12; index++) {
+                if (seq !== _sssfnAdminCameraStartSeqV15647_ || cameraSection.classList.contains('hidden')) return null;
+                if (index >= attempts.length) break;
+                const attempt = attempts[index];
+                let scanner = null;
+                try {
+                    setAdminScannerStatusV15647_('กำลังเปิด' + attempt.label + '...', 'info');
+                    scanner = new window.Html5Qrcode('hw-reader', scannerOptions);
+                    html5QrScannerInstance = scanner;
+                    await scanner.start(attempt.config, scanConfig, onDecoded, () => {});
+                    if (seq !== _sssfnAdminCameraStartSeqV15647_ || cameraSection.classList.contains('hidden')) {
+                        await releaseAdminScannerInstanceV15647_(scanner);
+                        return null;
+                    }
+                    const previewReady = await waitForAdminCameraPreviewV15647_(reader, 6000);
+                    if (!previewReady) throw new Error('เปิดตัวอ่าน QR แล้ว แต่ไม่ได้รับภาพจากกล้อง กรุณาลองกล้องตัวอื่น');
+                    if (seq !== _sssfnAdminCameraStartSeqV15647_ || cameraSection.classList.contains('hidden')) {
+                        await releaseAdminScannerInstanceV15647_(scanner);
+                        return null;
+                    }
+                    setAdminScannerStatusV15647_('พร้อมสแกน QR / Barcode', 'success');
+                    const help = document.getElementById('hw-scanner-help');
+                    if (help) help.textContent = 'สแกน QR บัตรนักศึกษาหรือ Barcode ให้ชัดและอยู่กลางกรอบ ระบบจะแสดงข้อมูลก่อนยืนยัน';
+                    return scanner;
+                } catch (error) {
+                    lastError = error;
+                    console.warn('Admin camera attempt failed:', attempt.label, error);
+                    await releaseAdminScannerInstanceV15647_(scanner);
+
+                    // Only enumerate after the original browser-selected camera path fails.
+                    if (!enumerated) {
+                        enumerated = true;
+                        setAdminScannerStatusV15647_('กล้องเริ่มต้นไม่พร้อม กำลังค้นหากล้องสำรอง...', 'info');
+                        try { cameras = await window.Html5Qrcode.getCameras(); }
+                        catch (cameraListError) { console.warn('Admin camera enumeration failed:', cameraListError); cameras = []; }
+                        const usable = (Array.isArray(cameras) ? cameras : []).filter(camera => camera && camera.id);
+                        const isVirtual = label => /virtual|obs|manycam|snap camera|camo|droidcam|xsplit|streamlabs|mmhmm/i.test(String(label || ''));
+                        const score = camera => {
+                            const label = String(camera.label || '');
+                            if (isVirtual(label)) return -100;
+                            if (/integrated|built.?in|webcam|usb camera|hd camera|truevision|facetime/i.test(label)) return 20;
+                            if (/camera/i.test(label)) return 5;
+                            return 0;
+                        };
+                        usable.sort((a,b) => score(b) - score(a));
+                        usable.forEach(camera => {
+                            if (!attempts.some(item => item.config && item.config.deviceId && item.config.deviceId.exact === camera.id)) {
+                                attempts.push({label:camera.label || 'กล้องสำรอง', config:{deviceId:{exact:camera.id}}});
+                            }
+                        });
+                        attempts.push({label:'กล้องเริ่มต้น (โหมดสำรอง)', config:{facingMode:{ideal:'environment'}}});
+                        attempts.push({label:'กล้องทั่วไป', config:{facingMode:{ideal:'user'}}});
+                    }
+                }
+            }
+            throw lastError || new Error('ไม่พบกล้องที่เปิดใช้งานได้');
+        } catch (error) {
+            console.error('Admin student camera start failed:', error);
+            if (seq === _sssfnAdminCameraStartSeqV15647_) setAdminScannerStatusV15647_(getStudentScannerErrorMessageV15644_(error), 'error');
+            return null;
         }
-        if (seq === _sssfnAdminCameraStartSeqV15646_) setAdminScannerStatusV15646_(getStudentScannerErrorMessageV15644_(error), 'error');
+    })();
+
+    _sssfnAdminCameraStartPromiseV15647_ = run;
+    try {
+        return await run;
     } finally {
-        if (seq === _sssfnAdminCameraStartSeqV15646_) window._sssfnAdminCameraStartingV15646_ = false;
+        if (_sssfnAdminCameraStartPromiseV15647_ === run) _sssfnAdminCameraStartPromiseV15647_ = null;
     }
 }
 
 async function stopWebcamScanner() {
-    _sssfnAdminCameraStartSeqV15646_++;
-    window._sssfnAdminCameraStartingV15646_ = false;
-    const scanner = html5QrScannerInstance;
-    html5QrScannerInstance = null;
-    if (scanner) {
-        try { if (scanner.getState && (scanner.getState() === 2 || scanner.getState() === 1)) await scanner.stop(); } catch (error) { console.warn('Admin camera stop warning:', error); }
-        try { scanner.clear(); } catch (error) {}
-    }
-    setAdminScannerStatusV15646_('ปิดกล้องแล้ว', 'warning');
+    if (_sssfnAdminCameraStopPromiseV15647_) return _sssfnAdminCameraStopPromiseV15647_;
+    ++_sssfnAdminCameraStartSeqV15647_;
+    const startPromise = _sssfnAdminCameraStartPromiseV15647_;
+    const stopRun = (async () => {
+        if (startPromise) {
+            try { await startPromise; } catch (ignore) {}
+        }
+        const scanner = html5QrScannerInstance;
+        html5QrScannerInstance = null;
+        await releaseAdminScannerInstanceV15647_(scanner);
+        setAdminScannerStatusV15647_('ปิดกล้องแล้ว', 'warning');
+    })();
+    _sssfnAdminCameraStopPromiseV15647_ = stopRun;
+    try { await stopRun; }
+    finally { if (_sssfnAdminCameraStopPromiseV15647_ === stopRun) _sssfnAdminCameraStopPromiseV15647_ = null; }
 }
 
 // ตัวประมวลผลการสแกน (หัวใจหลักของความถูกต้องและการบังคับสถานะ P)
@@ -9183,7 +9269,7 @@ window.openMapPicker = function() {
             `,
             html: `
                 <!-- Search & Quick Presets Toolbar -->
-                <div class="space-y-2 mb-3 mt-3 text-xs font-sans text-left">
+                <div class="space-y-3 mb-3 mt-4 text-xs font-sans text-left">
                     <div class="flex gap-2">
                         <div class="relative flex-1">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
@@ -9193,23 +9279,22 @@ window.openMapPicker = function() {
                             <i class="fa-solid fa-magnifying-glass text-xs"></i> ค้นหา
                         </button>
                     </div>
-                    <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <span class="text-slate-400 font-medium">จุดแนะนำ:</span>
-                        <button type="button" onclick="applyPickerLocation(14.986195, 102.118729, 18, 'มทร.อีสาน นครราชสีมา (ศูนย์กลาง)')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
-                            <i class="fa-solid fa-graduation-cap text-blue-600"></i> มทร.อีสาน นครราชสีมา
-                        </button>
-                        <button type="button" onclick="applyPickerLocation(14.987250, 102.116800, 18, 'อาคารยิมเนเซียม / อาคารกิจกรรม')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
-                            <i class="fa-solid fa-building text-indigo-600"></i> อาคารยิมเนเซียม
-                        </button>
-                        <button type="button" onclick="applyPickerLocation(14.985650, 102.119200, 18, 'หอประชุมเฉลิมพระเกียรติฯ')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-medium transition flex items-center gap-1">
-                            <i class="fa-solid fa-landmark text-amber-600"></i> หอประชุมเฉลิมพระเกียรติ
-                        </button>
+                    <div class="space-y-1.5">
+                        <span class="block text-slate-500 font-semibold text-[11px]">จุดแนะนำ</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button type="button" onclick="applyPickerLocation(14.986195, 102.118729, 18, 'มทร.อีสาน นครราชสีมา (ศูนย์กลาง)')" class="min-h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2 text-left">
+                                <i class="fa-solid fa-graduation-cap text-blue-600"></i><span>มทร.อีสาน นครราชสีมา</span>
+                            </button>
+                            <button type="button" onclick="applyPickerLocation(14.988421, 102.121489, 18, 'หอประชุม วทัญญู ณ ถลาง')" class="min-h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2 text-left">
+                                <i class="fa-solid fa-landmark text-amber-600"></i><span>หอประชุม วทัญญู ณ ถลาง</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div id="picker-map-container" style="height: 380px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-200 shadow-inner mb-3 overflow-hidden"></div>
+                <div id="picker-map-container" style="height: 360px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-200 shadow-inner mb-3 overflow-hidden"></div>
                 
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs pt-1">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs pt-2">
                     <div id="picker-coord-text" class="font-mono text-slate-700 font-semibold leading-tight bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
                         พิกัดที่เลือก: <span class="text-blue-700 font-bold">${hasSavedLocation ? `${defaultLat.toFixed(6)}, ${defaultLng.toFixed(6)}` : 'ยังไม่ได้เลือกตำแหน่ง'}</span>
                     </div>
@@ -13985,6 +14070,29 @@ function clearPendingQRCheckinV15646_(data) {
 window.processStudentQRCheckin = async function(data, source) {
     if (data && data.kind === 'register') return window.handleQRRegisterV1567_(data);
     if (!data || !data.token) return showToast('QR Code นี้ไม่มีรหัสยืนยันจากเซิร์ฟเวอร์ กรุณาสร้าง QR ใหม่', 'error');
+
+    // Use the server-signed token as the canonical source for activity identity and round.
+    // The QR URL's act/round values are only display metadata and may be stale or encoded differently.
+    let qrPayloadForLookup = null;
+    try { qrPayloadForLookup = decodeQrTokenPayloadV1567_(data.token); } catch (ignore) {}
+    const allowedQrKinds = ['activityQrV15441','activityQrResumeV15646'];
+    if (!qrPayloadForLookup || !allowedQrKinds.includes(String(qrPayloadForLookup.kind || '')) ||
+        !String(qrPayloadForLookup.a || '').trim() || !String(qrPayloadForLookup.title || '').trim() ||
+        !String(qrPayloadForLookup.roundName || '').trim() || !Number.isFinite(Number(qrPayloadForLookup.exp)) || Number(qrPayloadForLookup.exp) <= Date.now()) {
+        return Swal.fire({icon:'warning',title:'QR ไม่ถูกต้องหรือหมดอายุ',text:'กรุณาสแกน QR กิจกรรมที่กำลังแสดงอยู่ล่าสุดอีกครั้ง',confirmButtonColor:'#2563eb'});
+    }
+    if (String(data.act || '').trim() && String(data.act).trim() !== String(qrPayloadForLookup.title).trim()) {
+        console.warn('Activity title in QR URL differs from signed token; using signed token identity.', {
+            urlActivity:String(data.act || ''), signedActivity:String(qrPayloadForLookup.title || '')
+        });
+    }
+    data.act = String(qrPayloadForLookup.title);
+    data.round = String(qrPayloadForLookup.roundName);
+    if (qrPayloadForLookup.lat != null) data.lat = Number(qrPayloadForLookup.lat);
+    if (qrPayloadForLookup.lng != null) data.lng = Number(qrPayloadForLookup.lng);
+    if (qrPayloadForLookup.radius != null) data.rad = Number(qrPayloadForLookup.radius);
+    if (qrPayloadForLookup.gpsMargin != null) data.gpsMargin = Number(qrPayloadForLookup.gpsMargin);
+
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
     if (!window.currentStudentAuthToken || !stuId) {
         try {
@@ -13995,32 +14103,18 @@ window.processStudentQRCheckin = async function(data, source) {
         }
     }
 
-    // Hidden activities may be intentionally omitted from the student's public activity list.
-    // A current signed QR carries its activity reference/title; use it as a display-only fallback.
-    // The server still loads the canonical activity and enforces approval, master enable, round and GPS.
-    let qrPayloadForLookup = null;
-    try { qrPayloadForLookup = decodeQrTokenPayloadV1567_(data.token); } catch (ignore) {}
+    // Resolve the optional local/public activity projection by the signed reference, never by URL title.
+    // Hidden or stale public projections are not allowed to overrule a signed QR; Backend remains authoritative.
     const activityList = Array.isArray(appSettings && appSettings.activities) ? appSettings.activities : [];
-    let act = activityList.find(a =>
-        String(a.title || '').trim() === String(data.act || '').trim() ||
-        (qrPayloadForLookup && String(a.ref || a.id || '').trim() === String(qrPayloadForLookup.a || '').trim())
-    );
-    let resolvedFromSignedQR = false;
-    if (!act && qrPayloadForLookup && ['activityQrV15441','activityQrResumeV15646'].includes(String(qrPayloadForLookup.kind || '')) &&
-        Number(qrPayloadForLookup.exp || 0) > Date.now() && qrPayloadForLookup.title && qrPayloadForLookup.a) {
-        if (data.act && String(data.act).trim() !== String(qrPayloadForLookup.title).trim()) {
-            return Swal.fire({icon:'error',title:'ข้อมูล QR ไม่ตรงกัน',text:'ชื่อกิจกรรมใน QR ไม่ตรงกับข้อมูลที่เซิร์ฟเวอร์ลงนาม กรุณาสแกน QR ใหม่',confirmButtonColor:'#2563eb'});
-        }
-        data.act = String(qrPayloadForLookup.title);
-        data.round = String(data.round || qrPayloadForLookup.roundName || 'ทั่วไป');
-        act = { title:String(qrPayloadForLookup.title), ref:String(qrPayloadForLookup.a), id:String(qrPayloadForLookup.a), status:'อนุมัติแล้ว', isActive:true };
-        resolvedFromSignedQR = true;
-    }
-    if (!act) return Swal.fire({icon:'error',title:'ไม่พบกิจกรรมจาก QR นี้',text:'ไม่พบข้อมูลกิจกรรมในรายการที่เปิดแสดง ระบบจะยอมรับเฉพาะ QR ที่ลงนามและยังไม่หมดอายุเท่านั้น กรุณาสแกน QR ล่าสุดหรือติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
-    // When an activity is present in the public projection, retain fast client-side warnings.
-    // For hidden activities, the signed QR fallback is display-only; backend validation is authoritative.
-    if (!resolvedFromSignedQR && act.status !== 'อนุมัติแล้ว') return Swal.fire({icon:'info',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'กิจกรรมนี้ยังไม่เปิดให้เช็กอิน',confirmButtonColor:'#2563eb'});
-    if (!resolvedFromSignedQR && act.isActive === false) return Swal.fire({icon:'warning',title:'กิจกรรมยังไม่เปิดใช้งาน',text:'กิจกรรมนี้ยังไม่เปิดระบบรับเช็กอิน กรุณาติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
+    const signedActivityRef = String(qrPayloadForLookup.a);
+    const signedActivityTitle = String(qrPayloadForLookup.title);
+    const publicActivity = activityList.find(a => String(a.ref || a.id || '').trim() === signedActivityRef);
+    const act = publicActivity
+        ? Object.assign({}, publicActivity, {title:signedActivityTitle, ref:signedActivityRef, id:signedActivityRef})
+        : {title:signedActivityTitle, ref:signedActivityRef, id:signedActivityRef, status:'อนุมัติแล้ว', isActive:true};
+    // Do not reject here based on public visibility/status; the signed token and current canonical
+    // activity, round, enable flag and geofence are checked again by atomicActivityCheckinV15441.
+    const resolvedFromSignedQR = true;
 
     const cleanStuId = String(stuId).replace(/-/g, '').trim();
     const stu = students.find(s => String(s.id || '').replace(/-/g, '').trim() === cleanStuId) || { id:stuId, name:'นักศึกษา (' + stuId + ')', room:'-' };
