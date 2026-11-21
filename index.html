@@ -1450,21 +1450,24 @@
                     </div>
                 </div>
 
-                <!-- การ์ด 2: แผนที่ตำแหน่งนักศึกษา (Image 3) -->
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <div class="flex justify-between items-center mb-3">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-users text-xs"></i>
-                            </div>
-                            <div>
-                                <h4 class="text-xs font-bold text-slate-800">แผนที่ตำแหน่งนักศึกษา</h4>
-                                <p class="text-[11px] text-slate-400">วงกลมสีน้ำเงิน = รัศมีพื้นที่กิจกรรม • หมุดแสดงตำแหน่งเช็กอิน</p>
+                <!-- การ์ด 2: แผนที่ตำแหน่งนักศึกษา -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-800 flex items-center justify-center shrink-0"><i class="fa-solid fa-users text-base"></i></div>
+                            <div class="min-w-0">
+                                <h4 class="text-sm font-extrabold text-slate-900">แผนที่ตำแหน่งนักศึกษา</h4>
+                                <p class="text-xs text-slate-500 mt-0.5">วงกลมสีน้ำเงิน = รัศมีพื้นที่กิจกรรม · หมุดแสดงตำแหน่งเช็กอิน</p>
                             </div>
                         </div>
-                        <div id="m-map-count-badge" class="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-200">0 คนเช็กอิน</div>
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
+                            <div id="m-map-count-badge" class="inline-flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-2 rounded-full whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>0 จุด CheckIn นักศึกษา</div>
+                            <div class="relative w-full sm:w-64 lg:w-72">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input id="m-checkin-code-search" type="text" inputmode="numeric" maxlength="4" placeholder="ค้นหารหัส CheckIn..." aria-label="ค้นหารหัส CheckIn" class="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" oninput="filterCheckinMapByCodeV15639_()">
+                            </div>
+                        </div>
                     </div>
-
                     <!-- Placeholder ก่อนกด 'ดูตำแหน่ง' (Image 3) -->
                     <div id="checkin-map-placeholder" class="min-h-[440px] flex flex-col items-center justify-center p-8 text-center bg-white rounded-xl border border-slate-100">
                         <div class="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center text-3xl mb-3 shadow-inner">
@@ -1474,8 +1477,12 @@
                         <p class="text-xs text-slate-400 max-w-sm">แผนที่จะแสดงพื้นที่กิจกรรมพร้อมตำแหน่งเช็กอินของนักศึกษาแต่ละคน</p>
                     </div>
 
+                    <div class="px-4 pt-2 pb-3 flex flex-wrap items-center justify-between gap-2">
+                        <p id="m-checkin-code-search-result" class="text-xs text-slate-500" aria-live="polite">ค้นหาด้วยรหัสที่แสดงหลังเช็กอินสำเร็จ</p>
+                        <button type="button" onclick="document.getElementById('m-checkin-code-search').value='';filterCheckinMapByCodeV15639_()" class="text-xs text-slate-500 hover:text-emerald-700 underline">ล้างการค้นหา</button>
+                    </div>
                     <!-- แผนที่ Google Leaflet (แสดงเมื่อกด 'ดูตำแหน่ง') -->
-                    <div id="checkin-live-map" style="height: 480px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-300 hidden"></div>
+                    <div id="checkin-live-map" style="height: 480px; width: 100%; border-radius: 0 0 12px 12px; z-index: 1;" class="border border-slate-300 hidden"></div>
                 </div>
             </section>
 
@@ -9479,6 +9486,61 @@ window.renderSelectedRoundQR = function() {
     renderQRActivityTab();
 };
 
+// v15.6.39: Search map markers by the four-digit code issued by the server.
+window.filterCheckinMapByCodeV15639_ = function() {
+    if (!currentMasterActivity || !checkinMapInstance) return;
+    const input = document.getElementById('m-checkin-code-search');
+    const resultEl = document.getElementById('m-checkin-code-search-result');
+    const code = String(input && input.value || '').replace(/\D/g, '').slice(0, 4);
+    const roundSelect = document.getElementById('m-map-round-select');
+    const selectedRound = roundSelect ? String(roundSelect.value || '') : '';
+    const rows = (activityLogs || []).filter(l => l && l.isCheckin === true && String(l.activityTitle || '') === String(currentMasterActivity.title || '') && (!selectedRound || String(l.roundName || '') === selectedRound) && l.lat != null && l.lng != null);
+    const matched = code.length === 4 ? rows.filter(l => String(l.checkinCode || '') === code) : rows;
+    checkinMapMarkers.forEach(m => { try { checkinMapInstance.removeLayer(m); } catch(e){} });
+    checkinMapMarkers = [];
+    const rules = currentMasterActivity.qrRules || [];
+    const rule = rules.find(r => !selectedRound || String(r.roundName) === selectedRound) || rules[0];
+    if (rule && Number.isFinite(Number(rule.lat)) && Number.isFinite(Number(rule.lng))) {
+        const center = L.marker([Number(rule.lat), Number(rule.lng)]).addTo(checkinMapInstance);
+        center.bindPopup(`<b>ศูนย์กลางเช็กอิน</b><br>รอบ: ${String(rule.roundName || '-')}`);
+        checkinMapMarkers.push(center);
+    }
+    const escapePopup = value => String(value == null ? '-' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const distanceMeters = (aLat, aLng, bLat, bLng) => {
+        const rad = v => v * Math.PI / 180;
+        const dLat = rad(bLat-aLat), dLng = rad(bLng-aLng);
+        const q = Math.sin(dLat/2)**2 + Math.cos(rad(aLat))*Math.cos(rad(bLat))*Math.sin(dLng/2)**2;
+        return 6371000 * 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1-q));
+    };
+    const createdMarkers = [];
+    matched.forEach(log => {
+        const stu = (students || []).find(x => String(x.id || '').replace(/-/g,'') === String(log.studentId || '').replace(/-/g,'')) || {name:log.studentId,room:'-'};
+        const lat = Number(log.lat), lng = Number(log.lng);
+        const marker = L.marker([lat, lng]).addTo(checkinMapInstance);
+        const radiusMeters = Number(rule && rule.radius || 50);
+        const centerLat = Number(rule && rule.lat), centerLng = Number(rule && rule.lng);
+        const hasCenter = Number.isFinite(centerLat) && Number.isFinite(centerLng);
+        const inside = hasCenter ? distanceMeters(centerLat, centerLng, lat, lng) <= radiusMeters : null;
+        const statusHtml = inside === null ? '<span style="background:#f1f5f9;color:#475569;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700">ไม่พบข้อมูลพื้นที่</span>' : inside ? '<span style="background:#d1fae5;color:#047857;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700">✓ ในพื้นที่</span>' : '<span style="background:#fee2e2;color:#b91c1c;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700">อยู่นอกพื้นที่</span>';
+        const device = log.deviceName || log.device || log.deviceInfo || log.platform || 'ไม่ระบุ';
+        const popupHtml = `<div style="min-width:220px;font-family:inherit;color:#334155;padding:2px 1px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><b style="font-size:13px;color:#0f172a">${escapePopup(stu.name || log.studentId)}</b>${statusHtml}</div><div style="border-top:1px solid #e2e8f0;padding-top:8px;font-size:11px;line-height:1.8"><div><span style="color:#94a3b8">รหัส</span>　${escapePopup(log.studentId)}</div><div><span style="color:#94a3b8">อุปกรณ์</span>　${escapePopup(device)}</div><div><span style="color:#94a3b8">เช็กอิน</span>　${escapePopup(log.timeIn || log.timestamp || '-')}</div><div><span style="color:#94a3b8">พิกัด</span>　${lat.toFixed(6)}, ${lng.toFixed(6)}</div><div><span style="color:#94a3b8">รหัส CheckIn</span>　<b style="color:#047857">${escapePopup(log.checkinCode || '----')}</b></div></div></div>`;
+        marker.bindPopup(popupHtml, {maxWidth:300});
+        checkinMapMarkers.push(marker);
+        createdMarkers.push(marker);
+    });
+    if (code.length === 4 && createdMarkers.length === 1) {
+        checkinMapInstance.setView([Number(matched[0].lat), Number(matched[0].lng)], 19);
+        createdMarkers[0].openPopup();
+    } else if (code.length === 4 && createdMarkers.length > 1) {
+        const bounds = L.featureGroup(createdMarkers).getBounds();
+        if (bounds && bounds.isValid()) checkinMapInstance.fitBounds(bounds.pad(0.35), {maxZoom:18});
+    }
+    if (resultEl) resultEl.textContent = code.length === 4 ? (matched.length ? `พบ ${matched.length} รายการสำหรับรหัส ${code}` : `ไม่พบรหัส ${code} ในรอบที่เลือก`) : `แสดงตำแหน่ง ${matched.length} รายการในรอบที่เลือก`;
+    const badge = document.getElementById('m-map-count-badge');
+    if (badge) badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-1.5"></span>${matched.length} จุด CheckIn นักศึกษา`;
+    if (matched.length === 1) checkinMapInstance.setView([Number(matched[0].lat), Number(matched[0].lng)], 19);
+};
+
 // 9. แสดงแผนที่ Geofencing (Tab 5: พื้นที่เช็กอิน - ตรงตาม Image 3)
 window.renderCheckinMapDisplay = function(showMap = false) {
     if (!currentMasterActivity) return;
@@ -9559,28 +9621,12 @@ window.renderCheckinMapDisplay = function(showMap = false) {
             weight: 2
         }).addTo(checkinMapInstance);
 
-        // ล้างหมุดเดิม
-        checkinMapMarkers.forEach(m => checkinMapInstance.removeLayer(m));
-        checkinMapMarkers = [];
-
-        // ปักหมุดศูนย์กลางเช็กอิน
-        let centerMarker = L.marker([centerLat, centerLng]).addTo(checkinMapInstance);
-        centerMarker.bindPopup(`<b>ศูนย์กลางเช็กอิน</b><br>รอบ: ${rule.roundName}<br>รัศมี: ${radius} ม.`);
-        checkinMapMarkers.push(centerMarker);
-
-        // ปักหมุดนักศึกษาที่เช็กอินในรอบนี้
+        const searchInput = document.getElementById('m-checkin-code-search');
+        if (searchInput) searchInput.value = '';
+        window.filterCheckinMapByCodeV15639_();
         let actLogs = activityLogs.filter(l => l.activityTitle === currentMasterActivity.title && (!selectedRound || l.roundName === selectedRound));
-        actLogs.forEach(log => {
-            if (log.lat && log.lng) {
-                let stu = students.find(s => s.id === log.studentId) || { name: log.studentId, room: '-' };
-                let m = L.marker([log.lat, log.lng]).addTo(checkinMapInstance);
-                m.bindPopup(`<b>${stu.name}</b><br>รหัส: ${log.studentId}<br>เวลา: ${log.timeIn || '-'}`);
-                checkinMapMarkers.push(m);
-            }
-        });
-
         let countBadge = document.getElementById('m-map-count-badge');
-        if (countBadge) countBadge.innerText = `${actLogs.length} คนเช็กอินในรอบนี้`;
+        if (countBadge) countBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-1.5"></span>${actLogs.length} จุด CheckIn นักศึกษา`;
 
         setTimeout(() => { if (checkinMapInstance) checkinMapInstance.invalidateSize(); }, 200);
         setTimeout(() => { if (checkinMapInstance) checkinMapInstance.invalidateSize(); }, 500);
@@ -13836,7 +13882,7 @@ window.processStudentQRCheckin = async function(data, source) {
         const savedRecord = result.record || {};
         Swal.fire({
             icon:'success', title:'เช็กอินเข้าร่วมกิจกรรมสำเร็จ!',
-            html:`<div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2 font-sans"><p class="font-bold text-emerald-900 text-sm">${String(act.title || '')}</p><p><b>รอบกิจกรรม:</b> ${String(savedRecord.roundName || data.round || 'ทั่วไป')}</p><p><b>นักศึกษา:</b> ${String(stu.name || stuId)} (${String(stuId)})</p><p><b>เวลาเช็กอิน:</b> ${String(savedRecord.timeIn || '-')}</p><p class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>บันทึกจากเซิร์ฟเวอร์แล้ว</p>${distText ? `<p class="text-slate-500 text-[11px]">${distText}</p>` : ''}</div>`,
+            html:`<div class="text-left text-xs bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 mt-2 space-y-2 font-sans"><p class="font-bold text-emerald-900 text-sm">${String(act.title || '')}</p><p><b>รอบกิจกรรม:</b> ${String(savedRecord.roundName || data.round || 'ทั่วไป')}</p><p><b>นักศึกษา:</b> ${String(stu.name || stuId)} (${String(stuId)})</p><p><b>เวลาเช็กอิน:</b> ${String(savedRecord.timeIn || '-')}</p><div class="rounded-xl border border-emerald-200 bg-white p-3 text-center"><div class="text-[10px] font-bold tracking-[.2em] text-emerald-700">CHECK-IN CODE</div><div class="text-3xl font-black tracking-[.25em] text-emerald-700">${String(savedRecord.checkinCode || '----')}</div><div class="text-[10px] text-slate-500">ใช้รหัสนี้ค้นหาตำแหน่งเช็กอินกับผู้ดูแลกิจกรรม</div></div><p class="text-emerald-700 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>บันทึกจากเซิร์ฟเวอร์แล้ว</p>${distText ? `<p class="text-slate-500 text-[11px]">${distText}</p>` : ''}</div>`,
             confirmButtonText:'รับทราบ', confirmButtonColor:'#10b981'
         });
     };
@@ -13851,9 +13897,10 @@ window.processStudentQRCheckin = async function(data, source) {
     if (tokenPayloadV1567 && tokenPayloadV1567.lat != null && tokenPayloadV1567.lng != null && Number.isFinite(Number(tokenPayloadV1567.lat)) && Number.isFinite(Number(tokenPayloadV1567.lng))) {
         data.lat = Number(tokenPayloadV1567.lat); data.lng = Number(tokenPayloadV1567.lng); data.rad = Number(tokenPayloadV1567.radius) || data.rad;
     }
-    const hasTargetGeo = Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng)) && Number(data.lat) !== 0;
-    if (!hasTargetGeo) return doSaveCheckin(null, null, '');
-    Swal.fire({title:'กำลังตรวจสอบตำแหน่ง GPS...',text:'กรุณารอสักครู่ ระบบกำลังยืนยันพื้นที่กิจกรรม',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    const hasTargetGeo = data.lat != null && data.lng != null && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng));
+    if (!hasTargetGeo) return Swal.fire({icon:'error',title:'กิจกรรมยังไม่ได้กำหนดพื้นที่เช็กอิน',text:'ระบบไม่สามารถยืนยันตำแหน่งได้ จึงไม่อนุญาตให้เช็กอิน กรุณาติดต่อผู้จัดกิจกรรมให้ตั้งค่าพื้นที่ QR ก่อน',confirmButtonColor:'#2563eb'});
+    if (!navigator.geolocation) return Swal.fire({icon:'warning',title:'อุปกรณ์ไม่รองรับ GPS',text:'กิจกรรมนี้บังคับยืนยันตำแหน่ง กรุณาใช้อุปกรณ์ที่อนุญาตให้เข้าถึง GPS ได้',confirmButtonColor:'#2563eb'});
+    Swal.fire({title:'กำลังตรวจสอบตำแหน่ง GPS...',text:'กรุณาอนุญาตตำแหน่งและรอสักครู่ ระบบกำลังยืนยันพื้นที่กิจกรรม',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             pos => {
