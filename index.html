@@ -1,3 +1,4 @@
+<!-- SSSFN v15.6.46 | Student/admin scanner reliability, one-time QR resume, server-synced QR/GPS -->
 <!-- SSSFN v15.6.37: fix legacy PPT preview bootstrap size and undefined isLegacyPpt. -->
 <!-- SSSFN v15.6.31-local: fix stray literal \\n before DOCTYPE; package local SSSFN favicon/logo assets. -->
 <!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
@@ -1218,8 +1219,14 @@
                         <input type="text" id="hw-input-focus" placeholder="กรอกรหัสนักศึกษา หรือ ใช้เครื่องสแกนยิงเข้าที่นี่" class="w-full max-w-lg mx-auto text-center border border-slate-300 rounded-xl px-4 py-3.5 text-base font-bold focus:border-blue-500 outline-none shadow-sm" onkeypress="if(event.key==='Enter') { executeScanLogic(this.value, currentMasterActivity.title); this.value=''; }">
                         <p class="text-xs text-slate-400 mt-2.5 font-medium">* กรณีใช้เครื่องสแกน Barcode ให้เอา Cursor วางในช่องนี้</p>
                     </div>
-                    <div id="camera-section" class="hidden w-full max-w-lg mx-auto h-[350px] bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-300 relative">
-                        <div id="hw-reader" class="w-full h-full"></div>
+                    <div id="camera-section" class="hidden w-full max-w-lg mx-auto">
+                        <div class="h-[350px] bg-black rounded-2xl overflow-hidden shadow-inner border border-slate-300 relative">
+                            <div id="hw-reader" class="w-full h-full"></div>
+                        </div>
+                        <div class="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left">
+                            <p id="hw-scanner-status" class="text-xs font-bold text-amber-700" role="status" aria-live="polite">ยังไม่ได้เปิดกล้อง</p>
+                            <p id="hw-scanner-help" class="text-[11px] text-slate-500 mt-1">เลือกกล้องเพื่อสแกน QR หรือ Barcode บัตรนักศึกษา</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -1238,26 +1245,29 @@
                     <div class="space-y-6">
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <h4 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-basket-shopping text-blue-600"></i> ข้อมูลรอบลงทะเบียน</h4>
-                            <p class="text-[11px] text-slate-400 mb-3">เลือกรอบที่ต้องการผูกกับ Geofence นี้</p>
+                            <p class="text-[11px] text-slate-400 mb-3">เลือกรอบที่ต้องการผูกกับ QR และพื้นที่ GPS</p>
                             <label class="block text-xs font-bold text-slate-700 mb-1">รอบลงทะเบียน *</label>
                             <select id="m-qr-round-select" onchange="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none bg-white"></select>
+                            <span class="text-[10px] text-slate-500 mt-1 block">กำหนด QR และพื้นที่เช็กอินแยกตามรอบ</span>
                         </div>
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                             <h4 class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-clock text-blue-600"></i> ข้อกำหนด QR และ GPS</h4>
-                            <p class="text-[11px] text-slate-400 mb-4">กำหนดระยะสแกน ความถี่การเปลี่ยน token และความแม่นยำ GPS</p>
+                            <p class="text-[11px] text-slate-400 mb-4">กำหนดพื้นที่เช็กอิน ช่วงเวลาเปลี่ยน QR และระยะเผื่อ GPS</p>
                             <div class="grid grid-cols-3 gap-3">
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">รัศมีการสแกน *</label>
-                                    <div class="relative"><input type="number" inputmode="numeric" id="m-qr-radius" value="50" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-xs text-slate-400">เมตร</span></div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">รัศมีพื้นที่เช็กอิน *</label>
+                                    <div class="relative"><input type="number" inputmode="numeric" id="m-qr-radius" value="" min="1" step="1" placeholder="ระบุรัศมี" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-xs text-slate-400">เมตร</span></div>
+                                    <span class="text-[10px] text-slate-500 mt-1 block">ระยะจากจุดกลางที่อนุญาตให้เช็กอิน · ขั้นต่ำ 1 เมตร</span>
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">เวลาเปลี่ยน Token *</label>
-                                    <div class="relative"><input type="number" inputmode="numeric" id="m-qr-interval" value="15" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-xs text-slate-400">วินาที</span></div>
-                                    <span class="text-[11px] text-slate-400 mt-1 block">* ขั้นต่ำที่แนะนำ 12 วิ</span>
+                                    <div class="relative"><input type="number" inputmode="numeric" id="m-qr-interval" value="" min="5" max="120" step="1" placeholder="ระบุเวลา" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-xs text-slate-400">วินาที</span></div>
+                                    <span class="text-[10px] text-slate-500 mt-1 block">QR จะเปลี่ยนตามช่วงเวลานี้ · 5–120 วินาที</span>
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">ค่าความคลาดเคลื่อน GPS *</label>
-                                    <div class="relative"><input type="number" inputmode="numeric" id="m-qr-error" value="20" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-xs text-slate-400">เมตร</span></div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">ระยะเผื่อ GPS *</label>
+                                    <div class="relative"><input type="number" inputmode="numeric" id="m-qr-error" value="" min="0" step="1" placeholder="ระบุระยะเผื่อ" oninput="if(typeof updateQRSettingsChecklist==='function')updateQRSettingsChecklist()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold outline-none pr-8"><span class="absolute right-2 top-1.5 text-xs text-slate-400">เมตร</span></div>
+                                    <span class="text-[10px] text-slate-500 mt-1 block">ขยายพื้นที่จากรัศมีหลัก · ขั้นต่ำ 0 เมตร</span>
                                 </div>
                             </div>
                         </div>
@@ -1279,11 +1289,13 @@
                         <div class="grid grid-cols-2 gap-3 pt-1">
                             <div>
                                 <label class="block text-[11px] font-bold text-slate-700 mb-1">ละติจูด (Latitude) *</label>
-                                <input type="text" id="m-qr-lat" placeholder="14.xxxxxx" oninput="if(typeof onCoordManualChange==='function')onCoordManualChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 bg-white focus:border-blue-500 outline-none">
+                                <input type="text" id="m-qr-lat" placeholder="เลือกจากแผนที่" oninput="if(typeof onCoordManualChange==='function')onCoordManualChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 bg-white focus:border-blue-500 outline-none">
+                                <span class="text-[10px] text-slate-500 mt-1 block">พิกัดเหนือ–ใต้ของจุดเช็กอิน</span>
                             </div>
                             <div>
                                 <label class="block text-[11px] font-bold text-slate-700 mb-1">ลองจิจูด (Longitude) *</label>
-                                <input type="text" id="m-qr-lng" placeholder="102.xxxxxx" oninput="if(typeof onCoordManualChange==='function')onCoordManualChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 bg-white focus:border-blue-500 outline-none">
+                                <input type="text" id="m-qr-lng" placeholder="เลือกจากแผนที่" oninput="if(typeof onCoordManualChange==='function')onCoordManualChange()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 bg-white focus:border-blue-500 outline-none">
+                                <span class="text-[10px] text-slate-500 mt-1 block">พิกัดตะวันออก–ตะวันตกของจุดเช็กอิน</span>
                             </div>
                         </div>
 
@@ -5301,16 +5313,53 @@ async function resumePendingQRActionV1567_() {
         try { pending = JSON.parse(sessionStorage.getItem('pendingQRCheckin') || 'null'); } catch (error) {}
     }
     if (!pending || !pending.act) return false;
-    window.pendingQRCheckin = null;
-    try { sessionStorage.removeItem('pendingQRCheckin'); } catch (error) {}
     if (!window.currentStudentAuthToken) return false;
     switchPage('activity');
     const started = Date.now();
     while ((!appSettings.activities || !appSettings.activities.length) && Date.now() - started < 8000) {
         await new Promise(resolve => setTimeout(resolve, 150));
     }
+    if (pending.resumeTicket) {
+        const resumed = await callBackend({action:'consumeActivityCheckinResumeTicketV15646', resumeTicket:String(pending.resumeTicket)});
+        if (!resumed || resumed.status !== 'success' || !resumed.token) {
+            window.pendingQRCheckin = null;
+            try { sessionStorage.removeItem('pendingQRCheckin'); } catch (error) {}
+            await Swal.fire({icon:'warning',title:'กลับไปเช็กอินต่อไม่ได้',text:(resumed && resumed.message) || 'รหัสดำเนินการต่อหมดอายุแล้ว กรุณาสแกน QR กิจกรรมที่แสดงอยู่ปัจจุบันอีกครั้ง',confirmButtonText:'รับทราบ',confirmButtonColor:'#2563eb'});
+            return true;
+        }
+        pending.token = resumed.token;
+        pending.resumeTicket = '';
+        pending.act = resumed.activityTitle || pending.act;
+        pending.round = resumed.roundName || pending.round;
+        pending.lat = resumed.lat;
+        pending.lng = resumed.lng;
+        pending.rad = resumed.radius;
+        pending.gpsMargin = resumed.gpsMargin;
+        window.pendingQRCheckin = pending;
+        try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(pending)); } catch (error) {}
+    } else {
+        window.pendingQRCheckin = pending;
+    }
     await processStudentQRCheckin(pending, 'login-resume');
     return true;
+}
+
+async function queuePendingQRCheckinV15646_(data) {
+    if (!data || !data.act) throw new Error('ข้อมูล QR ไม่สมบูรณ์');
+    const pending = Object.assign({}, data);
+    if (pending.kind !== 'register') {
+        if (!pending.token) throw new Error('QR กิจกรรมไม่มี Token ยืนยันจากเซิร์ฟเวอร์');
+        const ticketResult = await callBackend({action:'createActivityCheckinResumeTicketV15646', qrToken:String(pending.token)});
+        if (!ticketResult || ticketResult.status !== 'success' || !ticketResult.ticket) {
+            throw new Error((ticketResult && ticketResult.message) || 'ไม่สามารถพักรายการ QR เพื่อรอเข้าสู่ระบบได้ กรุณาสแกน QR ปัจจุบันใหม่');
+        }
+        pending.resumeTicket = ticketResult.ticket;
+        pending.resumeTicketExpiresAt = Number(ticketResult.expiresAt || 0);
+    }
+    window.pendingQRCheckin = pending;
+    try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(pending)); }
+    catch (storageError) { window.pendingQRCheckin = null; throw new Error('อุปกรณ์ไม่สามารถเก็บรายการ QR ชั่วคราวได้ กรุณาเปิดพื้นที่จัดเก็บเว็บไซต์แล้วสแกนใหม่'); }
+    return pending;
 }
 window.handleQRRegisterV1567_ = async function(data) {
     const stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
@@ -5561,10 +5610,15 @@ function showStudentSelectionModal(stu) {
                 }
 
                 if (pending && pending.act) {
-                    window.pendingQRCheckin = null;
-                    try { sessionStorage.removeItem('pendingQRCheckin'); } catch(e){}
-                    switchPage('activity');
-                    processStudentQRCheckin(pending, 'url');
+                    window.pendingQRCheckin = pending;
+                    try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(pending)); } catch(e){}
+                    if (pending.resumeTicket || !window.currentStudentAuthToken) {
+                        switchPage('home');
+                        Swal.fire({icon:'info',title:'ต้องเข้าสู่ระบบ Google ก่อนเช็กอิน',text:'การเช็กอินด้วยตนเองต้องยืนยันบัญชีนักศึกษาก่อน ระบบเก็บรายการ QR ไว้ให้แล้ว',confirmButtonText:'เข้าสู่ระบบ Google',confirmButtonColor:'#2563eb'}).then(r => { if (r.isConfirmed) promptStudentLogin(); });
+                    } else {
+                        switchPage('activity');
+                        processStudentQRCheckin(pending, 'url');
+                    }
                 } else {
                     // เข้าระบบบริการนักศึกษาแบบปกติที่ไม่ได้สแกนผ่านคิวอาร์ของระบบกิจกรรม
                     switchPage('home');
@@ -6514,8 +6568,10 @@ function getActivityRegistrationWindow_(activity, now = new Date()) {
         return Number.isNaN(date.getTime()) ? null : date;
     };
     const start = parseLocal(activity && activity.regStart);
-    const end = parseLocal(activity && activity.regEnd);
-    if (end) end.setHours(23, 59, 59, 999);
+    const rawEnd = String(activity && activity.regEnd || '').trim();
+    const end = parseLocal(rawEnd);
+    // Only date-only values close at the end of that day; datetime-local respects its exact time.
+    if (end && /^\d{4}-\d{2}-\d{2}$/.test(rawEnd)) end.setHours(23, 59, 59, 999);
     const beforeStart = !!(start && now < start);
     const afterEnd = !!(end && now > end);
     return {
@@ -6729,7 +6785,7 @@ function canViewActivityInManagementList_(activity) {
     return isActivityOwner_(activity) || isActivityAssignedToCurrentUser_(activity);
 }
 function canViewPublicActivity_(activity, hasRegistration) {
-    if (!activity) return false;
+    if (!activity || activity.isArchived === true || !!activity.archivedAt) return false;
     if (currentUserRole !== 'guest') return canViewActivityInManagementList_(activity);
     if (isActivityAssignedToCurrentUser_(activity)) return true;
     if (activity.__pendingCardOnly === true && activity.status === 'รออนุมัติ') return true;
@@ -6776,8 +6832,9 @@ function renderActivities() {
     let myUser = currentUsername || '';
 
     // คำนวณยอด Badge ของแท็บต่าง ๆ
-    let myActsAll = appSettings.activities.filter(a => activityLogs.some(l => l.studentId === myId && l.activityTitle === a.title));
-    let managedActsAll = appSettings.activities.filter(a => {
+    let activeActivityDefinitions = (appSettings.activities || []).filter(a => a && a.isArchived !== true && !a.archivedAt);
+    let myActsAll = activeActivityDefinitions.filter(a => activityLogs.some(l => l.studentId === myId && l.activityTitle === a.title));
+    let managedActsAll = activeActivityDefinitions.filter(a => {
         if (isActivityLeader_()) return true;
         return isActivityOwner_(a) || isActivityAssignedToCurrentUser_(a);
     });
@@ -6797,7 +6854,7 @@ function renderActivities() {
     // =====================================================================
     if (currentActSubTab === 'all') {
         grid.classList.remove('hidden');
-        let filtered = appSettings.activities.filter(a =>
+        let filtered = activeActivityDefinitions.filter(a =>
             (String(a.title || '').toLowerCase().includes(search) || String(a.year || '').includes(search) ||
              (a.ref && String(a.ref).toLowerCase().includes(search)))
         );
@@ -7462,6 +7519,11 @@ window.loadActivityMasterData = function(title) {
     if (!title) return;
     currentMasterActivity = appSettings.activities.find(a => a.title === title);
     if (!currentMasterActivity) return;
+    const qrFormActivityIdentity = String(currentMasterActivity.ref || currentMasterActivity.id || currentMasterActivity.title || '');
+    if (window._sssfnQrFormActivityIdentityV15645 !== qrFormActivityIdentity) {
+        window._sssfnQrFormActivityIdentityV15645 = qrFormActivityIdentity;
+        if (typeof window.resetQRSettingsFormV15645_ === 'function') window.resetQRSettingsFormV15645_();
+    }
     if (!canManageActivity_(currentMasterActivity)) {
         currentMasterActivity = null;
         showToast('ไม่มีสิทธิ์เปิดจัดการกิจกรรมนี้ ผู้สร้าง หัวหน้า หรือผู้ที่ได้รับแต่งตั้งเท่านั้นที่เข้าถึงได้', 'error');
@@ -8297,39 +8359,100 @@ window.switchScannerMode = function(mode) {
     }
 };
 
-function startWebcamScanner() {
-    if (typeof Html5Qrcode !== 'undefined') {
-        try {
-            html5QrScannerInstance = new Html5Qrcode("hw-reader");
-            html5QrScannerInstance.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                (decodedText) => {
-                    executeScanLogic(decodedText, currentMasterActivity.title);
-                },
-                (error) => {}
-            ).catch(err => {
-                console.log('Camera start error:', err);
-            });
-        } catch(e) {
-            console.error('Scanner init error:', e);
+var _sssfnAdminCameraStartSeqV15646_ = 0;
+var _sssfnAdminScannerHandlingV15646_ = false;
+function setAdminScannerStatusV15646_(message, tone) {
+    const status = document.getElementById('hw-scanner-status');
+    const help = document.getElementById('hw-scanner-help');
+    const tones = {success:'text-emerald-700',error:'text-rose-700',warning:'text-amber-700',info:'text-blue-700'};
+    if (status) { status.className = 'text-xs font-bold ' + (tones[tone] || tones.info); status.textContent = message; }
+    if (help && tone === 'error') help.textContent = 'ตรวจสอบสิทธิ์กล้อง ปิดแอปอื่นที่ใช้กล้อง หรือเปิดเว็บไซต์ผ่าน HTTPS แล้วลองอีกครั้ง';
+}
+async function startWebcamScanner() {
+    if (html5QrScannerInstance || window._sssfnAdminCameraStartingV15646_) return;
+    const seq = ++_sssfnAdminCameraStartSeqV15646_;
+    window._sssfnAdminCameraStartingV15646_ = true;
+    const cameraSection = document.getElementById('camera-section');
+    setAdminScannerStatusV15646_('กำลังเตรียมกล้อง...', 'info');
+    try {
+        if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') throw new Error('การใช้กล้องต้องเปิดเว็บไซต์ผ่าน HTTPS');
+        const loaded = await ensureHtml5QrcodeLoadedV15644_();
+        if (!loaded) throw new Error('โหลดไลบรารีกล้องไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต');
+        if (seq !== _sssfnAdminCameraStartSeqV15646_ || !cameraSection || cameraSection.classList.contains('hidden')) return;
+        setAdminScannerStatusV15646_('กำลังค้นหากล้อง...', 'info');
+        let cameras = [];
+        try { cameras = await window.Html5Qrcode.getCameras(); } catch (error) { console.warn('Admin camera enumeration failed; fallback will be attempted:', error); }
+        if (seq !== _sssfnAdminCameraStartSeqV15646_ || cameraSection.classList.contains('hidden')) return;
+        const supported = window.Html5QrcodeSupportedFormats || {};
+        const formatNames = ['QR_CODE','CODE_128','CODE_39','CODE_93','EAN_13','EAN_8','UPC_A','UPC_E','CODABAR','ITF','DATA_MATRIX','PDF_417'];
+        const formats = formatNames.map(name => supported[name]).filter(value => typeof value === 'number');
+        const scanner = new window.Html5Qrcode('hw-reader', formats.length ? {formatsToSupport:formats, verbose:false} : {verbose:false});
+        html5QrScannerInstance = scanner;
+        const scanConfig = {fps:10, qrbox:{width:250,height:250}, aspectRatio:1.0, disableFlip:false};
+        const onDecoded = async decodedText => {
+            const text = String(decodedText || '').trim();
+            if (!text || _sssfnAdminScannerHandlingV15646_) return;
+            _sssfnAdminScannerHandlingV15646_ = true;
+            setAdminScannerStatusV15646_('อ่านข้อมูลสำเร็จ กำลังตรวจสอบนักศึกษา...', 'success');
+            try {
+                await Promise.resolve(window.executeScanLogic(text, currentMasterActivity && currentMasterActivity.title));
+            } catch (error) {
+                console.error('Admin student scan processing failed:', error);
+                await Swal.fire({icon:'error',title:'ประมวลผลข้อมูลที่สแกนไม่สำเร็จ',text:String(error && error.message || error),confirmButtonColor:'#2563eb'});
+            } finally {
+                _sssfnAdminScannerHandlingV15646_ = false;
+                if (html5QrScannerInstance === scanner && cameraSection && !cameraSection.classList.contains('hidden')) setAdminScannerStatusV15646_('พร้อมสแกน QR / Barcode', 'success');
+            }
+        };
+        const attempts = [];
+        const preferred = Array.isArray(cameras) && cameras.length ? (cameras.find(c => /back|rear|environment|หลัง/i.test(c.label || '')) || cameras[cameras.length - 1]) : null;
+        if (preferred && preferred.id) attempts.push({label:preferred.label || 'กล้องหลัง',config:{deviceId:{exact:preferred.id}}});
+        (Array.isArray(cameras) ? cameras : []).filter(c => c && c.id && (!preferred || c.id !== preferred.id)).forEach(c => attempts.push({label:c.label || 'กล้องสำรอง',config:{deviceId:{exact:c.id}}}));
+        attempts.push({label:'กล้องหลัง',config:{facingMode:{ideal:'environment'}}});
+        attempts.push({label:'กล้องทั่วไป',config:{facingMode:'user'}});
+        let lastError = null;
+        for (const attempt of attempts) {
+            if (seq !== _sssfnAdminCameraStartSeqV15646_ || cameraSection.classList.contains('hidden')) return;
+            try {
+                setAdminScannerStatusV15646_('กำลังเปิด' + attempt.label + '...', 'info');
+                await scanner.start(attempt.config, scanConfig, onDecoded, () => {});
+                lastError = null;
+                break;
+            } catch (error) {
+                lastError = error;
+                console.warn('Admin camera attempt failed:', attempt.label, error);
+                try { if (scanner.getState && scanner.getState() === 2) await scanner.stop(); } catch (ignore) {}
+            }
         }
+        if (seq !== _sssfnAdminCameraStartSeqV15646_) return;
+        if (lastError) throw lastError;
+        setAdminScannerStatusV15646_('พร้อมสแกน QR / Barcode', 'success');
+        const help = document.getElementById('hw-scanner-help');
+        if (help) help.textContent = 'สแกน QR บัตรนักศึกษาหรือ Barcode ให้ชัดและอยู่กลางกรอบ ระบบจะแสดงข้อมูลก่อนยืนยัน';
+    } catch (error) {
+        console.error('Admin student camera start failed:', error);
+        if (html5QrScannerInstance) {
+            const scanner = html5QrScannerInstance;
+            html5QrScannerInstance = null;
+            try { if (scanner.getState && scanner.getState() === 2) await scanner.stop(); } catch (ignore) {}
+            try { scanner.clear(); } catch (ignore) {}
+        }
+        if (seq === _sssfnAdminCameraStartSeqV15646_) setAdminScannerStatusV15646_(getStudentScannerErrorMessageV15644_(error), 'error');
+    } finally {
+        if (seq === _sssfnAdminCameraStartSeqV15646_) window._sssfnAdminCameraStartingV15646_ = false;
     }
 }
 
-function stopWebcamScanner() {
-    if (html5QrScannerInstance) {
-        try {
-            html5QrScannerInstance.stop().then(() => {
-                html5QrScannerInstance.clear();
-                html5QrScannerInstance = null;
-            }).catch(() => {
-                html5QrScannerInstance = null;
-            });
-        } catch(e) {
-            html5QrScannerInstance = null;
-        }
+async function stopWebcamScanner() {
+    _sssfnAdminCameraStartSeqV15646_++;
+    window._sssfnAdminCameraStartingV15646_ = false;
+    const scanner = html5QrScannerInstance;
+    html5QrScannerInstance = null;
+    if (scanner) {
+        try { if (scanner.getState && (scanner.getState() === 2 || scanner.getState() === 1)) await scanner.stop(); } catch (error) { console.warn('Admin camera stop warning:', error); }
+        try { scanner.clear(); } catch (error) {}
     }
+    setAdminScannerStatusV15646_('ปิดกล้องแล้ว', 'warning');
 }
 
 // ตัวประมวลผลการสแกน (หัวใจหลักของความถูกต้องและการบังคับสถานะ P)
@@ -8348,6 +8471,9 @@ window.executeScanLogic = function(barcode, actTitle, studentCardToken) {
 
     let stuId = (barcode || '').trim();
     if (!stuId) return;
+    if (!studentCardToken && (/([?&]checkin=1)|activityQrV15441|activityQrResumeV15646/i.test(stuId))) {
+        return Swal.fire({icon:'info',title:'QR คนละประเภท',text:'หน้านี้ใช้สแกน QR / Barcode บัตรนักศึกษา ส่วน QR กิจกรรมสำหรับเช็กอินต้องให้นักศึกษาสแกนด้วยอุปกรณ์ของตนเอง',confirmButtonColor:'#2563eb'});
+    }
 
     let roundSelect = document.getElementById('m-checkin-round');
     let selectedRound = roundSelect ? roundSelect.value : '';
@@ -8364,17 +8490,17 @@ window.executeScanLogic = function(barcode, actTitle, studentCardToken) {
     if (!studentCardToken && /^SSSFN-ID1\.[A-Za-z0-9_-]{40,100}$/.test(stuId)) {
         if (window._sssfnStudentCardScanBusyV1569_) return;
         window._sssfnStudentCardScanBusyV1569_ = true;
-        callBackend({action:'resolveStudentCardQrV1569',cardToken:stuId}).then(result => {
+        return callBackend({action:'resolveStudentCardQrV1569',cardToken:stuId}).then(result => {
             if (!result || result.status !== 'success' || !result.studentId) {
                 window._sssfnStudentCardScanBusyV1569_ = false;
                 return Swal.fire({icon:'error',title:'ตรวจสอบบัตรไม่สำเร็จ',text:(result && result.message) || 'QR บัตรนักศึกษาไม่ถูกต้องหรือหมดอายุ',confirmButtonColor:'#2563eb'});
             }
-            window.executeScanLogic(result.studentId, actTitle, stuId);
+            return window.executeScanLogic(result.studentId, actTitle, stuId);
         }).catch(error => {
+            return Swal.fire({icon:'error',title:'ตรวจสอบบัตรไม่สำเร็จ',text:String(error && error.message || error),confirmButtonColor:'#2563eb'});
+        }).finally(() => {
             window._sssfnStudentCardScanBusyV1569_ = false;
-            Swal.fire({icon:'error',title:'ตรวจสอบบัตรไม่สำเร็จ',text:String(error && error.message || error),confirmButtonColor:'#2563eb'});
         });
-        return;
     }
     let cleanId = formatIdSearch(stuId).replace(/-/g, '');
     let stu = students.find(s => s.id.replace(/-/g, '') === cleanId || s.id === stuId);
@@ -8399,7 +8525,7 @@ window.executeScanLogic = function(barcode, actTitle, studentCardToken) {
     let showInfo = (document.getElementById('show-student-data') || document.getElementById('hw-show-info'))?.checked !== false;
     let showPhoto = studentCardToken ? true : (document.getElementById('show-profile-image') || document.getElementById('hw-show-photo'))?.checked;
     let autoConfirm = (document.getElementById('enable-auto-confirm') || document.getElementById('hw-auto-confirm'))?.checked;
-    let autoConfirmSec = parseInt((document.getElementById('auto-confirm-seconds') || document.getElementById('hw-confirm-seconds'))?.value) || 3;
+    let autoConfirmSec = Math.min(60, Math.max(1, parseInt((document.getElementById('auto-confirm-seconds') || document.getElementById('hw-confirm-seconds'))?.value, 10) || 3));
 
     // ตรวจสอบพื้นที่จัดกิจกรรม (Campus Matching)
     let actCampus = (currentMasterActivity.campus || 'วิทยาเขตนครราชสีมา').trim();
@@ -8409,7 +8535,7 @@ window.executeScanLogic = function(barcode, actTitle, studentCardToken) {
 
     if (showInfo) {
         let timerInterval;
-        Swal.fire({
+        return Swal.fire({
             title: '<div class="text-left font-bold text-slate-900 text-lg leading-tight">ยืนยันข้อมูลนักศึกษา</div><div class="text-left text-xs text-slate-500 font-normal mt-1">กรุณาตรวจสอบข้อมูลนักศึกษาและวิทยาเขตให้ถูกต้องก่อนทำการบันทึกเข้ากิจกรรม</div>',
             html: `
                 <div class="space-y-3 text-left font-sans mt-3">
@@ -8500,12 +8626,13 @@ window.executeScanLogic = function(barcode, actTitle, studentCardToken) {
             }
         }).then(result => {
             if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
-                confirmScan(stu.id, selectedRound, studentCardToken).finally(() => { if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false; });
+                return confirmScan(stu.id, selectedRound, studentCardToken).finally(() => { if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false; });
             } else if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false;
+            return result;
         });
     } else {
         // บันทึกทันทีโดยไม่แสดงพรีวิว
-        confirmScan(stu.id, selectedRound, studentCardToken).finally(() => { if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false; });
+        return confirmScan(stu.id, selectedRound, studentCardToken).finally(() => { if (studentCardToken) window._sssfnStudentCardScanBusyV1569_ = false; });
     }
 };
 
@@ -8567,6 +8694,18 @@ window.confirmScan = async function(stuId, roundName, studentCardToken) {
 
 // 7. ตั้งค่า Geofence QR Code (Tab 3: ตั้งค่า QRCODE) - ตรงตาม Image 1
 window.editingQRRuleIndex = null;
+
+window.resetQRSettingsFormV15645_ = function() {
+    window.editingQRRuleIndex = null;
+    ['m-qr-round-select','m-qr-radius','m-qr-interval','m-qr-error','m-qr-lat','m-qr-lng'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const saveBtn = document.getElementById('btn-save-qr-settings');
+    if (saveBtn) saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> สร้างข้อมูล / บันทึกการตั้งค่า';
+    if (typeof updateGeofencePreviewCard === 'function') updateGeofencePreviewCard('', '', '');
+    if (typeof updateQRSettingsChecklist === 'function') updateQRSettingsChecklist();
+};
 
 window.renderQRSettingsTab = function() {
     if (!currentMasterActivity) return;
@@ -8631,12 +8770,16 @@ window.saveQRSettings = function() {
     let round = document.getElementById('m-qr-round-select')?.value;
     let lat = document.getElementById('m-qr-lat')?.value;
     let lng = document.getElementById('m-qr-lng')?.value;
-    let radius = parseInt(document.getElementById('m-qr-radius')?.value) || 50;
-    let interval = parseInt(document.getElementById('m-qr-interval')?.value) || 10;
-    let errorDist = parseInt(document.getElementById('m-qr-error')?.value) || 20;
+    const radiusRaw = String(document.getElementById('m-qr-radius')?.value || '').trim();
+    const intervalRaw = String(document.getElementById('m-qr-interval')?.value || '').trim();
+    const errorRaw = String(document.getElementById('m-qr-error')?.value || '').trim();
+    const radius = Number(radiusRaw), interval = Number(intervalRaw), errorDist = Number(errorRaw);
 
     if (!round) return showToast('กรุณาเลือกรอบลงทะเบียน', 'warning');
-    if (!lat || !lng) {
+    if (!radiusRaw || !Number.isInteger(radius) || radius < 1) return showToast('รัศมีต้องเป็นจำนวนเต็มตั้งแต่ 1 เมตรขึ้นไป', 'warning');
+    if (!intervalRaw || !Number.isInteger(interval) || interval < 5 || interval > 120) return showToast('เวลาเปลี่ยน QR ต้องเป็นจำนวนเต็ม 5–120 วินาที', 'warning');
+    if (!errorRaw || !Number.isInteger(errorDist) || errorDist < 0) return showToast('ระยะเผื่อ GPS ต้องเป็นจำนวนเต็มตั้งแต่ 0 เมตรขึ้นไป', 'warning');
+    if (!String(lat == null ? '' : lat).trim() || !String(lng == null ? '' : lng).trim() || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng)) || Number(lat) < -90 || Number(lat) > 90 || Number(lng) < -180 || Number(lng) > 180) {
         return Swal.fire({
             icon: 'warning',
             title: 'ยังไม่ได้ระบุตำแหน่งพิกัด',
@@ -8677,6 +8820,7 @@ window.saveQRSettings = function() {
     }
 
     saveToLocal(true);
+    window.resetQRSettingsFormV15645_();
     renderQRSettingsTab();
     if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
 };
@@ -8703,13 +8847,13 @@ window.editQRRule = function(indexOrId) {
     if (roundSelect) roundSelect.value = rule.roundName;
 
     let radiusInput = document.getElementById('m-qr-radius');
-    if (radiusInput) radiusInput.value = rule.radius || 50;
+    if (radiusInput) radiusInput.value = rule.radius != null ? String(rule.radius) : '';
 
     let intervalInput = document.getElementById('m-qr-interval');
-    if (intervalInput) intervalInput.value = rule.interval || 10;
+    if (intervalInput) intervalInput.value = rule.interval != null ? String(rule.interval) : '';
 
     let errorInput = document.getElementById('m-qr-error');
-    if (errorInput) errorInput.value = rule.errorDist || 20;
+    if (errorInput) errorInput.value = rule.errorDist != null ? String(rule.errorDist) : '';
 
     let latInput = document.getElementById('m-qr-lat');
     if (latInput) latInput.value = rule.lat;
@@ -8776,7 +8920,7 @@ window.deleteQRRule = function(indexOrId) {
 };
 
 window.openExternalGoogleMap = function(lat, lng) {
-    if (!lat || !lng) return showToast('ไม่พบพิกัดแผนที่', 'warning');
+    if (lat == null || lng == null || String(lat).trim() === '' || String(lng).trim() === '' || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return showToast('ไม่พบพิกัดแผนที่', 'warning');
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
 };
 
@@ -8788,14 +8932,16 @@ window.updateQRSettingsChecklist = function() {
     const isRadiusDone = (!isNaN(radiusVal) && radiusVal > 0);
 
     const intervalVal = parseFloat(document.getElementById('m-qr-interval')?.value);
-    const isIntervalDone = (!isNaN(intervalVal) && intervalVal > 0);
+    const isIntervalDone = (Number.isInteger(intervalVal) && intervalVal >= 5 && intervalVal <= 120);
 
     const errorVal = parseFloat(document.getElementById('m-qr-error')?.value);
     const isErrorDone = (!isNaN(errorVal) && errorVal >= 0);
 
     const latVal = parseFloat(document.getElementById('m-qr-lat')?.value);
     const lngVal = parseFloat(document.getElementById('m-qr-lng')?.value);
-    const isGeoDone = (!isNaN(latVal) && !isNaN(lngVal) && latVal !== 0 && lngVal !== 0);
+    const latRaw = String(document.getElementById('m-qr-lat')?.value || '').trim();
+    const lngRaw = String(document.getElementById('m-qr-lng')?.value || '').trim();
+    const isGeoDone = (latRaw !== '' && lngRaw !== '' && Number.isFinite(latVal) && Number.isFinite(lngVal) && latVal >= -90 && latVal <= 90 && lngVal >= -180 && lngVal <= 180);
 
     const setItemState = (dotId, itemId, isDone) => {
         const dotEl = document.getElementById(dotId);
@@ -8830,7 +8976,9 @@ window.updateGeofencePreviewCard = function(lat, lng, radius) {
     if (latInput && lat !== undefined && lat !== null) latInput.value = lat;
     if (lngInput && lng !== undefined && lng !== null) lngInput.value = lng;
 
-    let rad = radius || document.getElementById('m-qr-radius')?.value || 50;
+    let radRaw = radius != null && radius !== '' ? radius : document.getElementById('m-qr-radius')?.value;
+    let rad = Number(radRaw);
+    const hasRadius = Number.isFinite(rad) && rad >= 1;
     let curLat = (latInput && typeof latInput.value === 'string') ? latInput.value.trim() : (lat != null ? String(lat) : '');
     let curLng = (lngInput && typeof lngInput.value === 'string') ? lngInput.value.trim() : (lng != null ? String(lng) : '');
 
@@ -8846,7 +8994,7 @@ window.updateGeofencePreviewCard = function(lat, lng, radius) {
                         <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i> <span class="text-xs">ดูบน Maps</span>
                     </button>
                 </div>
-                <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>พร้อมตรวจสอบผู้ใช้งานในรัศมี <span class="font-bold text-slate-800">${rad}</span> เมตร</p>
+                <p class="text-[11px] text-slate-500"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>พร้อมตรวจสอบผู้ใช้งานในรัศมี <span class="font-bold text-slate-800">${hasRadius ? rad : 'ยังไม่กำหนด'}</span> เมตร</p>
             `;
         } else {
             geoBox.className = 'border border-slate-200 bg-slate-50/80 rounded-xl p-3 text-slate-500 text-xs flex items-center gap-2.5 transition';
@@ -8873,15 +9021,27 @@ window.onCoordManualChange = function() {
 };
 
 window.applyPickerLocation = function(lat, lng, zoom = 17, label = '') {
-    if (!window.pickerMap || !window.pickerMarker) return;
+    if (!window.pickerMap) return;
     let nLat = parseFloat(lat);
     let nLng = parseFloat(lng);
     if (isNaN(nLat) || isNaN(nLng)) return;
 
     window.pickerMap.setView([nLat, nLng], zoom);
-    window.pickerMarker.setLatLng([nLat, nLng]);
-    if (window.pickerCircle) {
-        window.pickerCircle.setLatLng([nLat, nLng]);
+    if (!window.pickerMarker) {
+        window.pickerMarker = L.marker([nLat, nLng], {draggable:true}).addTo(window.pickerMap);
+        window.pickerMarker.on('dragend', function(e) {
+            const pos = e.target.getLatLng();
+            window.applyPickerLocation(pos.lat, pos.lng, window.pickerMap.getZoom(), 'ลากหมุด');
+        });
+    } else {
+        window.pickerMarker.setLatLng([nLat, nLng]);
+    }
+    const radiusValue = Number(document.getElementById('m-qr-radius')?.value);
+    const gpsMarginValue = Number(document.getElementById('m-qr-error')?.value);
+    const effectiveRadius = radiusValue + (Number.isFinite(gpsMarginValue) && gpsMarginValue >= 0 ? gpsMarginValue : 0);
+    if (Number.isFinite(radiusValue) && radiusValue >= 1) {
+        if (!window.pickerCircle) window.pickerCircle = L.circle([nLat,nLng], {radius:effectiveRadius,color:'#2563eb',fillColor:'#3b82f6',fillOpacity:0.15,weight:2,dashArray:'4, 4'}).addTo(window.pickerMap);
+        else { window.pickerCircle.setLatLng([nLat,nLng]); window.pickerCircle.setRadius(effectiveRadius); }
     }
     window.pickerSelectedLat = nLat.toFixed(6);
     window.pickerSelectedLng = nLng.toFixed(6);
@@ -8988,27 +9148,21 @@ window.openMapPicker = function() {
         let defaultLng = 102.118729; // มทร.อีสาน ศูนย์กลางฯ นครราชสีมา
         let existingLat = parseFloat(document.getElementById('m-qr-lat')?.value);
         let existingLng = parseFloat(document.getElementById('m-qr-lng')?.value);
-        if (!isNaN(existingLat) && !isNaN(existingLng) && existingLat !== 0) {
+        if (!isNaN(existingLat) && !isNaN(existingLng) && String(document.getElementById('m-qr-lat')?.value || '').trim() !== '' && String(document.getElementById('m-qr-lng')?.value || '').trim() !== '') {
             defaultLat = existingLat;
             defaultLng = existingLng;
         }
 
         let radiusInput = document.getElementById('m-qr-radius');
         let currentRadius = parseFloat(radiusInput?.value);
-        if (isNaN(currentRadius) || currentRadius <= 0) {
-            currentRadius = 50;
-            if (radiusInput) radiusInput.value = '50';
-        }
-
-        let intervalInput = document.getElementById('m-qr-interval');
-        if (!intervalInput?.value || isNaN(parseFloat(intervalInput.value))) {
-            if (intervalInput) intervalInput.value = '15';
-        }
-
-        let errorInput = document.getElementById('m-qr-error') || document.getElementById('m-qr-max-accuracy');
-        if (!errorInput?.value || isNaN(parseFloat(errorInput.value))) {
-            if (errorInput) errorInput.value = '20';
-        }
+        if (!Number.isFinite(currentRadius) || currentRadius < 1) currentRadius = null;
+        let currentGpsMargin = Number(document.getElementById('m-qr-error')?.value);
+        if (!Number.isFinite(currentGpsMargin) || currentGpsMargin < 0) currentGpsMargin = null;
+        const hasSavedLocation = Number.isFinite(existingLat) && Number.isFinite(existingLng) && existingLat >= -90 && existingLat <= 90 && existingLng >= -180 && existingLng <= 180 && !!String(document.getElementById('m-qr-lat')?.value || '').trim() && !!String(document.getElementById('m-qr-lng')?.value || '').trim();
+        window.pickerSelectedLat = hasSavedLocation ? existingLat.toFixed(6) : null;
+        window.pickerSelectedLng = hasSavedLocation ? existingLng.toFixed(6) : null;
+        window.pickerMarker = null;
+        window.pickerCircle = null;
 
         Swal.fire({
             title: `
@@ -9023,9 +9177,7 @@ window.openMapPicker = function() {
                                 <p class="text-[11px] text-slate-500 font-normal">คลิกบนแผนที่ ลากหมุด หรือพิมพ์ค้นหาสถานที่เพื่อระบุจุดเช็กอิน</p>
                             </div>
                         </div>
-                        <span class="bg-blue-50 text-blue-700 border border-blue-200/80 text-[11px] px-3 py-1 rounded-full font-semibold shrink-0">
-                            รัศมี ${currentRadius} เมตร
-                        </span>
+                        <span class="bg-blue-50 text-blue-700 border border-blue-200/80 text-[11px] px-3 py-1 rounded-full font-semibold shrink-0">${currentRadius ? `ระยะใช้งาน ${currentRadius + (currentGpsMargin || 0)} เมตร` : 'ยังไม่กำหนดรัศมี'}</span>
                     </div>
                 </div>
             `,
@@ -9035,7 +9187,7 @@ window.openMapPicker = function() {
                     <div class="flex gap-2">
                         <div class="relative flex-1">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input id="picker-search-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchMapLocation();}" placeholder="พิมพ์ชื่อสถานที่ หรือระบุพิกัด เช่น 14.986195, 102.118729 แล้วกด Enter..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/10 font-medium text-slate-800 placeholder-slate-400 bg-white">
+                            <input id="picker-search-input" onkeydown="if(event.key==='Enter'){event.preventDefault(); searchMapLocation();}" placeholder="พิมพ์ชื่อสถานที่หรือพิกัด แล้วกด Enter..." class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/10 font-medium text-slate-800 placeholder-slate-400 bg-white">
                         </div>
                         <button type="button" id="picker-search-btn" onclick="searchMapLocation()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl transition shrink-0 shadow-xs flex items-center gap-1.5">
                             <i class="fa-solid fa-magnifying-glass text-xs"></i> ค้นหา
@@ -9059,7 +9211,7 @@ window.openMapPicker = function() {
                 
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs pt-1">
                     <div id="picker-coord-text" class="font-mono text-slate-700 font-semibold leading-tight bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                        พิกัดที่เลือก: <span class="text-blue-700 font-bold">${defaultLat.toFixed(6)}, ${defaultLng.toFixed(6)}</span>
+                        พิกัดที่เลือก: <span class="text-blue-700 font-bold">${hasSavedLocation ? `${defaultLat.toFixed(6)}, ${defaultLng.toFixed(6)}` : 'ยังไม่ได้เลือกตำแหน่ง'}</span>
                     </div>
                     <button type="button" id="picker-gps-btn" onclick="getCurrentGpsLocation()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold px-3.5 py-1.5 rounded-lg border border-emerald-200 transition flex items-center gap-1.5 shadow-xs shrink-0">
                         <i class="fa-solid fa-location-crosshairs text-emerald-600"></i> ใช้ตำแหน่ง GPS ปัจจุบัน
@@ -9067,7 +9219,7 @@ window.openMapPicker = function() {
                 </div>
                 <div class="text-[11px] text-slate-400 mt-2 text-left flex items-center gap-1">
                     <i class="fa-solid fa-circle-info text-blue-500"></i>
-                    <span>คุณสามารถคลิกบนแผนที่หรือลากหมุดสีฟ้าเพื่อย้ายตำแหน่ง วงกลมสีน้ำเงินแสดงขอบเขตพื้นที่รัศมีที่อนุญาตให้เช็กอิน</span>
+                    <span>คลิกแผนที่หรือลากหมุดเพื่อเลือกจุด วงกลมแสดงรัศมีหลักรวมระยะเผื่อ GPS</span>
                 </div>
             `,
             width: 'min(780px, 95vw)',
@@ -9098,40 +9250,9 @@ window.openMapPicker = function() {
                     pickRoadmap.addTo(window.pickerMap);
                     L.control.layers({ 'แผนที่ถนน (Google Maps)': pickRoadmap, 'แผนที่ดาวเทียม (Satellite)': pickSatellite }, null, { position: 'topright' }).addTo(window.pickerMap);
 
-                    window.pickerMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(window.pickerMap);
-                    window.pickerCircle = L.circle([defaultLat, defaultLng], {
-                        radius: currentRadius,
-                        color: '#2563eb',
-                        fillColor: '#3b82f6',
-                        fillOpacity: 0.15,
-                        weight: 2,
-                        dashArray: '4, 4'
-                    }).addTo(window.pickerMap);
-
-                    window.pickerSelectedLat = defaultLat.toFixed(6);
-                    window.pickerSelectedLng = defaultLng.toFixed(6);
-
+                    if (hasSavedLocation) window.applyPickerLocation(defaultLat, defaultLng, 17, 'ตำแหน่งที่บันทึกไว้');
                     window.pickerMap.on('click', function(e) {
-                        window.pickerMarker.setLatLng(e.latlng);
-                        window.pickerCircle.setLatLng(e.latlng);
-                        window.pickerSelectedLat = e.latlng.lat.toFixed(6);
-                        window.pickerSelectedLng = e.latlng.lng.toFixed(6);
-                        let coordText = document.getElementById('picker-coord-text');
-                        if (coordText) coordText.innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
-                    });
-
-                    window.pickerMarker.on('drag', function(e) {
-                        let pos = e.target.getLatLng();
-                        window.pickerCircle.setLatLng(pos);
-                    });
-
-                    window.pickerMarker.on('dragend', function(e) {
-                        let pos = e.target.getLatLng();
-                        window.pickerCircle.setLatLng(pos);
-                        window.pickerSelectedLat = pos.lat.toFixed(6);
-                        window.pickerSelectedLng = pos.lng.toFixed(6);
-                        let coordText = document.getElementById('picker-coord-text');
-                        if (coordText) coordText.innerHTML = `พิกัดที่เลือก: <span class="text-blue-700 font-bold">${window.pickerSelectedLat}, ${window.pickerSelectedLng}</span>`;
+                        window.applyPickerLocation(e.latlng.lat, e.latlng.lng, 17, 'เลือกจากแผนที่');
                     });
 
                     setTimeout(() => { if (window.pickerMap) window.pickerMap.invalidateSize(); }, 200);
@@ -9147,9 +9268,8 @@ window.openMapPicker = function() {
                 }
             },
             preConfirm: () => {
-                if (!window.pickerMarker) return false;
-                let pos = window.pickerMarker.getLatLng();
-                return { lat: pos.lat.toFixed(6), lng: pos.lng.toFixed(6) };
+                if (!window.pickerSelectedLat || !window.pickerSelectedLng) { Swal.showValidationMessage('กรุณาคลิกเลือกตำแหน่ง ค้นหาสถานที่ หรือใช้ GPS ก่อนยืนยัน'); return false; }
+                return { lat: String(window.pickerSelectedLat), lng: String(window.pickerSelectedLng) };
             }
         }).then(r => {
             if (r.isConfirmed && r.value) {
@@ -9181,21 +9301,27 @@ var liveQrCurrentRule = null;
 var liveQrSecondsLeft = 10;
 var liveQrTotalInterval = 10;
 var liveQrExpiryTime = 0;
+var liveQrRefreshAt = 0;
 
 window.renderQRActivityTab = function() {
     if (!currentMasterActivity) return;
     let actIsActive = (currentMasterActivity.isActive !== false);
-    let rules = currentMasterActivity.qrRules || [];
+    let allRules = Array.isArray(currentMasterActivity.qrRules) ? currentMasterActivity.qrRules : [];
+    // Tab 4 แสดงเฉพาะรอบที่เปิดใช้งาน QR อยู่เท่านั้น
+    // เก็บ index เดิมไว้เพื่อให้ปุ่มแก้ไข/ลบยังอ้างอิงข้อมูลต้นฉบับได้ถูกต้อง
+    let activeRuleEntries = allRules
+        .map((rule, index) => ({ rule: rule, index: index }))
+        .filter(entry => entry.rule && entry.rule.isActive !== false);
 
     let countEl = document.getElementById('m-qract-rules-count');
-    if (countEl) countEl.innerText = `${rules.length} รายการ`;
+    if (countEl) countEl.innerText = `${activeRuleEntries.length} รายการ`;
 
     let inactiveAlert = document.getElementById('m-qr-inactive-alert');
     let unconfigAlert = document.getElementById('m-qr-unconfigured-alert');
     let configuredCard = document.getElementById('m-qract-configured-card');
     let tableEl = document.getElementById('m-qract-rules-table');
 
-    // จัดการแสดง/ซ่อน Alert ปิดการใช้งานอย่างเด็ดขาดด้วยทั้ง class และ inline style
+    // สถานะปิดใช้งานหลักแสดงคำเตือนแยกต่างหาก ไม่เปลี่ยนสถานะย่อยของ QR
     if (inactiveAlert) {
         if (!actIsActive) {
             inactiveAlert.classList.remove('hidden');
@@ -9206,8 +9332,21 @@ window.renderQRActivityTab = function() {
         }
     }
 
-    if (rules.length === 0) {
+    // ไม่มี QR ที่เปิดใช้งาน: ซ่อนตาราง แม้ยังมีรายการที่ถูกปิดเก็บอยู่ในหน้าตั้งค่า
+    if (activeRuleEntries.length === 0) {
         if (unconfigAlert) {
+            const titleEl = unconfigAlert.querySelector('h4');
+            const messageEl = unconfigAlert.querySelector('p');
+            const actionBtn = unconfigAlert.querySelector('button');
+            if (allRules.length === 0) {
+                if (titleEl) titleEl.textContent = 'ยังไม่มีข้อมูล QRCODE';
+                if (messageEl) messageEl.textContent = 'เมื่อมีการตั้งค่าพิกัดและรัศมีแล้ว รายการจะแสดงในส่วนนี้';
+                if (actionBtn) actionBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> ตั้งค่า QR Code';
+            } else {
+                if (titleEl) titleEl.textContent = 'ไม่มี QRCODE ที่เปิดใช้งาน';
+                if (messageEl) messageEl.textContent = 'QRCODE ของทุกรอบถูกปิดใช้งานอยู่ รายการที่ปิดจะยังเก็บไว้ในแท็บตั้งค่า QRCODE และสามารถเปิดใช้งานได้อีกครั้ง';
+                if (actionBtn) actionBtn.innerHTML = '<i class="fa-solid fa-sliders"></i> ไปตั้งค่า QR Code';
+            }
             unconfigAlert.classList.remove('hidden');
             unconfigAlert.style.display = 'block';
         }
@@ -9215,6 +9354,7 @@ window.renderQRActivityTab = function() {
             configuredCard.classList.add('hidden');
             configuredCard.style.display = 'none';
         }
+        if (tableEl) tableEl.innerHTML = '';
         return;
     }
 
@@ -9230,8 +9370,9 @@ window.renderQRActivityTab = function() {
     if (!tableEl) return;
 
     let rowsHtml = '';
-    rules.forEach((rule, idx) => {
-        let ruleIsActive = (rule.isActive !== false);
+    activeRuleEntries.forEach(entry => {
+        const rule = entry.rule;
+        const idx = entry.index;
         rowsHtml += `
             <tr class="hover:bg-slate-50/80 transition-colors">
                 <td class="p-3.5 whitespace-nowrap min-w-[130px]">
@@ -9244,8 +9385,8 @@ window.renderQRActivityTab = function() {
                     <span class="inline-flex items-center justify-center bg-blue-50 text-blue-700 font-semibold px-3 py-1 rounded-full text-xs border border-blue-200/60 whitespace-nowrap shrink-0">${rule.radius || 50} เมตร</span>
                 </td>
                 <td class="p-3.5 text-center whitespace-nowrap min-w-[115px]">
-                    <span class="inline-flex items-center justify-center ${actIsActive && ruleIsActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} font-semibold px-3 py-1 rounded-full text-xs border whitespace-nowrap shrink-0">
-                        ${!actIsActive ? 'ปิดตามกิจกรรม' : (ruleIsActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน')}
+                    <span class="inline-flex items-center justify-center ${actIsActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} font-semibold px-3 py-1 rounded-full text-xs border whitespace-nowrap shrink-0">
+                        ${!actIsActive ? 'ปิดตามกิจกรรม' : 'เปิดใช้งาน'}
                     </span>
                 </td>
                 <td class="p-3.5 text-center whitespace-nowrap min-w-[280px]">
@@ -9253,7 +9394,7 @@ window.renderQRActivityTab = function() {
                         <button type="button" onclick="openExternalGoogleMap(${rule.lat}, ${rule.lng})" class="whitespace-nowrap shrink-0 border border-slate-300 hover:bg-slate-50 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
                             <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i> Maps
                         </button>
-                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${rule.roundName}')` : `showToast('เปิดใช้งานคิวอาร์โค้ดได้เมื่อกิจกรรมอยู่ในสถานะเปิดใช้งาน', 'warning')`}" class="whitespace-nowrap shrink-0 ${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs" aria-label="แสดงคิวอาร์โค้ด">
+                        <button type="button" onclick="${actIsActive ? `openLiveQRModal('${String(rule.roundName || '').replace(/'/g, "\\'")}')` : `showToast('เปิดใช้งานคิวอาร์โค้ดได้เมื่อกิจกรรมอยู่ในสถานะเปิดใช้งาน', 'warning')`}" class="whitespace-nowrap shrink-0 ${!actIsActive ? 'opacity-60 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'border border-slate-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 text-slate-800'} px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs" aria-label="แสดงคิวอาร์โค้ด">
                             <i class="fa-solid fa-qrcode text-xs"></i> QRCODE ${!actIsActive ? '<i class="fa-solid fa-lock text-xs text-amber-500 ml-0.5"></i>' : ''}
                         </button>
                         <button type="button" onclick="editQRRule(${idx})" class="whitespace-nowrap shrink-0 text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition" title="แก้ไขการตั้งค่ารอบนี้" aria-label="แก้ไขรายการ">
@@ -9292,7 +9433,9 @@ window.openLiveQRModal = function(roundName) {
 
     liveQrCurrentRule = rule;
     liveQrTotalInterval = parseInt(rule.interval) || 10;
-    liveQrSecondsLeft = liveQrTotalInterval;
+    liveQrSecondsLeft = 0;
+    liveQrRefreshAt = 0;
+    liveQrExpiryTime = 0;
 
     let modal = document.getElementById('modal-live-qr');
     if (!modal) return;
@@ -9308,20 +9451,21 @@ window.openLiveQRModal = function(roundName) {
     // เริ่มนับถอยหลัง
     if (liveQrIntervalTimer) clearInterval(liveQrIntervalTimer);
     liveQrIntervalTimer = setInterval(() => {
-        liveQrSecondsLeft--;
-        let countdownEl = document.getElementById('live-qr-countdown');
-        if (countdownEl) countdownEl.innerText = liveQrSecondsLeft;
-
-        let progressEl = document.getElementById('live-qr-progressbar');
-        if (progressEl) {
-            let pct = Math.max(0, Math.min(100, (liveQrSecondsLeft / liveQrTotalInterval) * 100));
-            progressEl.style.width = pct + '%';
+        const countdownEl = document.getElementById('live-qr-countdown');
+        const progressEl = document.getElementById('live-qr-progressbar');
+        if (!liveQrRefreshAt) {
+            if (countdownEl) countdownEl.innerText = '...';
+            if (progressEl) progressEl.style.width = '0%';
+            return;
         }
-
-        if (liveQrSecondsLeft <= 0) {
+        liveQrSecondsLeft = Math.max(0, Math.ceil((liveQrRefreshAt - Date.now()) / 1000));
+        if (countdownEl) countdownEl.innerText = liveQrSecondsLeft;
+        if (progressEl) progressEl.style.width = Math.max(0, Math.min(100, (liveQrSecondsLeft / liveQrTotalInterval) * 100)) + '%';
+        if (liveQrSecondsLeft <= 0 && !window._liveQRGeneratingV15441_) {
+            liveQrRefreshAt = 0;
             regenerateLiveQRToken();
         }
-    }, 1000);
+    }, 250);
 
     modal.classList.remove('hidden');
 };
@@ -9333,6 +9477,8 @@ window.closeLiveQRModal = function() {
         clearInterval(liveQrIntervalTimer);
         liveQrIntervalTimer = null;
     }
+    liveQrRefreshAt = 0;
+    liveQrExpiryTime = 0;
 };
 
 window.regenerateLiveQRToken = async function() {
@@ -9341,11 +9487,12 @@ window.regenerateLiveQRToken = async function() {
     window._liveQRGeneratingV15441_ = true;
     const sequence = (Number(window._liveQRRequestSequenceV15441_) || 0) + 1;
     window._liveQRRequestSequenceV15441_ = sequence;
-    liveQrSecondsLeft = liveQrTotalInterval;
+    liveQrRefreshAt = 0;
+    liveQrSecondsLeft = 0;
     const countdownEl = document.getElementById('live-qr-countdown');
-    if (countdownEl) countdownEl.innerText = liveQrSecondsLeft;
+    if (countdownEl) countdownEl.innerText = '...';
     const progressEl = document.getElementById('live-qr-progressbar');
-    if (progressEl) progressEl.style.width = '100%';
+    if (progressEl) progressEl.style.width = '0%';
     const expiryEl = document.getElementById('live-qr-expiry-text');
     if (expiryEl) expiryEl.innerText = 'กำลังออก QR ที่ลงนามโดยเซิร์ฟเวอร์...';
     try {
@@ -9358,15 +9505,25 @@ window.regenerateLiveQRToken = async function() {
         if (sequence !== window._liveQRRequestSequenceV15441_) return;
         if (!tokenResult || tokenResult.status !== 'success' || !tokenResult.token) {
             window.currentLiveCheckinUrl = '';
+            liveQrRefreshAt = 0;
             const canvas = document.getElementById('live-qr-canvas'); const img = document.getElementById('live-qr-img');
             if (canvas) canvas.classList.add('hidden'); if (img) img.classList.add('hidden');
             if (expiryEl) expiryEl.innerText = 'ออก QR ไม่สำเร็จ';
             showToast((tokenResult && tokenResult.message) || 'ไม่สามารถออก QR Code จากเซิร์ฟเวอร์ได้', 'error');
             return;
         }
-        const expiryDate = new Date(Number(tokenResult.expiresAt) || Date.now());
-        liveQrExpiryTime = expiryDate.getTime();
-        if (expiryEl) expiryEl.innerText = `หมดอายุ ${expiryDate.toLocaleTimeString('th-TH',{hour12:false})}`;
+        const expiryTimestamp = Number(tokenResult.expiresAt) || 0;
+        const refreshInterval = Number(tokenResult.refreshInterval) || liveQrTotalInterval;
+        if (Number.isFinite(refreshInterval) && refreshInterval >= 5 && refreshInterval <= 120) liveQrTotalInterval = refreshInterval;
+        const refreshTimestamp = Number(tokenResult.refreshAt) || (Number(tokenResult.issuedAt || Date.now()) + liveQrTotalInterval * 1000);
+        if (!expiryTimestamp || expiryTimestamp <= Date.now() || refreshTimestamp <= Date.now()) throw new Error('เซิร์ฟเวอร์ส่งเวลาหมดอายุ QR ไม่ถูกต้อง กรุณาลองออก QR ใหม่');
+        const expiryDate = new Date(expiryTimestamp);
+        liveQrExpiryTime = expiryTimestamp;
+        liveQrRefreshAt = Math.min(refreshTimestamp, expiryTimestamp);
+        liveQrSecondsLeft = Math.max(0, Math.ceil((liveQrRefreshAt - Date.now()) / 1000));
+        if (expiryEl) expiryEl.innerText = `QR หมดอายุ ${expiryDate.toLocaleTimeString('th-TH',{hour12:false})}`;
+        if (countdownEl) countdownEl.innerText = liveQrSecondsLeft;
+        if (progressEl) progressEl.style.width = Math.max(0, Math.min(100, liveQrSecondsLeft / liveQrTotalInterval * 100)) + '%';
         const baseUrl = window.location.href.split('?')[0].split('#')[0];
         const params = new URLSearchParams({
             checkin:'1', act:String(tokenResult.activityTitle || currentMasterActivity.title),
@@ -9392,6 +9549,10 @@ window.regenerateLiveQRToken = async function() {
             if (canvas) canvas.classList.add('hidden');
         }
     } catch (error) {
+        liveQrRefreshAt = 0;
+        window.currentLiveCheckinUrl = '';
+        const canvas = document.getElementById('live-qr-canvas'); const img = document.getElementById('live-qr-img');
+        if (canvas) canvas.classList.add('hidden'); if (img) img.classList.add('hidden');
         if (expiryEl) expiryEl.innerText = 'ออก QR ไม่สำเร็จ';
         showToast('ติดต่อเซิร์ฟเวอร์เพื่อออก QR ไม่สำเร็จ: ' + String(error && error.message || error), 'error');
     } finally {
@@ -9448,7 +9609,7 @@ window.filterCheckinMapByCodeV15639_ = function() {
     const matched = code.length === 4 ? rows.filter(l => String(l.checkinCode || '') === code) : rows;
     checkinMapMarkers.forEach(m => { try { checkinMapInstance.removeLayer(m); } catch(e){} });
     checkinMapMarkers = [];
-    const rules = currentMasterActivity.qrRules || [];
+    const rules = (currentMasterActivity.qrRules || []).filter(r => r && r.isActive !== false);
     const rule = rules.find(r => !selectedRound || String(r.roundName) === selectedRound) || rules[0];
     if (rule && Number.isFinite(Number(rule.lat)) && Number.isFinite(Number(rule.lng))) {
         const center = L.marker([Number(rule.lat), Number(rule.lng)]).addTo(checkinMapInstance);
@@ -9470,7 +9631,8 @@ window.filterCheckinMapByCodeV15639_ = function() {
         const radiusMeters = Number(rule && rule.radius || 50);
         const centerLat = Number(rule && rule.lat), centerLng = Number(rule && rule.lng);
         const hasCenter = Number.isFinite(centerLat) && Number.isFinite(centerLng);
-        const inside = hasCenter ? distanceMeters(centerLat, centerLng, lat, lng) <= radiusMeters : null;
+        const gpsMargin = Number.isFinite(Number(rule && rule.errorDist)) ? Math.max(0, Number(rule.errorDist)) : 20;
+        const inside = hasCenter ? distanceMeters(centerLat, centerLng, lat, lng) <= radiusMeters + gpsMargin : null;
         const statusHtml = inside === null ? '<span style="background:#f1f5f9;color:#475569;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700">ไม่พบข้อมูลพื้นที่</span>' : inside ? '<span style="background:#d1fae5;color:#047857;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700">✓ ในพื้นที่</span>' : '<span style="background:#fee2e2;color:#b91c1c;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700">อยู่นอกพื้นที่</span>';
         const device = log.deviceName || log.device || log.deviceInfo || log.platform || 'ไม่ระบุ';
         const popupHtml = `<div style="min-width:220px;font-family:inherit;color:#334155;padding:2px 1px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><b style="font-size:13px;color:#0f172a">${escapePopup(stu.name || log.studentId)}</b>${statusHtml}</div><div style="border-top:1px solid #e2e8f0;padding-top:8px;font-size:11px;line-height:1.8"><div><span style="color:#94a3b8">รหัส</span>　${escapePopup(log.studentId)}</div><div><span style="color:#94a3b8">อุปกรณ์</span>　${escapePopup(device)}</div><div><span style="color:#94a3b8">เช็กอิน</span>　${escapePopup(log.timeIn || log.timestamp || '-')}</div><div><span style="color:#94a3b8">พิกัด</span>　${lat.toFixed(6)}, ${lng.toFixed(6)}</div><div><span style="color:#94a3b8">รหัส CheckIn</span>　<b style="color:#047857">${escapePopup(log.checkinCode || '----')}</b></div></div></div>`;
@@ -9496,6 +9658,7 @@ window.renderCheckinMapDisplay = function(showMap = false) {
     if (!currentMasterActivity) return;
     ensureLeafletLoaded(() => {
         let rules = (currentMasterActivity.qrRules || []).filter(r => {
+            if (!r || r.isActive === false) return false;
             let rd = (currentMasterActivity.rounds || []).find(x => (x.thName || x.id) === r.roundName);
             return !rd || rd.isOpen !== false;
         });
@@ -9537,9 +9700,10 @@ window.renderCheckinMapDisplay = function(showMap = false) {
 
         let selectedRound = roundSelect ? roundSelect.value : rules[0].roundName;
         let rule = rules.find(r => r.roundName === selectedRound) || rules[0];
-        let centerLat = rule.lat || 13.7563;
-        let centerLng = rule.lng || 100.5018;
-        let radius = rule.radius || 50;
+        let centerLat = Number.isFinite(Number(rule.lat)) ? Number(rule.lat) : 13.7563;
+        let centerLng = Number.isFinite(Number(rule.lng)) ? Number(rule.lng) : 100.5018;
+        let radius = Number.isFinite(Number(rule.radius)) ? Number(rule.radius) : 50;
+        let gpsMargin = Number.isFinite(Number(rule.errorDist)) ? Math.max(0, Number(rule.errorDist)) : 20;
 
         if (!checkinMapInstance) {
             mapEl.innerHTML = '';
@@ -9567,7 +9731,7 @@ window.renderCheckinMapDisplay = function(showMap = false) {
             color: '#2563eb',
             fillColor: '#3b82f6',
             fillOpacity: 0.18,
-            radius: radius,
+            radius: radius + gpsMargin,
             weight: 2
         }).addTo(checkinMapInstance);
 
@@ -10541,33 +10705,30 @@ window.editActivityModal = function(oldTitle) {
 
 // 18. ลบกิจกรรม
 window.deleteActivity = async function(title) {
-    const targetActivity = appSettings.activities.find(a => a.title === title);
-    if (!targetActivity || !canDeleteActivity_(targetActivity)) return showToast('ลบกิจกรรมได้เฉพาะผู้สร้างกิจกรรมหรือหัวหน้าเท่านั้น ผู้ดูแลที่ได้รับมอบหมายไม่มีสิทธิ์ลบ', 'error');
-
-    Swal.fire({
-        title: `ลบกิจกรรม "${title}"?`,
-        text: 'ประวัติการลงทะเบียนและการเช็กชื่อทั้งหมดในกิจกรรมนี้จะถูกลบ',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'ยืนยันลบทิ้ง',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#e11d48'
-    }).then(async r => {
-        if (!r.isConfirmed) return;
-        const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
-        appSettings.activities = appSettings.activities.filter(a => a !== targetActivity);
-        activityLogs = activityLogs.filter(l => !sssfnActivityLogMatchesDefinitionForDeleteV1559_(l, targetActivity));
-        txHistory.unshift({ date: getNow(), name: 'ลบกิจกรรม: ' + title, type: 'ระบบ', amt: 0, user: currentUsername });
-        saveToLocal(false);
-        hasLocalChanges = true;
-        renderActivities();
-        const saved = await sssfnSavePointDeleteMutationV1551_();
-        if (!saved || saved.status !== 'success') {
-            await sssfnRestorePointDeleteRollbackV1559_(rollbackState);
-            return Swal.fire({icon:'warning',title:'ลบกิจกรรมไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการลบ ระบบโหลดข้อมูลล่าสุดกลับมาแล้ว'});
-        }
-        showToast('ลบกิจกรรมเรียบร้อยแล้ว', 'success');
+    const targetActivity = (appSettings.activities || []).find(a => a.title === title && a.isArchived !== true && !a.archivedAt);
+    if (!targetActivity || !canDeleteActivity_(targetActivity)) return showToast('นำกิจกรรมออกจากรายการได้เฉพาะผู้สร้างกิจกรรมหรือหัวหน้าเท่านั้น', 'error');
+    const safeTitle = String(title || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const confirm = await Swal.fire({
+        title: `นำกิจกรรมออกจากรายการ?`,
+        html: `<div class="text-left text-sm"><p>กิจกรรม <b>${safeTitle}</b> จะไม่ปรากฏในรายการกิจกรรมที่ใช้งาน</p><p class="mt-2 text-emerald-700 font-semibold">ประวัติการสมัคร ประวัติเช็กอิน และคะแนนจะยังคงอยู่ ไม่ถูกลบ</p></div>`,
+        icon: 'warning', showCancelButton: true,
+        confirmButtonText: 'นำออกจากรายการ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#e11d48'
     });
+    if (!confirm.isConfirmed) return;
+    const rollbackState = sssfnCapturePointDeleteRollbackV1549_();
+    targetActivity.isArchived = true;
+    targetActivity.archivedAt = getNow();
+    targetActivity.archivedBy = String(currentUsername || 'ผู้ดูแล');
+    saveToLocal(false);
+    hasLocalChanges = true;
+    if (currentMasterActivity && (currentMasterActivity === targetActivity || currentMasterActivity.title === title)) currentMasterActivity = null;
+    renderActivities();
+    const saved = await sssfnSavePointDeleteMutationV1551_();
+    if (!saved || saved.status !== 'success') {
+        await sssfnRestorePointDeleteRollbackV1559_(rollbackState);
+        return Swal.fire({icon:'warning',title:'นำกิจกรรมออกไม่สำเร็จ',text:(saved && saved.message) || 'เซิร์ฟเวอร์ยังไม่ยืนยันการบันทึก ระบบโหลดข้อมูลล่าสุดกลับมาแล้ว'});
+    }
+    showToast('นำกิจกรรมออกจากรายการแล้ว โดยเก็บประวัติทั้งหมดไว้', 'success');
 };
 
 // 19. อนุมัติกิจกรรม
@@ -13750,37 +13911,49 @@ window.promptConfirmReg = function(title) {
 // 🌟 ระบบสแกน QR เช็กอินกิจกรรมสำหรับนักศึกษา (รองรับ Option A & Option B)
 // =========================================================================
 window.parseQRCheckinData = function(text) {
-    if (!text) return null;
-    // 1. ถ้ารูปแบบเป็น URL หรือมี Query params
-    if (text.includes('checkin=1') || text.includes('reg=1') || text.includes('act=')) {
-        try {
-            let q = text.includes('?') ? text.split('?')[1] : text;
-            let params = new URLSearchParams(q);
-            return {
-                kind: params.get('reg') === '1' && params.get('checkin') !== '1' ? 'register' : 'checkin',
-                act: decodeURIComponent(params.get('act') || ''),
-                round: decodeURIComponent(params.get('round') || ''),
-                lat: parseFloat(params.get('lat')),
-                lng: parseFloat(params.get('lng')),
-                rad: parseFloat(params.get('rad')) || 50,
-                token: params.get('token') || ''
-            };
-        } catch(e) {}
-    }
-    // 2. ถ้ารูปแบบเป็น JSON
+    const raw = String(text || '').trim();
+    if (!raw) return null;
+
+    // URLSearchParams ถอดรหัส percent-encoding ให้อยู่แล้ว ห้าม decodeURIComponent ซ้ำ
     try {
-        let obj = JSON.parse(text);
-        if (obj.act && (obj.round || obj.roundName)) {
-            return {
-                act: obj.act,
-                round: obj.round || obj.roundName,
-                lat: parseFloat(obj.lat),
-                lng: parseFloat(obj.lng),
-                rad: parseFloat(obj.radius || obj.rad) || 50,
-                token: obj.token || ''
+        let params = null;
+        if (/^https?:\/\//i.test(raw)) {
+            params = new URL(raw, window.location.href).searchParams;
+        } else if (raw.includes('checkin=1') || raw.includes('reg=1') || raw.includes('act=')) {
+            const query = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1).split('#')[0] : raw.replace(/^\?/, '').split('#')[0];
+            params = new URLSearchParams(query);
+        }
+        if (params && (params.get('checkin') === '1' || params.get('reg') === '1' || (params.get('act') && params.get('round') && params.get('token')))) {
+            const act = String(params.get('act') || '').trim();
+            if (act) return {
+                kind: params.get('reg') === '1' && params.get('checkin') !== '1' ? 'register' : 'checkin',
+                act,
+                round: String(params.get('round') || ''),
+                lat: params.has('lat') && params.get('lat') !== '' ? Number(params.get('lat')) : null,
+                lng: params.has('lng') && params.get('lng') !== '' ? Number(params.get('lng')) : null,
+                rad: Number(params.get('rad')) || 50,
+                token: String(params.get('token') || '')
             };
         }
-    } catch(e) {}
+    } catch (urlError) {
+        console.warn('อ่านข้อมูล URL จาก QR ไม่สำเร็จ:', urlError);
+    }
+
+    // รองรับ QR แบบ JSON สำหรับระบบรุ่นที่เคยสร้างไว้
+    try {
+        const obj = JSON.parse(raw);
+        if (obj && obj.act && (obj.round || obj.roundName)) {
+            return {
+                kind: obj.kind || 'checkin',
+                act: String(obj.act),
+                round: String(obj.round || obj.roundName),
+                lat: obj.lat == null || obj.lat === '' ? null : Number(obj.lat),
+                lng: obj.lng == null || obj.lng === '' ? null : Number(obj.lng),
+                rad: Number(obj.radius || obj.rad) || 50,
+                token: String(obj.token || '')
+            };
+        }
+    } catch (jsonError) {}
     return null;
 };
 
@@ -13799,19 +13972,55 @@ window.getDistanceFromLatLonInM = function(lat1, lon1, lat2, lon2) {
     return R * c;
 };
 
+function clearPendingQRCheckinV15646_(data) {
+    const pending = window.pendingQRCheckin || null;
+    if (!pending) return;
+    const same = String(pending.token || '') === String(data && data.token || '') ||
+        (!!pending.resumeTicket && !!data && String(pending.act || '') === String(data.act || '') && String(pending.round || '') === String(data.round || ''));
+    if (!same) return;
+    window.pendingQRCheckin = null;
+    try { sessionStorage.removeItem('pendingQRCheckin'); } catch (error) {}
+}
+
 window.processStudentQRCheckin = async function(data, source) {
     if (data && data.kind === 'register') return window.handleQRRegisterV1567_(data);
-    if (!data || !data.act || !data.token) return showToast('QR Code นี้ไม่มีรหัสยืนยันจากเซิร์ฟเวอร์ กรุณาสร้าง QR ใหม่', 'error');
+    if (!data || !data.token) return showToast('QR Code นี้ไม่มีรหัสยืนยันจากเซิร์ฟเวอร์ กรุณาสร้าง QR ใหม่', 'error');
     let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
     if (!window.currentStudentAuthToken || !stuId) {
-        window.pendingQRCheckin = data;
-        try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(data)); } catch(e){}
-        return promptStudentLogin();
+        try {
+            await queuePendingQRCheckinV15646_(data);
+            return promptStudentLogin();
+        } catch (resumeError) {
+            return Swal.fire({icon:'warning',title:'เตรียม QR เพื่อเข้าสู่ระบบไม่สำเร็จ',text:String(resumeError && resumeError.message || resumeError),confirmButtonColor:'#2563eb'});
+        }
     }
-    let act = appSettings.activities.find(a => String(a.title || '').trim() === String(data.act).trim());
-    if (!act) return showToast('ไม่พบกิจกรรมนี้ในข้อมูลล่าสุด', 'error');
-    if (act.status !== 'อนุมัติแล้ว') return Swal.fire({icon:'info',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'กิจกรรมนี้ยังไม่เปิดให้เช็กอิน',confirmButtonColor:'#2563eb'});
-    if (act.isActive === false) return Swal.fire({icon:'warning',title:'กิจกรรมยังไม่เปิดใช้งาน',text:'กิจกรรมนี้ยังไม่เปิดระบบรับเช็กอิน กรุณาติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
+
+    // Hidden activities may be intentionally omitted from the student's public activity list.
+    // A current signed QR carries its activity reference/title; use it as a display-only fallback.
+    // The server still loads the canonical activity and enforces approval, master enable, round and GPS.
+    let qrPayloadForLookup = null;
+    try { qrPayloadForLookup = decodeQrTokenPayloadV1567_(data.token); } catch (ignore) {}
+    const activityList = Array.isArray(appSettings && appSettings.activities) ? appSettings.activities : [];
+    let act = activityList.find(a =>
+        String(a.title || '').trim() === String(data.act || '').trim() ||
+        (qrPayloadForLookup && String(a.ref || a.id || '').trim() === String(qrPayloadForLookup.a || '').trim())
+    );
+    let resolvedFromSignedQR = false;
+    if (!act && qrPayloadForLookup && ['activityQrV15441','activityQrResumeV15646'].includes(String(qrPayloadForLookup.kind || '')) &&
+        Number(qrPayloadForLookup.exp || 0) > Date.now() && qrPayloadForLookup.title && qrPayloadForLookup.a) {
+        if (data.act && String(data.act).trim() !== String(qrPayloadForLookup.title).trim()) {
+            return Swal.fire({icon:'error',title:'ข้อมูล QR ไม่ตรงกัน',text:'ชื่อกิจกรรมใน QR ไม่ตรงกับข้อมูลที่เซิร์ฟเวอร์ลงนาม กรุณาสแกน QR ใหม่',confirmButtonColor:'#2563eb'});
+        }
+        data.act = String(qrPayloadForLookup.title);
+        data.round = String(data.round || qrPayloadForLookup.roundName || 'ทั่วไป');
+        act = { title:String(qrPayloadForLookup.title), ref:String(qrPayloadForLookup.a), id:String(qrPayloadForLookup.a), status:'อนุมัติแล้ว', isActive:true };
+        resolvedFromSignedQR = true;
+    }
+    if (!act) return Swal.fire({icon:'error',title:'ไม่พบกิจกรรมจาก QR นี้',text:'ไม่พบข้อมูลกิจกรรมในรายการที่เปิดแสดง ระบบจะยอมรับเฉพาะ QR ที่ลงนามและยังไม่หมดอายุเท่านั้น กรุณาสแกน QR ล่าสุดหรือติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
+    // When an activity is present in the public projection, retain fast client-side warnings.
+    // For hidden activities, the signed QR fallback is display-only; backend validation is authoritative.
+    if (!resolvedFromSignedQR && act.status !== 'อนุมัติแล้ว') return Swal.fire({icon:'info',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'กิจกรรมนี้ยังไม่เปิดให้เช็กอิน',confirmButtonColor:'#2563eb'});
+    if (!resolvedFromSignedQR && act.isActive === false) return Swal.fire({icon:'warning',title:'กิจกรรมยังไม่เปิดใช้งาน',text:'กิจกรรมนี้ยังไม่เปิดระบบรับเช็กอิน กรุณาติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
 
     const cleanStuId = String(stuId).replace(/-/g, '').trim();
     const stu = students.find(s => String(s.id || '').replace(/-/g, '').trim() === cleanStuId) || { id:stuId, name:'นักศึกษา (' + stuId + ')', room:'-' };
@@ -13829,12 +14038,14 @@ window.processStudentQRCheckin = async function(data, source) {
         });
         if (!result || result.status !== 'success') {
             if (result && result.status === 'duplicate') {
+                clearPendingQRCheckinV15646_(data);
                 const old = result.record || {};
                 return Swal.fire({icon:'info',title:'คุณเช็กอินรอบนี้แล้ว',html:`<div class="text-left text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2 space-y-1.5"><p><b>กิจกรรม:</b> ${String(act.title || '')}</p><p><b>รอบ:</b> ${String(old.roundName || data.round || 'ทั่วไป')}</p><p><b>เวลา:</b> ${String(old.timeIn || '-')}</p></div>`,confirmButtonText:'รับทราบ',confirmButtonColor:'#2563eb'});
             }
             return Swal.fire({icon:'error',title:'เช็กอินไม่สำเร็จ',text:(result && result.message) || 'เซิร์ฟเวอร์ไม่สามารถยืนยันรายการได้ กรุณาสแกน QR ใหม่หรือติดต่อผู้จัดกิจกรรม',confirmButtonColor:'#2563eb'});
         }
         applyServerConfirmedCheckinV15441_(result.record);
+        clearPendingQRCheckinV15646_(data);
         const savedRecord = result.record || {};
         Swal.fire({
             icon:'success', title:'เช็กอินเข้าร่วมกิจกรรมสำเร็จ!',
@@ -13862,11 +14073,24 @@ window.processStudentQRCheckin = async function(data, source) {
             pos => {
                 const curLat=pos.coords.latitude, curLng=pos.coords.longitude;
                 const dist=getDistanceFromLatLonInM(curLat,curLng,Number(data.lat),Number(data.lng));
-                const allowed=(Number(data.rad)||50)+20;
+                const signedRadius = Number.isFinite(Number(tokenPayloadV1567 && tokenPayloadV1567.radius)) ? Number(tokenPayloadV1567.radius) : (Number(data.rad) || 50);
+                const signedGpsMargin = tokenPayloadV1567 && tokenPayloadV1567.gpsMargin != null ? Math.max(0, Number(tokenPayloadV1567.gpsMargin) || 0) : 20;
+                const allowed=signedRadius+signedGpsMargin;
                 if (dist<=allowed) doSaveCheckin(curLat,curLng,`ตรวจสอบพิกัด Geofence เบื้องต้นผ่าน (ห่าง ${Math.round(dist)} เมตร)`);
                 else Swal.fire({icon:'error',title:'อยู่นอกพื้นที่เช็กอิน!',text:`คุณอยู่ห่างจากจุด QR ${Math.round(dist)} เมตร เกินระยะที่กำหนด`,confirmButtonColor:'#e11d48'});
             },
-            err => Swal.fire({icon:'warning',title:'ไม่สามารถระบุพิกัด GPS ได้',text:'ไม่สามารถยืนยันพิกัดอุปกรณ์ได้ จึงยังไม่ส่งคำขอเช็กอินรอบนี้ กรุณาเปิด GPS แล้วลองใหม่',confirmButtonColor:'#2563eb'}),
+            err => {
+                const denied = err && err.code === 1;
+                const timedOut = err && err.code === 3;
+                const message = denied
+                    ? 'ยังไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง กรุณาเปิด Location permission ให้เว็บไซต์ก่อนลองอีกครั้ง'
+                    : timedOut
+                        ? 'อุปกรณ์ใช้เวลาระบุตำแหน่งนานเกินไป กรุณาเปิด GPS หรือขยับไปยังบริเวณที่รับสัญญาณได้ดีขึ้น'
+                        : 'อุปกรณ์ไม่สามารถระบุตำแหน่งได้ กรุณาตรวจสอบ GPS และลองอีกครั้ง';
+                Swal.fire({icon:'warning',title:'ไม่สามารถระบุพิกัด GPS ได้',text:message,showCancelButton:true,confirmButtonText:'ลองตรวจ GPS อีกครั้ง',cancelButtonText:'ปิด',confirmButtonColor:'#2563eb'}).then(result => {
+                    if (result.isConfirmed) window.processStudentQRCheckin(data, 'gps-retry');
+                });
+            },
             {enableHighAccuracy:true,timeout:10000,maximumAge:0}
         );
     } else {
@@ -13874,24 +14098,86 @@ window.processStudentQRCheckin = async function(data, source) {
     }
 };
 // 🌟 Option B: กล้องสแกน QR ในหน้าเว็บสำหรับนักศึกษา
-window.openStudentCheckinScanner = function() {
-    let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-    if (!stuId) {
-        return promptStudentLogin();
+// v15.6.44: QR scanner startup with camera enumeration, fallback and visible diagnostics.
+window._sssfnStudentScannerBusyV15644_ = false;
+window._sssfnStudentScannerClosingV15644_ = false;
+
+async function ensureHtml5QrcodeLoadedV15644_() {
+    if (typeof window.Html5Qrcode === 'function') return true;
+    const sources = [
+        'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+        'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+    ];
+    for (const src of sources) {
+        try {
+            await new Promise((resolve, reject) => {
+                const existing = Array.from(document.scripts || []).find(el => el.src === src);
+                if (existing) {
+                    if (typeof window.Html5Qrcode === 'function') return resolve();
+                    existing.addEventListener('load', resolve, {once:true});
+                    existing.addEventListener('error', reject, {once:true});
+                    setTimeout(() => typeof window.Html5Qrcode === 'function' ? resolve() : reject(new Error('โหลดไลบรารีกล้องไม่สำเร็จ')), 7000);
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('โหลดไลบรารีกล้องจากแหล่งสำรองไม่สำเร็จ'));
+                document.head.appendChild(script);
+            });
+        } catch (error) {
+            console.warn('Html5Qrcode fallback source failed:', src, error);
+        }
+        if (typeof window.Html5Qrcode === 'function') return true;
     }
+    return typeof window.Html5Qrcode === 'function';
+}
+
+function getStudentScannerErrorMessageV15644_(error) {
+    const name = String(error && error.name || '');
+    const message = String(error && error.message || error || '');
+    if (name === 'NotAllowedError' || /permission|denied|not allowed/i.test(message)) return 'ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณากดอนุญาต Camera ในการตั้งค่าเว็บไซต์แล้วลองใหม่';
+    if (name === 'NotFoundError' || /no camera|camera.*not found/i.test(message)) return 'ไม่พบกล้องในอุปกรณ์นี้';
+    if (name === 'NotReadableError' || /could not start video source|track start/i.test(message)) return 'กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปกล้อง/แอปสแกนอื่นแล้วลองใหม่';
+    if (name === 'SecurityError' || /secure context|https/i.test(message)) return 'การเข้าถึงกล้องต้องเปิดเว็บไซต์ผ่าน HTTPS ไม่สามารถใช้กล้องจากไฟล์ HTML โดยตรงได้';
+    if (/overconstrained|constraint/i.test(message)) return 'กล้องหลังที่เลือกไม่รองรับอุปกรณ์นี้ กำลังลองกล้องตัวอื่น';
+    return 'เปิดกล้องไม่สำเร็จ: ' + (message || 'กรุณาตรวจสอบสิทธิ์การใช้กล้องและลองใหม่');
+}
+
+async function stopStudentScannerV15644_() {
+    const scanner = window.studentScannerInstance;
+    if (!scanner) return;
+    window.studentScannerInstance = null;
+    try {
+        const state = typeof scanner.getState === 'function' ? scanner.getState() : null;
+        if (state === 2 || state === 1) await scanner.stop();
+    } catch (error) {
+        console.warn('Student QR scanner stop warning:', error);
+    }
+    try { scanner.clear(); } catch (error) {}
+}
+
+window.openStudentCheckinScanner = function() {
+    const stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
+    if (!stuId) return promptStudentLogin();
+    if (window.studentScannerInstance) return showToast('กล้องสแกน QR เปิดอยู่แล้ว', 'info');
+    window._sssfnStudentScannerBusyV15644_ = false;
+    window._sssfnStudentScannerClosingV15644_ = false;
 
     Swal.fire({
         title: '<div class="text-left font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-camera text-emerald-600"></i> สแกน QR Code เพื่อเช็กอินเข้าร่วมกิจกรรม</div>',
         html: `
             <div class="mt-2 text-left text-xs font-sans">
-                <p class="text-slate-500 mb-2">นำกล้องส่องไปที่ QR Code ของกิจกรรมที่ฉายบนหน้าจอโปรเจกเตอร์</p>
+                <p class="text-slate-500 mb-2">หันกล้องไปยัง QR Code กิจกรรมที่ผู้จัดฉายบนหน้าจอ หากกล้องไม่เริ่มทำงาน ระบบจะแจ้งสาเหตุไว้ด้านล่าง</p>
                 <div id="student-scanner-box" class="w-full h-64 bg-black rounded-2xl overflow-hidden relative border border-slate-300 shadow-inner flex items-center justify-center">
                     <div id="student-qr-reader" class="w-full h-full"></div>
                 </div>
-                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-                    <span><i class="fa-solid fa-user text-blue-600 mr-1"></i> ผู้เช็กอิน: <b>${stuId}</b></span>
-                    <span id="scan-status-text" class="text-slate-400">กำลังเปิดกล้อง...</span>
+                <div class="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                    <span><i class="fa-solid fa-user text-blue-600 mr-1"></i> ผู้เช็กอิน: <b>${String(stuId).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</b></span>
+                    <span id="scan-status-text" class="text-amber-600 font-semibold text-right">กำลังเตรียมกล้อง...</span>
                 </div>
+                <p id="scan-help-text" class="mt-2 text-[10px] leading-relaxed text-slate-400">โปรดอนุญาตการใช้กล้องและเปิด GPS เมื่อระบบร้องขอ</p>
             </div>
         `,
         width: 'min(520px, 95vw)',
@@ -13900,57 +14186,91 @@ window.openStudentCheckinScanner = function() {
         cancelButtonText: 'ปิดกล้อง',
         cancelButtonColor: '#64748b',
         didOpen: () => {
-            if (typeof Html5Qrcode !== 'undefined') {
-                try {
-                    window.studentScannerInstance = new Html5Qrcode("student-qr-reader");
-                    window.studentScannerInstance.start(
-                        { facingMode: "environment" },
-                        { fps: 10, qrbox: { width: 220, height: 220 } },
-                        (decodedText) => {
-                            let statusText = document.getElementById('scan-status-text');
-                            if (statusText) statusText.innerText = 'สแกนติดแล้ว กำลังตรวจสอบ...';
-                            
-                            if (window.studentScannerInstance) {
-                                window.studentScannerInstance.stop().then(() => {
-                                    window.studentScannerInstance.clear();
-                                    window.studentScannerInstance = null;
-                                    Swal.close();
-                                    
-                                    let data = parseQRCheckinData(decodedText);
-                                    if (data && data.act) {
-                                        processStudentQRCheckin(data, 'scanner');
-                                    } else {
-                                        showToast('รูปแบบ QR Code ไม่ถูกต้องสำหรับกิจกรรมนี้', 'error');
-                                    }
-                                }).catch(() => {
-                                    Swal.close();
-                                    let data = parseQRCheckinData(decodedText);
-                                    if (data && data.act) processStudentQRCheckin(data, 'scanner');
-                                });
-                            }
-                        },
-                        (error) => {}
-                    ).then(() => {
-                        let statusText = document.getElementById('scan-status-text');
-                        if (statusText) statusText.innerText = 'พร้อมสแกน';
-                    }).catch(err => {
-                        let statusText = document.getElementById('scan-status-text');
-                        if (statusText) statusText.innerText = 'ไม่สามารถเปิดกล้องได้: ' + (err.message || 'กรุณาอนุญาตการเข้าถึงกล้อง');
-                    });
-                } catch(e) {
-                    console.error('Scanner init error:', e);
+            (async () => {
+                const statusEl = document.getElementById('scan-status-text');
+                const helpEl = document.getElementById('scan-help-text');
+                const setStatus = (text, color='text-amber-600') => {
+                    if (statusEl) { statusEl.className = color + ' font-semibold text-right'; statusEl.textContent = text; }
+                };
+                if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    setStatus('ต้องเปิดผ่าน HTTPS', 'text-rose-600');
+                    if (helpEl) helpEl.textContent = 'เบราว์เซอร์จะไม่อนุญาตให้เว็บไซต์ที่ไม่ปลอดภัยเข้าถึงกล้อง กรุณาเปิดลิงก์ Web App ที่เป็น HTTPS';
+                    return;
                 }
-            } else {
-                showToast('ไม่พบไลบรารีกล้องสแกน QR Code', 'error');
-            }
+                try {
+                    setStatus('กำลังโหลดระบบอ่าน QR...');
+                    const loaded = await ensureHtml5QrcodeLoadedV15644_();
+                    if (!loaded) throw new Error('ไม่สามารถโหลดไลบรารีอ่าน QR จาก CDN ได้ กรุณาตรวจสอบอินเทอร์เน็ต');
+                    if (!document.getElementById('student-qr-reader')) return;
+
+                    setStatus('กำลังค้นหากล้อง...');
+                    let cameras = [];
+                    try { cameras = await Html5Qrcode.getCameras(); }
+                    catch (cameraListError) { console.warn('Cannot enumerate cameras, will try facingMode:', cameraListError); }
+                    // บางเบราว์เซอร์ซ่อนรายการกล้องจนกว่าจะได้รับ permission; ถ้า list ว่างให้ลองเปิดด้วย facingMode ต่อ
+
+                    const formats = (window.Html5QrcodeSupportedFormats && [window.Html5QrcodeSupportedFormats.QR_CODE]) || undefined;
+                    const scanner = new window.Html5Qrcode('student-qr-reader', formats ? {formatsToSupport:formats, verbose:false} : {verbose:false});
+                    window.studentScannerInstance = scanner;
+                    const scanConfig = { fps: 12, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0, disableFlip: false };
+                    const onDecoded = async (decodedText) => {
+                        if (window._sssfnStudentScannerBusyV15644_) return;
+                        const data = window.parseQRCheckinData(decodedText);
+                        if (!data || !data.act || (data.kind !== 'register' && !data.token)) {
+                            setStatus('อ่าน QR ได้ แต่ไม่ใช่ QR กิจกรรม SSSFN', 'text-rose-600');
+                            if (helpEl) helpEl.textContent = 'ให้ส่อง QR ที่สร้างจากเมนู QRCODE ของกิจกรรม ไม่ใช่ QR เว็บไซต์หรือ QR ชำระเงิน';
+                            return;
+                        }
+                        window._sssfnStudentScannerBusyV15644_ = true;
+                        setStatus('อ่าน QR สำเร็จ กำลังตรวจสอบ...', 'text-emerald-600');
+                        try { await stopStudentScannerV15644_(); }
+                        catch (stopError) { console.warn('Scanner stop after decode:', stopError); }
+                        if (window._sssfnStudentScannerClosingV15644_) return;
+                        Swal.close();
+                        try { await window.processStudentQRCheckin(data, 'scanner'); }
+                        catch (processError) {
+                            console.error('Student QR check-in processing failed:', processError);
+                            Swal.fire({icon:'error',title:'ประมวลผล QR ไม่สำเร็จ',text:String(processError && processError.message || processError),confirmButtonColor:'#2563eb'});
+                        }
+                    };
+
+                    const startWith = async (cameraConfig) => {
+                        await scanner.start(cameraConfig, scanConfig, onDecoded, () => {});
+                    };
+                    let startError = null;
+                    const preferred = Array.isArray(cameras) && cameras.length
+                        ? (cameras.find(c => /back|rear|environment|หลัง/i.test(c.label || '')) || cameras[cameras.length - 1])
+                        : null;
+                    const attempts = [];
+                    if (preferred && preferred.id) attempts.push({label:preferred.label || 'กล้องที่เลือก', config:{deviceId:{exact:preferred.id}}});
+                    if (Array.isArray(cameras)) cameras.filter(c => c && c.id && (!preferred || c.id !== preferred.id)).forEach(c => attempts.push({label:c.label || 'กล้องสำรอง', config:{deviceId:{exact:c.id}}}));
+                    attempts.push({label:'กล้องหลัง', config:{facingMode:{ideal:'environment'}}});
+                    attempts.push({label:'กล้องทั่วไป', config:{facingMode:'user'}});
+                    for (const attempt of attempts) {
+                        try {
+                            setStatus('กำลังเปิด' + attempt.label + '...');
+                            await startWith(attempt.config);
+                            startError = null;
+                            break;
+                        } catch (error) {
+                            startError = error;
+                            console.warn('Student scanner camera attempt failed:', attempt.label, error);
+                            try { if (scanner.getState && scanner.getState() === 2) await scanner.stop(); } catch (ignore) {}
+                        }
+                    }
+                    if (startError) throw startError;
+                    setStatus('พร้อมสแกน QR', 'text-emerald-600');
+                    if (helpEl) helpEl.textContent = 'กล้องทำงานแล้ว กรุณาจัด QR ให้อยู่กลางกรอบสแกน';
+                } catch (error) {
+                    console.error('Student QR scanner start failed:', error);
+                    setStatus(getStudentScannerErrorMessageV15644_(error), 'text-rose-600');
+                    if (helpEl) helpEl.textContent = 'ตรวจสอบสิทธิ์กล้องใน Site settings หรือปิดแอปอื่นที่กำลังใช้กล้อง แล้วกดปิดและเปิดสแกนใหม่';
+                }
+            })();
         },
         willClose: () => {
-            if (window.studentScannerInstance) {
-                try {
-                    window.studentScannerInstance.stop().then(() => window.studentScannerInstance.clear()).catch(()=>{});
-                } catch(e){}
-                window.studentScannerInstance = null;
-            }
+            window._sssfnStudentScannerClosingV15644_ = true;
+            stopStudentScannerV15644_();
         }
     });
 };
@@ -13972,14 +14292,15 @@ window.checkUrlCheckin = function() {
                 let checkinData = { kind: (params.get('reg') === '1' && params.get('checkin') !== '1') ? 'register' : 'checkin', act, round, lat, lng, rad, token };
 
                 let stuId = window.currentGuestStuId || localStorage.getItem('sssfn_guest_id');
-                if (!stuId) {
-                    // 🌟 ถ้ายังไม่ได้เข้าสู่ระบบ ให้จำข้อมูลที่สแกนไว้ แล้วเปิดหน้าต่างล็อกอินนักศึกษาตามปกติทันที!
-                    window.pendingQRCheckin = checkinData;
-                    try { sessionStorage.setItem('pendingQRCheckin', JSON.stringify(checkinData)); } catch(e){}
-                    
-                    setTimeout(() => {
-                        if (typeof promptStudentLogin === 'function') promptStudentLogin();
-                    }, 400);
+                if (!window.currentStudentAuthToken || !stuId) {
+                    setTimeout(async () => {
+                        try {
+                            await queuePendingQRCheckinV15646_(checkinData);
+                            if (typeof promptStudentLogin === 'function') promptStudentLogin();
+                        } catch (ticketError) {
+                            Swal.fire({icon:'warning',title:'QR ไม่พร้อมเข้าสู่ระบบ',text:String(ticketError && ticketError.message || ticketError),confirmButtonColor:'#2563eb'});
+                        }
+                    }, 350);
                     return;
                 }
                 
@@ -14958,9 +15279,10 @@ window.openStudentProfileModal = function(studentId) {
                 : '<div class="w-8 h-8 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center"><i class="fas fa-clock"></i></div>';
             
             const activityEntryKey = String(activityHistoryEntryKeyByRef.get(log) || '');
-            const activitySelectHtml = sssfnCanDeleteScoreHistoryV1555_() && activityEntryKey
-                ? `<input type="checkbox" class="w-4 h-4 accent-rose-600 cursor-pointer shrink-0" data-permanent-delete-student="${selectedDeleteStudentAttr}" data-permanent-delete-kind="activity" data-permanent-delete-key="${encodeURIComponent(activityEntryKey)}" title="เลือกลบประวัติกิจกรรมนี้ถาวร">`
-                : '';
+            const hasRegistrationHistory = isWebRegistrationOnlyLog_(log) && log.registrationHistoryHidden !== true;
+            const timeInValue = String(log.timeIn == null ? '' : log.timeIn).trim();
+            const hasCheckinHistory = log.checkinHistoryHidden !== true && (log.isCheckin === true || (!!timeInValue && timeInValue !== '-' && timeInValue !== 'จองสิทธิ์ล่วงหน้า' && !isWebRegistrationOnlyLog_(log)));
+            const activitySelectHtml = sssfnCanDeleteScoreHistoryV1555_() && activityEntryKey ? `<div class="flex flex-wrap gap-2">${hasRegistrationHistory ? `<label class="inline-flex items-center gap-1 text-[10px] text-slate-600"><input type="checkbox" class="w-3.5 h-3.5 accent-rose-600" data-permanent-delete-student="${selectedDeleteStudentAttr}" data-permanent-delete-kind="registration" data-permanent-delete-key="${encodeURIComponent(activityEntryKey)}"><span>ลบประวัติสมัคร</span></label>` : ''}${hasCheckinHistory ? `<label class="inline-flex items-center gap-1 text-[10px] text-slate-600"><input type="checkbox" class="w-3.5 h-3.5 accent-rose-600" data-permanent-delete-student="${selectedDeleteStudentAttr}" data-permanent-delete-kind="checkin" data-permanent-delete-key="${encodeURIComponent(activityEntryKey)}"><span>ลบประวัติเช็กอิน</span></label>` : ''}</div>` : '';
             actHtml += `
             <div class="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-1">
                 ${activitySelectHtml}
@@ -15087,7 +15409,7 @@ window.openStudentProfileModal = function(studentId) {
             </div>
         </div>
 
-        ${sssfnCanDeleteScoreHistoryV1555_() ? `<div class="bg-rose-50 border border-rose-100 rounded-2xl p-3 mb-4"><div class="text-xs font-bold text-rose-800 mb-1">จัดการประวัติที่เลือก</div><p class="text-[11px] text-rose-700 mb-3">ติ๊กเลือกรายการจากประวัติกิจกรรมหรือประวัติคะแนน แล้วลบถาวรเฉพาะรายการที่เลือก • ไม่บันทึกผู้ลบ • ไม่แตะข้อมูลการเงินและประวัติของคนอื่น</p><div class="flex flex-wrap gap-2"><button type="button" onclick="window.toggleSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}',true)" class="text-[11px] font-bold bg-white border border-rose-200 text-rose-700 rounded-lg px-3 py-2">เลือกทั้งหมด</button><button type="button" onclick="window.toggleSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}',false)" class="text-[11px] font-bold bg-white border border-slate-200 text-slate-600 rounded-lg px-3 py-2">ยกเลิกการเลือก</button><button type="button" onclick="window.deleteSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}')" class="text-[11px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg px-3 py-2"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือกถาวร</button></div></div>` : ''}
+        ${sssfnCanDeleteScoreHistoryV1555_() ? `<div class="bg-rose-50 border border-rose-100 rounded-2xl p-3 mb-4"><div class="text-xs font-bold text-rose-800 mb-1">จัดการประวัติที่เลือก</div><p class="text-[11px] text-rose-700 mb-3">เลือกประวัติคะแนน ประวัติสมัคร หรือประวัติเช็กอินแยกกันได้ ระบบบันทึกผู้ลบ เวลา และเหตุผล • ไม่แตะข้อมูลการเงินและประวัติของคนอื่น</p><div class="flex flex-wrap gap-2"><button type="button" onclick="window.toggleSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}',true)" class="text-[11px] font-bold bg-white border border-rose-200 text-rose-700 rounded-lg px-3 py-2">เลือกทั้งหมด</button><button type="button" onclick="window.toggleSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}',false)" class="text-[11px] font-bold bg-white border border-slate-200 text-slate-600 rounded-lg px-3 py-2">ยกเลิกการเลือก</button><button type="button" onclick="window.deleteSelectedStudentHistoryV1556_('${selectedDeleteStudentAttr}')" class="text-[11px] font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg px-3 py-2"><i class="fas fa-trash-alt mr-1"></i>ลบรายการที่เลือกถาวร</button></div></div>` : ''}
 
         <!-- Bento Grid Sections -->
         <div class="space-y-4">
@@ -15161,29 +15483,30 @@ window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
     const studentAttr = encodeURIComponent(studentId).replace(/'/g,'%27');
     const checked = Array.from(document.querySelectorAll('input[data-permanent-delete-student]:checked')).filter(box => box.getAttribute('data-permanent-delete-student') === studentAttr);
     if (!checked.length) return Swal.fire('ยังไม่ได้เลือกรายการ','ติ๊กเลือกประวัติกิจกรรมหรือประวัติคะแนนที่ต้องการลบก่อน','info');
-    const activityKeys = new Set(), activityScoreKeys = new Set(), pointKeys = new Set();
+    const registrationKeys = new Set(), checkinKeys = new Set(), activityScoreKeys = new Set(), pointKeys = new Set();
     checked.forEach(box => {
         let key = ''; try { key = decodeURIComponent(box.getAttribute('data-permanent-delete-key') || ''); } catch (e) { return; }
         const kind = String(box.getAttribute('data-permanent-delete-kind') || '');
         if (!key) return;
-        if (kind === 'activity') activityKeys.add(key);
+        if (kind === 'registration') registrationKeys.add(key);
+        else if (kind === 'checkin') checkinKeys.add(key);
         else if (kind === 'activity-score') activityScoreKeys.add(key.toLowerCase());
         else if (kind === 'tx') pointKeys.add(key);
     });
-    if (!activityKeys.size && !activityScoreKeys.size && !pointKeys.size) return Swal.fire('รายการไม่ถูกต้อง','ไม่พบรหัสรายการที่เลือก กรุณาปิดหน้าต่างแล้วเปิดข้อมูลใหม่','warning');
-    const selectedCount = activityKeys.size + activityScoreKeys.size + pointKeys.size;
+    if (!registrationKeys.size && !checkinKeys.size && !activityScoreKeys.size && !pointKeys.size) return Swal.fire('รายการไม่ถูกต้อง','ไม่พบรหัสรายการที่เลือก กรุณาปิดหน้าต่างแล้วเปิดข้อมูลใหม่','warning');
+    const selectedCount = registrationKeys.size + checkinKeys.size + activityScoreKeys.size + pointKeys.size;
     const safe = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const first = await Swal.fire({
         icon:'warning',title:'ตรวจสอบรายการที่จะลบ',
-        html:`<div class="text-left text-sm"><p>นักศึกษา <b>${safe(student.name)}</b> (${safe(student.id)})</p><p class="mt-2">เลือกไว้ <b class="text-rose-700">${selectedCount} รายการ</b></p><p class="mt-2 text-slate-600">รายการในหัวข้อกิจกรรมที่เข้าร่วมจะถูกลบเฉพาะแถวที่เลือก ส่วนรายการในหัวข้อประวัติคะแนนจะลบเฉพาะคะแนนและเก็บประวัติการเข้าร่วมกิจกรรมไว้</p><p class="mt-2 text-emerald-700">คะแนนประเภทอื่นที่ไม่ได้เลือก ข้อมูลการเงิน และประวัติของนักศึกษาคนอื่นจะคงเดิม</p><p class="mt-2 text-rose-700 font-bold">การลบเป็นการลบถาวรและไม่มีบันทึกผู้ลบหรือประวัติการลบ</p></div>`,
+        html:`<div class="text-left text-sm"><p>นักศึกษา <b>${safe(student.name)}</b> (${safe(student.id)})</p><p class="mt-2">เลือกไว้ <b class="text-rose-700">${selectedCount} รายการ</b></p><p class="mt-2 text-slate-600">ประวัติสมัคร ประวัติเช็กอิน และประวัติคะแนนจะแยกการลบจากกัน รายการประเภทอื่นที่ไม่ได้เลือกจะคงเดิม</p><p class="mt-2 text-emerald-700">ระบบจะบันทึกผู้ดำเนินการ เวลา และเหตุผลการลบ</p><p class="mt-2 text-rose-700 font-bold">ข้อมูลการเงินและประวัติของนักศึกษาคนอื่นจะไม่ถูกแตะต้อง</p></div>`,
         showCancelButton:true,confirmButtonText:'ดำเนินการต่อ',cancelButtonText:'กลับไปตรวจสอบ',confirmButtonColor:'#dc2626'
     });
     if (!first.isConfirmed) return;
     const second = await Swal.fire({
-        title:'ยืนยันลบถาวรขั้นสุดท้าย',
-        html:`<div class="text-left text-sm mb-2">พิมพ์ <b class="text-rose-700">ลบถาวร</b> เพื่อยืนยันลบ ${selectedCount} รายการของ ${safe(student.name)}</div><input id="selected-history-final-confirm-v1556" class="swal2-input" placeholder="ลบถาวร">`,
+        title:'ยืนยันลบประวัติที่เลือก',
+        html:`<div class="text-left text-sm mb-2"><label class="block font-semibold text-slate-700 mb-1">เหตุผลในการลบ *</label><textarea id="selected-history-delete-reason-v15645" class="swal2-textarea !mx-0 !w-full !text-sm" maxlength="500" placeholder="ระบุเหตุผลสั้น ๆ"></textarea><label class="block font-semibold text-slate-700 mb-1 mt-3">พิมพ์ <b class="text-rose-700">ลบถาวร</b> เพื่อยืนยัน</label><input id="selected-history-final-confirm-v1556" class="swal2-input !mx-0 !w-full" placeholder="พิมพ์คำยืนยัน"></div>`,
         showCancelButton:true,confirmButtonText:'ลบข้อมูลถาวร',cancelButtonText:'ยกเลิก',confirmButtonColor:'#b91c1c',
-        preConfirm:()=>{const value=String(document.getElementById('selected-history-final-confirm-v1556')?.value||'').trim();if(value!=='ลบถาวร')return Swal.showValidationMessage('กรุณาพิมพ์ ลบถาวร ให้ถูกต้อง');return value;}
+        preConfirm:()=>{const reason=String(document.getElementById('selected-history-delete-reason-v15645')?.value||'').trim();const value=String(document.getElementById('selected-history-final-confirm-v1556')?.value||'').trim();if(!reason)return Swal.showValidationMessage('กรุณาระบุเหตุผลในการลบ');if(value!=='ลบถาวร')return Swal.showValidationMessage('กรุณาพิมพ์ ลบถาวร ให้ถูกต้อง');return {confirmation:value,reason:reason};}
     });
     if (!second.isConfirmed) return;
     Swal.fire({title:'กำลังลบรายการที่เลือก...',text:'กำลังตรวจสอบเจ้าของรายการและลบจากฐานข้อมูล',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
@@ -15191,8 +15514,8 @@ window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
     try {
         result = await callBackend({
             action:'deleteSelectedStudentHistoryV1556', studentId:String(student.id),
-            activityKeys:Array.from(activityKeys), activityScoreKeys:Array.from(activityScoreKeys), pointKeys:Array.from(pointKeys),
-            confirmation:second.value
+            registrationKeys:Array.from(registrationKeys), checkinKeys:Array.from(checkinKeys), activityScoreKeys:Array.from(activityScoreKeys), pointKeys:Array.from(pointKeys),
+            reason:second.value.reason, confirmation:second.value.confirmation
         });
     } catch (error) {
         return Swal.fire('ลบไม่สำเร็จ',String(error && error.message || error || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'),'error');
@@ -15210,7 +15533,7 @@ window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
                 try {
                     repair = await callBackend({
                         action:'repairSelectedStudentHistoryBackupV1557',studentId:String(student.id),
-                        activityKeys:Array.from(activityKeys),activityScoreKeys:Array.from(activityScoreKeys),pointKeys:Array.from(pointKeys),
+                        registrationKeys:Array.from(registrationKeys),checkinKeys:Array.from(checkinKeys),activityScoreKeys:Array.from(activityScoreKeys),pointKeys:Array.from(pointKeys),
                         confirmation:'ลบถาวร'
                     });
                 } catch (repairError) {
@@ -15229,13 +15552,13 @@ window.deleteSelectedStudentHistoryV1556_ = async function(encodedStudentId) {
     }
     try { await silentPullFromGS(false,true); } catch (refreshError) { console.warn('Refresh after selected history delete failed',refreshError); }
     if (result.storageMode === 'SHEETS' && result.backupStatus === 'firebase-sync-pending') {
-        await Swal.fire({icon:'warning',title:'ลบจาก Google Sheets แล้ว',html:`ลบประวัติกิจกรรม ${Number(result.activityDeleted||0).toLocaleString()} รายการ และลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ (แก้ข้อมูลคะแนน ${Number(result.activityScoreLogsUpdated||0).toLocaleString()} แถว) พร้อมประวัติคะแนนอื่น ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการแล้ว<br><b class="text-amber-700">Firebase ยังรอคิวซิงก์</b><br>ระบบจะรายงานว่าสำเร็จครบทั้งสองฐานเมื่อคิวซิงก์เสร็จ`,confirmButtonText:'รับทราบ'});
+        await Swal.fire({icon:'warning',title:'ลบจาก Google Sheets แล้ว',html:`ลบประวัติสมัคร ${Number(result.registrationDeleted||0).toLocaleString()} รายการ, เช็กอิน ${Number(result.checkinDeleted||0).toLocaleString()} รายการ และลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ (แก้ข้อมูลคะแนน ${Number(result.activityScoreLogsUpdated||0).toLocaleString()} แถว) พร้อมประวัติคะแนนอื่น ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการแล้ว<br><b class="text-amber-700">Firebase ยังรอคิวซิงก์</b><br>ระบบจะรายงานว่าสำเร็จครบทั้งสองฐานเมื่อคิวซิงก์เสร็จ`,confirmButtonText:'รับทราบ'});
     } else if (result.storageMode === 'SHEETS' && result.backupStatus !== 'verified') {
         await Swal.fire({icon:'warning',title:'ยังยืนยันการลบไม่ครบ',html:`ไม่พบรายการที่เลือกใน Google Sheets แล้ว แต่ขณะนี้ระบบอยู่ในโหมดสำรอง จึงยังยืนยันสถานะใน Firebase ไม่ได้<br><b class="text-amber-700">ยังไม่ถือว่าลบสำเร็จครบทั้งสองฐาน</b><br>กรุณาโหลดข้อมูลใหม่หลัง Firebase กลับมาทำงาน แล้วตรวจสอบอีกครั้ง`,confirmButtonText:'รับทราบ'});
     } else {
         const repairInfo = result.sheetsRepair || {};
         const alreadyDeleted = Number(result.changedRecords || 0) === 0;
-        await Swal.fire({icon:'success',title:alreadyDeleted ? 'ซ่อม Google Sheets สำเร็จ' : 'ลบรายการที่เลือกถาวรแล้ว',html:`ลบประวัติกิจกรรมจาก Firebase ${Number(result.activityDeleted||0).toLocaleString()} รายการ<br>ลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ โดยเก็บประวัติการเข้าร่วมไว้<br>ลบ/นำประวัติคะแนนอื่นออกจากนักศึกษาคนนี้ ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการ<br>ซ่อม Google Sheets: ลบแถวกิจกรรม ${Number(repairInfo.activityRowsDeleted||0).toLocaleString()} แถว, ปรับแถวคะแนนกิจกรรม ${Number(repairInfo.activityScoreRowsUpdated||0).toLocaleString()} แถว, ลบแถวคะแนน ${Number(repairInfo.pointRowsDeleted||0).toLocaleString()} แถว<br><span class="text-emerald-700">ตรวจสอบ Firebase และ Google Sheets แล้ว โดยไม่เขียนทับชีตการเงิน</span>`,confirmButtonText:'ตกลง'});
+        await Swal.fire({icon:'success',title:alreadyDeleted ? 'ซ่อม Google Sheets สำเร็จ' : 'ลบรายการที่เลือกถาวรแล้ว',html:`ลบประวัติสมัคร ${Number(result.registrationDeleted||0).toLocaleString()} รายการ<br>ลบประวัติเช็กอิน ${Number(result.checkinDeleted||0).toLocaleString()} รายการ<br>ลบคะแนนกิจกรรมที่เลือก ${Number(result.activityScoresDeleted||0).toLocaleString()} รายการ โดยเก็บประวัติการเข้าร่วมไว้<br>ลบ/นำประวัติคะแนนอื่นออกจากนักศึกษาคนนี้ ${Number(result.pointRowsDeleted||0).toLocaleString()} รายการ<br>ซ่อม Google Sheets: ลบแถวกิจกรรม ${Number(repairInfo.activityRowsDeleted||0).toLocaleString()} แถว, ปรับแถวคะแนนกิจกรรม ${Number(repairInfo.activityScoreRowsUpdated||0).toLocaleString()} แถว, ลบแถวคะแนน ${Number(repairInfo.pointRowsDeleted||0).toLocaleString()} แถว<br><span class="text-emerald-700">ตรวจสอบ Firebase และ Google Sheets แล้ว โดยไม่เขียนทับชีตการเงิน</span>`,confirmButtonText:'ตกลง'});
     }
     if (typeof window.openStudentProfileModal === 'function') window.openStudentProfileModal(student.id);
 };
