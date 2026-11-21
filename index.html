@@ -1,4 +1,4 @@
-<!-- SSSFN v15.6.46 | Student/admin scanner reliability, one-time QR resume, server-synced QR/GPS -->
+<!-- SSSFN v15.6.48 | Concurrent slip intake (20-request target), post-save OCR queue, compact Geofence modal -->
 <!-- SSSFN v15.6.37: fix legacy PPT preview bootstrap size and undefined isLegacyPpt. -->
 <!-- SSSFN v15.6.31-local: fix stray literal \\n before DOCTYPE; package local SSSFN favicon/logo assets. -->
 <!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
@@ -54,6 +54,36 @@
         background-color: #f8fafc; 
         color: #0f172a; 
         -webkit-font-smoothing: antialiased;
+    }
+
+    /* v15.6.48: compact Geofence picker; prevent SweetAlert title/content default margins
+       from creating the oversized blank bands seen in the previous dialog screenshot. */
+    .swal2-popup.sssfn-geofence-popup {
+        padding: 1.1rem 1.25rem 1rem !important;
+        max-height: 94vh !important;
+        overflow-y: auto !important;
+    }
+    .swal2-popup.sssfn-geofence-popup .swal2-title {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 1rem !important;
+        line-height: 1.35 !important;
+    }
+    .swal2-popup.sssfn-geofence-popup .swal2-html-container {
+        margin: 0 !important;
+        padding-top: .75rem !important;
+        overflow: visible !important;
+    }
+    .ssfn-geofence-title {
+        width: 100%;
+        padding: .1rem 0 .8rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    @media (max-width: 640px) {
+        .swal2-popup.sssfn-geofence-popup { padding: .9rem !important; }
+        .swal2-popup.sssfn-geofence-popup .swal2-html-container { padding-top: .65rem !important; }
     }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -4503,7 +4533,7 @@ function openPublicSlipModal(targetRoundId = null) {
         try {
             Swal.fire({
                 title: 'กำลังบันทึกสลิป...',
-                html: 'ระบบกำลังอัปโหลดและตรวจสอบหลักฐาน กรุณาอย่าปิดหน้าเว็บหรือส่งบิลเดิมซ้ำ',
+                html: 'ระบบกำลังอัปโหลดไฟล์และบันทึกรายการชำระเงิน กรุณาอย่าปิดหน้าเว็บหรือส่งบิลเดิมซ้ำ การตรวจสอบยอดเงินจะทำงานเบื้องหลัง',
                 allowOutsideClick: false,
                 allowEscapeKey: false,
                 showConfirmButton: false,
@@ -9252,7 +9282,7 @@ window.openMapPicker = function() {
 
         Swal.fire({
             title: `
-                <div class="text-left font-sans w-full pb-1 border-b border-slate-100">
+                <div class="ssfn-geofence-title text-left font-sans w-full">
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2.5">
                             <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base border border-blue-100">
@@ -9269,7 +9299,7 @@ window.openMapPicker = function() {
             `,
             html: `
                 <!-- Search & Quick Presets Toolbar -->
-                <div class="space-y-3 mb-3 mt-4 text-xs font-sans text-left">
+                <div class="space-y-2.5 mb-2 mt-0 text-xs font-sans text-left">
                     <div class="flex gap-2">
                         <div class="relative flex-1">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
@@ -9292,7 +9322,7 @@ window.openMapPicker = function() {
                     </div>
                 </div>
 
-                <div id="picker-map-container" style="height: 360px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-200 shadow-inner mb-3 overflow-hidden"></div>
+                <div id="picker-map-container" style="height: min(340px, 42vh); min-height: 240px; width: 100%; border-radius: 12px; z-index: 1;" class="border border-slate-200 shadow-inner mb-2 overflow-hidden"></div>
                 
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs pt-2">
                     <div id="picker-coord-text" class="font-mono text-slate-700 font-semibold leading-tight bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
@@ -9314,7 +9344,7 @@ window.openMapPicker = function() {
             confirmButtonColor: '#2563eb',
             cancelButtonColor: '#64748b',
             customClass: {
-                popup: 'rounded-2xl p-5',
+                popup: 'rounded-2xl sssfn-geofence-popup',
                 confirmButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold shadow-sm',
                 cancelButton: 'rounded-xl px-5 py-2.5 text-xs font-semibold'
             },
