@@ -946,7 +946,7 @@
                         <i class="fa-solid fa-arrow-left"></i> กลับ
                     </button>
                     <!-- ปุ่มเปิด/ปิดการใช้งานกิจกรรม (สำหรับเปิดให้สแกนเช็กชื่อหน้างาน ตามรูป) -->
-                    <button id="master-header-toggle-btn" onclick="toggleActivityActiveStatus()" class="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-700" title="สลับเปิด/ปิดการใช้งานกิจกรรมสำหรับเช็กชื่อ">
+                    <button id="master-header-toggle-btn" onclick="toggleActivityActiveStatus()" class="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-700" title="สวิตช์หลัก: เปิด/ปิดการทำงานของทุกโมดูลกิจกรรม โดยคงสถานะย่อยเดิมไว้">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span>
                         <span id="master-header-active-text">ปิดการใช้งาน</span>
                     </button>
@@ -3039,10 +3039,6 @@ window.toggleRoundOpenStatus = window.toggleRoundOpenStatus || toggleRoundOpenSt
 function deleteMasterRound(...args) { if (typeof window.deleteMasterRound === 'function') { return window.deleteMasterRound(...args); } console.warn('deleteMasterRound is not yet ready'); }
 window.deleteMasterRound = window.deleteMasterRound || deleteMasterRound;
 function toggleActivityActiveStatus(...args) { if (typeof window.toggleActivityActiveStatus === "function") { return window.toggleActivityActiveStatus(...args); } } window.toggleActivityActiveStatus = window.toggleActivityActiveStatus || toggleActivityActiveStatus;
-function toggleActivityOpenStatus(...args) { if (typeof window.toggleActivityOpenStatus === 'function') { return window.toggleActivityOpenStatus(...args); } console.warn('toggleActivityOpenStatus is not yet ready'); }
-window.toggleActivityOpenStatus = window.toggleActivityOpenStatus || toggleActivityOpenStatus;
-function toggleActivityVisibleStatus(...args) { if (typeof window.toggleActivityVisibleStatus === 'function') { return window.toggleActivityVisibleStatus(...args); } console.warn('toggleActivityVisibleStatus is not yet ready'); }
-window.toggleActivityVisibleStatus = window.toggleActivityVisibleStatus || toggleActivityVisibleStatus;
 function renderSelectedRoundQR(...args) { if (typeof window.renderSelectedRoundQR === 'function') { return window.renderSelectedRoundQR(...args); } console.warn('renderSelectedRoundQR is not yet ready'); }
 window.renderSelectedRoundQR = window.renderSelectedRoundQR || renderSelectedRoundQR;
 function openStudentCheckinScanner(...args) { if (typeof window.openStudentCheckinScanner === 'function') { return window.openStudentCheckinScanner(...args); } console.warn('openStudentCheckinScanner is not yet ready'); }
@@ -6738,7 +6734,8 @@ function canViewPublicActivity_(activity, hasRegistration) {
     if (isActivityAssignedToCurrentUser_(activity)) return true;
     if (activity.__pendingCardOnly === true && activity.status === 'รออนุมัติ') return true;
     if (hasRegistration) return activity.status === 'อนุมัติแล้ว';
-    return activity.isVisible !== false && activity.status === 'อนุมัติแล้ว';
+    // Master activity switch gates public discovery; isVisible remains an independent publication switch.
+    return activity.isActive !== false && activity.isVisible !== false && activity.status === 'อนุมัติแล้ว';
 }
 function currentActivityIdentityMatches_(name, id, email) {
     const identity = getCurrentActivityIdentity_();
@@ -7350,11 +7347,9 @@ function refreshActivityFlagUI_(flagName) {
         if (typeof renderQRActivityTab === 'function') renderQRActivityTab();
         if (typeof updateOverviewEvalState === 'function') updateOverviewEvalState();
         if (typeof renderMasterDashboard === 'function') renderMasterDashboard();
-    } else if (flagName === 'isOpen') {
-        if (typeof updateMasterHeaderOpenButton === 'function') updateMasterHeaderOpenButton();
-    } else if (flagName === 'isVisible') {
-        if (typeof updateMasterHeaderVisibleButton === 'function') updateMasterHeaderVisibleButton();
     }
+    // isOpen and isVisible are controlled in the existing Edit Activity dialog.
+    // Refresh student activity cards after a status save without adding duplicate header buttons.
     if (typeof renderActivities === 'function') renderActivities();
 }
 
@@ -7363,7 +7358,7 @@ window.toggleActivityActiveStatus = async function() {
     if (currentUserRole === 'guest' && !canEditActivity_(currentMasterActivity)) return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
     const nextValue = currentMasterActivity.isActive === false;
     return persistCurrentActivityFlag_('isActive', nextValue,
-        nextValue ? 'เปิดการใช้งานกิจกรรมนี้แล้ว (ปลดล็อกระบบสแกนเช็กชื่อ)' : 'ปิดการใช้งานกิจกรรมนี้แล้ว (ล็อกระบบสแกน เพื่อเปิดให้ประเมินผลนักศึกษา)',
+        nextValue ? 'เปิดใช้งานกิจกรรมหลักแล้ว • โมดูลที่เปิดไว้กลับมาทำงานตามสถานะเดิม' : 'ปิดใช้งานกิจกรรมหลักแล้ว • ระงับการสมัครและการเช็กอินใหม่ โดยเก็บสถานะย่อยและประวัติเดิมไว้',
         nextValue ? 'success' : 'info');
 };
 
@@ -7441,51 +7436,6 @@ window.toggleQuotaInput = function(val, boxId) {
     }
 };
 
-window.toggleActivityOpenStatus = async function() {
-    if (!currentMasterActivity) return;
-    if (currentUserRole === 'guest' && !canEditActivity_(currentMasterActivity)) return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
-    const nextValue = currentMasterActivity.isOpen === false;
-    return persistCurrentActivityFlag_('isOpen', nextValue,
-        nextValue ? 'เปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาสามารถลงทะเบียนได้)' : 'ปิดรับสมัครกิจกรรมนี้แล้ว (นักศึกษาไม่สามารถลงทะเบียนได้)',
-        'info');
-};
-
-window.updateMasterHeaderOpenButton = function() {
-    if (!currentMasterActivity) return;
-    let btn = document.getElementById('master-header-toggle-btn');
-    if (!btn) return;
-    let isOpen = (currentMasterActivity.isOpen !== false);
-    if (isOpen) {
-        btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30';
-        btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> <span id="master-header-open-text">เปิดรับสมัคร</span>';
-    } else {
-        btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30';
-        btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-400"></span> <span id="master-header-open-text">ปิดรับสมัคร</span>';
-    }
-};
-
-window.toggleActivityVisibleStatus = async function() {
-    if (!currentMasterActivity) return;
-    if (currentUserRole === 'guest' && !canEditActivity_(currentMasterActivity)) return showToast('คุณไม่มีสิทธิ์เปลี่ยนสถานะกิจกรรม', 'error');
-    const nextValue = currentMasterActivity.isVisible === false;
-    return persistCurrentActivityFlag_('isVisible', nextValue,
-        nextValue ? 'เปิดแสดงกิจกรรมนี้ในรายการของนักศึกษาแล้ว' : 'ซ่อนกิจกรรมนี้จากรายการของนักศึกษาแล้ว',
-        'info');
-};
-
-window.updateMasterHeaderVisibleButton = function() {
-    if (!currentMasterActivity) return;
-    let btn = document.getElementById('master-header-visible-btn');
-    if (!btn) return;
-    let isVisible = (currentMasterActivity.isVisible !== false);
-    if (isVisible) {
-        btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30';
-        btn.innerHTML = '<i class="fa-solid fa-eye text-blue-400"></i> <span id="master-header-visible-text">แสดงในรายการ</span>';
-    } else {
-        btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 shadow-sm border bg-slate-700/50 text-slate-300 border-slate-600 hover:bg-slate-700';
-        btn.innerHTML = '<i class="fa-solid fa-eye-slash text-slate-400"></i> <span id="master-header-visible-text">ซ่อนจากรายการ</span>';
-    }
-};
 
 currentMasterActivity = null;
 actMasterCurrentPage = 1;
@@ -10498,6 +10448,7 @@ window.editActivityModal = function(oldTitle) {
         <!-- 3. การตั้งค่าการมองเห็นและการเข้าถึง (Official SAMS RMUTI) -->
         <div>
             <h4 class="font-bold text-blue-700 mb-2 text-xs flex items-center gap-1.5"><i class="fa-solid fa-sliders"></i> การตั้งค่าการมองเห็นและการเข้าถึง</h4>
+            <p class="text-[11px] text-slate-500 mb-2">สถานะการแสดงกิจกรรมและการรับสมัครตั้งค่าจากหน้านี้แยกจากกัน โดยจะทำงานได้เมื่อปุ่มเปิด/ปิดการใช้งานหลักของกิจกรรมเปิดอยู่เท่านั้น การปิดสวิตช์หลักจะไม่เปลี่ยนค่าที่เลือกไว้</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label class="flex items-start space-x-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition shadow-sm">
                     <input type="checkbox" id="edit-act-open" ${act.isOpen !== false ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded mt-0.5">
@@ -10514,7 +10465,7 @@ window.editActivityModal = function(oldTitle) {
                         <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
                             <i class="fa-solid fa-eye text-blue-500 text-xs"></i> แสดงในรายการ
                         </div>
-                        <p class="text-xs text-slate-500 mt-0.5">แสดงข้อมูลในหน้าเว็บไซต์รับสมัคร</p>
+                        <p class="text-xs text-slate-500 mt-0.5">แสดงข้อมูลในรายการกิจกรรมของนักศึกษา (ไม่ควบคุม QR หรือเช็กอิน)</p>
                     </div>
                 </label>
             </div>
@@ -10649,7 +10600,7 @@ window.approveActivity = function(title) {
             act.status = 'อนุมัติแล้ว';
             act.approvedBy = String(currentUsername || '').trim();
             act.approvedAt = getNow();
-            act.isOpen = true;
+            // Approval does not change the independent visibility or web-registration switches.
             txHistory.unshift({ date: getNow(), name: 'อนุมัติกิจกรรม: ' + title + ' (' + act.ref + ')', type: 'ระบบ', amt: 0, user: currentUsername });
             saveToLocal(true);
             renderActivities();
@@ -13711,6 +13662,8 @@ window.promptConfirmReg = function(title) {
     let act = appSettings.activities.find(a => a.title === title);
     if (!act) return;
     if (act.status !== 'อนุมัติแล้ว') return Swal.fire({icon:'info',title:'กิจกรรมยังไม่ได้รับอนุมัติ',text:'ยังไม่สามารถลงทะเบียนกิจกรรมนี้ได้',confirmButtonColor:'#2563eb'});
+    if (act.isActive === false) return Swal.fire({icon:'warning',title:'กิจกรรมปิดการใช้งานอยู่',text:'ขณะนี้ผู้ดูแลปิดการใช้งานกิจกรรมหลัก จึงยังไม่สามารถลงทะเบียนได้',confirmButtonColor:'#2563eb'});
+    if (act.isOpen === false) return Swal.fire({icon:'warning',title:'ปิดรับสมัครแล้ว',text:'ผู้ดูแลปิดรับลงทะเบียนผ่านเว็บไซต์แล้ว',confirmButtonColor:'#2563eb'});
     const registrationWindow = getActivityRegistrationWindow_(act);
     if (!registrationWindow.isOpen) {
         return Swal.fire({ icon: 'warning', title: 'ยังไม่อยู่ในช่วงรับสมัคร', text: registrationWindow.beforeStart ? 'ยังไม่ถึงวันและเวลาเปิดรับสมัคร' : 'หมดช่วงเวลารับสมัครแล้ว', confirmButtonColor: '#2563eb' });
@@ -13737,6 +13690,9 @@ window.promptConfirmReg = function(title) {
         if (!stuId) {
             showToast('กรุณาเข้าสู่ระบบก่อนลงทะเบียน', 'warning');
             return promptStudentLogin();
+        }
+        if (act.isActive === false || act.isOpen === false) {
+            return Swal.fire({ icon: 'warning', title: 'ไม่สามารถลงทะเบียนได้', text: 'การใช้งานหลักหรือการรับสมัครถูกปิดแล้ว กรุณาโหลดข้อมูลใหม่', confirmButtonColor: '#2563eb' });
         }
         const currentWindow = getActivityRegistrationWindow_(act);
         if (!currentWindow.isOpen) {
