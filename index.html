@@ -1,4 +1,4 @@
-<!-- SSSFN v15.6.48 | Concurrent slip intake (20-request target), post-save OCR queue, compact Geofence modal -->
+<!-- SSSFN v15.6.49 | Concurrent slip intake (20-request target), post-save OCR, compact Geofence, Point Shop digital inventory -->
 <!-- SSSFN v15.6.37: fix legacy PPT preview bootstrap size and undefined isLegacyPpt. -->
 <!-- SSSFN v15.6.31-local: fix stray literal \\n before DOCTYPE; package local SSSFN favicon/logo assets. -->
 <!-- SSSFN v15.6.28-local: remove global document-manager UI; clarify student upload and Leader/Deputy approval flow. -->
@@ -716,6 +716,7 @@
                 <button onclick="switchPage('random')" id="nav-random" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-dice text-lg w-5 text-center"></i> สุ่มตัวแทน (Lucky Draw)</button>
                 <button onclick="switchPage('admin-db')" id="nav-admin-db" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-database text-lg w-5 text-center"></i> ฐานข้อมูล นศ.</button>
                 <button onclick="switchPage('admin-users')" id="nav-admin-users" class="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition flex items-center gap-3"><i class="fas fa-users-cog text-lg w-5 text-center"></i> สิทธิ์ผู้ใช้</button>
+                <button onclick="switchPage('admin-pointshop')" id="nav-admin-pointshop" class="hidden w-full text-left px-4 py-3 rounded-xl text-sm text-indigo-700 hover:bg-indigo-50 transition flex items-center gap-3"><i class="fas fa-store text-lg w-5 text-center"></i> จัดการ Point Shop</button>
             </div>
         </div>
 
@@ -2237,11 +2238,7 @@
             </div>
         </div>
         <!-- 🌟 จบ: ตั้งค่าคะแนนอัตโนมัติ -->
-        <!-- 🌟 เริ่ม: ตั้งค่าร้านค้า Point Shop -->
-        <h4 class="font-bold text-indigo-600 mt-6 mb-3 border-b pb-2"><i class="fas fa-store"></i> จัดการสินค้าในร้านค้า (Point Shop)</h4>
-        <button onclick="addNewShopItem()" class="mb-3 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg shadow text-sm font-bold transition">+ สร้างสินค้าใหม่</button>
-        <div id="admin-shop-list" class="grid grid-cols-1 gap-3 mb-4 max-h-64 overflow-y-auto"></div>
-        <!-- 🌟 จบ: ตั้งค่าร้านค้า Point Shop -->
+
     </div>
                 <div class="bg-white rounded-2xl border shadow-sm">
                     <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><h3 class="font-bold text-slate-800">จัดการสิทธิ์ (Login)</h3><button onclick="addUserAlert()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow">+ สร้าง User</button></div>
@@ -2250,6 +2247,18 @@
             </div>
 
             
+
+            <div id="page-admin-pointshop" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-5xl mx-auto space-y-5">
+                <section class="rounded-3xl border border-indigo-100 bg-white p-5 md:p-6 shadow-sm space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-xl font-extrabold text-slate-800"><i class="fas fa-store mr-2 text-indigo-600"></i>จัดการ Point Shop</h2><p class="mt-1 text-xs text-slate-500">จัดการสินค้า Digital ตรวจคำขอแลก และแจกสินค้าเข้ากระเป๋านักศึกษาโดยตรง</p></div><button onclick="addNewShopItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold"><i class="fas fa-plus mr-1"></i>สร้างสินค้าใหม่</button></div>
+                    <div id="admin-shop-list" class="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto"></div>
+                    <div id="admin-pointshop-manager-v15649" class="border border-indigo-100 rounded-2xl bg-indigo-50/40 p-4 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-bold text-slate-800">คำขอแลกและแจกสินค้า</h3><p class="text-xs text-slate-500">อนุมัติ/ปฏิเสธคำขอแลก หรือแจกสินค้า Digital ให้หนึ่งคนหรือหลายคน</p></div><button type="button" onclick="openPointShopDirectGrantV15649_()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-bold"><i class="fas fa-gift mr-1"></i>แจกสินค้าให้ นศ.</button></div>
+                        <div id="admin-pointshop-request-list-v15649" class="space-y-2"></div>
+                        <div class="border-t border-indigo-100 pt-3"><h4 class="text-sm font-bold text-slate-700 mb-2">ประวัติการแลกและแจก</h4><div id="admin-pointshop-history-v15649" class="space-y-2 max-h-72 overflow-y-auto"></div></div>
+                    </div>
+                </section>
+            </div>
 
             <div id="page-notifications" class="page-view hidden px-4 md:px-6 py-6 md:py-8 max-w-5xl mx-auto space-y-5">
                 <section class="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm">
@@ -3060,7 +3069,7 @@ async function callBackend(payload) {
         let currentView = 'home'; let currentUserRole = 'guest'; let currentUsername = '';
         let appSettings = { showPublicAttendance: true, notifyAttendance: true, notifySlip: true, notifyActivity: true, activities: [] };
         let users = []; // บัญชีผู้ใช้ต้องมาจากฐานข้อมูลจริงเท่านั้น ไม่สร้าง admin/1234 สำรองในเบราว์เซอร์
-        let rooms = []; let students = []; let txHistory = []; let fundRounds = []; let fundPayments = []; let expenses = []; let activityLogs = []; let timeLogs = []; let randomDrawHistory = [];
+        let rooms = []; let students = []; let txHistory = []; let fundRounds = []; let fundPayments = []; let expenses = []; let activityLogs = []; let timeLogs = []; let randomDrawHistory = []; let pointShopRequests = [];
 
         let syncTimeout; let syncWorkerTimer = null; let html5QrcodeScanner = null; let autoRefreshInterval; 
         let quickTargetId = ''; let quickScanner = null;
@@ -3272,7 +3281,7 @@ function recalculateDebts() {
 // v15.5.2: txHistory uses stable canonical record keys supplied by Firebase.
 const REALTIME_COLLECTIONS = [
     'users', 'rooms', 'students', 'txHistory', 'fundRounds',
-    'fundPayments', 'expenses', 'activityLogs', 'timeLogs', 'randomDrawHistory'
+    'fundPayments', 'expenses', 'activityLogs', 'timeLogs', 'randomDrawHistory', 'pointShopRequests'
 ];
 
 function stableRealtimeJson_(value) {
@@ -3309,6 +3318,7 @@ function realtimeEntityKey_(collection, item) {
     if (collection === 'timeLogs' && (item.id != null || item.studentId != null)) {
         return 'time:' + str(item.date) + ':' + str(item.id != null ? item.id : item.studentId).replace(/-/g, '');
     }
+    if (collection === 'pointShopRequests' && item.id != null && item.id !== '') return 'pointShopRequest:' + str(item.id);
     if (collection === 'txHistory') {
         if (item.id != null && item.id !== '') return 'txid:' + str(item.id);
         return 'tx:' + [item.date, item.name, item.type, item.amt, item.user].map(str).join('|');
@@ -3352,12 +3362,13 @@ function snapshotRealtimeData_(source) {
         expenses: Array.isArray(d.expenses) ? d.expenses : [],
         activityLogs: Array.isArray(d.activityLogs) ? d.activityLogs : [],
         timeLogs: Array.isArray(d.timeLogs) ? d.timeLogs : [],
-        randomDrawHistory: Array.isArray(d.randomDrawHistory) ? d.randomDrawHistory : []
+        randomDrawHistory: Array.isArray(d.randomDrawHistory) ? d.randomDrawHistory : [],
+        pointShopRequests: Array.isArray(d.pointShopRequests) ? d.pointShopRequests : []
     });
 }
 
 function captureCurrentRealtimeData_() {
-    return snapshotRealtimeData_({ appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs, randomDrawHistory });
+    return snapshotRealtimeData_({ appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs, randomDrawHistory, pointShopRequests });
 }
 
 function buildRealtimeChanges_(baseline, current) {
@@ -4017,6 +4028,7 @@ function applyLoadedData(d, serverBaselineOverride) {
     activityLogs = Array.isArray(d.activityLogs) ? d.activityLogs : activityLogs;
     timeLogs = Array.isArray(d.timeLogs) ? d.timeLogs : timeLogs;
     randomDrawHistory = Array.isArray(d.randomDrawHistory) ? d.randomDrawHistory : randomDrawHistory;
+    pointShopRequests = Array.isArray(d.pointShopRequests) ? d.pointShopRequests : pointShopRequests;
 
     if (currentUserRole === 'guest' && window.currentStudentAuthToken && window.currentGuestStuId) {
         try {
@@ -4054,7 +4066,7 @@ function applyLoadedData(d, serverBaselineOverride) {
 }
         // Keep a local cache for fast page startup, but always reconcile it with server data.
 function saveToLocal(triggerSync = true) {
-    const cache = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs, randomDrawHistory };
+    const cache = { appSettings, users, rooms, students, txHistory, fundRounds, fundPayments, expenses, activityLogs, timeLogs, randomDrawHistory, pointShopRequests };
     try { localStorage.setItem('SSSfnDB', JSON.stringify(cache)); }
     catch (error) { console.warn('บันทึกแคชในเครื่องไม่สำเร็จ:', error); }
 
@@ -4106,6 +4118,7 @@ function saveToLocal(triggerSync = true) {
             activityLogs = p.activityLogs || [];
             timeLogs = p.timeLogs || [];
             randomDrawHistory = Array.isArray(p.randomDrawHistory) ? p.randomDrawHistory : randomDrawHistory;
+            pointShopRequests = Array.isArray(p.pointShopRequests) ? p.pointShopRequests : pointShopRequests;
         }
     } catch (error) {
         console.error('อ่านข้อมูลที่เก็บไว้ในเครื่องไม่สำเร็จ:', error);
@@ -4972,7 +4985,8 @@ function refreshVisiblePageDataV15422_(pageId) {
             break;
         case 'admin-db':
         case 'admin-users':
-            // These two screens share room, roster and user controls built by refreshAll.
+        case 'admin-pointshop':
+            // Admin data panels share canonical state refreshed by refreshAll.
             safe(refreshAll);
             break;
         default:
@@ -4985,6 +4999,10 @@ function switchPage(pageId) {
     if (pageId === 'reports') pageId = 'home'; // หน้ารายงานผู้บริหารถูกนำออกจากเว็บไซต์
     if (pageId === 'notifications' && !(window.currentAuthToken || window.currentStudentAuthToken)) {
         if (typeof showToast === 'function') showToast('กรุณาเข้าสู่ระบบก่อนดูการแจ้งเตือน', 'warning');
+        pageId = 'home';
+    }
+    if (pageId === 'admin-pointshop' && !(['leader','vice','treasurer'].includes(String(currentUserRole||'')) && window.currentAuthToken)) {
+        if (typeof showToast === 'function') showToast('Point Shop สำหรับหัวหน้า รองหัวหน้า และเหรัญญิกเท่านั้น', 'warning');
         pageId = 'home';
     }
     if (pageId === 'my-points' && !(currentUserRole === 'guest' && window.currentGuestStuId && window.currentStudentAuthToken)) {
@@ -5188,17 +5206,20 @@ function switchPage(pageId) {
     let navRand = document.getElementById('nav-random');
     let navDb = document.getElementById('nav-admin-db');
     let navUsers = document.getElementById('nav-admin-users');
+    let navPointShop = document.getElementById('nav-admin-pointshop');
 
     if (!isGuest) {
         if(navFin) navFin.classList.remove('hidden');
         if(navRand) navRand.classList.toggle('hidden', role === 'treasurer');
         if(navDb) navDb.classList.remove('hidden');
         if(navUsers) navUsers.classList.toggle('hidden', role !== 'leader'); // เฉพาะหัวหน้าจัดการสิทธิ์
+        if(navPointShop) navPointShop.classList.toggle('hidden', !isFullAdmin);
     } else {
         if(navFin) navFin.classList.add('hidden');
         if(navRand) navRand.classList.add('hidden');
         if(navDb) navDb.classList.add('hidden');
         if(navUsers) navUsers.classList.add('hidden');
+        if(navPointShop) navPointShop.classList.add('hidden');
     }
     
     if (!skipFullRender) refreshAll(); 
@@ -14607,6 +14628,18 @@ function getStudentPaymentPoints_(student) {
     return total;
 }
 
+function getStudentShopPointDeltaV15649_(studentId) {
+    const clean = value => String(value == null ? '' : value).replace(/-/g,'').trim();
+    const wanted = clean(studentId); if (!wanted) return 0;
+    const seen = new Set(); let total = 0;
+    (Array.isArray(txHistory) ? txHistory : []).forEach(tx => {
+        if (!tx || tx.pointSource !== 'shop' || Number(tx.shopLedgerVersion || 0) < 15649 || clean(tx.studentId) !== wanted || tx.voided === true || tx.scoreAudit === true) return;
+        if (Array.isArray(tx.voidedStudentIds) && tx.voidedStudentIds.some(id => clean(id) === wanted)) return;
+        const key = String(tx.pointSourceKey || tx.id || ''); if (!key || seen.has(key)) return; seen.add(key);
+        const delta = Number(tx.pointDelta); if (Number.isFinite(delta)) total += delta;
+    });
+    return total;
+}
 function getStudentTotalPoints_(student) {
     if (!student) return 0;
     // Non-leader sessions receive a server-calculated score projection. Their local
@@ -14614,14 +14647,15 @@ function getStudentTotalPoints_(student) {
     // student's own records), so recomputing a classmate's score in the browser would
     // undercount it. Trust only the explicitly versioned server projection there.
     const projectedTotal = Number(student.totalPoints);
-    if (currentUserRole !== 'leader' && Number(student.scoreProjectionVersion) >= 1558 && Number.isFinite(projectedTotal)) {
+    if (currentUserRole !== 'leader' && Number(student.scoreProjectionVersion) >= 15649 && Number.isFinite(projectedTotal)) {
         return projectedTotal;
     }
     // Leader has the complete canonical data set and can recompute immediately after edits.
     const base = Number(student.points || 0);
     const activity = getApprovedActivityPointsForStudent_(student.id);
     const payment = getStudentPaymentPoints_(student);
-    return base + activity + payment;
+    const shop = getStudentShopPointDeltaV15649_(student.id);
+    return base + activity + payment + shop;
 }
 
 function sssfnPointHistoryBelongsToStudentV1558_(tx, student) {
@@ -16333,216 +16367,126 @@ function renderLeaderboard() {
     list.innerHTML = lhtml;
 }
 
-// 🛒 โหลดหน้าต่างร้านค้าให้นักศึกษา
+// ================= Point Shop Student UI v15.6.49 =================
+function pointShopEscapeV15649_(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function pointShopAvailableBalanceV15649_(student) {
+    const total = Number(getStudentTotalPoints_(student)) || 0;
+    const wanted = String(student && student.id || '').replace(/-/g,'');
+    const held = (Array.isArray(pointShopRequests) ? pointShopRequests : []).filter(row => row && row.source === 'student_redeem' && row.status === 'pending' && String(row.studentId || '').replace(/-/g,'') === wanted).reduce((sum,row)=>sum+Math.max(0,Number(row.totalCost||0)),0);
+    return {total,held,available:total-held};
+}
 function openPointShop(studentId) {
     if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !window.currentGuestStuId || String(window.currentGuestStuId).replace(/-/g,'') !== String(studentId || '').replace(/-/g,'')) {
         return Swal.fire('เข้าสู่ระบบก่อน','ร้านค้าคะแนนเปิดได้เฉพาะนักศึกษาที่เข้าสู่ระบบและแลกของให้บัญชีตัวเอง','warning');
     }
-    let stu = students.find(s => s.id === studentId);
-    if(!stu) return;
+    const stu = (students || []).find(s => String(s.id || '').replace(/-/g,'') === String(studentId || '').replace(/-/g,''));
+    if (!stu) return Swal.fire('ไม่พบข้อมูล','ไม่พบข้อมูลนักศึกษาของบัญชีนี้','warning');
+    const balance = pointShopAvailableBalanceV15649_(stu);
+    const items = (Array.isArray(appSettings.shopItems) ? appSettings.shopItems : []).filter(item => item && item.active !== false && item.legacyHidden !== true && ['custom','shield'].includes(String(item.type || '')));
+    const ownRequests = (Array.isArray(pointShopRequests) ? pointShopRequests : []).filter(row => row && String(row.studentId || '').replace(/-/g,'') === String(studentId || '').replace(/-/g,''));
+    const statusLabel = {pending:'รอตรวจสอบ',approved:'อนุมัติแล้ว · เพิ่มเข้ากระเป๋าแล้ว',rejected:'ไม่อนุมัติ · คืนคะแนนแล้ว',cancelled:'ยกเลิกแล้ว',granted:'ได้รับจากผู้ดูแล'};
     const inventory = stu.inventory && typeof stu.inventory === 'object' ? stu.inventory : {};
-
-    const shopItems = Array.isArray(appSettings.shopItems) ? appSettings.shopItems : [];
-
-    let itemsHtml = '';
-    shopItems.forEach((itm, idx) => {
-        // จัดการสีให้สวยงาม
-        let th = { bg:'bg-blue-50', border:'border-blue-200', text:'text-blue-700', sub:'text-blue-600', badge:'bg-blue-600 text-white' };
-        if(itm.color==='emerald') th = { bg:'bg-emerald-50', border:'border-emerald-200', text:'text-emerald-700', sub:'text-emerald-600', badge:'bg-emerald-600 text-white' };
-        else if(itm.color==='indigo') th = { bg:'bg-indigo-50', border:'border-indigo-200', text:'text-indigo-700', sub:'text-indigo-600', badge:'bg-indigo-600 text-white' };
-
-        // โชว์จำนวนที่มีอยู่ในกระเป๋า
-        let badgeInfo = '';
-        if(itm.type === 'shield') badgeInfo = `<span class="${th.badge} text-xs px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${inventory.shield || 0} อัน</span>`;
-        else if(itm.type === 'custom') badgeInfo = `<span class="${th.badge} text-xs px-1.5 py-0.5 rounded-md ml-1 shadow-sm">มี ${inventory[itm.id] || inventory[itm.name] || 0} อัน</span>`;
-        const unavailable = itm.type === 'deposit';
-
-        itemsHtml += `
-        <div class="border ${th.border} ${th.bg} p-3 rounded-xl flex justify-between items-center ${unavailable ? 'opacity-60' : 'cursor-pointer hover:opacity-80'} transition shadow-sm mb-2" ${unavailable ? '' : `onclick="buyShopItem('${studentId}', ${idx})"`}>
-            <div>
-                <p class="font-bold ${th.text} mb-0.5"><i class="fas ${itm.icon} text-lg mr-2"></i>${itm.name} ${badgeInfo}</p>
-                <p class="text-xs ${th.sub} leading-tight">${unavailable ? 'ปิดแลกชั่วคราว: ต้องเชื่อมรายการรับ/จ่ายเข้าบัญชีก่อน' : itm.desc}</p>
-            </div>
-            <div class="bg-white px-3 py-1.5 rounded-lg border ${th.border} shadow-sm font-black ${th.text} text-sm shrink-0">
-                ${itm.price} ✨
-            </div>
-        </div>`;
+    const inventoryRows = [];
+    const usedInventoryKeys = new Set();
+    (Array.isArray(appSettings.shopItems) ? appSettings.shopItems : []).filter(item=>item&&['custom','shield'].includes(String(item.type||''))).forEach(item=>{
+        const key=item.type==='shield'?'shield':String(item.id||'');
+        if(!key||usedInventoryKeys.has(key))return;
+        const count=Number(inventory[key]!=null?inventory[key]:inventory[item.name]||0)||0;
+        if(count>0){inventoryRows.push({name:String(item.name||'สินค้า'),count:count});usedInventoryKeys.add(key);if(inventory[item.name]!=null)usedInventoryKeys.add(String(item.name));}
     });
-    if (!shopItems.length) itemsHtml = '<div class="rounded-xl border border-dashed border-slate-300 p-5 text-center text-xs text-slate-500">ยังไม่มีสินค้าที่ผู้ดูแลบันทึกไว้ในระบบ</div>';
-
-    Swal.fire({
-        title: '🛒 ร้านค้าสิทธิพิเศษ (Point Shop)',
-        html: `
-        <div class="mb-4 bg-amber-50 rounded-xl p-4 text-center border border-amber-200 shadow-inner">
-            <p class="text-sm font-bold text-slate-600">คะแนนสะสมของคุณ</p>
-            <p class="text-4xl font-black text-amber-600 mt-1">${getStudentTotalPoints_(stu)} <span class="text-lg">✨</span></p>
-        </div>
-        <div class="grid grid-cols-1 text-left max-h-[300px] overflow-y-auto pr-1">
-            ${itemsHtml}
-        </div>
-        `,
-        showConfirmButton: false, showCloseButton: true,
-    });
+    Object.keys(inventory).forEach(key=>{const count=Number(inventory[key]||0)||0;if(count>0&&!usedInventoryKeys.has(key))inventoryRows.push({name:key==='shield'?'โล่ป้องกัน':key,count:count});});
+    const backpackHtml=inventoryRows.length?inventoryRows.map(row=>`<div class="flex items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-white px-3 py-2"><span class="text-xs font-semibold text-slate-700">${pointShopEscapeV15649_(row.name)}</span><b class="text-sm text-indigo-700">${row.count.toLocaleString('th-TH')} หน่วย</b></div>`).join(''):'<p class="text-xs text-slate-400 text-center py-3">ยังไม่มีสินค้าในกระเป๋า</p>';
+    const itemsHtml = items.length ? items.map(item => {
+        const inv = stu.inventory && typeof stu.inventory === 'object' ? stu.inventory : {};
+        const owned = Number(inv[item.type === 'shield' ? 'shield' : item.id] || inv[item.name] || 0);
+        const stockText = item.stockEnabled === true ? `คงเหลือ ${Math.max(0,Number(item.stock||0))} ชิ้น` : 'ไม่จำกัดจำนวน';
+        const stockFull = item.stockEnabled === true && Number(item.stock||0) <= 0;
+        const image = /^https:\/\//i.test(String(item.imageUrl||'')) ? `<img src="${pointShopEscapeV15649_(item.imageUrl)}" alt="" class="w-16 h-16 object-cover rounded-xl border border-slate-200">` : `<div class="w-16 h-16 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center"><i class="fas ${item.type==='shield'?'fa-shield-alt':'fa-box-open'} text-2xl"></i></div>`;
+        return `<div class="border border-slate-200 rounded-2xl p-3 flex gap-3 items-center bg-white"><div class="shrink-0">${image}</div><div class="min-w-0 flex-1"><div class="font-bold text-slate-800">${pointShopEscapeV15649_(item.name)}</div><p class="text-xs text-slate-500 line-clamp-2">${pointShopEscapeV15649_(item.desc||'Digital item')}</p><p class="text-[11px] text-slate-400 mt-1">${stockText} · รับเข้า ${Math.max(1,Number(item.value||1))} หน่วย/ชิ้น · มีแล้ว ${owned}</p><p class="text-sm font-black text-amber-600 mt-1">${Number(item.price||0).toLocaleString('th-TH')} คะแนน</p></div><button type="button" ${stockFull?'disabled':''} onclick="buyShopItem('${pointShopEscapeV15649_(studentId)}','${pointShopEscapeV15649_(item.id)}')" class="shrink-0 px-3 py-2 rounded-xl text-xs font-bold ${stockFull?'bg-slate-100 text-slate-400':'bg-indigo-600 text-white hover:bg-indigo-700'}">${stockFull?'หมด':'ขอแลก'}</button></div>`;
+    }).join('') : '<div class="p-6 text-center text-sm text-slate-500 border border-dashed rounded-xl">ยังไม่มีสินค้า Digital ที่เปิดจำหน่าย</div>';
+    const requestHtml = ownRequests.length ? ownRequests.slice().sort((a,b)=>String(b.requestedAt||b.grantedAt||'').localeCompare(String(a.requestedAt||a.grantedAt||''))).map(row=>`<div class="border border-slate-200 rounded-xl p-3 text-left"><div class="flex items-start justify-between gap-2"><div><b class="text-sm text-slate-800">${pointShopEscapeV15649_(row.itemName||'สินค้า')}</b><p class="text-xs text-slate-500 mt-1">${Number(row.quantity||1)} รายการ · ${row.source==='admin_gift'?'ได้รับฟรีจากผู้ดูแล':Number(row.totalCost||0).toLocaleString('th-TH')+' คะแนน'}</p></div><span class="text-[11px] rounded-full bg-slate-100 px-2 py-1">${pointShopEscapeV15649_(statusLabel[row.status]||row.status||'-')}</span></div>${row.reviewReason?`<p class="text-xs text-rose-600 mt-2">เหตุผล: ${pointShopEscapeV15649_(row.reviewReason)}</p>`:''}${row.reason?`<p class="text-xs text-slate-500 mt-2">หมายเหตุ: ${pointShopEscapeV15649_(row.reason)}</p>`:''}${row.status==='pending'&&row.source==='student_redeem'?`<button type="button" onclick="cancelPointShopRequestV15649_('${pointShopEscapeV15649_(row.id)}','${pointShopEscapeV15649_(studentId)}')" class="mt-2 text-xs font-bold text-rose-600">ยกเลิกคำขอ</button>`:''}</div>`).join('') : '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีประวัติการแลกหรือรับสินค้า</p>';
+    Swal.fire({title:'Point Shop',width:720,showConfirmButton:false,showCloseButton:true,html:`<div class="text-left space-y-4"><div class="grid grid-cols-3 gap-2"><div class="rounded-xl bg-slate-50 p-3"><p class="text-[10px] text-slate-500">คะแนนรวม</p><b class="text-xl text-slate-800">${balance.total.toLocaleString('th-TH')}</b></div><div class="rounded-xl bg-amber-50 p-3"><p class="text-[10px] text-amber-700">กันไว้</p><b class="text-xl text-amber-700">${balance.held.toLocaleString('th-TH')}</b></div><div class="rounded-xl bg-emerald-50 p-3"><p class="text-[10px] text-emerald-700">ใช้ได้</p><b class="text-xl text-emerald-700">${balance.available.toLocaleString('th-TH')}</b></div></div><section><div class="flex items-center justify-between mb-2"><h3 class="font-bold text-slate-800">กระเป๋าสินค้าของฉัน</h3><span class="text-[10px] text-slate-400">Inventory</span></div><div class="grid grid-cols-2 gap-2">${backpackHtml}</div></section><section><h3 class="font-bold text-slate-800 mb-2">สินค้า Digital</h3><div class="space-y-2 max-h-64 overflow-y-auto pr-1">${itemsHtml}</div></section><section><h3 class="font-bold text-slate-800 mb-2">คำขอและประวัติของฉัน</h3><div class="space-y-2 max-h-52 overflow-y-auto">${requestHtml}</div></section></div>`});
+}
+async function buyShopItem(studentId, itemId) {
+    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || String(window.currentGuestStuId||'').replace(/-/g,'') !== String(studentId||'').replace(/-/g,'')) return Swal.fire('ไม่มีสิทธิ์','เข้าสู่ระบบนักศึกษาและเลือกบัญชีของตนเอง','warning');
+    const item=(appSettings.shopItems||[]).find(row=>row&&String(row.id)===String(itemId)); if(!item) return;
+    const response=await Swal.fire({title:`ขอแลก ${pointShopEscapeV15649_(item.name)}?`,html:`<p class="text-sm text-slate-500 mb-3">ราคา ${Number(item.price||0).toLocaleString('th-TH')} คะแนนต่อชิ้น ระบบจะกันคะแนนไว้ระหว่างรอผู้ดูแลอนุมัติ</p><label class="block text-left text-xs font-bold mb-1">จำนวน</label><input id="pointshop-quantity-v15649" type="number" min="1" max="20" value="1" class="swal2-input" style="margin:0;width:100%">`,showCancelButton:true,confirmButtonText:'ส่งคำขอแลก',cancelButtonText:'ยกเลิก',preConfirm:()=>{const q=Number(document.getElementById('pointshop-quantity-v15649').value);if(!Number.isInteger(q)||q<1||q>20)return Swal.showValidationMessage('จำนวนต้องอยู่ระหว่าง 1–20 ชิ้น');return q;}});
+    if(!response.isConfirmed) return;
+    const storageKey='sssfn_pointshop_pending_v15649_'+String(studentId).replace(/\W/g,'')+'_'+String(itemId).replace(/\W/g,'')+'_q'+String(response.value);
+    let requestId='';try{requestId=sessionStorage.getItem(storageKey)||'';}catch(ignore){}
+    if(!requestId){requestId='psh_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,14);try{sessionStorage.setItem(storageKey,requestId);}catch(ignore){}}
+    Swal.fire({title:'กำลังส่งคำขอ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+    try{const result=await callBackend({action:'requestPointShopRedemptionV15649',itemId:String(itemId),quantity:response.value,requestId:requestId,clientId:'point-shop-v15649'});if(!result||result.status!=='success')throw new Error(result&&result.message||'ส่งคำขอไม่สำเร็จ');try{sessionStorage.removeItem(storageKey);}catch(ignore){}await silentPullFromGS(false,true);refreshAll();Swal.fire({icon:'success',title:result.replayed?'พบคำขอเดิมแล้ว':'ส่งคำขอแล้ว',text:result.message||'ระบบกันคะแนนไว้ระหว่างรอผู้ดูแลอนุมัติ'}).then(()=>openPointShop(studentId));}
+    catch(error){Swal.fire('ส่งคำขอไม่สำเร็จ',String(error&&error.message||error),'error');}
+}
+async function cancelPointShopRequestV15649_(requestId,studentId){
+    const confirm=await Swal.fire({title:'ยกเลิกคำขอแลกสินค้า?',text:'คะแนนที่กันไว้จะกลับมาใช้ได้ และคืนจำนวนสินค้าที่จองไว้',icon:'warning',showCancelButton:true,confirmButtonText:'ยืนยันยกเลิก',cancelButtonText:'กลับ'});if(!confirm.isConfirmed)return;
+    try{const result=await callBackend({action:'cancelPointShopRequestV15649',requestId:String(requestId),clientId:'point-shop-cancel-v15649'});if(!result||result.status!=='success')throw new Error(result&&result.message||'ยกเลิกไม่สำเร็จ');await silentPullFromGS(false,true);refreshAll();openPointShop(studentId);}catch(error){Swal.fire('ยกเลิกไม่สำเร็จ',String(error&&error.message||error),'error');}
 }
 
-// 🛍️ ระบบตัดคะแนนเมื่อกดซื้อสินค้า
-async function buyShopItem(studentId, itemIdx) {
-    if (currentUserRole !== 'guest' || !window.currentStudentAuthToken || !window.currentGuestStuId || String(window.currentGuestStuId).replace(/-/g,'') !== String(studentId || '').replace(/-/g,'')) return Swal.fire('ไม่มีสิทธิ์','เข้าสู่ระบบนักศึกษาและเลือกบัญชีของตนเอง','warning');
-    let stu = students.find(s => s.id === studentId);
-    let itm = Array.isArray(appSettings.shopItems) ? appSettings.shopItems[itemIdx] : null;
-    if(!stu || !itm) return;
-    if (itm.type === 'deposit') return Swal.fire('ปิดแลกชั่วคราว','รายการเงินฝากต้องเชื่อมกับบัญชีรายรับ/รายจ่ายก่อน ระบบจึงยังไม่เปลี่ยนยอดเงินฝาก','info');
-    if (!['shield','custom'].includes(String(itm.type || '')) || !itm.id) return Swal.fire('รายการไม่พร้อม','สินค้าไม่มีรหัสหรือประเภทยังไม่รองรับ กรุณาแจ้งผู้ดูแล','warning');
-    if((Number(stu.points) || 0) < Number(itm.price)) return Swal.fire('แต้มไม่พอ', `คุณต้องมีอย่างน้อย ${itm.price} แต้ม`, 'error').then(()=>openPointShop(studentId));
-
-    Swal.fire({
-        title: `ยืนยันการแลก "${itm.name}"?`,
-        text: `ใช้ ${itm.price} แต้มในการแลกเปลี่ยน`,
-        icon: 'question', showCancelButton: true, confirmButtonText: 'ยืนยันแลก', confirmButtonColor: '#10b981'
-    }).then(async res => {
-        if(res.isConfirmed) {
-            const pendingStorageKey = 'sssfn_shop_request_v1561_' + String(studentId).replace(/[^A-Za-z0-9_-]/g,'') + '_' + String(itm.id).replace(/[^A-Za-z0-9_-]/g,'');
-            let requestId = '';
-            try { requestId = sessionStorage.getItem(pendingStorageKey) || ''; } catch (ignore) {}
-            if (!requestId) {
-                requestId = 'shop_' + Date.now() + '_' + Math.random().toString(36).slice(2,12);
-                try { sessionStorage.setItem(pendingStorageKey,requestId); } catch (ignore) {}
-            }
-            Swal.fire({title:'กำลังแลกของรางวัล...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
-            try {
-                const result = await callBackend({action:'redeemPointShopItemV1561',itemId:String(itm.id),requestId:requestId,studentAuthToken:window.currentStudentAuthToken,clientId:'point-shop-v1561',clientContext:{userAgent:navigator.userAgent,platform:navigator.platform,language:navigator.language}});
-                if (!result || result.status !== 'success') throw new Error(result && result.message || 'ระบบไม่สามารถยืนยันการแลกได้');
-                try { sessionStorage.removeItem(pendingStorageKey); } catch (ignore) {}
-                await silentPullFromGS(false,true);
-                refreshAll();
-                const refreshedStudent = (students || []).find(row => String(row.id || '').replace(/-/g,'') === String(studentId || '').replace(/-/g,''));
-                Swal.fire({icon:'success',title:'แลกสำเร็จ',text:`${result.itemName || itm.name} · คะแนนคงเหลือ ${Number(result.pointBalance ?? (refreshedStudent && refreshedStudent.points) ?? 0).toLocaleString('th-TH')} แต้ม`,confirmButtonText:'ตกลง'}).then(()=>openPointShop(studentId));
-            } catch (error) {
-                Swal.fire('ยังยืนยันการแลกไม่ได้',String(error && error.message || error),'error');
-            }
-        }
-    });
+// ================= Point Shop Admin UI v15.6.49 =================
+function pointShopCanManageV15649_(){return ['leader','vice','treasurer'].includes(String(currentUserRole||''))&&!!window.currentAuthToken;}
+async function savePointShopCatalogV15649_(items){
+    if(!pointShopCanManageV15649_())throw new Error('เฉพาะหัวหน้า รองหัวหน้า หรือเหรัญญิกเท่านั้นที่จัดการร้านค้าได้');
+    const digitalItems=(Array.isArray(items)?items:[]).filter(item=>item&&['custom','shield'].includes(String(item.type||''))&&!item.legacyHidden);
+    const result=await callBackend({action:'savePointShopItemsV15649',shopItems:digitalItems,clientId:'point-shop-catalog-v15649'});
+    if(!result||result.status!=='success')throw new Error(result&&result.message||'บันทึกสินค้าไม่สำเร็จ');
+    await silentPullFromGS(false,true);refreshAll();return result;
+}
+function renderShopAdmin(){
+    const container=document.getElementById('admin-shop-list');if(!container)return;
+    const manager=document.getElementById('admin-pointshop-manager-v15649');
+    if(!pointShopCanManageV15649_()){container.innerHTML='<p class="text-xs text-slate-400">เฉพาะหัวหน้า รองหัวหน้า และเหรัญญิกเท่านั้นที่จัดการร้านค้าได้</p>';if(manager)manager.classList.add('hidden');return;}
+    if(manager)manager.classList.remove('hidden');
+    const items=Array.isArray(appSettings.shopItems)?appSettings.shopItems:[];
+    const digital=items.map((item,idx)=>({item,idx})).filter(x=>x.item&&['custom','shield'].includes(String(x.item.type||''))&&x.item.legacyHidden!==true);
+    container.innerHTML=digital.length?digital.map(({item,idx})=>`<div class="border p-3 rounded-xl bg-white shadow-sm flex justify-between items-center gap-3"><div class="min-w-0"><p class="font-bold text-slate-700">${pointShopEscapeV15649_(item.name)}</p><p class="text-xs text-slate-500 mt-1"><b class="text-amber-500">${Number(item.price||0)} คะแนน</b> · ${item.type==='shield'?'โล่ป้องกัน':'ไอเทมทั่วไป'} · รับเข้า ${Math.max(1,Number(item.value||1))} หน่วย/ชิ้น · ${item.stockEnabled===true?'คงเหลือ '+Number(item.stock||0):'ไม่จำกัด'} · ${item.active===false?'ปิดจำหน่าย':'เปิดขาย'}</p></div><div class="flex gap-1 shrink-0"><button onclick="editShopItem(${idx})" class="text-blue-500 w-8 h-8 rounded-full border" aria-label="แก้ไขสินค้า"><i class="fas fa-edit"></i></button><button onclick="deleteShopItem(${idx})" class="text-rose-500 w-8 h-8 rounded-full border" aria-label="ปิดสินค้า"><i class="fas fa-power-off"></i></button></div></div>`).join(''):'<div class="text-xs text-slate-400 border border-dashed rounded-xl p-4 text-center">ยังไม่มีสินค้า Digital</div>';
+    renderPointShopManagerV15649_();
+}
+async function editPointShopProductV15649_(index){
+    const current=(appSettings.shopItems||[])[index]||{};
+    const esc=pointShopEscapeV15649_;
+    const dialog=await Swal.fire({title:current.id?'แก้ไขสินค้า Digital':'สร้างสินค้า Digital',width:620,html:`<div class="text-left space-y-2"><label class="block text-xs font-bold">ชื่อสินค้า</label><input id="ps-name" class="swal2-input" style="width:100%;margin:0" value="${esc(current.name||'')}"><label class="block text-xs font-bold">คำอธิบาย</label><textarea id="ps-desc" class="swal2-textarea" style="width:100%;margin:0">${esc(current.desc||'')}</textarea><div class="grid grid-cols-2 gap-2"><div><label class="block text-xs font-bold">ประเภท</label><select id="ps-type" class="swal2-select" style="width:100%;margin:0"><option value="custom" ${current.type==='custom'?'selected':''}>ไอเทมทั่วไป</option><option value="shield" ${current.type==='shield'?'selected':''}>โล่ป้องกัน</option></select></div><div><label class="block text-xs font-bold">คะแนนที่ใช้แลก</label><input id="ps-price" type="number" min="1" class="swal2-input" style="width:100%;margin:0" value="${Number(current.price||100)}"></div><div><label class="block text-xs font-bold">จำนวนที่เพิ่มเข้า Inventory</label><input id="ps-value" type="number" min="1" class="swal2-input" style="width:100%;margin:0" value="${Number(current.value||1)}"></div><div><label class="block text-xs font-bold">จำกัดต่อคน (0=ไม่จำกัด)</label><input id="ps-max" type="number" min="0" class="swal2-input" style="width:100%;margin:0" value="${Number(current.maxPerStudent||0)}"></div></div><label class="block text-xs font-bold">URL รูปสินค้า (HTTPS)</label><input id="ps-image" class="swal2-input" style="width:100%;margin:0" value="${esc(current.imageUrl||'')}" placeholder="https://..."><label class="flex items-center gap-2 text-xs mt-2"><input id="ps-stock-enabled" type="checkbox" ${current.stockEnabled===true?'checked':''}> จำกัดจำนวนสต็อก</label><label class="block text-xs font-bold">สต็อกทั้งหมด</label><input id="ps-stock" type="number" min="0" class="swal2-input" style="width:100%;margin:0" value="${Number(current.stock||0)}"><label class="flex items-center gap-2 text-xs mt-2"><input id="ps-active" type="checkbox" ${current.active!==false?'checked':''}> เปิดจำหน่าย</label></div>`,showCancelButton:true,confirmButtonText:'บันทึกสินค้า',preConfirm:()=>{const name=document.getElementById('ps-name').value.trim(),price=Number(document.getElementById('ps-price').value),value=Number(document.getElementById('ps-value').value),stock=Number(document.getElementById('ps-stock').value),max=Number(document.getElementById('ps-max').value),imageUrl=document.getElementById('ps-image').value.trim();if(!name||name.length>100||!Number.isInteger(price)||price<1||!Number.isInteger(value)||value<1||!Number.isInteger(stock)||stock<0||!Number.isInteger(max)||max<0)return Swal.showValidationMessage('ตรวจสอบชื่อ ราคา มูลค่า และจำนวนให้ถูกต้อง');if(imageUrl&&!/^https:\/\//i.test(imageUrl))return Swal.showValidationMessage('URL รูปสินค้าต้องเป็น HTTPS');return{id:current.id||('item_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),name,desc:document.getElementById('ps-desc').value.trim(),type:document.getElementById('ps-type').value,price,value,stock,maxPerStudent:max,stockEnabled:document.getElementById('ps-stock-enabled').checked,active:document.getElementById('ps-active').checked,imageUrl};}});
+    if(!dialog.isConfirmed)return;
+    const items=Array.isArray(appSettings.shopItems)?appSettings.shopItems.map(x=>Object.assign({},x)):[];const idx=items.findIndex(x=>String(x.id)===String(dialog.value.id));if(idx>=0)items[idx]=dialog.value;else items.push(dialog.value);
+    try{Swal.fire({title:'กำลังบันทึกสินค้า...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const result=await savePointShopCatalogV15649_(items);Swal.fire({icon:'success',title:'บันทึกสินค้าแล้ว',text:result.message||'อัปเดต Point Shop แล้ว'});}catch(error){Swal.fire('บันทึกไม่สำเร็จ',String(error&&error.message||error),'error');}
+}
+function addNewShopItem(){if(!pointShopCanManageV15649_())return Swal.fire('ไม่มีสิทธิ์','ต้องเป็นหัวหน้า รองหัวหน้า หรือเหรัญญิก','warning');return editPointShopProductV15649_(-1);}
+function editShopItem(idx){if(!pointShopCanManageV15649_())return;return editPointShopProductV15649_(idx);}
+async function deleteShopItem(idx){
+    if(!pointShopCanManageV15649_())return;const item=(appSettings.shopItems||[])[idx];if(!item)return;
+    const confirm=await Swal.fire({title:item.active===false?'เปิดสินค้านี้อีกครั้ง?':'ปิดจำหน่ายสินค้านี้?',text:'ระบบจะเก็บข้อมูลสินค้าไว้เพื่อรักษาประวัติการแลกและการแจก',icon:'warning',showCancelButton:true,confirmButtonText:item.active===false?'เปิดจำหน่าย':'ปิดสินค้า',cancelButtonText:'ยกเลิก'});if(!confirm.isConfirmed)return;
+    const items=(appSettings.shopItems||[]).map(x=>Object.assign({},x));items[idx].active=item.active===false;try{const result=await savePointShopCatalogV15649_(items);Swal.fire({toast:true,position:'top-end',icon:'success',title:result.message||'อัปเดตสถานะแล้ว',showConfirmButton:false,timer:1600});}catch(error){Swal.fire('บันทึกไม่สำเร็จ',String(error&&error.message||error),'error');}
+}
+function renderPointShopManagerV15649_(){
+    const requestEl=document.getElementById('admin-pointshop-request-list-v15649');const historyEl=document.getElementById('admin-pointshop-history-v15649');if(!requestEl||!historyEl)return;
+    const rows=Array.isArray(pointShopRequests)?pointShopRequests:[];const statusText={pending:'รออนุมัติ',approved:'อนุมัติแล้ว',rejected:'ปฏิเสธ',cancelled:'ยกเลิก',granted:'แจกแล้ว'};
+    const pending=rows.filter(row=>row&&row.source==='student_redeem'&&row.status==='pending');
+    requestEl.innerHTML=pending.length?pending.map(row=>`<div class="bg-white border rounded-xl p-3 flex flex-wrap items-center justify-between gap-2"><div class="min-w-0"><b class="text-sm text-slate-800">${pointShopEscapeV15649_(row.itemName)}</b><p class="text-xs text-slate-500">${pointShopEscapeV15649_(row.studentName)} (${pointShopEscapeV15649_(row.studentId)}) · ${Number(row.quantity||1)} ชิ้น · ${Number(row.totalCost||0)} คะแนน</p><p class="text-[11px] text-slate-400">${pointShopEscapeV15649_(row.requestedAt||'')}</p></div><div class="flex gap-2"><button onclick="reviewPointShopRequestV15649_('${pointShopEscapeV15649_(row.id)}','approve')" class="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold">อนุมัติ</button><button onclick="reviewPointShopRequestV15649_('${pointShopEscapeV15649_(row.id)}','reject')" class="px-3 py-2 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold">ปฏิเสธ</button></div></div>`).join(''):'<p class="text-xs text-slate-400 text-center py-3">ไม่มีคำขอที่รออนุมัติ</p>';
+    historyEl.innerHTML=rows.length?rows.slice().sort((a,b)=>String(b.grantedAt||b.reviewedAt||b.requestedAt||'').localeCompare(String(a.grantedAt||a.reviewedAt||a.requestedAt||''))).slice(0,50).map(row=>`<div class="bg-white border rounded-lg p-2 text-xs flex justify-between gap-2"><div><b>${pointShopEscapeV15649_(row.itemName||'สินค้า')}</b><p class="text-slate-500">${pointShopEscapeV15649_(row.studentName||row.studentId||'')} · ${row.source==='admin_gift'?'แจกโดยผู้ดูแล':'แลกด้วยคะแนน'} · ${Number(row.quantity||1)} รายการ · เพิ่ม Inventory ${Number(row.inventoryUnitsAdded||((Number(row.quantity||1))*Number(row.itemValue||1)))} หน่วย</p><p class="text-slate-400">${pointShopEscapeV15649_(row.reason||row.reviewReason||row.requestedAt||'')}</p></div><span class="text-slate-500 shrink-0">${statusText[row.status]||row.status||'-'}</span></div>`).join(''):'<p class="text-xs text-slate-400 text-center py-3">ยังไม่มีประวัติ</p>';
+}
+async function reviewPointShopRequestV15649_(requestId,decision){
+    if(!pointShopCanManageV15649_())return;let reason='';if(decision==='reject'){const res=await Swal.fire({title:'ระบุเหตุผลที่ปฏิเสธ',input:'textarea',inputPlaceholder:'เหตุผล 3–300 ตัวอักษร',showCancelButton:true,confirmButtonText:'ยืนยันปฏิเสธ',preConfirm:value=>{const v=String(value||'').trim();if(v.length<3||v.length>300)return Swal.showValidationMessage('กรุณาระบุเหตุผล 3–300 ตัวอักษร');return v;}});if(!res.isConfirmed)return;reason=res.value;}else{const res=await Swal.fire({title:'อนุมัติคำขอแลกสินค้า?',text:'ระบบจะเพิ่มสินค้าเข้า Inventory และหักคะแนนจริงในขั้นตอนเดียวกัน',icon:'question',showCancelButton:true,confirmButtonText:'อนุมัติ'});if(!res.isConfirmed)return;}
+    try{Swal.fire({title:'กำลังดำเนินการ...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const result=await callBackend({action:'reviewPointShopRequestV15649',requestId:String(requestId),decision:decision,reason:reason,clientId:'point-shop-review-v15649'});if(!result||result.status!=='success')throw new Error(result&&result.message||'ดำเนินการไม่สำเร็จ');await silentPullFromGS(false,true);refreshAll();Swal.fire({icon:'success',title:'ดำเนินการแล้ว',text:result.message||'อัปเดตคำขอแล้ว'});}catch(error){Swal.fire('ดำเนินการไม่สำเร็จ',String(error&&error.message||error),'error');}
+}
+async function openPointShopDirectGrantV15649_(){
+    if(!pointShopCanManageV15649_())return Swal.fire('ไม่มีสิทธิ์','ต้องเป็นหัวหน้า รองหัวหน้า หรือเหรัญญิก','warning');
+    const products=(appSettings.shopItems||[]).filter(item=>item&&item.active!==false&&item.legacyHidden!==true&&['custom','shield'].includes(String(item.type||'')));
+    if(!products.length)return Swal.fire('ไม่มีสินค้า','กรุณาเพิ่มและเปิดใช้งานสินค้า Digital ก่อน','info');
+    const options=products.map(item=>`<option value="${pointShopEscapeV15649_(item.id)}">${pointShopEscapeV15649_(item.name)}</option>`).join('');
+    const studentsOptions=(students||[]).slice().sort((a,b)=>String(a.id||'').localeCompare(String(b.id||''))).map(stu=>`<option value="${pointShopEscapeV15649_(String(stu.id||'').replace(/-/g,''))}">${pointShopEscapeV15649_(stu.name||stu.id)} (${pointShopEscapeV15649_(stu.id)}) · ${pointShopEscapeV15649_(stu.room||'')}</option>`).join('');
+    const res=await Swal.fire({title:'แจกสินค้า Digital ให้นักศึกษา',width:650,html:`<div class="text-left space-y-2"><label class="block text-xs font-bold">สินค้า</label><select id="psg-item" class="swal2-select" style="width:100%;margin:0">${options}</select><label class="block text-xs font-bold">เลือกนักศึกษา (เลือกได้ 1–50 คน)</label><select id="psg-students" multiple size="9" class="swal2-select" style="width:100%;margin:0;height:190px">${studentsOptions}</select><p class="text-[11px] text-slate-400">ใช้ Ctrl หรือ Shift เพื่อเลือกหลายคน (Windows)</p><label class="block text-xs font-bold">จำนวนต่อคน</label><input id="psg-quantity" type="number" min="1" max="100" value="1" class="swal2-input" style="width:100%;margin:0"><label class="block text-xs font-bold">เหตุผลในการแจก (จำเป็น)</label><textarea id="psg-reason" class="swal2-textarea" style="width:100%;margin:0" placeholder="เช่น มอบรางวัลผู้เข้าร่วมกิจกรรมครบตามเกณฑ์"></textarea></div>`,showCancelButton:true,confirmButtonText:'ยืนยันแจกสินค้า',preConfirm:()=>{const selected=[...document.getElementById('psg-students').selectedOptions].map(o=>o.value);const quantity=Number(document.getElementById('psg-quantity').value);const reason=document.getElementById('psg-reason').value.trim();if(!selected.length||selected.length>50)return Swal.showValidationMessage('กรุณาเลือกนักศึกษา 1–50 คน');if(!Number.isInteger(quantity)||quantity<1||quantity>100)return Swal.showValidationMessage('จำนวนต้องอยู่ระหว่าง 1–100 ชิ้นต่อคน');if(reason.length<3||reason.length>300)return Swal.showValidationMessage('กรุณาระบุเหตุผล 3–300 ตัวอักษร');return{itemId:document.getElementById('psg-item').value,studentIds:selected,quantity,reason};}});
+    if(!res.isConfirmed)return;
+    const batchStorageKey='sssfn_pointshop_gift_pending_v15649';
+    const fingerprint=JSON.stringify({itemId:String(res.value.itemId),studentIds:res.value.studentIds.slice().sort(),quantity:Number(res.value.quantity),reason:String(res.value.reason)});
+    let batchId='';
+    try{const saved=JSON.parse(sessionStorage.getItem(batchStorageKey)||'null');if(saved&&saved.fingerprint===fingerprint&&/^[A-Za-z0-9_-]{12,100}$/.test(saved.batchId||''))batchId=saved.batchId;}catch(ignore){}
+    if(!batchId){batchId='gift_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12);try{sessionStorage.setItem(batchStorageKey,JSON.stringify({fingerprint,batchId}));}catch(ignore){}}
+    try{Swal.fire({title:'กำลังแจกสินค้า...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});const result=await callBackend({action:'grantPointShopItemV15649',batchId:batchId,...res.value,clientId:'point-shop-gift-v15649'});if(!result||result.status!=='success')throw new Error(result&&result.message||'แจกสินค้าไม่สำเร็จ');try{sessionStorage.removeItem(batchStorageKey);}catch(ignore){}await silentPullFromGS(false,true);refreshAll();Swal.fire({icon:'success',title:'แจกสินค้าแล้ว',text:`เพิ่มสินค้าให้ ${Number(result.grantedCount||0)} คน โดยไม่หักคะแนน`});}catch(error){Swal.fire('แจกสินค้าไม่สำเร็จ',String(error&&error.message||error),'error');}
 }
 
-// ================= จัดการร้านค้า (ADMIN) =================
-function renderShopAdmin() {
-    let container = document.getElementById('admin-shop-list');
-    if(!container) return;
-    if(!appSettings.shopItems) appSettings.shopItems = [];
-    
-    let html = '';
-    appSettings.shopItems.forEach((itm, idx) => {
-        let typeText = itm.type === 'deposit' ? 'เงินฝาก' : (itm.type === 'shield' ? 'โล่ป้องกัน' : 'ไอเทมทั่วไป');
-        let colorClass = itm.type === 'deposit' ? 'emerald' : (itm.type === 'shield' ? 'indigo' : 'blue');
-        
-        // (แก้ในฟังก์ชัน renderShopAdmin)
-        html += `
-        <div class="border p-3 rounded-xl bg-white shadow-sm flex justify-between items-center border-l-4 border-l-${colorClass}-500">
-            <div>
-                <p class="font-bold text-slate-700 leading-tight">${itm.name}</p>
-                <p class="text-xs text-slate-500 mt-1"><b class="text-amber-500">${itm.price} ✨</b> | ${typeText}</p>
-            </div>
-            <div class="flex gap-1 shrink-0">
-                <button onclick="editShopItem(${idx})" class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 w-8 h-8 rounded-full transition shadow-sm border border-slate-100 flex items-center justify-center" aria-label="แก้ไขรายการ"><i class="fas fa-edit"></i></button>
-                <button onclick="deleteShopItem(${idx})" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full transition shadow-sm border border-slate-100 flex items-center justify-center" aria-label="ลบรายการ"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function addNewShopItem() {
-    Swal.fire({
-        title: '📦 สร้างสินค้าใหม่',
-        html: `
-            <div class="text-left space-y-3 mt-3">
-                <div><label class="text-xs font-bold text-slate-500">ชื่อสินค้า / สิทธิพิเศษ</label><input id="swal-shop-name" class="modern-input mb-0" placeholder="เช่น บัตรลางาน, บัตรกันสาย"></div>
-                <div><label class="text-xs font-bold text-slate-500">ราคา (แต้ม ✨)</label><input type="number" inputmode="numeric" id="swal-shop-price" class="modern-input mb-0" placeholder="เช่น 150"></div>
-                <div><label class="text-xs font-bold text-slate-500">คำอธิบายสั้นๆ</label><input id="swal-shop-desc" class="modern-input mb-0" placeholder="เช่น ใช้แสดงเพื่อลบประวัติมาสาย 1 ครั้ง"></div>
-                <div><label class="text-xs font-bold text-slate-500">ประเภทไอเทม</label>
-                <select id="swal-shop-type" class="modern-input mb-0 font-bold text-slate-600">
-                    <option value="custom">ไอเทมทั่วไป (เก็บเข้ากระเป๋า นำไปใช้โชว์ได้)</option>
-                    <option value="deposit">เงินฝาก (ทบเงินกองกลางอัตโนมัติ)</option>
-                    <option value="shield">โล่ป้องกัน (ข้ามชื่อระบบ Lucky Draw)</option>
-                </select></div>
-                <div><label class="text-xs font-bold text-slate-500">มูลค่าที่ได้รับ</label><input type="number" inputmode="numeric" id="swal-shop-val" class="modern-input mb-0" value="1" placeholder="ได้ของกี่ชิ้น หรือได้เงินกี่บาท"></div>
-            </div>
-        `,
-        showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#4f46e5',
-        preConfirm: () => {
-            let name = document.getElementById('swal-shop-name').value.trim();
-            let price = parseInt(document.getElementById('swal-shop-price').value);
-            if(!name || isNaN(price)) return Swal.showValidationMessage('กรุณากรอกชื่อและราคาให้ครบถ้วน');
-            return {
-                id: 'item_' + Date.now(),
-                name: name, price: price,
-                desc: document.getElementById('swal-shop-desc').value.trim() || 'สินค้าสิทธิพิเศษ',
-                type: document.getElementById('swal-shop-type').value,
-                value: parseInt(document.getElementById('swal-shop-val').value) || 1
-            }
-        }
-    }).then(res => {
-        if(res.isConfirmed) {
-            let itm = res.value;
-            itm.icon = itm.type === 'deposit' ? 'fa-coins' : (itm.type === 'shield' ? 'fa-shield-alt' : 'fa-box-open');
-            itm.color = itm.type === 'deposit' ? 'emerald' : (itm.type === 'shield' ? 'indigo' : 'blue');
-            if(!appSettings.shopItems) appSettings.shopItems = [];
-            appSettings.shopItems.push(itm);
-            saveToLocal(true); renderShopAdmin();
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'เพิ่มสินค้าแล้ว', showConfirmButton:false, timer:1500});
-        }
-    });
-}
-
-function deleteShopItem(idx) {
-    Swal.fire({title: 'ลบสินค้านี้?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบทิ้ง', confirmButtonColor: '#ef4444'}).then(res => {
-        if(res.isConfirmed) { appSettings.shopItems.splice(idx, 1); saveToLocal(true); renderShopAdmin(); }
-    });
-}
-// ✏️ ฟังก์ชันแก้ไขสินค้าเดิม
-function editShopItem(idx) {
-    let itm = appSettings.shopItems[idx];
-    if(!itm) return;
-
-    Swal.fire({
-        title: '✏️ แก้ไขข้อมูลสินค้า',
-        html: `
-            <div class="text-left space-y-3 mt-3">
-                <div><label class="text-xs font-bold text-slate-500">ชื่อสินค้า / สิทธิพิเศษ</label>
-                <input id="edit-shop-name" class="modern-input mb-0" value="${itm.name}"></div>
-                
-                <div><label class="text-xs font-bold text-slate-500">ราคา (แต้ม ✨)</label>
-                <input type="number" inputmode="numeric" id="edit-shop-price" class="modern-input mb-0" value="${itm.price}"></div>
-                
-                <div><label class="text-xs font-bold text-slate-500">คำอธิบายสั้นๆ</label>
-                <input id="edit-shop-desc" class="modern-input mb-0" value="${itm.desc || ''}"></div>
-                
-                <div class="p-2 bg-slate-50 border rounded-lg mt-2 text-xs text-slate-500 text-center">
-                    <i class="fas fa-info-circle mr-1"></i> (ไม่สามารถเปลี่ยนประเภทไอเทมได้ หากต้องการเปลี่ยนกรุณาลบแล้วสร้างใหม่)
-                </div>
-            </div>
-        `,
-        showCancelButton: true, confirmButtonText: 'บันทึกการแก้ไข', confirmButtonColor: '#3b82f6',
-        preConfirm: () => {
-            let name = document.getElementById('edit-shop-name').value.trim();
-            let price = parseInt(document.getElementById('edit-shop-price').value);
-            if(!name || isNaN(price)) return Swal.showValidationMessage('กรุณากรอกชื่อและราคาให้ครบถ้วน');
-            return { name: name, price: price, desc: document.getElementById('edit-shop-desc').value.trim() };
-        }
-    }).then(res => {
-        if(res.isConfirmed) {
-            // อัปเดตข้อมูลทับของเดิม
-            appSettings.shopItems[idx].name = res.value.name;
-            appSettings.shopItems[idx].price = res.value.price;
-            appSettings.shopItems[idx].desc = res.value.desc;
-            
-            saveToLocal(true); renderShopAdmin(); // เซฟและโหลดหน้าใหม่
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'บันทึกการแก้ไขแล้ว', showConfirmButton:false, timer:1500});
-        }
-    });
-}
-
-// ================= อัปโหลดสลิปยอดฝากโดยแอดมิน (แก้ไขให้ใช้ callBackend แทน google.script.run) =================
 function openAdminDepositUpload() {
     let stuOptions = students.map(s => `<option value="${s.id} - ${s.name} (ห้อง ${s.room})"></option>`).join('');
     
